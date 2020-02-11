@@ -1,0 +1,13 @@
+# vs code config
+__pycache__
+.vscode
+
+# my private data
+feeds
+config.json
+
+# not published
+install.sh
+
+# just temp file
+test.*
