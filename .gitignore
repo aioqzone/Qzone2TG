@@ -11,3 +11,5 @@ install.sh
 
 # just temp file
 test.*
+*.html
+*.xml

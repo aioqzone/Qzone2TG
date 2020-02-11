@@ -48,12 +48,16 @@
 
 ### 手动安装
 
-
 ``` shell
 # 安装依赖
 pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml
 # clone本项目
-git clone 
+git clone https://github.com/JamzumSum/Qzone2TG.git
+cd Qzone2TG
+# 建立配置文档
+cp example.conf config.conf
+vim config.conf     # 这里需要一个趁手的编辑器
+# balabala, 改完就算好了
 ```
 
 ## 运行
@@ -96,7 +100,7 @@ git clone
 
 #### 详细配置
 
-请参考[wiki]()
+请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
 
 ### 启动
 
@@ -112,5 +116,7 @@ python3 tg.py
 @bufuchangfeng [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py)
 
 ## License
+
+[MIT License](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
 
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
