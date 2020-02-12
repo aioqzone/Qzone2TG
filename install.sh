@@ -7,10 +7,10 @@ else; return 1
 fi
 # install python and git
 if ${useapt}; then 
-apt update $ apt upgrade
+apt update && apt upgrade
 apt install -y python3 python3-pip git
 elif ${useyum}; then
-yum update & yum upgrade
+yum update && yum upgrade
 yum install -y python3 python3-pip git
 fi
 # install dependency
