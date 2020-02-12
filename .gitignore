@@ -6,9 +6,6 @@ __pycache__
 feeds
 config.json
 
-# not published
-install.sh
-
 # just temp file
 test.*
 *.html
