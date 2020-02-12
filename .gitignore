@@ -5,6 +5,8 @@ __pycache__
 # my private data
 feeds
 config.json
+cookie.json
+test/botTest.py
 
 # just temp file
 test.*
