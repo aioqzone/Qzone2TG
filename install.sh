@@ -12,7 +12,7 @@ yum update && yum upgrade
 yum install -y python3 python3-pip git
 fi
 # install dependency
-pip3 install -y python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
+pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
 # clone source code
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
@@ -22,6 +22,6 @@ conf=$(cat example.json)
 read -p "Enter your QQ number: " QQ
 read -p "Enter your bot token: " token
 #save config
-echo $conf > config.json
+echo $(printf "${conf}" ${QQ} ${token}) > config.json
 echo "configuration done."
 echo "if you'd like use a proxy, see https://github.com/JamzumSum/Qzone2TG#%E7%AE%80%E5%8D%95%E5%BC%80%E5%A7%8B"

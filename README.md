@@ -115,6 +115,18 @@ python3 tg.py
 
 注意, 您的密码将在配置文件中以 __弱加密__ 存储. 此时其安全性等同于您的操作系统安全性. 换言之, 有权限浏览您配置文件的用户 __完全可能获知您的密码__.
 
+## 卸载
+
+如果您需要完全删除Qzone2TG, 删除整个文件夹即可.
+
+1. 删除clone的源文件夹, 通常叫`Qzone2TG`
+2. _可选的_  删除安装的依赖
+
+    ``` shell
+    #您可以自行选择卸载哪些扩展.
+    pip uninstall python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
+    ```
+
 ## Credits
 
 @bufuchangfeng [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py)
