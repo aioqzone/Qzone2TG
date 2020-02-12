@@ -40,11 +40,15 @@
 
 ## 安装
 
-请确保安装了`python3`和对应的`pip`.
+请确保安装了`git`, `python3`和对应的`pip`.
 
 ### 使用shell脚本
 
-> 安装脚本马上就来
+``` shell
+wget https://raw.githubusercontent.com/JamzumSum/Qzone2TG/master/install.sh
+chmod +x install.sh
+bash install.sh
+```
 
 ### 手动安装
 
@@ -57,7 +61,7 @@ cd Qzone2TG
 # 建立配置文档
 cp example.conf config.conf
 vim config.conf     # 这里需要一个趁手的编辑器
-# balabala, 改完就算好了
+# 填写qq, tg bot token, 以及可选的代理
 ```
 
 ## 运行

@@ -1,9 +1,7 @@
-# assert type
-if [! type type]; then return 1; fi
 # apt or yum
 if type apt; then useapt=true
 elif type yum; then useyum=true
-else; return 1
+else return 1
 fi
 # install python and git
 if ${useapt}; then 
@@ -14,16 +12,16 @@ yum update && yum upgrade
 yum install -y python3 python3-pip git
 fi
 # install dependency
-pip3 install -y python-telegram-bot python-telegram-bot[socks] selenium demjson lxml
+pip3 install -y python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
 # clone source code
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
 # read file
 conf=$(cat example.json)
 # get qq
-read -p "Enter your QQ number:" QQ
-read -p "Enter your bot token:" token
+read -p "Enter your QQ number: " QQ
+read -p "Enter your bot token: " token
 #save config
-echo conf > config.json
+echo $conf > config.json
 echo "configuration done."
 echo "if you'd like use a proxy, see https://github.com/JamzumSum/Qzone2TG#%E7%AE%80%E5%8D%95%E5%BC%80%E5%A7%8B"

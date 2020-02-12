@@ -5,7 +5,7 @@ import telegram
 import logging, time
 from telegram.ext import Updater
 
-from config import bot
+from config import bot as botConf
 from feed import day_stamp, fetchNewFeeds, likeAFile, like as do_like
 import qzone
 
@@ -106,15 +106,18 @@ class PollingBot:
     update: Updater
 
     def __init__(self, token: str):
-        self.update = Updater(token, use_context=True, request_kwargs=bot.get('proxy', None))
+        self.update = Updater(token, use_context=True, request_kwargs=botConf.get('proxy', None))
         dispatcher = self.update.dispatcher
         dispatcher.add_handler(telegram.ext.CommandHandler("start", start))
         dispatcher.add_handler(telegram.ext.CommandHandler("refresh", refresh))
         dispatcher.add_handler(telegram.ext.CallbackQueryHandler(like))
 
     def start(self):
-        self.update.start_polling()
-        logger.info("start polling")
-        self.update.idle()
+        if botConf["method"] == "polling":
+            self.update.start_polling()
+            logger.info("start polling")
+            self.update.idle()
+        elif botConf["method"] == "webhook":
+            raise NotImplementedError("Webhook is not available now.")
 
-PollingBot(bot["token"]).start()
+PollingBot(botConf["token"]).start()
