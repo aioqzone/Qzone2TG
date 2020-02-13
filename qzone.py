@@ -75,14 +75,9 @@ def login():
     back_url = driver.find_element_by_id('slideBg').get_attribute('src')
     full_url = back_url.replace('hycdn_1', 'hycdn_0')
 
-    r = requests.get(back_url)
-    back_bytes = r.content
+    w = get_image_difference(back_url, full_url)
 
-    r.status_code = 500
-    while 200 != r.status_code: r = requests.get(full_url)
-    r, w = get_image_difference(back_bytes, r.content)
-
-    if r is False:
+    if w < 0:
         logger.error("跳过验证失败: 两图完全相同")
         driver.close(); driver.quit()
         return

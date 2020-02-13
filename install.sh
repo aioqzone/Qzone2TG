@@ -12,7 +12,7 @@ yum update && yum upgrade
 yum install -y python3 python3-pip git
 fi
 # install dependency
-pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
+pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml opencv-python
 # clone source code
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG

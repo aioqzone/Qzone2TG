@@ -54,7 +54,7 @@ bash install.sh
 
 ``` shell
 # 安装依赖
-pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml
+pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml opencv-python
 # clone本项目
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG

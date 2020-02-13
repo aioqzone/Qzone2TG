@@ -20,7 +20,7 @@ def make_link(txt, link)-> str:
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
     for i in range(len(img)):
         try: bot.send_photo(chat_id = chat, photo = img[i], caption = caption.format(i+1), disable_notification = True)
-        except telegram.error.BadRequest: 
+        except telegram.error.BadRequest, telegram.error.TimedOut: 
             bot.send_message(
                 chat_id = chat,
                 text = caption.format(i+1) + br + 'Bot complains: cannot fetch ' + make_link("picture", img[i]), 
@@ -114,10 +114,17 @@ class PollingBot:
 
     def start(self):
         if botConf["method"] == "polling":
-            self.update.start_polling()
-            logger.info("start polling")
-            self.update.idle()
+            self.polling()
         elif botConf["method"] == "webhook":
             raise NotImplementedError("Webhook is not available now.")
+
+    def polling(self):
+        try: self.update.start_polling()
+        except telegram.error.NetworkError as e:
+            logger.error(e.message)
+            self.update.stop()
+            return
+        logger.info("start polling")
+        self.update.idle()
 
 PollingBot(botConf["token"]).start()

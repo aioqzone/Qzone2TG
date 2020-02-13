@@ -1,17 +1,19 @@
-from PIL import Image
-from io import BytesIO
+import numpy as np
+import cv2 as cv
 
-def get_image_difference(back_bytes, full_bytes):
-    back_img = Image.open(BytesIO(back_bytes))
-    full_img = Image.open(BytesIO(full_bytes))
-    width, height = full_img.size
+def read(url: str)-> np.ndarray:
+    cap = cv.VideoCapture(url)
+    if not cap.isOpened(): raise RuntimeError("url not opened")
+    return cap.read()[1]
+    
+def get_image_difference(back_url, full_url):
+    back = cv.cvtColor(read(back_url), cv.COLOR_BGR2GRAY)
+    full = cv.cvtColor(read(full_url), cv.COLOR_BGR2GRAY)
 
-    for w in range(0, width):
-        for h in range(0, height):
-            back_pixel = back_img.getpixel((w, h))
-            full_pixel = full_img.getpixel((w, h))
+    d = full - back
+    cont, hier = cv.findContours(d[10:,340:], cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
 
-            if back_pixel != full_pixel and w > 340 and h > 10 and abs(back_pixel[0]-full_pixel[0])>50 and abs(back_pixel[1]-full_pixel[1])>50 and abs(back_pixel[2]-full_pixel[2])>50:
-                return True, w
+    cont = max(cont, key = cv.contourArea)
+    rect = cv.boundingRect(cont)
 
-    return False, -1
+    return rect[0] + 340

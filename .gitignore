@@ -12,3 +12,4 @@ test/botTest.py
 test.*
 *.html
 *.xml
+*.log
