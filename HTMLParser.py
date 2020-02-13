@@ -7,16 +7,19 @@ from lxml.html import HtmlElement, fromstring, tostring
 
 logger = logging.getLogger(__name__)
 
-face = {}
-with open("qq_face.json") as f:
-    face = json.load(f)
+face = {}; emoji = {}
+with open("qq_face.json") as f: face = json.load(f)
+with open("emoji.json") as f: emoji = json.load(f)
 
-def transEmoji(name: str):
+def transEmoji(name: str)-> str:
     if name.endswith(".png"): 
         return face.get(name, "[/表情]")
     elif name.endswith(".gif"):
-        logger.warning('new gif: ' + name)
-        return "[/表情]"
+        if name in emoji:
+            return emoji[name]
+        else:
+            logger.warning('new gif: ' + name)
+            return "[/表情]"
 
 def elm2txt(elm: list, richText = True)-> str:
     "elm: Iterable[HtmlElement]"
@@ -76,12 +79,17 @@ class HTMLParser:
         ls = self.src.xpath('//div[@class="f-ct "]//div[@class="%s"]/node()' % ls.attrib['class'])
         for i in range(len(ls)):
             a = ls.pop(0)
-            if isinstance(a, HtmlElement) and a.tag == 'a' and a.attrib['class'].startswith('nickname'): 
-                link = a.attrib['href']; nick = a.text.strip()
-                break
+            if isinstance(a, HtmlElement):
+                if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
+                    a = find_if(a, lambda i: i.attrib['class'].startswith('nickname'))
+                if a.tag == 'a' and a.attrib['class'].startswith('nickname'): 
+                    link = a.attrib['href']; nick = a.text.strip()
+                    break
+            
         if not ls: return 
-        ls.pop(0)
-        return nick, link, elm2txt(ls)
+        ls: str = elm2txt(ls)
+        ls = ls.strip('：').strip()
+        return nick, link, ls
         
     def hasNext(self)-> bool:
         txt: HtmlElement = self.src.xpath('//div[starts-with(@class,"f-single-content")]//a[@data-cmd="qz_toggle"]')

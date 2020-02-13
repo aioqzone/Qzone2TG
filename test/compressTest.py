@@ -1,7 +1,7 @@
 from compress import LikeId as id
 
-l = id(311, 5, "0fae732e6aa03f5e32480d00", "http://user.qzone.qq.com/1113426273/mood/61895d42256e3f5ef3af0d00", 
-"http://user.qzone.qq.com/779333135/mood/0fae732e6aa03f5e32480d00")
+l = id(311, 5, "1d5bbd5344fc435e2dd90d00", "http://user.qzone.qq.com/188867099/mood/1be2410be0f6435e9f220900", 
+"http://user.qzone.qq.com/1404918557/mood/1d5bbd5344fc435e2dd90d00")
 
 s = l.tostr()
 print(s)
