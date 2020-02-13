@@ -85,7 +85,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
 def onFetch(bot: telegram.Bot, chat: int, reload: bool):
     cmd = "force-refresh" if reload else "refresh"
 
-    if chat in botConf["accepted_id"]:
+    if str(chat) in botConf["accepted_id"]:
         logger.info("%d: start %s" % (chat, cmd))
     else:
         logger.info("%d: illegal access")

@@ -21,7 +21,8 @@ conf=$(cat example.json)
 # get qq
 read -p "Enter your QQ number: " QQ
 read -p "Enter your bot token: " token
+read -p "Enter your userId: " id
 #save config
-echo $(printf "${conf}" ${QQ} ${token}) > config.json
+echo $(printf "${conf}" ${QQ} ${token} ${id}) > config.json
 echo "configuration done."
 echo "if you'd like use a proxy, see https://github.com/JamzumSum/Qzone2TG#%E7%AE%80%E5%8D%95%E5%BC%80%E5%A7%8B"

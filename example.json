@@ -11,6 +11,7 @@
     },
     "bot": {
         "token": "%s",
+        "accepted_id": ["%s"],
         "method": "polling"
     }
 }

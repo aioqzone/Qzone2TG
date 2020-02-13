@@ -61,7 +61,7 @@ cd Qzone2TG
 # 建立配置文档
 cp example.conf config.conf
 vim config.conf     # 这里需要一个趁手的编辑器
-# 填写qq, tg bot token, 以及可选的代理
+# 填写qq, tg bot token, userId, 以及可选的代理
 ```
 
 ## 运行
@@ -84,6 +84,7 @@ vim config.conf     # 这里需要一个趁手的编辑器
     },
     "bot": {
         "token": "这里填bot token",
+        "accepted_id": ["这里填用户ID(或是其他chat id)"],
         "proxy": {
             "proxy_url": "socks5://127.0.0.1:1080"
         },
@@ -98,7 +99,8 @@ vim config.conf     # 这里需要一个趁手的编辑器
 
 1. 配置`qzone`条目下的`qq`项
 2. 配置`bot`条目下的`token`项
-3. 如果你使用代理, 还要配置`bot`条目下的`proxy`. 支持`http`, `socks5`, `socks5h`. 如果你的代理需要认证的话, 请一并参见下方链接:
+3. 配置`bot`条目下的`accepted_id`项
+4. 如果你使用代理, 还要配置`bot`条目下的`proxy`. 支持`http`, `socks5`, `socks5h`. 如果你的代理需要认证的话, 请一并参见下方链接:
 
 [Working Behind a Proxy][1]
 
