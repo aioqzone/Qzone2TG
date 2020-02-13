@@ -46,11 +46,13 @@ def change_cookie(cookie):
 
 def login():
     chrome_options = Options()
-    #chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument("log-level=%d" % config.qzone["log_level"])
     driver = webdriver.Chrome(options=chrome_options)
 
+    logger.info("等待登陆界面加载")
     driver.get('https://qzone.qq.com/')
+    logger.info("登陆界面加载完成")
 
     driver.switch_to.frame('login_frame')
 
@@ -87,6 +89,7 @@ def login():
     ActionChains(driver).move_by_offset(xoffset=w / 700 * 250, yoffset=0).perform()
     ActionChains(driver).release(slide).perform()
 
+    logger.info("等待跳转至Qzone")
     try: WebDriverWait(driver, 5, 0.5, RuntimeError).until(
         lambda dr: ("user.qzone.qq.com/" + config.qzone["qq"]) in driver.current_url, 
         "登陆失败: 未跳转至QZone."
@@ -96,7 +99,7 @@ def login():
         driver.close(); driver.quit()
         return
 
-    logger.info('成功跳过验证')
+    logger.info('跳转成功 (成功混过验证')
     cookie = driver.get_cookies()
     qzonetoken = driver.execute_script('return window.g_qzonetoken')
 
