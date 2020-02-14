@@ -41,15 +41,19 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
     psr = parser(feed["html"])
     msg += psr.parseText()
 
-    if int(feed["appid"]) == 311:
-        likeid = LikeId(311, int(feed['typeid']), feed['key'], psr.unikey(), psr.curkey()).tostr()
+    if psr.isLike(): 
+        msg += br + '❤'
+        rpl = None
     else:
-        #likeid = '0%d/%d' % (day_stamp(int(feed["abstime"])), feed["hash"])
-        likeid = None
-    btnLike = telegram.InlineKeyboardButton(
-        "Like", 
-        callback_data = likeid
-    )
+        if int(feed["appid"]) == 311:
+            likeid = LikeId(311, int(feed['typeid']), feed['key'], psr.unikey(), psr.curkey()).tostr()
+        else:
+            likeid = '%d/%d' % (day_stamp(int(feed["abstime"])), feed["hash"])
+        btnLike = telegram.InlineKeyboardButton(
+            "Like", 
+            callback_data = likeid
+        )
+        rpl = telegram.InlineKeyboardMarkup([[btnLike]])
 
     if int(feed['typeid']) == 5:
         #TODO: forward
@@ -67,8 +71,6 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
     if len(img) == 1: msg += br + make_link('P1', img[0])
     elif img: msg += br + "(bot温馨提示: 多图预警x%d)" % len(img)
 
-    rpl = telegram.InlineKeyboardMarkup([[btnLike]])
-    
     try:
         bot.send_message(
             chat_id = chat, text = msg, parse_mode=telegram.ParseMode.HTML, disable_web_page_preview = len(img) != 1,

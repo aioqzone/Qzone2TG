@@ -4,5 +4,5 @@ import json, re
 
 with open("test.html", encoding="utf-8") as f:
     psr = HTMLParser(f)
-    r = psr.parseForward()
-    print(r[2])
+    r = psr.isLike()
+    print(r)

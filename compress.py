@@ -16,6 +16,8 @@ class IDs(Compress):
     appid: int
     typeid: int
     def __init__(self, appid, typeid):
+        assert 0 <= appid < 4096
+        assert 0 <= typeid < 16
         self.appid = appid; self.typeid = typeid
 
     def tobytes(self):
@@ -90,7 +92,7 @@ class LikeId(Compress):
         "decoding in ascii(128 chars)"
         b = zlib.compress(self.tobytes(), 9)
         assert len(b) <= 48
-        return base64.b64encode(b).decode(encoding)
+        return base64.b64encode(b, b'!-').decode(encoding)
 
     @staticmethod
     def frombytes(b: dict):
@@ -107,6 +109,6 @@ class LikeId(Compress):
         
     @staticmethod
     def fromstr(s: str):
-        b = base64.b64decode(bytes(s, encoding = encoding))
+        b = base64.b64decode(bytes(s, encoding = encoding), b'!-')
         assert len(b) <= 48
         return LikeId.frombytes(zlib.decompress(b))

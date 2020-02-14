@@ -125,6 +125,11 @@ class HTMLParser:
         assert l
         return l[0]
 
+    def isLike(self):
+        l = self.src.xpath('//div[@class="f-single-foot"]//p[@class="op-list"]/a[starts-with(@class,"item qz_like_btn")]/@data-clicklog')[0]
+        if l == "like": return False
+        elif l == "cancellike": return True
+
     @staticmethod
     def url2unicode(m: re.Match):
         return "" if m is None else transEmoji(m.group(1))
