@@ -6,7 +6,7 @@ def read(url: str)-> np.ndarray:
     if not cap.isOpened(): raise RuntimeError("url not opened")
     return cap.read()[1]
     
-def get_image_difference(back_url, full_url):
+def imgcmp(back_url, full_url):
     back = cv.cvtColor(read(back_url), cv.COLOR_BGR2GRAY)
     full = cv.cvtColor(read(full_url), cv.COLOR_BGR2GRAY)
 

@@ -17,7 +17,7 @@ pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxm
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
 # read file
-conf=$(cat example.json)
+conf=$(cat misc/example.json)
 # get qq
 read -p "Enter your QQ number: " QQ
 read -p "Enter your bot token: " token

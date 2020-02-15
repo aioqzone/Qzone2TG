@@ -8,8 +8,8 @@ from lxml.html import HtmlElement, fromstring, tostring
 logger = logging.getLogger(__name__)
 
 face = {}; emoji = {}
-with open("qq_face.json") as f: face = json.load(f)
-with open("emoji.json") as f: emoji = json.load(f)
+with open("misc/qq_face.json") as f: face = json.load(f)
+with open("misc/emoji.json") as f: emoji = json.load(f)
 
 def transEmoji(name: str)-> str:
     if name.endswith(".png"): 

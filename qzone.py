@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
-from comp_pic import get_image_difference
+from Jigsaw import imgcmp
 from urllib import parse
 from compress import LikeId
 from HTMLParser import HTMLParser as parser
@@ -40,7 +40,7 @@ def cal_gtk(p_skey):
 
 
 def change_cookie(cookie):
-    skip = ["timestamp", "qzonetoken"]
+    skip = ["timestamp", "qzonetoken", "gtk"]
     s = '; '.join([k + '=' + v for k, v in cookie.items() if k not in skip])
     return s
 
@@ -77,7 +77,7 @@ def login():
     back_url = driver.find_element_by_id('slideBg').get_attribute('src')
     full_url = back_url.replace('hycdn_1', 'hycdn_0')
 
-    w = get_image_difference(back_url, full_url)
+    w = imgcmp(back_url, full_url)
 
     if w < 0:
         logger.error("跳过验证失败: 两图完全相同")
@@ -162,11 +162,12 @@ def get_args(force_login = False):
         if "p_skey" not in cookie: raise RuntimeError("登陆失败: 或许可以重新登陆.")
         logger.info('取得cookie')
         cookie["timestamp"] = time.time()
+        cookie["gtk"] = cal_gtk(cookie["p_skey"])
         with open("cookie.json", "w") as f: json.dump(cookie, f)
     else:
         logger.info("使用缓存cookie")
 
-    gtk = cal_gtk(cookie["p_skey"])
+    gtk = cookie.get("gtk", cal_gtk(cookie["p_skey"]))
     qzonetoken = cookie["qzonetoken"]
     cookie = change_cookie(cookie)
 
@@ -211,8 +212,10 @@ def parseExternParam(unquoted: str)-> dict:
 
 def get_content(headers: dict, gtk: int, qzonetoken: str, pagenum: int):
     url = "https://user.qzone.qq.com"
-    url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
-    arg = "uin={uin}&scope=0&view=1&daylist=&uinlist=&gid=&flag=1&filter=all&applist=all&refresh=0&aisortEndTime=0&aisortOffset=0&getAisort=0&aisortBeginTime=0&pagenum={pagenum}&externparam={externparam}&firstGetGroup=0&icServerTime=0&mixnocache=0&scene=0&begintime={begintime}&count=10&dayspac=undefined&sidomain=qzonestyle.gtimg.cn&useutf8=1&outputhtmlfeed=1&usertime={usertime}&qzonetoken={qzonetoken}&g_tk={g_tk}"
+    url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?uin={uin}&scope=0&view=1&daylist=&uinlist=&gid=&flag=1"
+    arg = "&filter=all&applist=all&refresh=0&aisortEndTime=0&aisortOffset=0&getAisort=0&aisortBeginTime=0&pagenum={pagenum}"
+    arg += "&externparam={externparam}&firstGetGroup=0&icServerTime=0&mixnocache=0&scene=0&begintime={begintime}&count=10&dayspac=undefined"
+    arg += "&sidomain=qzonestyle.gtimg.cn&useutf8=1&outputhtmlfeed=1&usertime={usertime}&qzonetoken={qzonetoken}&g_tk={g_tk}"
     data = []
     html = []
     def savehtml(m: re.Match):

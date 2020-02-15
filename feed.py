@@ -119,6 +119,3 @@ def likeAFile(fname: str)-> bool:
 
     psr = parser(feed['html'])
     return like(LikeId(int(feed['appid']), int(feed['typeid']), feed['key'], psr.unikey(), psr.curkey()))
-
-if __name__ == "__main__":
-    fetchNewFeeds(True)

@@ -67,7 +67,7 @@ pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxm
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
 # 建立配置文档
-cp example.conf config.conf
+cp misc/example.conf config.conf
 vim config.conf     # 这里需要一个趁手的编辑器
 # 填写qq, tg bot token, userId, 以及可选的代理
 ```

@@ -1,13 +1,18 @@
+import logging
+import time
 from HTMLParser import HTMLParser as parser
-from compress import LikeId
 
 import telegram
-import logging, time
-from telegram.ext import Updater
+from telegram.error import BadRequest, TimedOut
+from telegram.ext import (CallbackContext, CallbackQueryHandler,
+                          CommandHandler, Updater)
 
-from config import bot as botConf
-from feed import day_stamp, fetchNewFeeds, likeAFile, like as do_like
 import qzone
+from compress import LikeId
+from config import bot as botConf
+from feed import day_stamp, fetchNewFeeds
+from feed import like as do_like
+from feed import likeAFile
 
 br = '\n'
 logger = logging.getLogger("telegram")
@@ -20,14 +25,14 @@ def make_link(txt, link)-> str:
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
     for i in range(len(img)):
         try: bot.send_photo(chat_id = chat, photo = img[i], caption = caption.format(i+1), disable_notification = True)
-        except telegram.error.BadRequest: 
+        except BadRequest: 
             bot.send_message(
                 chat_id = chat,
                 text = caption.format(i+1) + br + '(bot温馨提示: %s好像没发过来?)' % make_link("图片", img[i]), 
                 disable_web_page_preview = False, 
                 parse_mode = telegram.ParseMode.HTML
             )
-        except telegram.error.TimedOut as e:
+        except TimedOut as e:
             logger.warning(e.message)
 
 def send_feed(bot: telegram.Bot, chat, feed: dict):
@@ -78,7 +83,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
         )
     except telegram.error.NetworkError as e:
         logger.error(str(feed["hash"]) + ': ' + e.message)
-    except telegram.error.TimedOut as e:
+    except TimedOut as e:
         logger.warning(e.message)
 
     if len(img) > 1:
@@ -103,7 +108,7 @@ def onFetch(bot: telegram.Bot, chat: int, reload: bool):
     )
     logger.info("%s end" % cmd)
 
-def refresh(update: telegram.Update, context: telegram.ext.CallbackContext):
+def refresh(update: telegram.Update, context: CallbackContext):
     onFetch(context.bot, update.effective_chat.id, False)
 
 def start(update: telegram.Update, context):
@@ -113,10 +118,21 @@ def like(update: telegram.Update, context):
     logger.info("like post start")
     query: telegram.CallbackQuery = update.callback_query
     data: str = query.data
-    if not do_like(LikeId.fromstr(data)):
-        query.answer(text = 'Failed to send like post.')
+    if '/' in data:
+        try:
+            if not likeAFile(data + ".json"): 
+                query.answer(text = 'Failed to send like post.')
+                return
+        except FileNotFoundError:
+            from config import feed as fConf
+            query.answer(text = "该应用消息已超过服务器保留时限(%d天), 超过时限的应用消息无法点赞." % fConf['keepdays'])
+            query.edit_message_text(text = query.message.text_html, parse_mode=telegram.ParseMode.HTML)
+            return
     else:
-        query.edit_message_text(text = query.message.text_html + br + '❤', parse_mode=telegram.ParseMode.HTML)
+        if not do_like(LikeId.fromstr(data)):
+            query.answer(text = 'Failed to send like post.')
+            return
+    query.edit_message_text(text = query.message.text_html + br + '❤', parse_mode=telegram.ParseMode.HTML)
     logger.info("like post end")
     
 class PollingBot:
@@ -125,9 +141,9 @@ class PollingBot:
     def __init__(self, token: str):
         self.update = Updater(token, use_context=True, request_kwargs=botConf.get('proxy', None))
         dispatcher = self.update.dispatcher
-        dispatcher.add_handler(telegram.ext.CommandHandler("start", start))
-        dispatcher.add_handler(telegram.ext.CommandHandler("refresh", refresh))
-        dispatcher.add_handler(telegram.ext.CallbackQueryHandler(like))
+        dispatcher.add_handler(CommandHandler("start", start))
+        dispatcher.add_handler(CommandHandler("refresh", refresh))
+        dispatcher.add_handler(CallbackQueryHandler(like))
 
     def start(self):
         if botConf["method"] == "polling":
