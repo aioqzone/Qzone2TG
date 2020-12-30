@@ -1,17 +1,15 @@
 import logging
 import time
-from HTMLParser import HTMLParser as parser
 
 import telegram
-from telegram.error import BadRequest, TimedOut
+from qzonebackend.feed import *
+from qzonebackend.htmlparser import HTMLParser as Parser
+from QzoneBackend.qzone import *
+from telegram.error import BadRequest, NetworkError, TimedOut
 from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, Updater)
 
-import QzoneBackend.qzone as qzone
 from .compress import LikeId
-from QzoneBackend.feed import day_stamp, fetchNewFeeds
-from QzoneBackend.feed import like as do_like
-from QzoneBackend.feed import likeAFile
 
 br = '\n'
 logger = logging.getLogger("telegram")
@@ -42,7 +40,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
         msg += "发表了说说:"
     msg += br * 2
 
-    psr = parser(feed["html"])
+    psr = Parser(feed["html"])
     msg += psr.parseText()
 
     if psr.isLike(): 
@@ -80,75 +78,41 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
             chat_id = chat, text = msg, parse_mode=telegram.ParseMode.HTML, disable_web_page_preview = len(img) != 1,
             reply_markup = rpl
         )
-    except telegram.error.NetworkError as e:
-        logger.error(str(feed["hash"]) + ': ' + e.message)
     except TimedOut as e:
         logger.warning(e.message)
+    except NetworkError as e:
+        logger.error(str(feed["hash"]) + ': ' + e.message)
 
     if len(img) > 1:
         send_photos(bot, chat, img, '{name}于{time}'.format(name = feed["nickname"],time = feed["feedstime"]) + ': P{:d}')
-            
-def onFetch(bot: telegram.Bot, chat: int, reload: bool):
-    cmd = "force-refresh" if reload else "refresh"
-
-    if str(chat) in botConf["accept_id"]:
-        logger.info("%d: start %s" % (chat, cmd))
-    else:
-        logger.info("%d: illegal access")
-        bot.send_message(chat_id = chat, text = "Sorry. But bot won't answer unknown chat.")
-    try: new = fetchNewFeeds(reload)
-    except TimeoutError: 
-        bot.send_message(chat_id = chat, text = "Sorry. But network is always busy. Try later.")
-        return
-    for i in new: send_feed(bot, chat, i)
-    bot.send_message(
-        chat_id = chat, 
-        text = "Done. Fetched %d feeds." % len(new)
-    )
-    logger.info("%s end" % cmd)
-
-def refresh(update: telegram.Update, context: CallbackContext):
-    onFetch(context.bot, update.effective_chat.id, False)
-
-def start(update: telegram.Update, context):
-    onFetch(context.bot, update.effective_chat.id, True)
-    
-def like(update: telegram.Update, context):
-    logger.info("like post start")
-    query: telegram.CallbackQuery = update.callback_query
-    data: str = query.data
-    if '/' in data:
-        try:
-            if not likeAFile(data + ".json"): 
-                query.answer(text = 'Failed to send like post.')
-                return
-        except FileNotFoundError:
-            from config import feed as fConf
-            query.answer(text = "该应用消息已超过服务器保留时限(%d天), 超过时限的应用消息无法点赞." % fConf['keepdays'])
-            query.edit_message_text(text = query.message.text_html, parse_mode=telegram.ParseMode.HTML)
-            return
-    else:
-        if not do_like(LikeId.fromstr(data)):
-            query.answer(text = 'Failed to send like post.')
-            return
-    query.edit_message_text(text = query.message.text_html + br + '❤', parse_mode=telegram.ParseMode.HTML)
-    logger.info("like post end")
     
 class PollingBot:
     update: Updater
 
-    def __init__(self, token: str):
-        self.update = Updater(token, use_context=True, request_kwargs=botConf.get('proxy', None))
+    def __init__(self, feedmgr: FeedOperation, token: str, accept_id, method='polling', proxy=None):
+        self.method = method
+        self.accept_id = accept_id
+        self.feedmgr = feedmgr
+        
+        self.update = Updater(token, use_context=True, request_kwargs=proxy)
         dispatcher = self.update.dispatcher
-        dispatcher.add_handler(CommandHandler("start", start))
-        dispatcher.add_handler(CommandHandler("refresh", refresh))
-        dispatcher.add_handler(CallbackQueryHandler(like))
+        dispatcher.add_handler(CommandHandler("start", lambda u, c: self.onStart(u, c)))
+        dispatcher.add_handler(CommandHandler("refresh", lambda u, c: self.onRefresh(u, c)))
+        dispatcher.add_handler(CallbackQueryHandler(lambda u, c: self.like(u, c)))
 
-    def start(self):
-        if botConf["method"] == "polling":
+    def onRefresh(self, update: telegram.Update, context: CallbackContext):
+        self.onFetch(context.bot, update.effective_chat.id, False)
+
+    def onStart(self, update: telegram.Update, context):
+        self.onFetch(context.bot, update.effective_chat.id, True)
+
+    def run(self):
+        if self.method == "polling":
             self.polling()
-        elif botConf["method"] == "webhook":
+        elif self.method == "webhook":
             raise NotImplementedError("Webhook is not available now.")
+        else: 
+            raise ValueError('%s is invalid starting method' % self.method)
 
     def polling(self):
         try: self.update.start_polling()
@@ -159,4 +123,41 @@ class PollingBot:
         logger.info("start polling")
         self.update.idle()
 
-PollingBot(botConf["token"]).start()
+    def like(self, update: telegram.Update, context):
+        logger.info("like post start")
+        query: telegram.CallbackQuery = update.callback_query
+        data: str = query.data
+        if '/' in data:
+            try:
+                if not self.feedmgr.likeAFile(data + ".json"): 
+                    query.answer(text = 'Failed to send like post.')
+                    return
+            except FileNotFoundError:
+                query.answer(text = "该应用消息已超过服务器保留时限(%d天), 超过时限的应用消息无法点赞." % self.feedmgr.keepdays)
+                query.edit_message_text(text = query.message.text_html, parse_mode=telegram.ParseMode.HTML)
+                return
+        else:
+            if not self.feedmgr.do_like(LikeId.fromstr(data)):
+                query.answer(text = 'Failed to send like post.')
+                return
+        query.edit_message_text(text = query.message.text_html + br + '❤', parse_mode=telegram.ParseMode.HTML)
+        logger.info("like post end")
+        
+    def onFetch(self, bot: telegram.Bot, chat: int, reload: bool):
+        cmd = "force-refresh" if reload else "refresh"
+
+        if str(chat) in self.accept_id:
+            logger.info("%d: start %s" % (chat, cmd))
+        else:
+            logger.info("%d: illegal access")
+            bot.send_message(chat_id = chat, text = "Sorry. But bot won't answer unknown chat.")
+        try: new = self.feedmgr.fetchNewFeeds(reload)
+        except TimeoutError: 
+            bot.send_message(chat_id = chat, text = "Sorry. But network is always busy. Try later.")
+            return
+        for i in new: send_feed(bot, chat, i)
+        bot.send_message(
+            chat_id = chat, 
+            text = "Done. Fetched %d feeds." % len(new)
+        )
+        logger.info("%s end" % cmd)

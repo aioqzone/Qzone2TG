@@ -1,7 +1,9 @@
 import base64
 import getpass
 import logging
-from TgFrontend.tg import PollingBot
+from tgfrontend.tg import PollingBot
+from qzonebackend.qzone import QzoneScraper
+from qzonebackend.feed import FeedOperation
 
 import yaml
 
@@ -36,4 +38,6 @@ else:
 
 del d, pwd
 
-PollingBot(bot["token"]).start()
+spider = QzoneScraper(**qzone)
+bot = PollingBot(feedmgr=FeedOperation(spider, **feed), **bot)
+bot.run()
