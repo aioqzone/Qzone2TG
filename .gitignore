@@ -1,14 +1,17 @@
-# vs code config
+# vs code config and cache
 __pycache__
 .vscode
 
 # my private data
-feeds
-config.json
-cookie.json
-test/botTest.py
+data
+.pylintrc
 
-# just temp file
+# test root
+test
+
+# temporary files
+tmp
+config
 test.*
 *.html
 *.xml

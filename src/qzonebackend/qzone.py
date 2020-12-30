@@ -1,28 +1,32 @@
 # credits: https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py
 
+import json
+import logging
+import re
+import time
+from urllib import parse
+
+import config
+import demjson
+import requests
+import yaml
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException
-from Jigsaw import imgcmp
-from urllib import parse
-from compress import LikeId
-from HTMLParser import HTMLParser as parser
-import config
-import logging
-import time
-import requests
-import demjson, json
-import re
+from tgfrontend.compress import LikeId
+
+from .htmlparser import HTMLParser as Parser
+from .validator.jigsaw import imgcmp
 
 extern = {1: "undefined"}
 headers = {
     'User-Agent': config.qzone["UA"],
     "Referer": "https://user.qzone.qq.com/" + config.qzone["qq"],   # add referer
-    "dnt": "1"                                           # do not trace
+    "dnt": "1"              # do not trace(Teacher Ma: what you do at gym is not working)
 }
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Web Scraper")
 
 class QzoneError(RuntimeError):
     code: int
@@ -38,7 +42,6 @@ def cal_gtk(p_skey):
     logger.info('生成gtk')
     return hash & 0x7fffffff
 
-
 def change_cookie(cookie):
     skip = ["timestamp", "qzonetoken", "gtk"]
     s = '; '.join([k + '=' + v for k, v in cookie.items() if k not in skip])
@@ -46,7 +49,7 @@ def change_cookie(cookie):
 
 def login():
     chrome_options = Options()
-    chrome_options.add_argument('--headless')
+    #chrome_options.add_argument('--headless')
     chrome_options.add_argument("log-level=%d" % config.qzone["log_level"])
     driver = webdriver.Chrome(options=chrome_options)
 
@@ -103,8 +106,8 @@ def login():
     cookie = driver.get_cookies()
     qzonetoken = driver.execute_script('return window.g_qzonetoken')
 
-    driver.close()
-    driver.quit()
+    # driver.close()
+    # driver.quit()
 
     cookie = {i["name"]: i["value"] for i in cookie}
     cookie["qzonetoken"] = qzonetoken
@@ -113,7 +116,7 @@ def login():
 
 def getFullContent(html: str, gtk: int, qzonetoken: str):
     #TODO: Response 500
-    psr = parser(html)
+    psr = Parser(html)
     if not psr.hasNext(): return html
     feed = psr.parseFeedData()
     url = "https://user.qzone.qq.com"
@@ -149,7 +152,7 @@ def get_args(force_login = False):
     "return (cookie, gtk, qzonetoken)"
     cookie = {}
     try:
-        with open("cookie.json") as f: cookie: dict = json.load(f)
+        with open("tmp/cookie.yaml") as f: cookie: dict = yaml.load(f)
     except FileNotFoundError: pass
 
     t = cookie.get("timestamp", 0)
@@ -163,11 +166,11 @@ def get_args(force_login = False):
         logger.info('取得cookie')
         cookie["timestamp"] = time.time()
         cookie["gtk"] = cal_gtk(cookie["p_skey"])
-        with open("cookie.json", "w") as f: json.dump(cookie, f)
+        with open("cookie.yaml", "w") as f: yaml.dump(cookie, f)
     else:
         logger.info("使用缓存cookie")
 
-    gtk = cookie.get("gtk", cal_gtk(cookie["p_skey"]))
+    gtk = cookie['gtk']
     qzonetoken = cookie["qzonetoken"]
     cookie = change_cookie(cookie)
 
@@ -210,7 +213,7 @@ def parseExternParam(unquoted: str)-> dict:
         dic[s[0]] = s[1] if len(s) > 1 else None
     return dic
 
-def get_content(headers: dict, gtk: int, qzonetoken: str, pagenum: int):
+def get_content(gtk: int, qzonetoken: str, pagenum: int):
     url = "https://user.qzone.qq.com"
     url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?uin={uin}&scope=0&view=1&daylist=&uinlist=&gid=&flag=1"
     arg = "&filter=all&applist=all&refresh=0&aisortEndTime=0&aisortOffset=0&getAisort=0&aisortBeginTime=0&pagenum={pagenum}"
@@ -226,7 +229,9 @@ def get_content(headers: dict, gtk: int, qzonetoken: str, pagenum: int):
 
     for i in range(config.qzone["fetch_times"]):
         r = requests.get(url + arg.format(
-            uin = config.qzone["qq"], pagenum = pagenum, g_tk = gtk,
+            uin = config.qzone["qq"], 
+            pagenum = pagenum, 
+            g_tk = gtk,
             begintime = parseExternParam(extern[pagenum]).get("basetime", "undefined"),
             usertime = int(round(time.time() * 1000)), 
             externparam = parse.quote(extern[pagenum]), 
@@ -258,7 +263,7 @@ def get_content(headers: dict, gtk: int, qzonetoken: str, pagenum: int):
             logger.info(r["message"])
             time.sleep(5)
         elif r["code"] == -3000:
-            raise QzoneError(-3000, "cookie过期. 需要重新登陆.")
+            raise QzoneError(-3000, r["message"])
         else: 
             raise QzoneError(r['code'], r['message'])
     raise TimeoutError("network is always busy!")

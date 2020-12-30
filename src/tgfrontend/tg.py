@@ -7,12 +7,11 @@ from telegram.error import BadRequest, TimedOut
 from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, Updater)
 
-import qzone
-from compress import LikeId
-from config import bot as botConf
-from feed import day_stamp, fetchNewFeeds
-from feed import like as do_like
-from feed import likeAFile
+import QzoneBackend.qzone as qzone
+from .compress import LikeId
+from QzoneBackend.feed import day_stamp, fetchNewFeeds
+from QzoneBackend.feed import like as do_like
+from QzoneBackend.feed import likeAFile
 
 br = '\n'
 logger = logging.getLogger("telegram")
@@ -92,7 +91,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
 def onFetch(bot: telegram.Bot, chat: int, reload: bool):
     cmd = "force-refresh" if reload else "refresh"
 
-    if str(chat) in botConf["accepted_id"]:
+    if str(chat) in botConf["accept_id"]:
         logger.info("%d: start %s" % (chat, cmd))
     else:
         logger.info("%d: illegal access")

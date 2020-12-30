@@ -31,10 +31,10 @@ def day_stamp(timestamp: float = None)-> int:
     return int(timestamp // 86400)
 
 def cleanFeed():
-    if not os.path.exists("feeds"): return
+    if not os.path.exists("data"): return
     ls = lambda f: [f + '/' + i for i in os.listdir(f)]
     keep = config.feed.get("keepdays", 3)
-    accounts = ls("feeds")
+    accounts = ls("data")
     files = sum([ls(i) for i in accounts], [])
     
     pattern = re.compile(r"/(\d+)$")
@@ -64,7 +64,7 @@ def getFeeds(pagenum: int, headers: dict, reload = False):
         headers['Cookie'] = cookie
 
         try:
-            feeds = get_content(headers, gtk, qzonetoken, pagenum)
+            feeds = get_content(gtk, qzonetoken, pagenum)
         except QzoneError as e:
             if e.code == -3000: logger.warning("Cookie过期, 强制登陆. 建议修改cookie缓存时间.")
             else: raise e
@@ -78,7 +78,7 @@ def getFeeds(pagenum: int, headers: dict, reload = False):
         if daystamp + config.feed["keepdays"] <= day_stamp(): 
             hasnext = False
             break
-        folder = "feeds/%s/%d" % (config.qzone["qq"], daystamp)
+        folder = "data/%s/%d" % (config.qzone["qq"], daystamp)
         if not os.path.exists(folder): os.makedirs(folder)
         fname = folder + "/%s.json" % i["hash"]
         if (not reload) and os.path.exists(fname): 
