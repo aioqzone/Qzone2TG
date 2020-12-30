@@ -70,41 +70,14 @@ pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxm
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
 # 建立配置文档
-cp misc/example.conf config.conf
-vim config.conf     # 这里需要一个趁手的编辑器
-# 填写qq, tg bot token, userId, 以及可选的代理
+cp misc/example.yaml config.yaml
+vim config.yaml     # 这里需要一个趁手的编辑器
+# 填写qq, tg bot token, acceptId, 以及可选的代理
 ```
 
 ## 运行
 
-### 配置文件
-
-配置文件在安装目录下的`config.json`
-
-``` json
-{
-    "qzone": {
-        "qq": "这里填QQ",
-        "UA": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71",
-        "fetch_times": 12,
-        "cookie_expire": 9600,
-        "log_level": 1
-    },
-    "feed": {
-        "keepdays": 3
-    },
-    "bot": {
-        "token": "这里填bot token",
-        "accepted_id": ["这里填用户ID(或是其他chat id)"],
-        "proxy": {
-            "proxy_url": "socks5://127.0.0.1:1080"
-        },
-        "method": "polling"
-    }
-}
-```
-
-#### 简单开始
+### 简单开始
 
 您只需:
 
@@ -114,7 +87,33 @@ vim config.conf     # 这里需要一个趁手的编辑器
 4. 如果你使用代理, 还要配置`bot`条目下的`proxy`. 支持`http`, `socks5`, `socks5h`. 如果你的代理需要认证的话, 请一并参见下方链接:
 
 [Working Behind a Proxy][1]
+### 配置文件
 
+配置文件在安装目录下的`config.yaml`
+
+``` yaml
+qzone:
+  UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66
+  cookie_expire: 9600
+  fetch_times: 12
+  log_level: 1
+  password: RW4xOTk5TWFyczE1dGg=
+  qq: 这里填QQ
+feed:
+  keepdays: 3
+bot:
+  method: polling
+  token: 这里填bot token
+  accept_id:
+  - 用户ID, 或是其他的chat id
+  proxy:
+    proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
+    # Optional, if you need authentication:
+    urllib3_proxy_kwargs: {
+        'username': 'PROXY_USER',
+        'password': 'PROXY_PASS',
+    }
+```
 #### 详细配置
 
 请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
@@ -122,7 +121,7 @@ vim config.conf     # 这里需要一个趁手的编辑器
 ### 启动
 
 ``` shell
-python3 tg.py
+python3 src/main.py
 #接下来输入你的密码
 ```
 
@@ -132,7 +131,10 @@ python3 tg.py
 
 ## 卸载
 
-如果您需要完全删除Qzone2TG, 删除整个文件夹即可.
+data: 用于缓存`keepdays`天内的feed.
+tmp: 本地保存cookie
+
+脚本没有在Qzone2TG文件夹外存储数据. 如果您需要完全卸载, 删除该文件夹即可.
 
 1. 删除clone的源文件夹, 通常叫`Qzone2TG`
 2. _可选的_  删除安装的依赖

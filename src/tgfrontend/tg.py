@@ -116,7 +116,7 @@ class PollingBot:
 
     def polling(self):
         try: self.update.start_polling()
-        except telegram.error.NetworkError as e:
+        except NetworkError as e:
             logger.error(e.message)
             self.update.stop()
             return

@@ -1,0 +1,14 @@
+qzone:
+  UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66
+  cookie_expire: 9600
+  fetch_times: 12
+  log_level: 1
+  password: RW4xOTk5TWFyczE1dGg=
+  qq: '%d'
+feed:
+  keepdays: 3
+bot:
+  method: polling
+  token: %s
+  accept_id:
+  - %s

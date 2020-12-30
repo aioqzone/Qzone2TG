@@ -17,12 +17,12 @@ pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxm
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
 # read file
-conf=$(cat misc/example.json)
+conf=$(cat misc/example.yaml)
 # get qq
 read -p "Enter your QQ number: " QQ
 read -p "Enter your bot token: " token
-read -p "Enter your userId: " id
+read -p "Enter your acceptId: " id
 #save config
-echo $(printf "${conf}" ${QQ} ${token} ${id}) > config.json
+echo $(printf "${conf}" ${QQ} ${token} ${id}) > config.yaml
 echo "configuration done."
 echo "if you'd like use a proxy, see https://github.com/JamzumSum/Qzone2TG#%E7%AE%80%E5%8D%95%E5%BC%80%E5%A7%8B"
