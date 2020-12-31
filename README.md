@@ -98,6 +98,7 @@ qzone:
   log_level: 1
   password: RW4xOTk5TWFyczE1dGg=
   qq: 这里填QQ
+  savepwd: True
 feed:
   keepdays: 3
 bot:
@@ -113,9 +114,12 @@ bot:
       password: PROXY_PASS
     
 ```
-#### 详细配置
+配置各项的含义请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
+### 将./src加入PYTHONPATH
 
-请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
+唯一需要更改的是路径分隔符. [详见此处][2]
+  - Unix系统, 请将`.env`文件中的`;`改为`:`. 
+  - Windows系统无需更改. 
 
 ### 启动
 
@@ -124,9 +128,11 @@ python3 src/main.py
 #接下来输入你的密码
 ```
 
-注意, 您的密码将在配置文件中以 __弱加密__ 存储. 此时其安全性等同于您的操作系统安全性. 换言之, 有权限浏览您配置文件的用户 __完全可能获知您的密码__.
+注意, 目前您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
 
-> Update: 之后会加个选项控制是不是要保存密码, 毕竟保存密码是不合适的. 等转发登陆二维码做成之后我想默认就不保存密码了.. 但整体的逻辑还是要想想
+> Update: 
+> - 目前`savepwd`项默认为True. 但以任何形式无损失地保存密码都是不合适的, 所以等转发登陆二维码做成之后我想默认就不保存密码了
+> - 另外其实要不是tg没法密文输入 我甚至想让用户从tg发密码过来 虽说密文输入只能说是自欺欺人(雾)
 
 ## 卸载
 
@@ -155,3 +161,4 @@ python3 src/main.py
 [MIT License](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
 
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
+[2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
