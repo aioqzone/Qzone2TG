@@ -2,9 +2,9 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 2020-12-30 Update: 捡起来重新搞一下 会有一大波重构
-> 之前做得挺仓促 现在尽量好好做) 单元测试啥的都加上
-> 上半年发现了json反人类的地方 所以决定换yaml 配置文件啥的还有安装脚本都要改
+> - 2020-12-30 Update: 捡起来重新搞一下 会有一大波重构
+> - 之前做得挺仓促 现在尽量好好做) 单元测试啥的都加上
+> - 上半年发现了json反人类的地方 所以决定换yaml
 ## 功能
 
 * 自动登录空间, cv过验证
@@ -18,11 +18,11 @@
 
 (目前)不支持:
 
-* 原生表情
+* 转原生表情
 * 爬取视频
 * 给应用分享消息点赞
 * 显示点赞人数和昵称(已抓取, 为简洁考虑不予实现)
-* 显示评论(已抓取, ~~为简洁考虑不予实现~~emmmm我看看说不定呢)
+* 显示评论
 * 评论
 * 实时刷新
 * webhook
@@ -30,7 +30,6 @@
 
 目前有计划:
 
-* 自动获取全文
 * 给任何消息点赞
 * 实时(定时)刷新
 * ~~webhook(可能会咕)~~
@@ -45,9 +44,9 @@
 * 访问tg的网络环境, 以下二选一:
   * 你的服务器在国外
   * 你有可用的代理
-* 一个开通了空间的QQ号(废话连篇)
+* 一个开通了空间的QQ号
 * 一个属于你的tg机器人, 得到token
-* 取得你的用户ID
+* 取得你的用户ID(acceptID)
 
 ## 安装
 
@@ -109,10 +108,10 @@ bot:
   proxy:
     proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
     # Optional, if you need authentication:
-    urllib3_proxy_kwargs: {
-        'username': 'PROXY_USER',
-        'password': 'PROXY_PASS',
-    }
+    urllib3_proxy_kwargs: 
+      username: PROXY_USER
+      password: PROXY_PASS
+    
 ```
 #### 详细配置
 
@@ -131,17 +130,20 @@ python3 src/main.py
 
 ## 卸载
 
-data: 用于缓存`keepdays`天内的feed.
-tmp: 本地保存cookie
+|directory  |description  |
+|:----------|:------------|
+|data       |用于缓存`keepdays`天内的feed|
+|tmp        |本地保存cookie等|
 
-脚本没有在Qzone2TG文件夹外存储数据. 如果您需要完全卸载, 删除该文件夹即可.
+脚本没有在Qzone2TG文件夹外存储数据. 
 
-1. 删除clone的源文件夹, 通常叫`Qzone2TG`
-2. _可选的_  删除安装的依赖
+如果您需要完全卸载:
+1. 删除clone的源文件夹, 在未被修改的情况下, 是`Qzone2TG`
+2. _可选的_  删除安装的依赖:
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip uninstall python-telegram-bot python-telegram-bot[socks] selenium demjson lxml PIL
+    pip3 uninstall python-telegram-bot python-telegram-bot[socks] selenium demjson lxml opencv-python
     ```
 
 ## Credits
