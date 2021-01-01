@@ -9,17 +9,13 @@ from urllib import parse
 import demjson
 import requests
 import yaml
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
+
 from tgfrontend.compress import LikeId
 
 from .htmlparser import HTMLParser as Parser
-from .validator.jigsaw import imgcmp
+from .validator.walker import Walker
 
-logger = logging.getLogger("Web Scraper")
+logger = logging.getLogger("Qzone Scraper")
 
 class QzoneError(RuntimeError):
     def __init__(self, code: int, *args):
@@ -49,7 +45,8 @@ def parseExternParam(unquoted: str)-> dict:
 
 class QzoneScraper:
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66"
-    
+    headless = True
+
     def __init__(self, qq: str, password: str, cookie_expire, log_level, fetch_times = 12, UA=None):
         self.uin = qq
         self.pwd = password
@@ -73,71 +70,10 @@ class QzoneScraper:
         return headers
 
     def login(self):
-        chrome_options = Options()
-        #chrome_options.add_argument('--headless')
-        chrome_options.add_argument("log-level=%d" % self.log_level)
-        driver = webdriver.Chrome(options=chrome_options)
-
-        logger.info("等待登陆界面加载")
-        driver.get('https://qzone.qq.com/')
-        logger.info("登陆界面加载完成")
-
-        driver.switch_to.frame('login_frame')
-
-        driver.find_element_by_id('switcher_plogin').click()
-        driver.find_element_by_id('u').clear()
-        driver.find_element_by_id('u').send_keys(self.uin)
-        driver.find_element_by_id('p').clear()
-        driver.find_element_by_id('p').send_keys(self.pwd)
-        driver.find_element_by_id('login_button').click()
-
         try:
-            WebDriverWait(driver, 3).until(lambda dr: dr.find_element_by_xpath('//*[@id="newVcodeIframe"]/iframe'))
-        except NoSuchElementException:
-            logger.error("限制登陆.")
-            driver.close(); driver.quit()
-            return
-        else: 
-            frame = driver.find_element_by_xpath('//*[@id="newVcodeIframe"]/iframe')
-            driver.switch_to.frame(frame)
-
-        WebDriverWait(driver, 3).until(lambda dr: dr.find_element_by_id('slideBg').get_attribute('src'))
-        back_url = driver.find_element_by_id('slideBg').get_attribute('src')
-        full_url = back_url.replace('hycdn_1', 'hycdn_0')
-
-        w = imgcmp(back_url, full_url)
-
-        if w < 0:
-            logger.error("跳过验证失败: 两图完全相同")
-            driver.close(); driver.quit()
-            return
-
-        slide = driver.find_element_by_id('tcaptcha_drag_thumb')
-        ActionChains(driver).click_and_hold(slide).perform()
-        ActionChains(driver).move_by_offset(xoffset=w / 700 * 250, yoffset=0).perform()
-        ActionChains(driver).release(slide).perform()
-
-        logger.info("等待跳转至Qzone")
-        try: WebDriverWait(driver, 5, 0.5, RuntimeError).until(
-            lambda dr: ("user.qzone.qq.com/" + self.uin) in driver.current_url, 
-            "登陆失败: 未跳转至QZone."
-        )
+            return Walker(executable_path='msedgedriver.exe').login(self.uin, self.pwd)
         except RuntimeError as e:
-            logger.error(repr(e))
-            driver.close(); driver.quit()
-            return
-
-        logger.info('跳转成功 (成功混过验证')
-        cookie = driver.get_cookies()
-        qzonetoken = driver.execute_script('return window.g_qzonetoken')
-
-        # driver.close()
-        # driver.quit()
-
-        cookie = {i["name"]: i["value"] for i in cookie}
-        cookie["qzonetoken"] = qzonetoken
-
-        return cookie
+            logger.error(str(e))
 
     def getFullContent(self, html: str):
         #TODO: Response 500
@@ -173,7 +109,7 @@ class QzoneScraper:
         r = json.loads(r)
         return r["newFeedXML"].strip()
     
-    def get_args(self, force_login = False):
+    def updateStatus(self, force_login = False):
         """
         update cookie, gtk, qzonetoken
         """
@@ -194,7 +130,7 @@ class QzoneScraper:
             logger.info('取得cookie')
             cookie["timestamp"] = time.time()
             cookie["gtk"] = cal_gtk(cookie["p_skey"])
-            with open("cookie.yaml", "w") as f: yaml.dump(cookie, f)
+            with open("tmp/cookie.yaml", "w") as f: yaml.dump(cookie, f)
         else:
             logger.info("使用缓存cookie")
 
@@ -283,7 +219,7 @@ class QzoneScraper:
                 raise QzoneError(r['code'], r['message'])
         raise TimeoutError("network is always busy!")
     
-    def check_update(self, headers: dict):
+    def checkUpdate(self, headers: dict):
         url = "https://user.qzone.qq.com"
         url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
         arg = "uin={uin}&qzonetoken={qzonetoken}&g_tk={gtk}"
@@ -294,3 +230,4 @@ class QzoneScraper:
         r = re.search(r"callback({.*})", r.text, re.S).group(1)
         r = demjson.decode(r)
         if r["code"] == 0: return r["data"]
+        else: raise QzoneError(r['code'], r['message'])

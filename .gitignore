@@ -5,9 +5,7 @@ __pycache__
 # my private data
 data
 .pylintrc
-
-# test root
-test
+test/compressTest.py
 
 # temporary files
 tmp

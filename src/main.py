@@ -1,4 +1,4 @@
-import base64
+from utils import pwdTransBack, pwdTransform
 import getpass
 import logging
 from tgfrontend.tg import PollingBot
@@ -28,11 +28,11 @@ else:
     qzone['qq'] = input('QQ: ')
 
 if "password" in qzone: 
-    qzone["password"] = base64.b64decode(qzone["password"].encode('utf8')).decode('utf8')
+    qzone["password"] = pwdTransBack(qzone["password"])
 else:
     pwd: str = getpass.getpass()
     if qzone.get('savepwd', True): 
-        qzone["password"] = base64.b64encode(pwd.encode('utf8')).decode('utf8')
+        qzone["password"] = pwdTransform(pwd)
         with open("config.yaml", 'w') as f: yaml.dump(d, f)
     qzone["password"] = pwd
 

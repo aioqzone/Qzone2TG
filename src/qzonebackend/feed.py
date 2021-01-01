@@ -96,7 +96,7 @@ class FeedOperation:
         return sorted(feeds, key=lambda f: f["abstime"])
 
     def like(self, likedata: LikeId):
-        self.qzone.get_args()
+        self.qzone.updateStatus()
         return self.qzone.do_like(likedata)
 
     def likeAFile(self, fname: str)-> bool:
