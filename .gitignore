@@ -6,6 +6,7 @@ __pycache__
 data
 .pylintrc
 test/compressTest.py
+test/botTest.py
 
 # temporary files
 tmp
