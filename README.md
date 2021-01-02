@@ -2,9 +2,12 @@
 
 爬取QQ空间说说并转发到telegram
 
-> - 2021-1-1 Update: 单元测试还不是很好用
-> - 除了重构某些实现方式也会变一下
-> - 目前我也不怎么清楚selenium在没有桌面环境的地方怎么用... 但之后配置文件会增加webdriver的部分
+> - 2021-1-2 Update: 单元测试还不是很好用
+> - 有的时候验证还是过不去 抓下来的拼图有时候是反的 算法说实话也太直觉了
+> - 现在各个模块还是有大量的测试代码 我也承认 我这个现在不好用)
+> - 登录到抓说说的部分基本已经跑通了 tg的部分估计应该没怎么变
+> - 增加了selenium的配置部分
+> - 验证码登录是不是应该提上日程了
 ## 功能
 
 * 自动登录空间, cv过验证
@@ -18,10 +21,10 @@
 
 (目前)不支持:
 
-* 转原生表情
+* 转原生表情(懒得搞.jpg)
 * 爬取视频
 * 给应用分享消息点赞
-* 显示点赞人数和昵称(已抓取, 为简洁考虑不予实现)
+* 显示点赞人数和昵称
 * 显示评论
 * 评论
 * 实时刷新
@@ -101,6 +104,10 @@ qzone:
   savepwd: True
 feed:
   keepdays: 3
+selenium:
+  browser: Edge # Chrome, Firefox, Edge is supported
+  driver:
+    executable_path: msedgedriver.exe # 最重要的ChromeOptions啥的还没适配 这个主要是填构造函数用的
 bot:
   method: polling
   token: 这里填bot token
@@ -112,9 +119,9 @@ bot:
     urllib3_proxy_kwargs: 
       username: PROXY_USER
       password: PROXY_PASS
-    
 ```
 配置各项的含义请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
+~~(有生之年系列)~~
 ### 将./src加入PYTHONPATH
 
 唯一需要更改的是路径分隔符. [详见此处][2]
@@ -132,7 +139,6 @@ python3 src/main.py
 
 > Update: 
 > - 目前`savepwd`项默认为True. 但以任何形式无损失地保存密码都是不合适的, 所以等转发登陆二维码做成之后我想默认就不保存密码了
-> - 另外其实要不是tg没法密文输入 我甚至想让用户从tg发密码过来 虽说密文输入只能说是自欺欺人(雾)
 
 ## 卸载
 

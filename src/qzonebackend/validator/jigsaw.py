@@ -43,12 +43,13 @@ def findDarkArea(fore_url, back_url, fore_rect, back_rect):
     cont = max(cont, key = cv.contourArea)
     rect = cv.boundingRect(cont)
 
-    display = cv.cvtColor(back, cv.COLOR_GRAY2BGR)
-    display = cv.rectangle(display, rect, (0, 0, 255))
-    cv.imshow('close', close)
-    cv.imshow('final', final)
-    cv.imshow('display', display)
-    cv.waitKey()
+    if not product:
+        display = cv.cvtColor(back, cv.COLOR_GRAY2BGR)
+        display = cv.rectangle(display, rect, (0, 0, 255))
+        cv.imshow('close', close)
+        cv.imshow('final', final)
+        cv.imshow('display', display)
+        cv.waitKey()
     D = fore_rect['width'] * (fore_scale / 2)
     return round((rect[0] + wbias + fore.shape[1] - D) / fws), round(D / fws)
 
@@ -74,26 +75,27 @@ def contourMatch(fore_url, back_url, fore_rect, back_rect):
     backbin = cv.morphologyEx(backbin, cv.MORPH_CLOSE, cv.getStructuringElement(cv.MORPH_RECT, (3, 3)))
 
     back_canny = cv.Canny(backbin, 100, 200)
-    display = cv.cvtColor(back_canny, cv.COLOR_GRAY2BGR)
 
     jcont, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
     jcont = max(jcont, key = cv.contourArea)
-    pcont, hier = cv.findContours(255 - backbin, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+    pcont, _ = cv.findContours(255 - backbin, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     pcont = min(pcont, key=lambda i: cv.matchShapes(i, jcont, 1, 0.))
     rect = cv.boundingRect(pcont)
 
-    cv.drawContours(display, [pcont], 0, (0, 0 ,255))
-    # for i in range(len(pcont)):
-    #     display = cv.cvtColor(back_canny, cv.COLOR_GRAY2BGR)
-    #     cv.drawContours(display, pcont, i, (0, 0 ,255))
-    #     cv.imshow('display', display)
-    #     cv.waitKey()
+    if not product:
+        display = cv.cvtColor(back_canny, cv.COLOR_GRAY2BGR)
+        cv.drawContours(display, [pcont], 0, (0, 0 ,255))
+        # for i in range(len(pcont)):
+        #     display = cv.cvtColor(back_canny, cv.COLOR_GRAY2BGR)
+        #     cv.drawContours(display, pcont, i, (0, 0 ,255))
+        #     cv.imshow('display', display)
+        #     cv.waitKey()
 
-    cv.imshow('back', back)
-    cv.imshow('back_canny', back_canny)
-    cv.imshow('backbin', backbin)
-    cv.imshow('display', display)
-    cv.waitKey()
+        cv.imshow('back', back)
+        cv.imshow('back_canny', back_canny)
+        cv.imshow('backbin', backbin)
+        cv.imshow('display', display)
+        cv.waitKey()
 
     D = fore_rect['width'] / 2
     return round((rect[0] + wbias + fore.shape[1] - D) / fws), round(D / fws)
