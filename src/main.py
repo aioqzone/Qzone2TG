@@ -1,11 +1,13 @@
-from utils import pwdTransBack, pwdTransform
 import getpass
 import logging
-from tgfrontend.tg import PollingBot
-from qzonebackend.qzone import QzoneScraper
-from qzonebackend.feed import FeedOperation
 
 import yaml
+
+import qzonebackend.validator.jigsaw
+from qzonebackend.feed import FeedOperation
+from qzonebackend.qzone import QzoneScraper
+from tgfrontend.tg import PollingBot
+from utils import pwdTransBack, pwdTransform
 
 logging.basicConfig(
     format='[%(levelname)s] %(asctime)s %(name)s:\t%(message)s',
@@ -21,6 +23,7 @@ logger.info("config loaded")
 bot = d.get("bot")
 qzone = d.get("qzone")
 feed = d.get('feed')
+selenium = d.get('selenium')
 
 if 'qq' in qzone:
     print('QQ to login: %s' % qzone['qq'])
@@ -38,6 +41,8 @@ else:
 
 del d, pwd
 
-spider = QzoneScraper(**qzone)
+qzonebackend.validator.jigsaw.product = True
+
+spider = QzoneScraper(selenium_conf=selenium, **qzone)
 bot = PollingBot(feedmgr=FeedOperation(spider, **feed), **bot)
 bot.run()

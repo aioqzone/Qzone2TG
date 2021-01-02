@@ -3,6 +3,7 @@ import urllib.request as request
 import cv2 as cv
 
 fromlocal = False
+product = False
 
 def read(url: str)-> np.ndarray:
     if fromlocal:
@@ -13,19 +14,22 @@ def read(url: str)-> np.ndarray:
         return cv.imdecode(img, -1)
 
 def findDarkArea(fore_url, back_url, fore_rect, back_rect):
-    fore_rect['x'] = round(fore_rect['x'] - back_rect['x'])
-    fore_rect['y'] = round(fore_rect['y'] - back_rect['y'])
-
-    fore_scale = 0.75
+    fore = read(fore_url)
+    back = read(back_url)
+    fore_scale = 0.8
     fore = cv.resize(
-        read(fore_url), 
-        (round(fore_rect['width'] * fore_scale), round(fore_rect['height'] * fore_scale))
+        fore, (round(fore.shape[1] * fore_scale), round(fore.shape[0] * fore_scale))
     )
-    back = cv.resize(read(back_url), (back_rect['width'], back_rect['height']))
+    fws = fore.shape[1] / fore_rect['width']
+    fhs = fore.shape[0] / fore_rect['height']
+
+    fore_rect['x'] = round((fore_rect['x'] - back_rect['x']) * fws)
+    fore_rect['y'] = round((fore_rect['y'] - back_rect['y']) * fhs)
+
     _, mask = cv.threshold(fore[:, :, 3], 200, 255, cv.THRESH_BINARY)
     back = cv.cvtColor(back, cv.COLOR_BGR2GRAY)[
-        fore_rect['y']: fore_rect['y'] + fore_rect['height'], 
-        fore_rect['x'] + fore_rect['width']:
+        fore_rect['y']: fore_rect['y'] + fore.shape[0], 
+        fore_rect['x'] + fore.shape[1]:
     ]
     wbias = back.shape[1] // 2
     back = back[:, wbias:]
@@ -46,7 +50,7 @@ def findDarkArea(fore_url, back_url, fore_rect, back_rect):
     cv.imshow('display', display)
     cv.waitKey()
     D = fore_rect['width'] * (fore_scale / 2)
-    return round(rect[0] + wbias + fore_rect['width'] - D), D
+    return round((rect[0] + wbias + fore.shape[1] - D) / fws), round(D / fws)
 
 def contourMatch(fore_url, back_url, fore_rect, back_rect):
     fore = read(fore_url)

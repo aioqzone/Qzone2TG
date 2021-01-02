@@ -9,9 +9,10 @@ from urllib import parse
 import demjson
 import requests
 import yaml
-
 from tgfrontend.compress import LikeId
+from utils import undefined2None
 
+from .common import Args4GettingFeeds
 from .htmlparser import HTMLParser as Parser
 from .validator.walker import Walker
 
@@ -47,11 +48,11 @@ class QzoneScraper:
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66"
     headless = True
 
-    def __init__(self, qq: str, password: str, cookie_expire, log_level, fetch_times = 12, UA=None):
+    def __init__(self, qq: str, password: str, cookie_expire, selenium_conf, fetch_times = 12, UA=None):
         self.uin = qq
         self.pwd = password
         self.cookie_expire = cookie_expire
-        self.log_level = log_level
+        self.selenium_conf = selenium_conf
         self.fetch_times = fetch_times
 
         self.cookie = ''
@@ -71,11 +72,11 @@ class QzoneScraper:
 
     def login(self):
         try:
-            return Walker(executable_path='msedgedriver.exe').login(self.uin, self.pwd)
+            return Walker(self.selenium_conf['browser'], **self.selenium_conf['driver']).login(self.uin, self.pwd)
         except RuntimeError as e:
             logger.error(str(e))
 
-    def getFullContent(self, html: str):
+    def getCompleteFeed(self, html: str):
         #TODO: Response 500
         psr = Parser(html)
         if not psr.hasNext(): return html
@@ -116,21 +117,22 @@ class QzoneScraper:
 
         cookie = {}
         try:
-            with open("tmp/cookie.yaml") as f: cookie: dict = yaml.load(f)
+            with open("tmp/cookie.yaml") as f: cookie: dict = yaml.safe_load(f)
         except FileNotFoundError: pass
 
         t = cookie.get("timestamp", 0)
         if force_login or (time.time() - t) >= self.cookie_expire:
-            logger.info("cookie expired. relogin start")
+            logger.info("cookie已过期, 重新登陆.")
             cookie = self.login()
             if cookie is None: 
                 #TODO fetch QR code
-                raise RuntimeError("登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
-            if "p_skey" not in cookie: raise RuntimeError("登陆失败: 或许可以重新登陆.")
+                raise QzoneError(-999, "登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
+
+            if "p_skey" not in cookie: raise QzoneError(-233, "登陆失败: 或许可以重新登陆.")
             logger.info('取得cookie')
             cookie["timestamp"] = time.time()
             cookie["gtk"] = cal_gtk(cookie["p_skey"])
-            with open("tmp/cookie.yaml", "w") as f: yaml.dump(cookie, f)
+            with open("tmp/cookie.yaml", "w") as f: yaml.safe_dump(cookie, f)
         else:
             logger.info("使用缓存cookie")
 
@@ -166,49 +168,45 @@ class QzoneScraper:
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
-    def get_content(self, pagenum: int):
-        url = "https://user.qzone.qq.com"
-        url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?uin={uin}&scope=0&view=1&daylist=&uinlist=&gid=&flag=1"
-        arg = "&filter=all&applist=all&refresh=0&aisortEndTime=0&aisortOffset=0&getAisort=0&aisortBeginTime=0&pagenum={pagenum}"
-        arg += "&externparam={externparam}&firstGetGroup=0&icServerTime=0&mixnocache=0&scene=0&begintime={begintime}&count=10&dayspac=undefined"
-        arg += "&sidomain=qzonestyle.gtimg.cn&useutf8=1&outputhtmlfeed=1&usertime={usertime}&qzonetoken={qzonetoken}&g_tk={g_tk}"
-        data = []
-        html = []
-        def savehtml(m: re.Match):
-            html.append(m.group(1).strip())
-            return "html:%d,mergeData:" % (len(html) - 1)
+    def fetchPage(self, pagenum: int):
+        """
+        make sure updateStatus is called before.
+        """
+
+        url = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
+        query = {
+            'uin': self.uin, 
+            'pagenum': pagenum, 
+            'g_tk': self.gtk,
+            'begintime': parseExternParam(self.extern[pagenum]).get("basetime", "undefined"),
+            'count': 10,
+            'usertime': round(time.time() * 1000), 
+            'externparam': parse.quote(self.extern[pagenum]), 
+            'qzonetoken': self.qzonetoken
+        }
+        query.update(Args4GettingFeeds)
+        url += parse.urlencode(query)
 
         for i in range(self.fetch_times):
-            r = requests.get(url + arg.format(
-                uin = self.uin, 
-                pagenum = pagenum, 
-                g_tk = self.gtk,
-                begintime = parseExternParam(self.extern[pagenum]).get("basetime", "undefined"),
-                usertime = int(round(time.time() * 1000)), 
-                externparam = parse.quote(self.extern[pagenum]), 
-                qzonetoken = self.qzonetoken
-                ), headers = self.header)
 
-            if r.status_code != 200: break
+            r = requests.get(url, headers = self.header)
+
+            if r.status_code != 200: raise TimeoutError(r.reason)
 
             r = re.search(r"callback\(({.*})", r.text, re.S | re.I).group(1)
-            r = eval(repr(r).replace('\\\\', '\\'))
-            r = re.sub(r"\\", "", r)
-            r = re.sub(r"html:'(.*?)',\s*mergeData:", savehtml, r)
             r = demjson.decode(r)
             
             if r["code"] == 0:
                 data = r['data']['data']
                 self.extern[pagenum + 1] = parse.unquote(r['data']['main']["externparam"])
                 data = [
-                    i for i in data if not 
+                    undefined2None(i) for i in data if not 
                     (
                         i is demjson.undefined 
                         or i['key'].startswith('advertisement_app')
                         or int(i['appid']) >= 4096
                     )
                 ]
-                for i, h in zip(data, html): i["html"] = html[i["html"]]
                 return data
             elif r["code"] == -10001:
                 logger.info(r["message"])

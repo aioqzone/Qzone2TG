@@ -1,6 +1,6 @@
 import logging
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver import Edge, Chrome, Firefox
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
@@ -12,24 +12,26 @@ from .jigsaw import findDarkArea, contourMatch
 logger = logging.getLogger("Selenium Walker")
 
 class Walker:
-    getDriver = webdriver.Edge
     crackMethod = contourMatch
 
-    def __init__(self, refresh_time=10, *driver_args, **driver_kwargs):
+    def __init__(self, browser='Chrome', refresh_time=10, *driver_args, **driver_kwargs):
         self.refresh_time = refresh_time
 
         # chrome_options = Options()
         # if self.headless: chrome_options.add_argument('--headless')
-        
         # chrome_options.add_argument("log-level=%d" % self.log_level)
-        self.driver = self.getDriver(*driver_args, **driver_kwargs)
+        self.driver = {
+            'Chrome': Chrome, 
+            'Firefox': Firefox, 
+            'Edge': Edge
+        }[browser](*driver_args, **driver_kwargs)
 
     def login(self, uin, pwd):
         
         self.switchFrame(uin, pwd)
         for i in range(self.refresh_time):
             if i > 0: logger.info('第%d次尝试登陆' % (i + 1))
-            cookie = self.crackValidate(self.driver)
+            cookie = self.crackValidate(uin)
             if cookie: return cookie
 
     def switchFrame(self, uin, pwd):
@@ -50,11 +52,16 @@ class Walker:
             EC.frame_to_be_available_and_switch_to_it((By.ID, 'tcaptcha_iframe'))
         )
         except TimeoutException:
-            # TODO
+            # TODO 可能是要输入验证码?
             raise RuntimeError('限制登陆.')
         
     def crackValidate(self, uin):
-        WebDriverWait(self.driver, 3).until(lambda dr: dr.find_element_by_id('slideBg').get_attribute('src'))
+        try:
+            WebDriverWait(self.driver, 5).until(lambda dr: dr.find_element_by_id('slideBg').get_attribute('src'))
+        except TimeoutException: 
+            logger.error('未找到captcha.')
+            return
+
         bg = self.driver.find_element_by_id('slideBg')
         jigsaw = self.driver.find_element_by_id("slideBlock")
         refresh = self.driver.find_element_by_id('e_reload')
@@ -68,6 +75,7 @@ class Walker:
         back_rect = bg.rect
         fore_rect = jigsaw.rect
 
+        print(fore_rect, back_rect, sep='\n')   # collecting test data
         w, D = contourMatch(fore_url, back_url, fore_rect, back_rect)
         if w <= 0:
             refresh.click()
@@ -84,7 +92,7 @@ class Walker:
 
             logger.info('又' * i + "等待跳转至Qzone")
             try: WebDriverWait(self.driver, 2).until(lambda dr: "请控制拼图块对齐缺口" in guide.text)   # 找错误提示
-            except NoSuchElementException: pass                             # 没找到说明有可能过了
+            except (TimeoutException, StaleElementReferenceException): pass               # 没找到说明有可能过了
             else: continue
 
             try: WebDriverWait(self.driver, 5, 0.5).until(
