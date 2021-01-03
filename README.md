@@ -2,11 +2,12 @@
 
 爬取QQ空间说说并转发到telegram
 
-> - 2021-1-2 Update: 单元测试还不是很好用
+> - 2021-1-3 Update: 单元测试还不是很好用
 > - 有的时候验证还是过不去 抓下来的拼图有时候是反的 算法说实话也太直觉了
 > - 现在各个模块还是有大量的测试代码 我也承认 我这个现在不好用)
 > - 登录到抓说说的部分基本已经跑通了 tg的部分估计应该没怎么变
-> - 增加了selenium的配置部分
+> - 增加了selenium的配置部分, 增加了Option
+> - 重构了html解析模块, 将与feed解析合并
 > - 验证码登录是不是应该提上日程了
 ## 功能
 
@@ -57,12 +58,7 @@
 
 ### 使用shell脚本
 
-``` shell
-wget https://raw.githubusercontent.com/JamzumSum/Qzone2TG/master/install.sh
-chmod +x install.sh
-bash install.sh
-```
-
+> 当前版本的脚本已经不适用. 请看手动安装. 
 ### 手动安装
 
 ``` shell
@@ -71,10 +67,10 @@ pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxm
 # clone本项目
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
-# 建立配置文档
+# 建立配置文档. Update: 请务必参看下方的配置文件说明
 cp misc/example.yaml config.yaml
 vim config.yaml     # 这里需要一个趁手的编辑器
-# 填写qq, tg bot token, acceptId, 以及可选的代理
+# 填写qq, tg bot token, acceptId以及可选的代理, 设置selenium
 ```
 
 ## 运行
@@ -98,16 +94,17 @@ qzone:
   UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66
   cookie_expire: 9600
   fetch_times: 12
-  log_level: 1
   password: 这里填密码
   qq: 这里填QQ
   savepwd: True
 feed:
   keepdays: 3
 selenium:
-  browser: Edge # Chrome, Firefox, Edge is supported
+  browser: Edge # 支持Chrome, Firefox, Edge
+  option:
+    - headless  # 参看ChromeOption, FirefoxOption等. 注意, Edge不支持Option. 如果您使用Edge, 请去掉option条目
   driver:
-    executable_path: msedgedriver.exe # 最重要的ChromeOptions啥的还没适配 这个主要是填构造函数用的
+    executable_path: msedgedriver.exe
 bot:
   method: polling
   token: 这里填bot token
@@ -136,6 +133,7 @@ python3 src/main.py
 ```
 
 注意, 目前您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
+注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
 
 > Update: 
 > - 目前`savepwd`项默认为True. 但以任何形式无损失地保存密码都是不合适的, 所以等转发登陆二维码做成之后我想默认就不保存密码了
