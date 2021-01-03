@@ -3,12 +3,16 @@ qzone:
   cookie_expire: 9600
   fetch_times: 12
   log_level: 1
-  password: RW4xOTk5TWFyczE1dGg=
-  qq: '%d'
+  qq: %d
+selenium:
+  browser: Chrome
+  driver: 
+  option: 
+    - headless
 feed:
   keepdays: 3
 bot:
   method: polling
-  token: %s
+  token: '%s'
   accept_id:
-  - %s
+  - %d

@@ -78,6 +78,12 @@ def contourMatch(fore_url, back_url, fore_rect, back_rect):
 
     jcont, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
     jcont = max(jcont, key = cv.contourArea)
+    if cv.contourArea(jcont) < 900:
+        print('area not match')
+        if not product:
+            print('saving captcha')
+            cv.imwrite('data/captcha/fore.png', read(fore_url))
+            cv.imwrite('data/captcha/back.jfif', read(back))
     pcont, _ = cv.findContours(255 - backbin, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     pcont = min(pcont, key=lambda i: cv.matchShapes(i, jcont, 1, 0.))
     rect = cv.boundingRect(pcont)

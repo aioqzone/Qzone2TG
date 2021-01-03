@@ -1,18 +1,11 @@
 import re
 import unittest
 
-import demjson
 import yaml
-from qzonebackend.htmlparser import HTMLParser
+from qzonebackend.qzfeedparser import QZFeedParser as Parser
 
 
 class ParserTest(unittest.TestCase):
-    def testIsLike(self):
-        with open("tmp/test.html", encoding="utf-8") as f:
-            psr = HTMLParser(f)
-            r = psr.isLike()
-            print(r)
-
     def testTransform(self):
         htmls = None
         with open('tmp/feeds.yaml', encoding='utf8') as f:
@@ -21,3 +14,15 @@ class ParserTest(unittest.TestCase):
         for i in htmls:
             with open('tmp/html/%d.html' % hash(i), 'w', encoding='utf8') as f:
                 f.write(i)
+
+    def testLikeData(self):
+        with open('tmp/html/-217964352468340141.html') as f:
+            psr = Parser(f.read())
+            tp = psr.parseLikeData()
+            print(tp)
+            self.assertTrue(len(tp) == 5)
+
+    def testMore(self):
+        with open('tmp/html/8853557023188502000.html', encoding='utf8') as f:
+            psr = Parser(f.read())
+            self.assertTrue(psr.isCut())

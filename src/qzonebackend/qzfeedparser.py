@@ -1,15 +1,16 @@
-import json
+import yaml
 import logging
 import re
 from io import TextIOWrapper
 
 from lxml.html import HtmlElement, fromstring, tostring
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Qzone HTML Parser")
 
-face = {}; emoji = {}
-with open("misc/qq_face.json") as f: face = json.load(f)
-with open("misc/emoji.json") as f: emoji = json.load(f)
+afmt = "<a src={src}>{text}</a>"
+face = emoji = None
+with open("misc/qq_face.yaml") as f: face = yaml.safe_load(f)
+with open("misc/emoji.yaml") as f: emoji = yaml.safe_load(f)
 
 def transEmoji(name: str)-> str:
     if name.endswith(".png"): 
@@ -21,16 +22,20 @@ def transEmoji(name: str)-> str:
             logger.warning('new gif: ' + name)
             return "[/表情]"
 
+def url2unicode(m: re.Match):
+    return "" if m is None else transEmoji(m.group(1))
+
 def elm2txt(elm: list, richText = True)-> str:
-    "elm: Iterable[HtmlElement]"
+    """
+    elm: Iterable[HtmlElement]
+    """
     faceurl = re.compile(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)")
-    if richText: afmt = "<a src={src}>{text}</a>"
     txt = ""
     for i in elm:
         if not isinstance(i, HtmlElement): txt += i
         elif i.tag == 'br': txt += '\n'
         elif i.tag == 'img': 
-            txt += HTMLParser.url2unicode(faceurl.search(i.attrib['src']))
+            txt += url2unicode(faceurl.search(i.attrib['src']))
         elif i.tag == 'span': txt += elm2txt(i)
         elif i.tag == 'a':
             if not i.attrib['href'].startswith("javascript"):
@@ -43,14 +48,11 @@ def find_if(iter: list, pred):
     for i in iter: 
         if pred(i): return i
 
-class HTMLParser:
-    src: HtmlElement
-
-    def __init__(self, HTML):
-        if type(HTML) == str:
-            self.src = fromstring(HTML)
-        elif type(HTML) == TextIOWrapper:
-            self.src = fromstring(HTML.read())
+class QZFeedParser:
+    def __init__(self, feed):
+        assert isinstance(feed, dict)
+        self.raw = feed
+        self.src: HtmlElement = fromstring(feed['html'])
     
     def parseText(self)-> str:
         elm: list = self.src.xpath('//div[starts-with(@class,"f-single-content")]//div[starts-with(@class,"f-info")]')
@@ -59,12 +61,24 @@ class HTMLParser:
         elif len(elm) == 2: elm = max(elm, key = lambda e: len(e))
         return elm2txt(self.src.xpath('//div[starts-with(@class,"f-single-content")]//div[@class="%s"]/node()' % elm.attrib['class']))
 
-    def parseName(self)-> str:
-        return self.src.xpath('//div[@class="user-info"]//a[@class="f-name q_namecard "]/text()')[0]
+    @property
+    def nickname(self)-> str: return self.raw['nickname']
 
-    def parseTime(self)-> str:
-        return self.src.xpath('//div[@class="user-info"]//span[@class=" ui-mr8 state"]/text()')[0]
-        
+    @property
+    def feedstime(self)-> str: return self.raw['feedstime'].strip()
+
+    @property
+    def uckeys(self)-> tuple: return self.parseLikeData()[-2:]
+
+    @property
+    def appid(self)-> int: return int(self.raw['appid'])
+
+    @property
+    def typeid(self)-> int: return int(self.raw['typeid'])
+
+    @property
+    def feedkey(self)-> str: return self.raw['key']
+
     def parseBio(self)-> str:
         return self.src.xpath('//div[@class="user-pto"]/a/img/@src')[0]
 
@@ -91,12 +105,16 @@ class HTMLParser:
         ls = ls.strip('：').strip()
         return nick, link, ls
         
-    def hasNext(self)-> bool:
-        txt: HtmlElement = self.src.xpath('//div[starts-with(@class,"f-single-content")]//a[@data-cmd="qz_toggle"]')
-        if not txt: return False
-        if txt[0].text == "展开全文": return True
+    def isCut(self)-> bool:
+        txt: list = self.src.xpath(
+            '//div[starts-with(@class,"f-single-content")]\
+            //div[starts-with(@class,"f-info")]//\
+            a[@data-cmd="qz_toggle"]'
+        )
+        return bool(txt)
 
     def parseFeedData(self)-> dict:
+        # 说实话这个好像没啥用
         elm = self.src.xpath('//i[@name="feed_data"]')
         if not elm: return
         else: elm = elm[0]
@@ -115,21 +133,10 @@ class HTMLParser:
             for i in self.src.xpath('//div[@class="mod-comments"]/div[@class="comments-list "]')
         ]
 
-    def unikey(self):
-        l = self.src.xpath('//div[@class="f-single-foot"]//@data-unikey')
-        assert l
-        return l[0]
-
-    def curkey(self):
-        l = self.src.xpath('//div[@class="f-single-foot"]//div[@class="icon-btn"]//@data-curkey')
-        assert l
-        return l[0]
-
-    def isLike(self):
-        l = self.src.xpath('//div[@class="f-single-foot"]//p[@class="op-list"]/a[starts-with(@class,"item qz_like_btn")]/@data-clicklog')[0]
-        if l == "like": return False
-        elif l == "cancellike": return True
-
-    @staticmethod
-    def url2unicode(m: re.Match):
-        return "" if m is None else transEmoji(m.group(1))
+    def parseLikeData(self):
+        """
+        return (islike, likecnt, showcnt, unikey, curkey)
+        """
+        att: dict = self.src.xpath('//div[@class="f-single-foot"]//a[@class="praise qz_like_prase"]')[0].attrib
+        assert att
+        return att['data-islike'], att['data-likecnt'], att['data-showcount'], att['data-unikey'], att['data-curkey']

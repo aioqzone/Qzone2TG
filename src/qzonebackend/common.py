@@ -25,3 +25,17 @@ Args4GettingFeeds = {
     'useutf8': 1,
     'outputhtmlfeed': 1,
 }
+
+Arg4CompleteFeed = {
+    "pos": 0, 
+    "num": 1,
+    "cmtnum": 1, 
+    "t1_source": 1, 
+    "who": 1, 
+    "inCharset": "utf-8", 
+    "outCharset": "utf-8", 
+    "plat": "qzone", 
+    "source": "ic", 
+    "paramstr": 1, 
+    "fullContent": 1, 
+}

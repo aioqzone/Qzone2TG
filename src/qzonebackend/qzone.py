@@ -12,8 +12,8 @@ import yaml
 from tgfrontend.compress import LikeId
 from utils import undefined2None
 
-from .common import Args4GettingFeeds
-from .htmlparser import HTMLParser as Parser
+from .common import Args4GettingFeeds, Arg4CompleteFeed
+from .qzfeedparser import QZFeedParser as Parser
 from .validator.walker import Walker
 
 logger = logging.getLogger("Qzone Scraper")
@@ -31,7 +31,7 @@ def cal_gtk(p_skey):
     logger.info('生成gtk')
     return phash & 0x7fffffff
 
-def change_cookie(cookie):
+def encode_cookie(cookie):
     skip = ["timestamp", "qzonetoken", "gtk"]
     s = '; '.join([k + '=' + v for k, v in cookie.items() if k not in skip])
     return s
@@ -64,7 +64,7 @@ class QzoneScraper:
     def header(self):
         headers = {
             'User-Agent': self.UA,
-            "Referer": "https://user.qzone.qq.com/" + self.uin,   # add referer
+            "Referer": "https://user.qzone.qq.com/%d" % self.uin,   # add referer
             "dnt": "1"              # do not trace(Teacher Ma: what you do at gym is not working)
         }
         if self.cookie: headers['Cookie'] = self.cookie
@@ -72,40 +72,29 @@ class QzoneScraper:
 
     def login(self):
         try:
-            return Walker(self.selenium_conf['browser'], **self.selenium_conf['driver']).login(self.uin, self.pwd)
+            return Walker(**self.selenium_conf).login(self.uin, self.pwd)
         except RuntimeError as e:
             logger.error(str(e))
 
     def getCompleteFeed(self, html: str):
         #TODO: Response 500
         psr = Parser(html)
-        if not psr.hasNext(): return html
+        if not psr.isCut(): return html
         feed = psr.parseFeedData()
-        url = "https://user.qzone.qq.com"
-        url += "/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
-        arg = "?qzonetoken={qzonetoken}&gtk={gtk}".format(qzonetoken = self.qzonetoken, gtk = self.gtk)
+        url = "https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments?"
+        arg = "qzonetoken={qzonetoken}&gtk={gtk}".format(qzonetoken = self.qzonetoken, gtk = self.gtk)
         body = {
             "uin": feed["uin"], 
-            "pos": 0, 
-            "num": 1,
-            "cmtnum": 1, 
-            "t1_source": 1, 
             "tid": feed["tid"], 
-            "who": 1, 
-            "inCharset": "utf-8", 
-            "outCharset": "utf-8", 
-            "plat": "qzone", 
-            "source": "ic", 
-            "paramstr": 1, 
             "feedsType": feed["feedstype"], 
-            "fullContent": 1, 
-            "qzreferrer": "https://user.qzone.qq.com/" + self.uin
+            "qzreferrer": "https://user.qzone.qq.com/%d" % self.uin
         }
+        body.update(Arg4CompleteFeed)
 
         r = requests.post(url + arg, data=body, headers=self.header)
             
         if r.status_code != 200: raise TimeoutError(r.reason)
-        r = r.text.replace('\n', '').replace('\t', '')
+        # r = r.text.replace('\n', '').replace('\t', '')
         r = json.loads(re.search(r"callback\(({.*})", r, re.S | re.I).group(1))
         r = json.loads(r)
         return r["newFeedXML"].strip()
@@ -138,26 +127,24 @@ class QzoneScraper:
 
         self.gtk = cookie['gtk']
         self.qzonetoken = cookie["qzonetoken"]
-        self.cookie = change_cookie(cookie)
+        self.cookie = encode_cookie(cookie)
 
     def do_like(self, likedata: LikeId)-> bool:
-        url = 'https://user.qzone.qq.com/'
-        url += 'proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app'
-        arg = '?g_tk={gtk}&qzonetoken={qzonetoken}'.format(gtk = self.gtk, qzonetoken = self.qzonetoken)
+        url = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
+        arg = 'g_tk={gtk}&qzonetoken={qzonetoken}'.format(gtk = self.gtk, qzonetoken = self.qzonetoken)
 
         body = {
-            'qzreferrer': 'https://user.qzone.qq.com/' + self.uin,
+            'qzreferrer': 'https://user.qzone.qq.com/%d' % self.uin,
             'opuin': self.uin,
+            'unikey': likedata.unikey,
+            'curkey': likedata.curkey,
+            'appid': likedata.appid,
+            'typeid': likedata.typeid,
+            'fid': likedata.fid,
             'from': 1,
             'active': 0,
             'fupdate': 1
         }
-
-        body['unikey'] = likedata.unikey
-        body['curkey'] = likedata.curkey
-        body['appid'] = likedata.appid
-        body['typeid'] = likedata.typeid
-        body['fid'] = likedata.key
 
         r = requests.post(url + arg, data=body, headers=self.header)
         if r.status_code != 200: return False
@@ -217,14 +204,14 @@ class QzoneScraper:
                 raise QzoneError(r['code'], r['message'])
         raise TimeoutError("network is always busy!")
     
-    def checkUpdate(self, headers: dict):
-        url = "https://user.qzone.qq.com"
-        url += "/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
-        arg = "uin={uin}&qzonetoken={qzonetoken}&g_tk={gtk}"
-        r = requests.get(
-            url + arg.format(uin = self.uin, qzonetoken = self.qzonetoken, gtk = self.gtk), 
-            headers = headers
-        )
+    def checkUpdate(self):
+        url = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
+        arg = parse.urlencode({
+            'uin': self.uin,
+            'qzonetoken': self.qzonetoken, 
+            'g_tk': self.gtk
+        })
+        r = requests.get(url + arg, headers = self.header)
         r = re.search(r"callback({.*})", r.text, re.S).group(1)
         r = demjson.decode(r)
         if r["code"] == 0: return r["data"]

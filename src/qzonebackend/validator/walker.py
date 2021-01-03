@@ -1,5 +1,5 @@
 import logging
-from selenium.webdriver import Edge, Chrome, Firefox
+from selenium.webdriver import Edge, Chrome, Firefox, ChromeOptions, FirefoxOptions
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
@@ -14,17 +14,22 @@ logger = logging.getLogger("Selenium Walker")
 class Walker:
     crackMethod = contourMatch
 
-    def __init__(self, browser='Chrome', refresh_time=10, *driver_args, **driver_kwargs):
+    def __init__(self, browser='Chrome', driver={}, option=[], refresh_time=10):
         self.refresh_time = refresh_time
 
         # chrome_options = Options()
         # if self.headless: chrome_options.add_argument('--headless')
         # chrome_options.add_argument("log-level=%d" % self.log_level)
+        if option:
+            op = {'Firefox': FirefoxOptions, 'Chrome': ChromeOptions}[browser]()
+            for i in option: op.add_argument('--' + i)
+            driver[browser.lower() + '_options'] = op
+
         self.driver = {
             'Chrome': Chrome, 
             'Firefox': Firefox, 
             'Edge': Edge
-        }[browser](*driver_args, **driver_kwargs)
+        }[browser](**driver)
 
     def login(self, uin, pwd):
         
@@ -100,7 +105,7 @@ class Walker:
             )
             except NoSuchElementException: continue                         # 网页没变, 重来
             else: 
-                if ("user.qzone.qq.com/" + uin) in self.driver.current_url: break
+                if ("user.qzone.qq.com/%d" % uin) in self.driver.current_url: break
                 else: raise RuntimeError('穿越到未知的地界... ' + self.driver.current_url)
         else: return
 

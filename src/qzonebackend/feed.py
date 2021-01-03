@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import time
-from .htmlparser import HTMLParser as Parser
+from .qzfeedparser import QZFeedParser as Parser
 
 from demjson import undefined
 
@@ -105,13 +105,7 @@ class FeedOperation:
         if not os.path.exists(fname): raise FileNotFoundError(fname)
         with open(fname) as f: feed = yaml.load(f)
 
-        psr = Parser(feed['html'])
+        psr = Parser(feed)
         return self.like(
-            LikeId(
-                int(feed['appid']), 
-                int(feed['typeid']), 
-                feed['key'], 
-                psr.unikey(), 
-                psr.curkey()
-            )
+            LikeId(psr.appid, psr.typeid,feed['key'], *psr.uckeys)
         )
