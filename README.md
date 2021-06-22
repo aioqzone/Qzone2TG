@@ -3,6 +3,7 @@
 爬取QQ空间说说并转发到telegram
 
 > 随缘修BUG
+> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
 
 ## 功能
 
@@ -65,36 +66,8 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 
 ### 配置文件
 
-配置文件在安装目录下的`config.yaml`
+应用的配置文件在`config`目录下的`config.yaml`. 配置文件示例在`misc`目录下的`example.yaml`.
 
-``` yaml
-qzone:
-  UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66
-  cookie_expire: 9600
-  fetch_times: 12
-  password: 这里填密码
-  qq: 这里填QQ
-  savepwd: True
-feed:
-  keepdays: 3
-selenium:
-  browser: Edge # 支持Chrome, Firefox, Edge
-  option:
-    - headless  # 参看ChromeOption, FirefoxOption等. 注意, Edge不支持Option. 如果您使用Edge, 请去掉option条目
-  driver:
-    executable_path: msedgedriver.exe
-bot:
-  method: polling
-  token: 这里填bot token
-  accept_id:
-  - 用户ID, 或是其他的chat id
-  proxy:
-    proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
-    # Optional, if you need authentication:
-    urllib3_proxy_kwargs: 
-      username: PROXY_USER
-      password: PROXY_PASS
-```
 配置各项的含义请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
 ~~(有生之年系列)~~
 
