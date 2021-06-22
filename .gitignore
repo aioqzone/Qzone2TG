@@ -5,6 +5,7 @@ __pycache__
 # my private data
 data
 .pylintrc
+yapf_style.cfg
 test/compressTest.py
 test/botTest.py
 

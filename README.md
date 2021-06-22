@@ -2,13 +2,8 @@
 
 爬取QQ空间说说并转发到telegram
 
-> - 2021-1-3 Update: 单元测试还不是很好用
-> - 有的时候验证还是过不去 抓下来的拼图有时候是反的 算法说实话也太直觉了
-> - 现在各个模块还是有大量的测试代码 我也承认 我这个现在不好用)
-> - 登录到抓说说的部分基本已经跑通了 tg的部分估计应该没怎么变
-> - 增加了selenium的配置部分, 增加了Option
-> - 重构了html解析模块, 将与feed解析合并
-> - 验证码登录是不是应该提上日程了
+> 随缘修BUG
+
 ## 功能
 
 * 自动登录空间, cv过验证
@@ -20,27 +15,9 @@
 * 过滤部分广告(待测)
 * 简单的tg机器人
 
-(目前)不支持:
-
-* 转原生表情(懒得搞.jpg)
-* 爬取视频
-* 给应用分享消息点赞
-* 显示点赞人数和昵称
-* 显示评论
-* 评论
-* 实时刷新
-* webhook
-* ....
-
-目前有计划:
-
-* 给任何消息点赞
-* 实时(定时)刷新
-* ~~webhook(可能会咕)~~
-
 ## 截图
 
-> 等我有空的
+> 咕咕咕
 
 ## 需求
 
@@ -56,19 +33,19 @@
 
 请确保安装了`git`, `python3`和对应的`pip`.
 
-### 使用shell脚本
-
-> 当前版本的脚本已经不适用. 请看手动安装. 
-### 手动安装
-
 ``` shell
-# 安装依赖
-pip3 install python-telegram-bot python-telegram-bot[socks] selenium demjson lxml opencv-python
 # clone本项目
 git clone https://github.com/JamzumSum/Qzone2TG.git
 cd Qzone2TG
-# 建立配置文档. Update: 请务必参看下方的配置文件说明
-cp misc/example.yaml config.yaml
+
+# 安装依赖
+pip install -e .
+
+# 建立配置文档. 
+# Update: 请务必参看下方的配置文件说明
+mkdir config
+cp misc/example.yaml config/config.yaml
+
 vim config.yaml     # 这里需要一个趁手的编辑器
 # 填写qq, tg bot token, acceptId以及可选的代理, 设置selenium
 ```
@@ -85,6 +62,7 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 4. 如果你使用代理, 还要配置`bot`条目下的`proxy`. 支持`http`, `socks5`, `socks5h`. 如果你的代理需要认证的话, 请一并参见下方链接:
 
 [Working Behind a Proxy][1]
+
 ### 配置文件
 
 配置文件在安装目录下的`config.yaml`
@@ -119,11 +97,12 @@ bot:
 ```
 配置各项的含义请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
 ~~(有生之年系列)~~
-### 将./src加入PYTHONPATH
 
-唯一需要更改的是路径分隔符. [详见此处][2]
-  - Unix系统, 请将`.env`文件中的`;`改为`:`. 
-  - Windows系统无需更改. 
+### PYTHONPATH
+
+源码存储于`src`下, 必须确保它加入了`PYTHONPATH`, 否则无法找到包.
+
+默认的设置适用于Windows系统. Unix系统, 请将`.env`文件中的`;`改为`:`. ([详见此处][2])
 
 ### 启动
 
@@ -136,7 +115,7 @@ python3 src/main.py
 注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
 
 > Update: 
-> - 目前`savepwd`项默认为True. 但以任何形式无损失地保存密码都是不合适的, 所以等转发登陆二维码做成之后我想默认就不保存密码了
+> - 目前`savepwd`项默认为True. 还是等等二维码登录吧
 
 ## 卸载
 

@@ -3,7 +3,7 @@ qzone:
   cookie_expire: 9600
   fetch_times: 12
   log_level: 1
-  qq: %d
+  qq: 123456789   # qq
 selenium:
   browser: Chrome
   driver: 
@@ -13,6 +13,6 @@ feed:
   keepdays: 3
 bot:
   method: polling
-  token: '%s'
+  token: hereisyourtoken  # bot token
   accept_id:
-  - %d
+  - 123456789   # admin id
