@@ -1,18 +1,48 @@
 qzone:
+  # UA
   UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36 Edg/91.0.864.54
+  # cookie过期时限
   cookie_expire: 9600
+  # 拉取说说时允许重试次数
   fetch_times: 12
+  # 日志等级
   log_level: 1
-  qq: 123456789   # qq
+  # qq
+  qq: 123456789
+  # 是否保存密码. 强烈建议否
+  savepwd: False
+  # 二维码登录偏好. force/prefer/allow/forbid, 倾向逐次降低.
+  qr_strategy: prefer
+
 selenium:
-  browser: Chrome
-  driver: 
-  option: 
-    - headless
+  # 要使用的webdriver类型. Chrome/Edge/Firefox
+  browser: Edge
+
+  # 声明driver时给定的参数
+  driver:
+    # webdriver路径. 适用于非默认名称或未加入`PATH`的情况
+    executable_path: msedgedriver.exe
+
+  # 参看ChromeOption, FirefoxOption等. 注意, Edge不支持Option. 如果您使用Edge, 请去掉option条目
+  option:
+    - headless # 不显示浏览器窗口
+
 feed:
+  # 说说在本地缓存的天数
   keepdays: 3
+
 bot:
+  # 目前仅支持polling.
   method: polling
-  token: hereisyourtoken  # bot token
+  # bot token
+  token: hereisyourtoken
+  # admin id
   accept_id:
-  - 123456789   # admin id
+    - 123456789
+  # 代理, 可选.
+  proxy:
+    proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
+    # Optional, if you need authentication:
+    urllib3_proxy_kwargs:
+      username: PROXY_USER
+      password: PROXY_PASS

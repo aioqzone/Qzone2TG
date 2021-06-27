@@ -16,33 +16,42 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Main")
 
-d = {}
-with open("config.yaml") as f: d = yaml.load(f)
-logger.info("config loaded")
 
-bot = d.get("bot")
-qzone = d.get("qzone")
-feed = d.get('feed')
-selenium = d.get('selenium')
+def main():
+    d = {}
+    with open("config.yaml") as f:
+        d = yaml.load(f)
+    logger.info("config loaded")
 
-if 'qq' in qzone:
-    print('QQ to login: %s' % qzone['qq'])
-else:
-    qzone['qq'] = input('QQ: ')
+    bot = d.get("bot")
+    qzone = d.get("qzone")
+    feed = d.get('feed')
+    selenium = d.get('selenium')
 
-if "password" in qzone: 
-    qzone["password"] = pwdTransBack(qzone["password"])
-else:
-    pwd: str = getpass.getpass()
-    if qzone.get('savepwd', True): 
-        qzone["password"] = pwdTransform(pwd)
-        with open("config.yaml", 'w') as f: yaml.dump(d, f)
-    qzone["password"] = pwd
+    if 'qq' in qzone:
+        print('QQ to login: %s' % qzone['qq'])
+    else:
+        qzone['qq'] = input('QQ: ')
 
-del d, pwd
+    if "password" in qzone:
+        qzone["password"] = pwdTransBack(qzone["password"])
+    else:
+        pwd: str = getpass.getpass('Password (no echo):')
+        if 'savepwd' in qzone and qzone.pop('savepwd'):
+            qzone["password"] = pwdTransform(pwd)
+            with open("config.yaml", 'w') as f:
+                yaml.dump(d, f)
+        qzone["password"] = pwd
 
-qzonebackend.validator.jigsaw.product = True
+    del d, pwd
 
-spider = QzoneScraper(selenium_conf=selenium, **qzone)
-bot = PollingBot(feedmgr=FeedOperation(spider, **feed), **bot)
-bot.run()
+    qzonebackend.validator.jigsaw.product = True
+
+    spider = QzoneScraper(selenium_conf=selenium, **qzone)
+    bot = PollingBot(feedmgr=FeedOperation(spider, **feed), **bot)
+    spider.register_qr_callback(bot.sendQR)
+    bot.run()
+
+
+if __name__ == 'main':
+    main()

@@ -51,29 +51,24 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 # 填写qq, tg bot token, acceptId以及可选的代理, 设置selenium
 ```
 
+### 安装Webdriver
+
+配置示例使用`msedgedriver`, 对应Chromium版Edge浏览器. 此外理论上也支持`Chrome`和`Firefox`.
+
+请自行配置webdriver.
+
 ## 运行
-
-### 简单开始
-
-您只需:
-
-1. 配置`qzone`条目下的`qq`项
-2. 配置`bot`条目下的`token`项
-3. 配置`bot`条目下的`accepted_id`项
-4. 如果你使用代理, 还要配置`bot`条目下的`proxy`. 支持`http`, `socks5`, `socks5h`. 如果你的代理需要认证的话, 请一并参见下方链接:
-
-[Working Behind a Proxy][1]
 
 ### 配置文件
 
 应用的配置文件在`config`目录下的`config.yaml`. 配置文件示例在`misc`目录下的`example.yaml`.
 
-配置各项的含义请参考[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3)
+配置各项的含义请参考[wiki][3]
 ~~(有生之年系列)~~
 
 ### PYTHONPATH
 
-源码存储于`src`下, 必须确保它加入了`PYTHONPATH`, 否则无法找到包.
+源码存储于`src`下, 必须确保它加入了`PYTHONPATH`, 否则无法确保正确运行.
 
 默认的设置适用于Windows系统. Unix系统, 请将`.env`文件中的`;`改为`:`. ([详见此处][2])
 
@@ -84,18 +79,17 @@ python3 src/main.py
 #接下来输入你的密码
 ```
 
-注意, 目前您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
-注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
+注意, 当允许保存密码时, 您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
+因此 __强烈建议__ 不保存密码, 即在配置文件中保持`savepwd`为`False`(默认).
 
-> Update: 
-> - 目前`savepwd`项默认为True. 还是等等二维码登录吧
+注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
 
 ## 卸载
 
-|directory  |description  |
-|:----------|:------------|
-|data       |用于缓存`keepdays`天内的feed|
-|tmp        |本地保存cookie等|
+|data directory |description  |
+|:--------------|:------------|
+|data           |用于缓存`keepdays`天内的feed|
+|tmp            |本地保存cookie等|
 
 脚本没有在Qzone2TG文件夹外存储数据. 
 
@@ -118,3 +112,4 @@ python3 src/main.py
 
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
+[3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"

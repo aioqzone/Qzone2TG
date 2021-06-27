@@ -17,8 +17,7 @@ logger = logging.getLogger("telegram")
 
 
 def make_link(txt, link) -> str:
-    a = '<a href="{link}">{txt}</a>'
-    return a.format(txt=txt, link=link)
+    return f'<a href="{link}">{txt}</a>'
 
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
@@ -44,14 +43,15 @@ def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
 
 def send_feed(bot: telegram.Bot, chat, feed: dict):
     msg = feed["nickname"] + feed["feedstime"]
+    psr = Parser(feed["html"])
+    msg += psr.parseText()
+
     if int(feed['typeid']) == 5:
         msg += "转发了{forward}的说说:"
+        forward = psr.parseForward()
     else:
         msg += "发表了说说:"
     msg += br * 2
-
-    psr = Parser(feed["html"])
-    msg += psr.parseText()
 
     if psr.isLike:
         msg += br + '❤'
@@ -66,7 +66,6 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
 
     if int(feed['typeid']) == 5:
         #TODO: forward
-        forward = psr.parseForward()
         if forward is None:
             logger.warning(str(feed["hash"]) + ": cannot parse forward text")
             forward_text = br + "emmm, 没抓到转发消息."
@@ -114,17 +113,17 @@ class PollingBot:
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         dispatcher = self.update.dispatcher
-        dispatcher.add_handler(CommandHandler("start", lambda u, c: self.onStart(u, c)))
-        dispatcher.add_handler(
-            CommandHandler("refresh", lambda u, c: self.onRefresh(u, c))
-        )
-        dispatcher.add_handler(CallbackQueryHandler(lambda u, c: self.like(u, c)))
+        dispatcher.add_handler(CommandHandler("start", self.onStart))
+        dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
+        dispatcher.add_handler(CallbackQueryHandler(self.like))
 
     def onRefresh(self, update: telegram.Update, context: CallbackContext):
-        self.onFetch(context.bot, update.effective_chat.id, False)
+        self.chat_id = update.effective_chat.id
+        self.onFetch(context.bot, False)
 
     def onStart(self, update: telegram.Update, context):
-        self.onFetch(context.bot, update.effective_chat.id, True)
+        self.chat_id = update.effective_chat.id
+        self.onFetch(context.bot, True)
 
     def run(self):
         if self.method == "polling":
@@ -168,24 +167,39 @@ class PollingBot:
         )
         logger.info("like post end")
 
-    def onFetch(self, bot: telegram.Bot, chat: int, reload: bool):
+    def onFetch(self, bot: telegram.Bot, reload: bool):
         cmd = "force-refresh" if reload else "refresh"
 
-        if str(chat) in self.accept_id:
-            logger.info("%d: start %s" % (chat, cmd))
+        if str(self.chat_id) in self.accept_id:
+            logger.info("%d: start %s" % (self.chat_id, cmd))
         else:
             logger.info("%d: illegal access")
             bot.send_message(
-                chat_id=chat, text="Sorry. But bot won't answer unknown chat."
+                chat_id=self.chat_id, text="Sorry. But bot won't answer unknown chat."
             )
         try:
             new = self.feedmgr.fetchNewFeeds(reload)
         except TimeoutError:
             bot.send_message(
-                chat_id=chat, text="Sorry. But network is always busy. Try later."
+                chat_id=self.chat_id,
+                text="Sorry. But network is always busy. Try later."
             )
             return
         for i in new:
-            send_feed(bot, chat, i)
-        bot.send_message(chat_id=chat, text="Done. Fetched %d feeds." % len(new))
+            send_feed(bot, self.chat_id, i)
+        bot.send_message(
+            chat_id=self.chat_id, text="Done. Fetched %d feeds." % len(new)
+        )
         logger.info("%s end" % cmd)
+
+    def sendQR(self, url: str):
+        """Send a QR code spec by an url to the chat
+
+        Args:
+            url (str): qr code url
+        """
+        self.update.bot.send_photo(
+            chat_id=self.chat_id,
+            photo=url,
+            caption='QR code',
+        )
