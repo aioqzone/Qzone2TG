@@ -4,14 +4,16 @@
 
 > 随缘修BUG
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
+> 目前是一个能用的版本
 
 ## 功能
 
 * 自动登录空间, cv过验证
+* 二维码登录
 * 爬取说说文本
 * 爬取说说图片
 * 爬取说说转发
-* QQ原生表情转文字
+* ~~QQ原生表情转文字~~
 * 点赞(目前只支持`appid=311`, `typeid=0 or 5`的说说, 即原创和转发)
 * 过滤部分广告(待测)
 * 简单的tg机器人
@@ -64,7 +66,6 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 应用的配置文件在`config`目录下的`config.yaml`. 配置文件示例在`misc`目录下的`example.yaml`.
 
 配置各项的含义请参考[wiki][3]
-~~(有生之年系列)~~
 
 ### PYTHONPATH
 
@@ -76,7 +77,7 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 
 ``` shell
 python3 src/main.py
-#接下来输入你的密码
+# 输入密码或跳过
 ```
 
 注意, 当允许保存密码时, 您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
@@ -99,7 +100,7 @@ python3 src/main.py
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot python-telegram-bot[socks] selenium demjson lxml opencv-python
+    pip3 uninstall python-telegram-bot selenium demjson lxml opencv-python
     ```
 
 ## Credits

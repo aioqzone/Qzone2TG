@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import re
 import time
 from urllib import parse
@@ -131,28 +132,34 @@ class QzoneScraper:
         """
         update cookie, gtk, qzonetoken
         """
-
         cookie = {}
-        try:
-            with open("tmp/cookie.yaml") as f:
+        COOKIE_CACHE = 'tmp/cookie.yaml'
+
+        if os.path.exists(COOKIE_CACHE):
+            with open(COOKIE_CACHE) as f:
                 cookie: dict = yaml.safe_load(f)
-        except FileNotFoundError:
-            pass
 
         t = cookie.get("timestamp", 0)
-        if force_login or (time.time() - t) >= self.cookie_expire:
-            logger.info("cookie已过期, 重新登陆.")
+        if (time.time() - t) >= self.cookie_expire:
+            logger.info("cookie已过期, 即将重新登陆.")
+            force_login = True
+
+        if force_login:
+            logger.info("重新登陆.")
             cookie = self.login()
             if cookie is None:
-                #TODO fetch QR code
-                raise QzoneError(-999, "登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
+                if self.qr_strategy == 'forbid':
+                    raise RuntimeError("登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
+                else:
+                    raise RuntimeError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.")
 
-            if "p_skey" not in cookie: raise QzoneError(-233, "登陆失败: 或许可以重新登陆.")
+            if "p_skey" not in cookie: raise RuntimeError("登陆失败: 或许可以重新登陆.")
             logger.info('取得cookie')
             cookie["timestamp"] = time.time()
             cookie["gtk"] = cal_gtk(cookie["p_skey"])
-            with open("tmp/cookie.yaml", "w") as f:
-                yaml.safe_dump(cookie, f)
+            if self.cookie_expire > 0:
+                with open(COOKIE_CACHE, "w") as f:
+                    yaml.safe_dump(cookie, f)
         else:
             logger.info("使用缓存cookie")
 
@@ -161,7 +168,7 @@ class QzoneScraper:
         self.cookie = encode_cookie(cookie)
 
     def do_like(self, likedata: LikeId) -> bool:
-        url = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
+        DO_LIKE_URL = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
         arg = f'g_tk={self.gtk}&qzonetoken={self.qzonetoken}'
 
         body = {
@@ -177,7 +184,7 @@ class QzoneScraper:
             'fupdate': 1
         }
 
-        r = requests.post(url + arg, data=body, headers=self.header)
+        r = requests.post(DO_LIKE_URL + arg, data=body, headers=self.header)
         if r.status_code != 200: return False
 
         r = r.text.replace('\n', '').replace('\t', '')
@@ -190,8 +197,9 @@ class QzoneScraper:
         """
         make sure updateStatus is called before.
         """
+        assert hasattr(self, 'gtk'), 'updateStatus should be called before.'
 
-        url = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
+        GET_PAGE_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
         query = {
             'uin': self.uin,
             'pagenum': pagenum,
@@ -204,11 +212,11 @@ class QzoneScraper:
             'qzonetoken': self.qzonetoken
         }
         query.update(Args4GettingFeeds)
-        url += parse.urlencode(query)
+        GET_PAGE_URL += parse.urlencode(query)
 
         for i in range(self.fetch_times):
 
-            r = requests.get(url, headers=self.header)
+            r = requests.get(GET_PAGE_URL, headers=self.header)
 
             if r.status_code != 200: raise TimeoutError(r.reason)
 
@@ -236,13 +244,13 @@ class QzoneScraper:
         raise TimeoutError("network is always busy!")
 
     def checkUpdate(self):
-        url = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
+        UPDATE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
         arg = parse.urlencode({
             'uin': self.uin,
             'qzonetoken': self.qzonetoken,
             'g_tk': self.gtk
         })
-        r = requests.get(url + arg, headers=self.header)
+        r = requests.get(UPDATE_FEED_URL + arg, headers=self.header)
         r = re.search(r"callback({.*})", r.text, re.S).group(1)
         r = demjson.decode(r)
         if r["code"] == 0: return r["data"]

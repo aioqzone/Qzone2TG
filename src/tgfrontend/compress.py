@@ -94,6 +94,10 @@ class LikeId(Compress):
         self.unikey = unikey
         self.curkey = curkey
 
+    @property
+    def fid(self):
+        return self.key
+
     def tobytes(self):
         p = re.compile(r"http://.*/(\d+)/mood/(\w+)")
         t = p.search(self.unikey).groups()

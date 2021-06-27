@@ -1,7 +1,7 @@
 qzone:
   # UA
   UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36 Edg/91.0.864.54
-  # cookie过期时限
+  # cookie过期时限(秒). 0为不保存cookie, 即永远强制登陆
   cookie_expire: 9600
   # 拉取说说时允许重试次数
   fetch_times: 12

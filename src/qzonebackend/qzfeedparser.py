@@ -98,12 +98,16 @@ class QZFeedParser:
         return int(self.raw['typeid'])
 
     @property
+    def fid(self) -> str:
+        return self.raw['key']
+
+    @property
     def feedkey(self) -> str:
         return self.raw['key']
 
     @property
     def isLike(self) -> bool:
-        return self.parseLikeData()[0]
+        return '1' in self.parseLikeData()[0]
 
     def parseBio(self) -> str:
         return self.src.xpath('//div[@class="user-pto"]/a/img/@src')[0]

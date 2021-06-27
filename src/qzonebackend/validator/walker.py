@@ -147,7 +147,7 @@ class Walker:
         try:
             WebDriverWait(self.driver, timeout, poll_freq
                           ).until(lambda dr: cur_url != self.driver.current_url)
-        except NoSuchElementException:
+        except (NoSuchElementException, TimeoutException):
             return False   # 网页没变, 重来
         else:
             if f"user.qzone.qq.com/{uin}" in self.driver.current_url: return True

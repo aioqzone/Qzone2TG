@@ -19,8 +19,8 @@ logger = logging.getLogger("Main")
 
 def main():
     d = {}
-    with open("config.yaml") as f:
-        d = yaml.load(f)
+    with open("config/config.yaml") as f:
+        d = yaml.safe_load(f)
     logger.info("config loaded")
 
     bot = d.get("bot")
@@ -36,7 +36,7 @@ def main():
     if "password" in qzone:
         qzone["password"] = pwdTransBack(qzone["password"])
     else:
-        pwd: str = getpass.getpass('Password (no echo):')
+        pwd: str = getpass.getpass('Password (press Enter to skip):')
         if 'savepwd' in qzone and qzone.pop('savepwd'):
             qzone["password"] = pwdTransform(pwd)
             with open("config.yaml", 'w') as f:
@@ -53,5 +53,5 @@ def main():
     bot.run()
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     main()

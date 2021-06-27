@@ -23,6 +23,8 @@ def day_stamp(timestamp: float = None) -> int:
 
 
 class FeedOperation:
+    new_limit = 30
+
     def __init__(self, qzone: QzoneScraper, keepdays=3):
         self.keepdays = keepdays
         self.qzone = qzone
@@ -49,15 +51,16 @@ class FeedOperation:
                     logger.info("clean folder: " + f)
 
     def getFeeds(self, pagenum: int, reload=False):
-
-        for i in range(2):
-            if i == 1: logger.info("force relogin")
-            try:
-                feeds = self.qzone.fetchPage(pagenum)
-            except QzoneError as e:
-                if e.code == -3000: logger.warning("Cookie过期, 强制登陆. 建议修改cookie缓存时间.")
-                else: raise e
-            else: break
+        self.qzone.updateStatus(reload)
+        try:
+            feeds = self.qzone.fetchPage(pagenum)
+        except QzoneError as e:
+            if e.code == -3000 and not reload:
+                if not reload:
+                    logger.warning("Cookie过期, 强制登陆. 建议修改cookie缓存时间.")
+                    self.getFeeds(pagenum, True)
+            else:
+                raise e
 
         hasnext = True
         new = 0
@@ -67,7 +70,7 @@ class FeedOperation:
             if daystamp + self.keepdays <= day_stamp():
                 hasnext = False
                 break
-            folder = "data/%s/%d" % (self.qzone.uin, daystamp)
+            folder = f"data/{self.qzone.uin}/{daystamp}"
             if not os.path.exists(folder): os.makedirs(folder)
             fname = folder + "/%s.yaml" % i["hash"]
             if (not reload) and os.path.exists(fname):
@@ -76,7 +79,7 @@ class FeedOperation:
             else:
                 new += 1
                 with open(fname, "w", encoding='utf-8') as f:
-                    yaml.dump(i, f)            # TODO: maybe need to override the dumper
+                    yaml.safe_dump(i, f)       # TODO: maybe need to override the dumper
 
         logger.info("获取了%d条说说, %d条最新" % (len(feeds), new))
         feeds = feeds[:new]
@@ -95,6 +98,7 @@ class FeedOperation:
             i += 1
             hasnext, tmp = self.getFeeds(i, reload)
             feeds.extend(tmp)
+            reload = False
         return sorted(feeds, key=lambda f: f["abstime"])
 
     def like(self, likedata: LikeId):

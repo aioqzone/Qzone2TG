@@ -13,6 +13,7 @@ from telegram.ext import (
 from .compress import LikeId
 
 br = '\n'
+SUPPORT_TYPEID = (0, 5)
 logger = logging.getLogger("telegram")
 
 
@@ -42,16 +43,17 @@ def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
 
 
 def send_feed(bot: telegram.Bot, chat, feed: dict):
-    msg = feed["nickname"] + feed["feedstime"]
-    psr = Parser(feed["html"])
-    msg += psr.parseText()
+    psr = Parser(feed)
+    if psr.typeid not in SUPPORT_TYPEID: return
 
-    if int(feed['typeid']) == 5:
+    msg = psr.nickname + psr.feedstime
+
+    if psr.typeid == 5:
         msg += "转发了{forward}的说说:"
-        forward = psr.parseForward()
     else:
         msg += "发表了说说:"
     msg += br * 2
+    msg += psr.parseText()
 
     if psr.isLike:
         msg += br + '❤'
@@ -66,7 +68,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
 
     if int(feed['typeid']) == 5:
         #TODO: forward
-        if forward is None:
+        if (forward := psr.parseForward()) is None:
             logger.warning(str(feed["hash"]) + ": cannot parse forward text")
             forward_text = br + "emmm, 没抓到转发消息."
         else:
@@ -98,6 +100,7 @@ def send_feed(bot: telegram.Bot, chat, feed: dict):
 
 class PollingBot:
     update: Updater
+    reload_on_start = False
 
     def __init__(
         self,
@@ -118,12 +121,14 @@ class PollingBot:
         dispatcher.add_handler(CallbackQueryHandler(self.like))
 
     def onRefresh(self, update: telegram.Update, context: CallbackContext):
+        logger.debug('Refresh command is called')
         self.chat_id = update.effective_chat.id
         self.onFetch(context.bot, False)
 
     def onStart(self, update: telegram.Update, context):
+        logger.info('Bot starting')
         self.chat_id = update.effective_chat.id
-        self.onFetch(context.bot, True)
+        self.onFetch(context.bot, self.reload_on_start)
 
     def run(self):
         if self.method == "polling":
@@ -159,7 +164,7 @@ class PollingBot:
                 )
                 return
         else:
-            if not self.feedmgr.do_like(LikeId.fromstr(data)):
+            if not self.feedmgr.like(LikeId.fromstr(data)):
                 query.answer(text='Failed to send like post.')
                 return
         query.edit_message_text(
@@ -170,10 +175,10 @@ class PollingBot:
     def onFetch(self, bot: telegram.Bot, reload: bool):
         cmd = "force-refresh" if reload else "refresh"
 
-        if str(self.chat_id) in self.accept_id:
+        if self.chat_id in self.accept_id:
             logger.info("%d: start %s" % (self.chat_id, cmd))
         else:
-            logger.info("%d: illegal access")
+            logger.info(f"{self.chat_id}: illegal access")
             bot.send_message(
                 chat_id=self.chat_id, text="Sorry. But bot won't answer unknown chat."
             )
@@ -192,14 +197,15 @@ class PollingBot:
         )
         logger.info("%s end" % cmd)
 
-    def sendQR(self, url: str):
-        """Send a QR code spec by an url to the chat
+    def sendQR(self, filename: str):
+        """Send a QR code pic to the chat
 
         Args:
-            url (str): qr code url
+            filename (str): qr code path
         """
-        self.update.bot.send_photo(
-            chat_id=self.chat_id,
-            photo=url,
-            caption='QR code',
-        )
+        with open(filename, 'rb') as f:
+            self.update.bot.send_photo(
+                chat_id=self.chat_id,
+                photo=f,
+                caption='Scan the QR code to login.',
+            )
