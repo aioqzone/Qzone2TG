@@ -109,7 +109,8 @@ python3 src/main.py
 
 ## License
 
-[MIT License](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
+- [AGPL-3.0](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
+- __不鼓励、不支持一切商用使用__
 
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
