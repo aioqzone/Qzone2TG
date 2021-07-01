@@ -112,12 +112,16 @@ class PollingBot:
         feedmgr: FeedOperation,
         token: str,
         accept_id: list,
+        *,
+        interval=0,
         proxy: dict = None,
         polling: dict = None
     ):
         self.accept_id = accept_id
         self.feedmgr = feedmgr
         self.run_kwargs = {} if polling is None else polling
+        self._token = token
+        self.interval = interval
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         dispatcher = self.update.dispatcher
@@ -125,14 +129,23 @@ class PollingBot:
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
         dispatcher.add_handler(CallbackQueryHandler(self.like))
 
-    def onRefresh(self, update: telegram.Update, context: CallbackContext):
+    def onRefresh(
+        self, update: telegram.Update, context: CallbackContext, reload=False
+    ):
         self.chat_id = update.effective_chat.id
-        self.onFetch(context.bot, False)
+        self.onFetch(context.bot, reload)
 
     def onStart(self, update: telegram.Update, context):
         logger.info('Bot starting')
-        self.chat_id = update.effective_chat.id
-        self.onFetch(context.bot, self.reload_on_start)
+        self.onRefresh(update, context, reload=self.reload_on_start)
+
+    def register_period_refresh(self):
+        if self.interval > 0:
+            self.update.job_queue.run_repeating(
+                lambda c: self.onFetch(c.bot, False),
+                self.interval,
+                name='period_refresh'
+            )
 
     def run(self):
         try:
@@ -142,6 +155,7 @@ class PollingBot:
             self.update.stop()
             return
         logger.info("start polling")
+        self.register_period_refresh()
         self.update.idle()
 
     def like(self, update: telegram.Update, context):
@@ -207,17 +221,35 @@ class PollingBot:
 
 class WebhookBot(PollingBot):
     def __init__(
-        self, feedmgr: FeedOperation, token: str, accept_id: list, proxy: dict,
-        webhook: dict
+        self,
+        feedmgr: FeedOperation,
+        token: str,
+        accept_id: list,
+        *,
+        interval=0,
+        proxy: dict = None,
+        webhook: dict = None
     ):
-        super().__init__(feedmgr, token, accept_id, proxy=proxy, polling=webhook)
+        self.server: str = webhook.pop('server')
+        if not self.server.endswith('/'): self.server += '/'
+        super().__init__(
+            feedmgr, token, accept_id, interval=interval, proxy=proxy, polling=webhook
+        )
 
     def run(self):
         try:
-            self.update.start_webhook(**self.run_kwargs)
+            self.update.start_webhook(**self.run_kwargs, url_path=self._token)
+            self.update.bot.setWebhook(self.server + self._token)
         except NetworkError as e:
             logger.error(e.message)
             self.update.stop()
             return
         logger.info("start webhook")
+        self.register_period_refresh()
         self.update.idle()
+
+    def onRefresh(
+        self, update: telegram.Update, context: CallbackContext, reload=False
+    ):
+        context.bot.setWebhook(self.server + self._token)
+        return super().onRefresh(update, context, reload=reload)

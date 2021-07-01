@@ -17,6 +17,7 @@ setup(
         'demjson',
         'lxml',
         'opencv-python',
+        'omegaconf',
     ],
     packages=find_packages(where='src'),
     package_dir={"": "src"},

@@ -8,6 +8,7 @@ from qzonebackend.feed import FeedOperation
 from qzonebackend.qzone import QzoneScraper
 from tgfrontend.tg import PollingBot, WebhookBot
 from utils import pwdTransBack, pwdTransform
+from omegaconf import OmegaConf
 
 logging.basicConfig(
     format='[%(levelname)s] %(asctime)s %(name)s:\t%(message)s',
@@ -18,9 +19,8 @@ logger = logging.getLogger("Main")
 
 
 def main():
-    d = {}
-    with open("config/config.yaml") as f:
-        d = yaml.safe_load(f)
+    d = OmegaConf.load("config/config.yaml")
+    d = OmegaConf.merge(d, OmegaConf.from_cli())
     logger.info("config loaded")
 
     bot = d.get("bot")

@@ -2,8 +2,8 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 随缘修BUG
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
+> 随缘修BUG</br>
+> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 > 目前是一个能用的版本
 
 ## 功能
@@ -100,7 +100,7 @@ python3 src/main.py
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot selenium demjson lxml opencv-python
+    pip3 uninstall python-telegram-bot selenium demjson lxml opencv-python omegaconf
     ```
 
 ## Credits
