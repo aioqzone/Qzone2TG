@@ -4,7 +4,7 @@ import os
 from selenium.common.exceptions import (
     NoSuchElementException, StaleElementReferenceException, TimeoutException
 )
-from selenium.webdriver import (Chrome, ChromeOptions, Edge, Firefox, FirefoxOptions)
+from selenium.webdriver import *
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -36,7 +36,11 @@ class Walker:
         # if self.headless: chrome_options.add_argument('--headless')
         # chrome_options.add_argument("log-level=%d" % self.log_level)
         if option:
-            op = {'Firefox': FirefoxOptions, 'Chrome': ChromeOptions}[browser]()
+            op = {
+                'Firefox': FirefoxOptions,
+                'Chrome': ChromeOptions,
+                'IE': IeOptions,
+            }[browser]()
             for i in option:
                 op.add_argument('--' + i)
             driver[browser.lower() + '_options'] = op
@@ -44,7 +48,8 @@ class Walker:
         self.driver = {
             'Chrome': Chrome,
             'Firefox': Firefox,
-            'Edge': Edge
+            'Edge': Edge,
+            'IE': Ie,
         }[browser](**driver)
 
     def register_qr_callback(self, qr_url_callback: callable):

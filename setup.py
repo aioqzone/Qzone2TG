@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='QZone2TG',
-    version='1.1',
+    version='1.2',
     description='Forward QZone feeds to telegram',
     author='JamzumSum',
     author_email='zzzzss990315@gmail.com',

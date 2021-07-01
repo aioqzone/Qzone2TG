@@ -200,7 +200,7 @@ class PollingBot:
             return
 
         for i in new:
-            send_feed(bot, self.chat_id, Parser(i))
+            send_feed(bot, self.chat_id, i)
 
         bot.send_message(chat_id=self.chat_id, text=f"成功爬取{len(new)}条说说.")
         logger.info(f"{cmd} end")

@@ -4,61 +4,21 @@ import re
 import yaml
 from lxml.html import HtmlElement, fromstring, tostring
 from utils import find_if
+from .emojimgr import url2unicode
 
 logger = logging.getLogger("Qzone HTML Parser")
-
-
-class EmojiMgr:
-    face_path = "misc/qq_face.yaml"
-    emoji_path = "misc/emoji.yaml"
-    singleton = None
-
-    def __init__(self, face_path: str = None, emoji_path: str = None) -> None:
-        if face_path: self.face_path = face_path
-        if emoji_path: self.emoji_path = emoji_path
-        self.loadEmoji()
-
-    def loadEmoji(self):
-        with open(self.face_path) as f:
-            self.face = yaml.safe_load(f)
-        with open(self.emoji_path) as f:
-            self.emoji = yaml.safe_load(f)
-
-    def transEmoji(self, name: str) -> str:
-        if name.endswith(".png"):
-            return self.face.get(name, "[/表情]")
-        elif name.endswith(".gif"):
-            if name in self.emoji:
-                return self.emoji[name]
-            else:
-                logger.warning('new gif: ' + name)
-                return "[/表情]"
-
-    def __getitem__(self, name):
-        return self.transEmoji(name)
-
-    @classmethod
-    def factory(cls, *args, **kwargs):
-        if cls.singleton is None:
-            cls.singleton = cls(*args, **kwargs)
-        return cls.singleton
-
-
-def url2unicode(m: re.Match):
-    return "" if m is None else EmojiMgr.factory().transEmoji(m.group(1))
 
 
 def elm2txt(elm: list, richText=True) -> str:
     """
     elm: Iterable[HtmlElement]
     """
-    faceurl = re.compile(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)")
     txt = ""
     for i in elm:
         if not isinstance(i, HtmlElement): txt += i
         elif i.tag == 'br': txt += '\n'
         elif i.tag == 'img':
-            txt += url2unicode(faceurl.search(i.attrib['src']))
+            txt += url2unicode(i.attrib['src'])
         elif i.tag == 'span':
             txt += elm2txt(i)
         elif i.tag == 'a':
@@ -84,8 +44,8 @@ class QZFeedParser:
 
     def updateHTML(self, html: str):
         self.src = fromstring(html)
-        del self.feedData
-        del self.likeData
+        if hasattr(self, 'feedData'): del self.feedData
+        if hasattr(self, 'likeData'): del self.likeData
 
     def parseText(self) -> str:
         elm: list = self.src.xpath(
@@ -187,6 +147,7 @@ class QZFeedParser:
 
     def isCut(self) -> bool:
         txt: list = self.src.xpath(self.f.info + '//a[@data-cmd="qz_toggle"]')
+        self.complete = True
         return bool(txt)
 
     def parseFeedData(self) -> dict:
@@ -215,7 +176,8 @@ class QZFeedParser:
         """
         if not hasattr(self, 'likeData'):
             att: dict = self.src.xpath(
-                self.f.single_foot + '//a[@class="praise qz_like_prase"]'
+                self.f.single_foot + '//a[contains(@class,"%s")]' %
+                ('qz_like_btn_v3 ' if hasattr(self, 'complete') else 'qz_like_prase')
             )[0].attrib
             assert att
             self.likeData = {k[5:]: v for k, v in att.items() if k.startswith('data-')}
@@ -224,3 +186,6 @@ class QZFeedParser:
 
     def __hash__(self) -> int:
         return hash((self.uin, self.abstime))
+
+    def __repr__(self) -> str:
+        return f"{self.nickname}, {self.feedstime}"

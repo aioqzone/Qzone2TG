@@ -109,26 +109,20 @@ class QzoneScraper:
             logger.error(str(e))
 
     def getCompleteFeed(self, feedData: dict) -> str:
-        # TODO: Response 500
-        arg = "qzonetoken={qzonetoken}&gtk={gtk}".format(
-            qzonetoken=self.qzonetoken, gtk=self.gtk
-        )
+        arg = "g_tk={gtk}".format(gtk=self.gtk)
         body = {
             "uin": feedData["uin"],
             "tid": feedData["tid"],
             "feedsType": feedData["feedstype"],
-            "qzreferrer": f"https://user.qzone.qq.com/{self.uin}"
+            "qzreferrer": f"https://user.qzone.qq.com/{self.uin}",
         }
         body.update(Arg4CompleteFeed)
 
         r = requests.post(COMPLETE_FEED_URL + arg, data=body, headers=self.header)
 
+        # TODO: Response 500
         if r.status_code != 200: raise TimeoutError(r.reason)
-        # r = r.text.replace('\n', '').replace('\t', '')
-        r = json.loads(
-            re.search(r"<script.*callback\((\{.*\})\);</script>", r,
-                      re.S | re.I).group(1)
-        )
+        r = re.search(r"callback\((\{.*\})\);", r.text, re.S | re.I).group(1)
         r = json.loads(r)
         return r["newFeedXML"].strip()
 
@@ -172,7 +166,7 @@ class QzoneScraper:
         self.cookie = encode_cookie(cookie)
 
     def do_like(self, likedata: LikeId) -> bool:
-        arg = f'g_tk={self.gtk}&qzonetoken={self.qzonetoken}'
+        arg = f'g_tk={self.gtk}'
 
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
@@ -210,8 +204,7 @@ class QzoneScraper:
                                           ).get("basetime", "undefined"),
             'count': 10,
             'usertime': round(time.time() * 1000),
-            'externparam': parse.quote(self.extern[pagenum]),
-            'qzonetoken': self.qzonetoken
+            'externparam': parse.quote(self.extern[pagenum])
         }
         query.update(Args4GettingFeeds)
 
@@ -245,11 +238,7 @@ class QzoneScraper:
         raise TimeoutError("network is always busy!")
 
     def checkUpdate(self):
-        arg = parse.urlencode({
-            'uin': self.uin,
-            'qzonetoken': self.qzonetoken,
-            'g_tk': self.gtk
-        })
+        arg = parse.urlencode({'uin': self.uin, 'g_tk': self.gtk})
         r = requests.get(UPDATE_FEED_URL + arg, headers=self.header)
         r = re.search(r"callback({.*})", r.text, re.S).group(1)
         r = demjson.decode(r)

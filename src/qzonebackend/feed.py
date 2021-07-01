@@ -11,6 +11,7 @@ from .qzfeedparser import QZFeedParser as Parser
 from .qzone import QzoneError, QzoneScraper
 
 logger = logging.getLogger("Feed Manager")
+PAGE_LIMIT = 1000
 
 
 def day_stamp(timestamp: float = None) -> int:
@@ -58,31 +59,24 @@ class FeedOperation:
             else:
                 raise e
 
-        hasnext = True
-        new = 0
-        for i, feed in enumerate(feeds):
+        new = []
+        for feed in feeds:
             feed = Parser(feed)
-            feeds[i] = feed
-            if feed.isCut():
-                feed.updateHTML(self.qzone.getCompleteFeed(feed.parseFeedData()))
 
             daystamp = day_stamp(feed.abstime)
             if daystamp + self.keepdays <= day_stamp():
-                hasnext = False
-                break
+                continue
             folder = f"data/{self.qzone.uin}/{daystamp}"
             os.makedirs(folder, exist_ok=True)
             fname = folder + f"/{feed.hash}.yaml"
-            if (not reload) and os.path.exists(fname):
-                hasnext = False
-                break
-            else:
-                new += 1
+            if reload or not os.path.exists(fname):
+                if feed.isCut():
+                    feed.updateHTML(self.qzone.getCompleteFeed(feed.parseFeedData()))
+                new.append(feed)
                 feed.dump(fname)
 
-        logger.info(f"获取了{len(feeds)}条说说, {new}条最新")
-        feeds: List[Parser] = feeds[:new]
-        return hasnext, feeds
+        logger.info(f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        return new
 
     def fetchNewFeeds(self, reload=False):
         try:
@@ -90,12 +84,10 @@ class FeedOperation:
         except OSError as e:
             logger.error("Failed to clean feed: " + repr(e))
 
-        i = 0
-        hasnext = True
         feeds = []
-        while hasnext:
-            i += 1
-            hasnext, tmp = self.getFeedsInPage(i, reload)
+        for i in range(PAGE_LIMIT):
+            tmp = self.getFeedsInPage(i + 1, reload)
+            if not tmp: break
             feeds.extend(tmp)
             reload = False
         return sorted(feeds, key=lambda f: f.abstime)
