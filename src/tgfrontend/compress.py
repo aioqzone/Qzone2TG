@@ -117,7 +117,7 @@ class LikeId(Compress):
         return base64.b64encode(b, b'!-').decode(encoding)
 
     @staticmethod
-    def frombytes(b: dict):
+    def frombytes(b: bytes):
         assert len(b) == 48
         ids = IDs.frombytes(b[:2])
         uni = MoodUrl.frombytes(b[14:31])

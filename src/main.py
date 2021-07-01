@@ -6,7 +6,7 @@ import yaml
 import qzonebackend.validator.jigsaw
 from qzonebackend.feed import FeedOperation
 from qzonebackend.qzone import QzoneScraper
-from tgfrontend.tg import PollingBot
+from tgfrontend.tg import PollingBot, WebhookBot
 from utils import pwdTransBack, pwdTransform
 
 logging.basicConfig(
@@ -48,7 +48,8 @@ def main():
     qzonebackend.validator.jigsaw.product = True
 
     spider = QzoneScraper(selenium_conf=selenium, **qzone)
-    bot = PollingBot(feedmgr=FeedOperation(spider, **feed), **bot)
+    BotCls = {'polling': PollingBot, 'webhook': WebhookBot}[bot.pop('method')]
+    bot = BotCls(feedmgr=FeedOperation(spider, **feed), **bot)
     spider.register_qr_callback(bot.sendQR)
     bot.run()
 

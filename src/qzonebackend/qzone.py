@@ -19,6 +19,11 @@ from .validator.walker import Walker
 
 logger = logging.getLogger("Qzone Scraper")
 
+COMPLETE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments?"
+DO_LIKE_URL = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
+GET_PAGE_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
+UPDATE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
+
 
 class QzoneError(RuntimeError):
     def __init__(self, code: int, *args):
@@ -103,28 +108,27 @@ class QzoneScraper:
         except RuntimeError as e:
             logger.error(str(e))
 
-    def getCompleteFeed(self, html: str):
+    def getCompleteFeed(self, feedData: dict) -> str:
         # TODO: Response 500
-        psr = Parser(html)
-        if not psr.isCut(): return html
-        feed = psr.parseFeedData()
-        url = "https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments?"
         arg = "qzonetoken={qzonetoken}&gtk={gtk}".format(
             qzonetoken=self.qzonetoken, gtk=self.gtk
         )
         body = {
-            "uin": feed["uin"],
-            "tid": feed["tid"],
-            "feedsType": feed["feedstype"],
+            "uin": feedData["uin"],
+            "tid": feedData["tid"],
+            "feedsType": feedData["feedstype"],
             "qzreferrer": f"https://user.qzone.qq.com/{self.uin}"
         }
         body.update(Arg4CompleteFeed)
 
-        r = requests.post(url + arg, data=body, headers=self.header)
+        r = requests.post(COMPLETE_FEED_URL + arg, data=body, headers=self.header)
 
         if r.status_code != 200: raise TimeoutError(r.reason)
         # r = r.text.replace('\n', '').replace('\t', '')
-        r = json.loads(re.search(r"callback\(({.*})", r, re.S | re.I).group(1))
+        r = json.loads(
+            re.search(r"<script.*callback\((\{.*\})\);</script>", r,
+                      re.S | re.I).group(1)
+        )
         r = json.loads(r)
         return r["newFeedXML"].strip()
 
@@ -168,7 +172,6 @@ class QzoneScraper:
         self.cookie = encode_cookie(cookie)
 
     def do_like(self, likedata: LikeId) -> bool:
-        DO_LIKE_URL = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
         arg = f'g_tk={self.gtk}&qzonetoken={self.qzonetoken}'
 
         body = {
@@ -199,7 +202,6 @@ class QzoneScraper:
         """
         assert hasattr(self, 'gtk'), 'updateStatus should be called before.'
 
-        GET_PAGE_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
         query = {
             'uin': self.uin,
             'pagenum': pagenum,
@@ -212,11 +214,10 @@ class QzoneScraper:
             'qzonetoken': self.qzonetoken
         }
         query.update(Args4GettingFeeds)
-        GET_PAGE_URL += parse.urlencode(query)
 
         for i in range(self.fetch_times):
 
-            r = requests.get(GET_PAGE_URL, headers=self.header)
+            r = requests.get(GET_PAGE_URL + parse.urlencode(query), headers=self.header)
 
             if r.status_code != 200: raise TimeoutError(r.reason)
 
@@ -244,7 +245,6 @@ class QzoneScraper:
         raise TimeoutError("network is always busy!")
 
     def checkUpdate(self):
-        UPDATE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
         arg = parse.urlencode({
             'uin': self.uin,
             'qzonetoken': self.qzonetoken,

@@ -1,20 +1,16 @@
-import yaml
 import logging
 import os
 import re
 import time
-from .qzfeedparser import QZFeedParser as Parser
+from typing import List
 
-from demjson import undefined
-
+import yaml
 from tgfrontend.compress import LikeId
+
+from .qzfeedparser import QZFeedParser as Parser
 from .qzone import QzoneError, QzoneScraper
 
 logger = logging.getLogger("Feed Manager")
-
-
-def make_hash(feed: dict) -> int:
-    return hash((int(feed["uin"]), int(feed["abstime"])))
 
 
 def day_stamp(timestamp: float = None) -> int:
@@ -50,7 +46,7 @@ class FeedOperation:
                     os.removedirs(f)
                     logger.info("clean folder: " + f)
 
-    def getFeeds(self, pagenum: int, reload=False):
+    def getFeedsInPage(self, pagenum: int, reload=False):
         self.qzone.updateStatus(reload)
         try:
             feeds = self.qzone.fetchPage(pagenum)
@@ -58,31 +54,34 @@ class FeedOperation:
             if e.code == -3000 and not reload:
                 if not reload:
                     logger.warning("Cookie过期, 强制登陆. 建议修改cookie缓存时间.")
-                    self.getFeeds(pagenum, True)
+                    self.getFeedsInPage(pagenum, True)
             else:
                 raise e
 
         hasnext = True
         new = 0
-        for i in feeds:
-            i["hash"] = make_hash(i)
-            daystamp = day_stamp(int(i["abstime"]))
+        for i, feed in enumerate(feeds):
+            feed = Parser(feed)
+            feeds[i] = feed
+            if feed.isCut():
+                feed.updateHTML(self.qzone.getCompleteFeed(feed.parseFeedData()))
+
+            daystamp = day_stamp(feed.abstime)
             if daystamp + self.keepdays <= day_stamp():
                 hasnext = False
                 break
             folder = f"data/{self.qzone.uin}/{daystamp}"
-            if not os.path.exists(folder): os.makedirs(folder)
-            fname = folder + "/%s.yaml" % i["hash"]
+            os.makedirs(folder, exist_ok=True)
+            fname = folder + f"/{feed.hash}.yaml"
             if (not reload) and os.path.exists(fname):
                 hasnext = False
                 break
             else:
                 new += 1
-                with open(fname, "w", encoding='utf-8') as f:
-                    yaml.safe_dump(i, f)       # TODO: maybe need to override the dumper
+                feed.dump(fname)
 
-        logger.info("获取了%d条说说, %d条最新" % (len(feeds), new))
-        feeds = feeds[:new]
+        logger.info(f"获取了{len(feeds)}条说说, {new}条最新")
+        feeds: List[Parser] = feeds[:new]
         return hasnext, feeds
 
     def fetchNewFeeds(self, reload=False):
@@ -96,10 +95,10 @@ class FeedOperation:
         feeds = []
         while hasnext:
             i += 1
-            hasnext, tmp = self.getFeeds(i, reload)
+            hasnext, tmp = self.getFeedsInPage(i, reload)
             feeds.extend(tmp)
             reload = False
-        return sorted(feeds, key=lambda f: f["abstime"])
+        return sorted(feeds, key=lambda f: f.abstime)
 
     def like(self, likedata: LikeId):
         self.qzone.updateStatus()
