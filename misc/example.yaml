@@ -1,12 +1,14 @@
 qzone:
   # UA
   UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36 Edg/91.0.864.54
+  
   # cookie过期时限(秒). 0为不保存cookie, 即永远强制登陆
   cookie_expire: 9600
   # 拉取说说时允许重试次数
   fetch_times: 12
   # 日志等级
   log_level: 1
+
   # qq
   qq: 123456789
   # 是否保存密码. 强烈建议否
@@ -15,7 +17,7 @@ qzone:
   qr_strategy: prefer
 
 selenium:
-  # 要使用的webdriver类型. Chrome/Edge/Firefox
+  # 要使用的webdriver类型. Chrome/Edge/Firefox/IE
   browser: Edge
 
   # 声明driver时给定的参数
@@ -32,13 +34,14 @@ feed:
   keepdays: 3
 
 bot:
-  # 目前仅支持polling.
-  method: polling
+  # polling/webhook
+  method: webhook
   # bot token
   token: hereisyourtoken
   # admin id
   accept_id:
     - 123456789
+    
   # 代理, 可选.
   proxy:
     proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
@@ -46,3 +49,14 @@ bot:
     urllib3_proxy_kwargs:
       username: PROXY_USER
       password: PROXY_PASS
+  
+  # 仅当使用webhook时设置此项
+  webhook:
+    # 访问环境变量, 或者也可以直接给端口号. 默认80.
+    port: ${oc.env:WEBHOOK_PORT}
+    # 证书路径, 重要
+    cert: /etc/letsencrypt/live/${oc.env:SERVER_NAME}/cert.pem
+    # 私钥路径, 重要
+    key: /etc/letsencrypt/live/${oc.env:SERVER_NAME}/privkey.pem
+    # 最大连接数. 可选.
+    max_connections: 40

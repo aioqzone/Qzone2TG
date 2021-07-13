@@ -18,9 +18,9 @@ class EmojiMgr:
         self.loadEmoji()
 
     def loadEmoji(self):
-        with open(self.face_path) as f:
+        with open(self.face_path, encoding='utf-8') as f:
             self.face = yaml.safe_load(f)
-        with open(self.emoji_path) as f:
+        with open(self.emoji_path, encoding='utf-8') as f:
             self.emoji = yaml.safe_load(f)
 
     def transEmoji(self, name: str) -> str:

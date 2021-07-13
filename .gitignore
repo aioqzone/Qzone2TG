@@ -3,7 +3,7 @@ __pycache__
 .vscode
 
 # my private data
-data
+/data
 .pylintrc
 yapf_style.cfg
 test/compressTest.py
@@ -16,3 +16,8 @@ test.*
 *.html
 *.xml
 *.log
+
+# build
+/build
+/dist
+*.egg-info

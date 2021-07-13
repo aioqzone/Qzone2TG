@@ -138,6 +138,7 @@ class PollingBot:
     def onStart(self, update: telegram.Update, context):
         logger.info('Bot starting')
         self.onRefresh(update, context, reload=self.reload_on_start)
+        self.register_period_refresh()
 
     def register_period_refresh(self):
         if self.interval > 0:
@@ -146,6 +147,7 @@ class PollingBot:
                 self.interval,
                 name='period_refresh'
             )
+        logger.info('periodically refresh registered.')
 
     def run(self):
         try:
@@ -155,7 +157,6 @@ class PollingBot:
             self.update.stop()
             return
         logger.info("start polling")
-        self.register_period_refresh()
         self.update.idle()
 
     def like(self, update: telegram.Update, context):
@@ -202,7 +203,9 @@ class PollingBot:
         for i in new:
             send_feed(bot, self.chat_id, i)
 
-        bot.send_message(chat_id=self.chat_id, text=f"成功爬取{len(new)}条说说.")
+        bot.send_message(
+            chat_id=self.chat_id, text=f"成功爬取{len(new)}条说说." if new else "您已经跟上了时代✔"
+        )
         logger.info(f"{cmd} end")
 
     def sendQR(self, filename: str):
@@ -245,7 +248,6 @@ class WebhookBot(PollingBot):
             self.update.stop()
             return
         logger.info("start webhook")
-        self.register_period_refresh()
         self.update.idle()
 
     def onRefresh(

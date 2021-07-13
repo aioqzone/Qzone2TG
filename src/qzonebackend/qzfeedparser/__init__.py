@@ -23,7 +23,11 @@ def elm2txt(elm: list, richText=True) -> str:
             txt += elm2txt(i)
         elif i.tag == 'a':
             if not i.attrib['href'].startswith("javascript"):
-                txt += f"<a src={i.attrib['href']}>{i.text}</a>" if richText else i.text
+                if richText:
+                    src = i.attrib['href']
+                    txt += f'<a src="{src}">{i.text}</a>'
+                else:
+                    txt += i.text
         else:
             logger.warning("cannot recognize tag: " + i.tag)
     return txt

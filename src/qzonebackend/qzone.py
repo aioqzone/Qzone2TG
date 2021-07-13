@@ -5,29 +5,32 @@ import logging
 import os
 import re
 import time
-from urllib import parse
+from urllib.parse import quote, unquote
 
 import demjson
 import requests
 import yaml
+from requests.exceptions import HTTPError
 from tgfrontend.compress import LikeId
 from utils import undefined2None
 
-from .common import Args4GettingFeeds, Arg4CompleteFeed
-from .qzfeedparser import QZFeedParser as Parser
+from .common import Arg4CompleteFeed, Args4GettingFeeds
 from .validator.walker import Walker
 
 logger = logging.getLogger("Qzone Scraper")
 
-COMPLETE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments?"
-DO_LIKE_URL = 'https://user.qzone.qq.com/proxy/domain/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app?'
-GET_PAGE_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more?"
-UPDATE_FEED_URL = "https://user.qzone.qq.com/proxy/domain/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi?"
+PROXY_DOMAIN = "https://user.qzone.qq.com/proxy/domain"
+COMPLETE_FEED_URL = PROXY_DOMAIN + "/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
+DO_LIKE_URL = PROXY_DOMAIN + "/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
+GET_PAGE_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
+UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
+
+RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 
 
 class QzoneError(RuntimeError):
     def __init__(self, code: int, *args):
-        self.code = code
+        self.code = int(code)
         RuntimeError.__init__(self, *args)
 
 
@@ -38,12 +41,6 @@ def cal_gtk(p_skey):
 
     logger.info('生成gtk')
     return phash & 0x7fffffff
-
-
-def encode_cookie(cookie):
-    skip = ["timestamp", "qzonetoken", "gtk"]
-    s = '; '.join([k + '=' + v for k, v in cookie.items() if k not in skip])
-    return s
 
 
 def parseExternParam(unquoted: str) -> dict:
@@ -58,6 +55,7 @@ def parseExternParam(unquoted: str) -> dict:
 class QzoneScraper:
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66"
     headless = True
+    COOKIE_CACHE = 'tmp/cookie.yaml'
 
     def __init__(
         self,
@@ -68,8 +66,10 @@ class QzoneScraper:
         password: str = None,
         fetch_times=12,
         qr_strategy='prefer',
-        UA=None
+        UA=None,
+        cookie_cache=None,
     ):
+        self.session = requests.Session()
         self.uin = qq
         self.pwd = password
         self.cookie_expire = cookie_expire
@@ -77,20 +77,26 @@ class QzoneScraper:
         self.fetch_times = fetch_times
         self.qr_strategy = qr_strategy
 
-        self.cookie = ''
         self.extern = {1: "undefined"}
 
         if UA: self.UA = UA
+        if cookie_cache: self.COOKIE_CACHE = cookie_cache
 
-    @property
-    def header(self):
-        headers = {
+        self.header = {
             'User-Agent': self.UA,
             "Referer": "https://user.qzone.qq.com/%d" % self.uin, # add referer
             "dnt": "1"
         }
-        if self.cookie: headers['Cookie'] = self.cookie
-        return headers
+
+    def post(self, *args, **kwargs):
+        r = self.session.post(*args, **kwargs, headers=self.header)
+        if r.status_code != 200: raise HTTPError(response=r)
+        return r
+
+    def get(self, *args, **kwargs):
+        r = self.session.get(*args, **kwargs, headers=self.header)
+        if r.status_code != 200: raise HTTPError(response=r)
+        return r
 
     def register_qr_callback(self, qr_url_callback: callable):
         self.qr_url_callback = qr_url_callback
@@ -109,7 +115,6 @@ class QzoneScraper:
             logger.error(str(e))
 
     def getCompleteFeed(self, feedData: dict) -> str:
-        arg = "g_tk={gtk}".format(gtk=self.gtk)
         body = {
             "uin": feedData["uin"],
             "tid": feedData["tid"],
@@ -118,11 +123,10 @@ class QzoneScraper:
         }
         body.update(Arg4CompleteFeed)
 
-        r = requests.post(COMPLETE_FEED_URL + arg, data=body, headers=self.header)
+        r = self.post(COMPLETE_FEED_URL, params={'g_tk': self.gtk}, data=body)
 
         # TODO: Response 500
-        if r.status_code != 200: raise TimeoutError(r.reason)
-        r = re.search(r"callback\((\{.*\})\);", r.text, re.S | re.I).group(1)
+        r = RE_CALLBACK.search(r.text).group(1)
         r = json.loads(r)
         return r["newFeedXML"].strip()
 
@@ -131,10 +135,9 @@ class QzoneScraper:
         update cookie, gtk, qzonetoken
         """
         cookie = {}
-        COOKIE_CACHE = 'tmp/cookie.yaml'
 
-        if os.path.exists(COOKIE_CACHE):
-            with open(COOKIE_CACHE) as f:
+        if os.path.exists(self.COOKIE_CACHE):
+            with open(self.COOKIE_CACHE) as f:
                 cookie: dict = yaml.safe_load(f)
 
         t = cookie.get("timestamp", 0)
@@ -156,18 +159,17 @@ class QzoneScraper:
             cookie["timestamp"] = time.time()
             cookie["gtk"] = cal_gtk(cookie["p_skey"])
             if self.cookie_expire > 0:
-                with open(COOKIE_CACHE, "w") as f:
+                with open(self.COOKIE_CACHE, "w") as f:
                     yaml.safe_dump(cookie, f)
         else:
             logger.info("使用缓存cookie")
 
         self.gtk = cookie['gtk']
-        self.qzonetoken = cookie["qzonetoken"]
-        self.cookie = encode_cookie(cookie)
+        for k in ['gtk', 'timestamp']:
+            cookie[k] = str(cookie[k])
+        self.session.cookies.update(cookie)
 
     def do_like(self, likedata: LikeId) -> bool:
-        arg = f'g_tk={self.gtk}'
-
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
             'opuin': self.uin,
@@ -180,17 +182,18 @@ class QzoneScraper:
             'active': 0,
             'fupdate': 1
         }
-
-        r = requests.post(DO_LIKE_URL + arg, data=body, headers=self.header)
-        if r.status_code != 200: return False
+        try:
+            r = self.post(DO_LIKE_URL, params={'g_tk': self.gtk}, data=body)
+        except HTTPError:
+            return False
 
         r = r.text.replace('\n', '').replace('\t', '')
-        r = json.loads(re.search(r"callback\(({.*})", r, re.S | re.I).group(1))
+        r = json.loads(RE_CALLBACK.search(r).group(1))
 
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
-    def fetchPage(self, pagenum: int):
+    def fetchPage(self, pagenum: int, count: int = 10):
         """
         make sure updateStatus is called before.
         """
@@ -202,45 +205,41 @@ class QzoneScraper:
             'g_tk': self.gtk,
             'begintime': parseExternParam(self.extern[pagenum]
                                           ).get("basetime", "undefined"),
-            'count': 10,
+            'count': count,
             'usertime': round(time.time() * 1000),
-            'externparam': parse.quote(self.extern[pagenum])
+            'externparam': quote(self.extern[pagenum])
         }
         query.update(Args4GettingFeeds)
 
-        for i in range(self.fetch_times):
-
-            r = requests.get(GET_PAGE_URL + parse.urlencode(query), headers=self.header)
-
-            if r.status_code != 200: raise TimeoutError(r.reason)
-
-            r = re.search(r"callback\(({.*})", r.text, re.S | re.I).group(1)
+        for _ in range(self.fetch_times):
+            r = self.get(GET_PAGE_URL, params=query)
+            r = RE_CALLBACK.search(r.text).group(1)
             r = demjson.decode(r)
 
             if r["code"] == 0:
-                data = r['data']['data']
-                self.extern[pagenum +
-                            1] = parse.unquote(r['data']['main']["externparam"])
-                data = [
-                    undefined2None(i) for i in data if not (
-                        i is demjson.undefined or i['key'].
-                        startswith('advertisement_app') or int(i['appid']) >= 4096
-                    )
-                ]
-                return data
+                data: dict = r['data']
+                self.extern[pagenum + 1] = unquote(data['main']["externparam"])
+                feeddict = filter(
+                    lambda i: not (
+                        i is demjson.undefined or \
+                        i['key'].startswith('advertisement_app') or \
+                        int(i['appid']) >= 4096
+                    ), data['data']
+                )
+                return [undefined2None(i) for i in feeddict]
             elif r["code"] == -10001:
                 logger.info(r["message"])
                 time.sleep(5)
             elif r["code"] == -3000:
+                # TODO
                 raise QzoneError(-3000, r["message"])
             else:
                 raise QzoneError(r['code'], r['message'])
         raise TimeoutError("network is always busy!")
 
     def checkUpdate(self):
-        arg = parse.urlencode({'uin': self.uin, 'g_tk': self.gtk})
-        r = requests.get(UPDATE_FEED_URL + arg, headers=self.header)
-        r = re.search(r"callback({.*})", r.text, re.S).group(1)
+        r = self.get(UPDATE_FEED_URL, params={'uin': self.uin, 'g_tk': self.gtk})
+        r = RE_CALLBACK.search(r.text).group(1)
         r = demjson.decode(r)
         if r["code"] == 0: return r["data"]
         else: raise QzoneError(r['code'], r['message'])

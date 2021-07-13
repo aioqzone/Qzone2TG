@@ -43,7 +43,8 @@ class Walker:
             }[browser]()
             for i in option:
                 op.add_argument('--' + i)
-            driver[browser.lower() + '_options'] = op
+            driver = dict(driver)
+            driver[f'{browser.lower()}_options'] = op
 
         self.driver = {
             'Chrome': Chrome,
@@ -160,9 +161,7 @@ class Walker:
 
     def _getCookie(self):
         cookie = self.driver.get_cookies()
-        qzonetoken = self.driver.execute_script('return window.g_qzonetoken')
         cookie = {i["name"]: i["value"] for i in cookie}
-        cookie["qzonetoken"] = qzonetoken
         return cookie
 
     def _crackValidate(self, uin):

@@ -2,13 +2,13 @@ import getpass
 import logging
 
 import yaml
+from omegaconf import OmegaConf
 
 import qzonebackend.validator.jigsaw
 from qzonebackend.feed import FeedOperation
 from qzonebackend.qzone import QzoneScraper
 from tgfrontend.tg import PollingBot, WebhookBot
 from utils import pwdTransBack, pwdTransform
-from omegaconf import OmegaConf
 
 logging.basicConfig(
     format='[%(levelname)s] %(asctime)s %(name)s:\t%(message)s',

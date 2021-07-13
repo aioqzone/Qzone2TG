@@ -14,7 +14,7 @@
 * 爬取说说图片
 * 爬取说说转发
 * ~~QQ原生表情转文字~~
-* 点赞(目前只支持`appid=311`, `typeid=0 or 5`的说说, 即原创和转发)
+* 点赞(应用消息的点赞受限)
 * 过滤部分广告(待测)
 * 简单的tg机器人
 
@@ -34,6 +34,14 @@
 
 ## 安装
 
+### 安装Webdriver
+
+配置示例使用`msedgedriver`, 对应Chromium版Edge浏览器. 此外理论上也支持`Chrome`和`Firefox`.
+
+请自行配置webdriver.
+
+### 克隆与配置本项目
+
 请确保安装了`git`, `python3`和对应的`pip`.
 
 ``` shell
@@ -52,12 +60,6 @@ cp misc/example.yaml config/config.yaml
 vim config.yaml     # 这里需要一个趁手的编辑器
 # 填写qq, tg bot token, acceptId以及可选的代理, 设置selenium
 ```
-
-### 安装Webdriver
-
-配置示例使用`msedgedriver`, 对应Chromium版Edge浏览器. 此外理论上也支持`Chrome`和`Firefox`.
-
-请自行配置webdriver.
 
 ## 运行
 
