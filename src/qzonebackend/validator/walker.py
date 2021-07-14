@@ -1,4 +1,4 @@
-import logging
+import logging, tempfile
 import os
 
 from selenium.common.exceptions import (
@@ -73,10 +73,25 @@ class Walker:
             qrpath = f'tmp/qrcode/{int(time())}.png'
             self.driver.find_element_by_id('qrlogin_img').screenshot(qrpath)
             self.qr_url_callback(qrpath)
-            if self._waitForJump(cur_url, uin, timeout=120, poll_freq=2):
-                logger.info('QR login success')
-                return True
-            logger.info(f'QR login failed # {i + 1}')
+            logger.info(f'二维码已发送 # {i + 1}')
+            try:
+                WebDriverWait(self.driver, 200, 2).until(
+                    lambda dr: (cur_url != dr.current_url) or dr.
+                    find_element_by_id('qr_invalid').is_displayed()
+                )
+            except (NoSuchElementException, TimeoutException):
+                logger.info(f'QR login failed # {i + 1}')
+                if not self.driver.find_element_by_id('qr_invalid').is_displayed():
+                    self.driver.refresh()
+                    continue
+                self.driver.find_element_by_id('qr_invalid').click()
+            else:
+                if f"user.qzone.qq.com/{uin}" in self.driver.current_url:
+                    logger.info('qr login success')
+                    return True
+                else:
+                    raise RuntimeError('穿越到未知的地界... ' + self.driver.current_url)
+            
         os.removedirs('tmp/qrcode')
         return False
 

@@ -139,11 +139,13 @@ class QzoneScraper:
         if os.path.exists(self.COOKIE_CACHE):
             with open(self.COOKIE_CACHE) as f:
                 cookie: dict = yaml.safe_load(f)
-
-        t = cookie.get("timestamp", 0)
-        if (time.time() - t) >= self.cookie_expire:
-            logger.info("cookie已过期, 即将重新登陆.")
+        else:
             force_login = True
+
+        # t = cookie.get("timestamp", 0)
+        # if (time.time() - t) >= self.cookie_expire:
+        #     logger.info("cookie已过期, 即将重新登陆.")
+        #     force_login = True
 
         if force_login:
             logger.info("重新登陆.")
@@ -170,6 +172,7 @@ class QzoneScraper:
         self.session.cookies.update(cookie)
 
     def do_like(self, likedata: LikeId) -> bool:
+        if not hasattr(self, 'gtk'): self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
             'opuin': self.uin,
@@ -197,7 +200,7 @@ class QzoneScraper:
         """
         make sure updateStatus is called before.
         """
-        assert hasattr(self, 'gtk'), 'updateStatus should be called before.'
+        if not hasattr(self, 'gtk'): self.updateStatus()
 
         query = {
             'uin': self.uin,
@@ -231,8 +234,9 @@ class QzoneScraper:
                 logger.info(r["message"])
                 time.sleep(5)
             elif r["code"] == -3000:
-                # TODO
-                raise QzoneError(-3000, r["message"])
+                logger.info("cookie已过期, 即将重新登陆.")
+                self.updateStatus(True)
+                self.fetchPage(pagenum=pagenum, count=count)
             else:
                 raise QzoneError(r['code'], r['message'])
         raise TimeoutError("network is always busy!")
