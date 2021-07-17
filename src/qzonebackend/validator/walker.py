@@ -16,6 +16,16 @@ from time import time
 logger = logging.getLogger("Selenium Walker")
 
 
+class ECOR:
+    def __init__(self, *args) -> None:
+        self._l = args
+
+    def __call__(self, driver):
+        for i in self._l:
+            if r := i(driver): return r
+        return False
+
+
 class Walker:
     crackMethod = contourMatch
     qr_url_callback = None
@@ -42,7 +52,7 @@ class Walker:
                 'IE': IeOptions,
             }[browser]()
             for i in option:
-                op.add_argument('--' + i)
+                op.add_argument(i)
             driver = dict(driver)
             driver[f'{browser.lower()}_options'] = op
 
@@ -75,23 +85,25 @@ class Walker:
             self.qr_url_callback(qrpath)
             logger.info(f'二维码已发送 # {i + 1}')
             try:
-                WebDriverWait(self.driver, 200, 2).until(
-                    lambda dr: (cur_url != dr.current_url) or dr.
-                    find_element_by_id('qr_invalid').is_displayed()
+                r = WebDriverWait(self.driver, 200, 2).until(
+                    ECOR(
+                        EC.url_changes(cur_url),
+                        EC.element_to_be_clickable((By.ID, 'qr_invalid_tips'))
+                    )
                 )
             except (NoSuchElementException, TimeoutException):
                 logger.info(f'QR login failed # {i + 1}')
-                if not self.driver.find_element_by_id('qr_invalid').is_displayed():
-                    self.driver.refresh()
-                    continue
-                self.driver.find_element_by_id('qr_invalid').click()
+                self.driver.refresh()
             else:
-                if f"user.qzone.qq.com/{uin}" in self.driver.current_url:
-                    logger.info('qr login success')
-                    return True
+                if r == True:
+                    if f"user.qzone.qq.com/{uin}" in self.driver.current_url:
+                        logger.info('qr login success')
+                        return True
+                    elif 'qzone.qq.com' not in self.driver.current_url:
+                        raise RuntimeError('穿越到未知的地界... ' + self.driver.current_url)
                 else:
-                    raise RuntimeError('穿越到未知的地界... ' + self.driver.current_url)
-            
+                    r.click()
+
         os.removedirs('tmp/qrcode')
         return False
 
@@ -166,8 +178,8 @@ class Walker:
 
     def _waitForJump(self, cur_url, uin, timeout=5, poll_freq=.5):
         try:
-            WebDriverWait(self.driver, timeout, poll_freq
-                          ).until(lambda dr: cur_url != self.driver.current_url)
+            WebDriverWait(self.driver, timeout,
+                          poll_freq).until(EC.url_changes(cur_url))
         except (NoSuchElementException, TimeoutException):
             return False   # 网页没变, 重来
         else:
@@ -181,7 +193,7 @@ class Walker:
 
     def _crackValidate(self, uin):
         try:
-            WebDriverWait(
+            back_url = WebDriverWait(
                 self.driver, 5
             ).until(lambda dr: dr.find_element_by_id('slideBg').get_attribute('src'))
         except TimeoutException:
@@ -194,7 +206,6 @@ class Walker:
         thumb = self.driver.find_element_by_id('tcaptcha_drag_thumb')
         guide = self.driver.find_element_by_id('guideText')
 
-        back_url = bg.get_attribute('src')
         fore_url = jigsaw.get_attribute('src')
 
         WebDriverWait(self.driver, 3).until(lambda dr: jigsaw.rect['x'] > 0)

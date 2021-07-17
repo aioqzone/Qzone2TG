@@ -215,7 +215,12 @@ class QzoneScraper:
         query.update(Args4GettingFeeds)
 
         for _ in range(self.fetch_times):
-            r = self.get(GET_PAGE_URL, params=query)
+            try:
+                r = self.get(GET_PAGE_URL, params=query)
+            except HTTPError as e:
+                r = e.response
+                logger.error(f"[{r.status_code}] {r.reason}")
+                raise e
             r = RE_CALLBACK.search(r.text).group(1)
             r = demjson.decode(r)
 

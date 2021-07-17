@@ -27,7 +27,7 @@ selenium:
 
   # 参看ChromeOption, FirefoxOption等. 注意, Edge不支持Option. 如果您使用Edge, 请去掉option条目
   option:
-    - headless # 不显示浏览器窗口
+    - --headless # 不显示浏览器窗口
 
 feed:
   # 说说在本地缓存的天数
@@ -44,6 +44,7 @@ bot:
     
   # 代理, 可选.
   proxy:
+    # NOTE: to enable socks5 feature, run `pip install python-telegram-bot[socks]` 
     proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
     # Optional, if you need authentication:
     urllib3_proxy_kwargs:
@@ -52,11 +53,18 @@ bot:
   
   # 仅当使用webhook时设置此项
   webhook:
-    # 访问环境变量, 或者也可以直接给端口号. 默认80.
+    # 服务器地址, 重要
+    server: ${oc.env:SERVER_NAME}
+    # 可选, 默认为空. 
+    # webhook的地址为 https://{server}/{prefex}/{token}
+    # prefex为空时为 https://{server}/{token}
+    # prefex可能会为反向代理提供方便.
+    prefex: tg
+    # 访问环境变量, 或者也可以直接给端口号. 默认80. 仅支持80/88/443/8443.
     port: ${oc.env:WEBHOOK_PORT}
     # 证书路径, 重要
-    cert: /etc/letsencrypt/live/${oc.env:SERVER_NAME}/cert.pem
+    cert: /etc/letsencrypt/live/${bot.webhook.server}/cert.pem
     # 私钥路径, 重要
-    key: /etc/letsencrypt/live/${oc.env:SERVER_NAME}/privkey.pem
+    key: /etc/letsencrypt/live/${bot.webhook.server}/privkey.pem
     # 最大连接数. 可选.
     max_connections: 40

@@ -10,7 +10,7 @@ class ParserTest(unittest.TestCase):
         htmls = None
         with open('tmp/feeds.yaml', encoding='utf8') as f:
             feeds = yaml.safe_load_all(f)
-            htmls = [i['html'] for i in feeds if i['appid'] == '311']
+            htmls = [i['html'] for i in feeds]
         for i in htmls:
             with open('tmp/html/%d.html' % hash(i), 'w', encoding='utf8') as f:
                 f.write(i)
@@ -28,7 +28,12 @@ class ParserTest(unittest.TestCase):
             self.assertTrue(psr.isCut())
 
     def testText(self):
-        with open('data/458973857/18805/-7284886418583810128.yaml', encoding='utf8') as f:
+        with open('data/458973857/18805/-7284886418583810128.yaml',
+                  encoding='utf8') as f:
             psr = Parser(yaml.safe_load(f))
             print(psr.parseText())
-            
+
+    def testForward(self):
+        with open('tmp/raw/-6054028682261981261.yaml', encoding='utf-8') as f:
+            psr = Parser(yaml.safe_load(f))
+            print(psr.parseForward())

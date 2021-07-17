@@ -1,5 +1,4 @@
 import logging
-import time
 
 import telegram
 from qzonebackend.feed import *
@@ -13,6 +12,7 @@ from telegram.ext import (
 from .compress import LikeId
 
 br = '\n'
+hr = '==============='
 
 SUPPORT_TYPEID = (0, 5)
 SUPPORT_APPID = (4, 202, 311)
@@ -34,7 +34,7 @@ def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
                 caption=caption.format(i + 1),
                 disable_notification=True
             )
-        except BadRequest:
+        except BadRequest as e:
             bot.send_message(
                 chat_id=chat,
                 text=caption.format(i + 1) + br +
@@ -42,6 +42,7 @@ def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
                 disable_web_page_preview=False,
                 parse_mode=telegram.ParseMode.HTML
             )
+            logger.warning(e.message)
         except TimedOut as e:
             logger.warning(e.message)
 
@@ -60,7 +61,7 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser):
     msg += feed.parseText()
 
     if feed.isLike:
-        msg += br + '❤'
+        msg += br + br + '❤'
         rpl = None
     else:
         if feed.appid == 311:
@@ -70,17 +71,19 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser):
         btnLike = telegram.InlineKeyboardButton("Like", callback_data=likeid)
         rpl = telegram.InlineKeyboardMarkup([[btnLike]])
 
-    if feed.appid != 311 or (feed.typeid == 5):
+    if feed.appid not in (4, 311) or (feed.typeid == 5):
         #TODO: forward
         if (forward := feed.parseForward()) is None:
-            logger.warning(f"{feed.hash}: cannot parse forward text")
+            logger.warning(
+                f"{feed.hash}: cannot parse forward text. appid={feed.appid}, typeid={feed.typeid}"
+            )
             msg = msg.format(forward=APP_NAME[feed.appid])
-            forward_text = ""
         else:
             forward_nick, forward_link, forward_text = forward
             msg = msg.format(forward=html_link('@' + forward_nick, forward_link)) + br
+            msg += hr + br
             msg += '@' + forward_nick + ': '
-        msg += forward_text
+            msg += forward_text
 
     img = feed.parseImage()
     if len(img) == 1: msg += br + html_link('P1', img[0])
@@ -103,6 +106,12 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser):
         send_photos(bot, chat, img, f'{feed.nickname}于{feed.feedstime}')
 
 
+class FakeObj:
+    def __init__(self, **kwargs) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
 class PollingBot:
     update: Updater
     reload_on_start = False
@@ -115,13 +124,15 @@ class PollingBot:
         *,
         interval=0,
         proxy: dict = None,
-        polling: dict = None
+        polling: dict = None,
+        auto_start=True,
     ):
         self.accept_id = accept_id
         self.feedmgr = feedmgr
         self.run_kwargs = {} if polling is None else polling
         self._token = token
         self.interval = interval
+        self.auto_start = auto_start
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         dispatcher = self.update.dispatcher
@@ -157,6 +168,15 @@ class PollingBot:
             self.update.stop()
             return
         logger.info("start polling")
+        self.idle()
+
+    def idle(self):
+        if self.auto_start and len(self.accept_id) == 1:
+            logger.info('auto start')
+            self.onStart(
+                update=FakeObj(effective_chat=FakeObj(id=self.accept_id[0])),
+                context=FakeObj(bot=self.update.bot)
+            )
         self.update.idle()
 
     def like(self, update: telegram.Update, context):
@@ -229,29 +249,30 @@ class WebhookBot(PollingBot):
         token: str,
         accept_id: list,
         *,
-        interval=0,
-        proxy: dict = None,
-        webhook: dict = None
+        webhook: dict = None,
+        **kwargs
     ):
-        self.server: str = webhook.pop('server')
-        if not self.server.endswith('/'): self.server += '/'
-        super().__init__(
-            feedmgr, token, accept_id, interval=interval, proxy=proxy, polling=webhook
-        )
+        super().__init__(feedmgr, token, accept_id, **kwargs, polling=webhook)
 
     def run(self):
+        server = re.search(r'(?:https?://)?([^/]*)/?',
+                           self.run_kwargs.pop('server')).group(1)
+        prefex = self.run_kwargs.pop('prefex', "")
+        if prefex: prefex += '/'
+        webhook_url = f"https://{server}/{prefex}{self._token}"
         try:
-            self.update.start_webhook(**self.run_kwargs, url_path=self._token)
-            self.update.bot.setWebhook(self.server + self._token)
+            self.update.start_webhook(
+                **self.run_kwargs,
+                url_path=self._token,
+                webhook_url=webhook_url,
+            )
+
         except NetworkError as e:
             logger.error(e.message)
             self.update.stop()
             return
         logger.info("start webhook")
-        self.update.idle()
-
-    def onRefresh(
-        self, update: telegram.Update, context: CallbackContext, reload=False
-    ):
-        context.bot.setWebhook(self.server + self._token)
-        return super().onRefresh(update, context, reload=reload)
+        logger.debug(
+            f"registerd webhook at {webhook_url}, listening at 127.0.0.1/{self._token}"
+        )
+        self.idle()
