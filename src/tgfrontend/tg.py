@@ -1,15 +1,16 @@
 import logging
+import re
 
 import telegram
-from qzonebackend.feed import *
+from qzonebackend.feed import FeedOperation, day_stamp
 from qzonebackend.qzfeedparser import QZFeedParser as Parser
-from qzonebackend.qzone import *
 from telegram.error import BadRequest, NetworkError, TimedOut
 from telegram.ext import (
     CallbackContext, CallbackQueryHandler, CommandHandler, Updater
 )
 
 from .compress import LikeId
+from .hook import TgUiHook
 
 br = '\n'
 hr = '==============='
@@ -23,6 +24,64 @@ logger = logging.getLogger("telegram")
 
 def html_link(txt, link) -> str:
     return f'<a href="{link}">{txt}</a>'
+
+
+class UI(TgUiHook):
+    bot: telegram.Bot
+    chat_id: int
+
+    def __init__(self, bot, chat_id=None) -> None:
+        super().__init__()
+        self.bot = bot
+        if chat_id is not None: self.chat_id = chat_id
+
+    # TODO: send bytes directly
+    def QrFetched(self, filename):
+        with open(filename, 'rb') as f:
+            self.qr_msg = self.bot.send_photo(
+                chat_id=self.chat_id,
+                photo=f,
+                caption='扫码登陆.',
+            )
+
+    def QrExpired(self, new_filename):
+        with open(new_filename, 'rb') as f:
+            self.qr_msg = self.qr_msg.edit_media(
+                media=telegram.InputMediaPhoto(
+                    f,
+                    caption='二维码已过期, 重新扫描此二维码.',
+                )
+            )
+
+    def QrScanSucceessed(self):
+        if self.qr_msg.delete():
+            del self.qr_msg
+
+    def QrSent(self):
+        pass
+
+    def loginSuccessed(self):
+        self.ui_msg = self.bot.send_message(
+            chat_id=self.chat_id,
+            text='✔ 登录成功',
+            parse_mode=telegram.ParseMode.MARKDOWN_V2
+        )
+
+    def loginFailed(self, msg="unknown"):
+        self.bot.send_message(
+            chat_id=self.chat_id,
+            text=f'❌ 登录失败: __{msg}__',
+            parse_mode=telegram.ParseMode.MARKDOWN_V2
+        )
+
+    def pageFetched(self, msg):
+        self.ui_msg = self.ui_msg.edit_text(
+            self.ui_msg.text_markdown_v2 + '\n✔ ' + msg,
+            parse_mode=telegram.ParseMode.MARKDOWN_V2
+        )
+
+    def fetchEnd(self):
+        if self.ui_msg.delete(): del self.ui_msg
 
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
@@ -135,6 +194,7 @@ class PollingBot:
         self.auto_start = auto_start
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
+        self.ui = UI(self.update.bot)
         dispatcher = self.update.dispatcher
         dispatcher.add_handler(CommandHandler("start", self.onStart))
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
@@ -144,6 +204,7 @@ class PollingBot:
         self, update: telegram.Update, context: CallbackContext, reload=False
     ):
         self.chat_id = update.effective_chat.id
+        self.ui.chat_id = self.chat_id
         self.onFetch(context.bot, reload)
 
     def onStart(self, update: telegram.Update, context):
@@ -227,19 +288,6 @@ class PollingBot:
             chat_id=self.chat_id, text=f"成功爬取{len(new)}条说说." if new else "您已经跟上了时代✔"
         )
         logger.info(f"{cmd} end")
-
-    def sendQR(self, filename: str):
-        """Send a QR code pic to the chat
-
-        Args:
-            filename (str): qr code path
-        """
-        with open(filename, 'rb') as f:
-            self.update.bot.send_photo(
-                chat_id=self.chat_id,
-                photo=f,
-                caption='扫码登陆.',
-            )
 
 
 class WebhookBot(PollingBot):

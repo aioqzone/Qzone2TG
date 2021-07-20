@@ -50,7 +50,7 @@ def main():
     spider = QzoneScraper(selenium_conf=selenium, **qzone)
     BotCls = {'polling': PollingBot, 'webhook': WebhookBot}[bot.pop('method')]
     bot = BotCls(feedmgr=FeedOperation(spider, **feed), **bot)
-    spider.register_qr_callback(bot.sendQR)
+    spider.register_ui_hook(bot.ui)
     bot.run()
 
 

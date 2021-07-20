@@ -41,6 +41,10 @@ bot:
   # admin id
   accept_id:
     - 123456789
+  # 运行程序后自动执行/start命令
+  auto_start: True
+  # 自动刷新间隔(秒). 0为禁用.
+  interval: 4800
     
   # 代理, 可选.
   proxy:

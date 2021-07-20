@@ -2,7 +2,6 @@ import logging
 import os
 import re
 import time
-from typing import List
 
 import yaml
 from tgfrontend.compress import LikeId
@@ -75,7 +74,8 @@ class FeedOperation:
                 new.append(feed)
                 feed.dump(fname)
 
-        logger.info(f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        self.qzone.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        logger.info(msg)
         return new
 
     def fetchNewFeeds(self, reload=False):
@@ -90,6 +90,7 @@ class FeedOperation:
             if not tmp: break
             feeds.extend(tmp)
             reload = False
+        self.qzone.ui.fetchEnd()
         return sorted(feeds, key=lambda f: f.abstime)
 
     def like(self, likedata: LikeId):

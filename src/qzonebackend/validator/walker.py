@@ -1,5 +1,7 @@
-import logging, tempfile
+import logging
 import os
+import tempfile
+from time import time
 
 from selenium.common.exceptions import (
     NoSuchElementException, StaleElementReferenceException, TimeoutException
@@ -11,7 +13,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from .jigsaw import contourMatch, findDarkArea
-from time import time
 
 logger = logging.getLogger("Selenium Walker")
 
@@ -33,12 +34,14 @@ class Walker:
 
     def __init__(
         self,
+        ui_hook,
         browser='Chrome',
         driver={},
         option=[],
         refresh_time=10,
         qr_strategy='prefer'
     ):
+        self.ui = ui_hook
         self.refresh_time = refresh_time
         self.qr_strategy = qr_strategy
 
@@ -63,9 +66,6 @@ class Walker:
             'IE': Ie,
         }[browser](**driver)
 
-    def register_qr_callback(self, qr_url_callback: callable):
-        self.qr_url_callback = qr_url_callback
-
     def qrLogin(self, uin):
         """login with qrcode
 
@@ -75,14 +75,15 @@ class Walker:
         Returns:
             bool: if success
         """
-        assert self.qr_url_callback, 'callback must not be None'
-
         cur_url = self.driver.current_url
         for i in range(self.refresh_time):
             os.makedirs('tmp/qrcode', exist_ok=True)
             qrpath = f'tmp/qrcode/{int(time())}.png'
             self.driver.find_element_by_id('qrlogin_img').screenshot(qrpath)
-            self.qr_url_callback(qrpath)
+            if not i:
+                self.ui.QrFetched(qrpath)
+            else:
+                self.ui.QrExpired(qrpath)
             logger.info(f'二维码已发送 # {i + 1}')
             try:
                 r = WebDriverWait(self.driver, 200, 2).until(
@@ -98,6 +99,7 @@ class Walker:
                 if r == True:
                     if f"user.qzone.qq.com/{uin}" in self.driver.current_url:
                         logger.info('qr login success')
+                        self.ui.QrScanSucceessed()
                         return True
                     elif 'qzone.qq.com' not in self.driver.current_url:
                         raise RuntimeError('穿越到未知的地界... ' + self.driver.current_url)

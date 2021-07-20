@@ -25,7 +25,7 @@ class WalkerTest(unittest.TestCase):
             cv.imshow('qrcode', img)
             cv.waitKey()
 
-        self.spider.register_qr_callback(showurl)
+        self.spider.register_ui_hook(showurl)
 
     def testLogin(self):
         cookie = self.spider.login()

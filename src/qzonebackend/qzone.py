@@ -98,8 +98,8 @@ class QzoneScraper:
         if r.status_code != 200: raise HTTPError(response=r)
         return r
 
-    def register_qr_callback(self, qr_url_callback: callable):
-        self.qr_url_callback = qr_url_callback
+    def register_ui_hook(self, ui_hook):
+        self.ui = ui_hook
 
     def login(self) -> str:
         """login and return cookie
@@ -108,8 +108,7 @@ class QzoneScraper:
             str: cookie
         """
         try:
-            walker = Walker(**self.selenium_conf, qr_strategy=self.qr_strategy)
-            walker.register_qr_callback(self.qr_url_callback)
+            walker = Walker(self.ui, **self.selenium_conf, qr_strategy=self.qr_strategy)
             return walker.login(self.uin, self.pwd)
         except RuntimeError as e:
             logger.error(str(e))
@@ -150,14 +149,22 @@ class QzoneScraper:
         if force_login:
             logger.info("重新登陆.")
             cookie = self.login()
+
+            e = None
             if cookie is None:
                 if self.qr_strategy == 'forbid':
-                    raise RuntimeError("登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
+                    e = RuntimeError("登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
                 else:
-                    raise RuntimeError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.")
+                    e = RuntimeError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.")
+            elif "p_skey" not in cookie:
+                e = RuntimeError("登陆失败: 或许可以重新登陆.")
+            if e:
+                self.ui.loginFailed(e.args[0])
+                raise e
 
-            if "p_skey" not in cookie: raise RuntimeError("登陆失败: 或许可以重新登陆.")
             logger.info('取得cookie')
+            self.ui.loginSuccessed()
+
             cookie["timestamp"] = time.time()
             cookie["gtk"] = cal_gtk(cookie["p_skey"])
             if self.cookie_expire > 0:
