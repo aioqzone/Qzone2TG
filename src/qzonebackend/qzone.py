@@ -15,7 +15,6 @@ from tgfrontend.compress import LikeId
 from utils import undefined2None
 
 from .common import Arg4CompleteFeed, Args4GettingFeeds
-from .validator.walker import Walker
 
 logger = logging.getLogger("Qzone Scraper")
 
@@ -107,11 +106,44 @@ class QzoneScraper:
         Returns:
             str: cookie
         """
-        try:
-            walker = Walker(self.ui, **self.selenium_conf, qr_strategy=self.qr_strategy)
-            return walker.login(self.uin, self.pwd)
-        except RuntimeError as e:
-            logger.error(str(e))
+        def up_login():
+            from tencentlogin.up import UPLogin, User
+            from tencentlogin.constants import QzoneAppid, QzoneProxy
+            t = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
+            r = t.check()
+            if r[0] == 0: return t.login(r, all_cookie=True)
+
+        def qr_login():
+            from tencentlogin.qr import QRLogin
+            from tencentlogin.constants import QzoneAppid, QzoneProxy
+            t = QRLogin(QzoneAppid, QzoneProxy)
+            try:
+                for i, png in enumerate(t.loop(all_cookie=True)):
+                    if isinstance(png, bytes):
+                        (self.ui.QrExpired if i else self.ui.QrFetched)(png)
+            except TimeoutError:
+                return
+            else:
+                self.ui.QrScanSucceessed()
+                return png
+
+        if self.qr_strategy == 'force':
+            return qr_login()
+
+        elif self.qr_strategy == 'prefer':
+            if not (cookie := qr_login()):
+                return up_login()
+
+        elif self.qr_strategy == 'allow':
+            if not (cookie := up_login):
+                return qr_login()
+
+        elif self.qr_strategy == 'forbid':
+            return up_login()
+
+        else:
+            raise ValueError(self.qr_strategy)
+        return cookie
 
     def getCompleteFeed(self, feedData: dict) -> str:
         body = {
@@ -140,6 +172,7 @@ class QzoneScraper:
                 cookie: dict = yaml.safe_load(f)
         else:
             force_login = True
+            os.makedirs(os.path.dirname(self.COOKIE_CACHE), exist_ok=True)
 
         # t = cookie.get("timestamp", 0)
         # if (time.time() - t) >= self.cookie_expire:

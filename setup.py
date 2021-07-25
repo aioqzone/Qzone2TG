@@ -16,14 +16,14 @@ setup(
     author_email='zzzzss990315@gmail.com',
     url='https://github.com/JamzumSum/Qzone2TG',
     license="AGPL-3.0",
-    python_requires=">=3.8",                       # for f-string and := op
+    python_requires=">=3.8",                                                                         # for f-string and := op
     install_requires=[
         'python-telegram-bot',
-        'selenium',
         'demjson',
         'lxml',
         'opencv-python',
         'omegaconf',
+        "TencentQR @ git+https://github.com/JamzumSum/QQQR.git"
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],

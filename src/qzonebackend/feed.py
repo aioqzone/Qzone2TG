@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import time
+from requests.exceptions import HTTPError
 
 import yaml
 from tgfrontend.compress import LikeId
@@ -46,10 +47,15 @@ class FeedOperation:
                     os.removedirs(f)
                     logger.info("clean folder: " + f)
 
-    def getFeedsInPage(self, pagenum: int, reload=False):
+    def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
         self.qzone.updateStatus(reload)
         try:
             feeds = self.qzone.fetchPage(pagenum)
+        except HTTPError as e:
+            if e.response.status_code == 403 and retry > 0:
+                self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
+            else:
+                raise e
         except QzoneError as e:
             if e.code == -3000 and not reload:
                 if not reload:

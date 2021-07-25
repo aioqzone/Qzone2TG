@@ -1,5 +1,6 @@
 import logging
 import re
+from requests.models import HTTPError
 
 import telegram
 from qzonebackend.feed import FeedOperation, day_stamp
@@ -35,23 +36,20 @@ class UI(TgUiHook):
         self.bot = bot
         if chat_id is not None: self.chat_id = chat_id
 
-    # TODO: send bytes directly
-    def QrFetched(self, filename):
-        with open(filename, 'rb') as f:
-            self.qr_msg = self.bot.send_photo(
-                chat_id=self.chat_id,
-                photo=f,
-                caption='扫码登陆.',
-            )
+    def QrFetched(self, png: bytes):
+        self.qr_msg = self.bot.send_photo(
+            chat_id=self.chat_id,
+            photo=png,
+            caption='扫码登陆.',
+        )
 
-    def QrExpired(self, new_filename):
-        with open(new_filename, 'rb') as f:
-            self.qr_msg = self.qr_msg.edit_media(
-                media=telegram.InputMediaPhoto(
-                    f,
-                    caption='二维码已过期, 重新扫描此二维码.',
-                )
+    def QrExpired(self, png: bytes):
+        self.qr_msg = self.qr_msg.edit_media(
+            media=telegram.InputMediaPhoto(
+                png,
+                caption='二维码已过期, 重新扫描此二维码.',
             )
+        )
 
     def QrScanSucceessed(self):
         if self.qr_msg.delete():
@@ -75,13 +73,29 @@ class UI(TgUiHook):
         )
 
     def pageFetched(self, msg):
-        self.ui_msg = self.ui_msg.edit_text(
-            self.ui_msg.text_markdown_v2 + '\n✔ ' + msg,
-            parse_mode=telegram.ParseMode.MARKDOWN_V2
-        )
+        if hasattr(self, 'ui_msg'):
+            self.ui_msg = self.ui_msg.edit_text(
+                self.ui_msg.text_markdown_v2 + '\n✔ ' + msg,
+                parse_mode=telegram.ParseMode.MARKDOWN_V2
+            )
+        else:
+            self.ui_msg = self.bot.send_message(
+                chat_id=self.chat_id,
+                text='✔ ' + msg,
+                parse_mode=telegram.ParseMode.MARKDOWN_V2
+            )
 
     def fetchEnd(self):
         if self.ui_msg.delete(): del self.ui_msg
+
+    def fetchError(self, msg=None):
+        if hasattr(self, 'ui_msg'):
+            if msg is None: msg = 'Ooops... 出错了qvq'
+            self.ui_msg = self.ui_msg.edit_text(
+                self.ui_msg.text_markdown_v2 + '\n❌ ' + msg,
+                parse_mode=telegram.ParseMode.MARKDOWN_V2
+            )
+            del self.ui_msg
 
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
@@ -278,7 +292,13 @@ class PollingBot:
         try:
             new = self.feedmgr.fetchNewFeeds(reload)
         except TimeoutError:
-            bot.send_message(chat_id=self.chat_id, text="爬取超时. 或许可以重试?")
+            self.ui.fetchError("爬取超时, 刷新或许可以)")
+            return
+        except HTTPError:
+            self.ui.fetchError('爬取出错, 刷新或许可以)')
+            return
+        except Exception:
+            self.ui.fetchError()
             return
 
         for i in new:

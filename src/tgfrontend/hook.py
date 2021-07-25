@@ -36,6 +36,10 @@ class QzoneEvent(ABC):
     def fetchEnd(self):
         pass
 
+    @abstractmethod
+    def fetchError(self):
+        pass
+
 
 class TgUiHook(QREvent, QzoneEvent):
     pass
