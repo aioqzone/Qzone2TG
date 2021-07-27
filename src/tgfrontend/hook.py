@@ -41,5 +41,34 @@ class QzoneEvent(ABC):
         pass
 
 
+class NullUI(QREvent, QzoneEvent):
+    def QrFetched(self, *args, **kwargs):
+        pass
+
+    def QrSent(self, *args, **kwargs):
+        pass
+
+    def QrScanSucceessed(self, *args, **kwargs):
+        pass
+
+    def QrExpired(self, *args, **kwargs):
+        pass
+
+    def loginSuccessed(self, *args, **kwargs):
+        pass
+
+    def loginFailed(self, *args, **kwargs):
+        pass
+
+    def pageFetched(self, *args, **kwargs):
+        pass
+
+    def fetchEnd(self, *args, **kwargs):
+        pass
+
+    def fetchError(self, *args, **kwargs):
+        pass
+
+
 class TgUiHook(QREvent, QzoneEvent):
     pass

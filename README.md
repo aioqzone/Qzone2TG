@@ -8,15 +8,14 @@
 
 ## 功能
 
-* 自动登录空间, cv过验证
+* 自动登录空间, ~~cv过验证~~
 * 二维码登录
 * 爬取说说文本
 * 爬取说说图片
 * 爬取说说转发
-* ~~QQ原生表情转文字~~
 * 点赞(应用消息的点赞受限)
 * 过滤部分广告(待测)
-* 简单的tg机器人
+* 简单的tg机器人, 支持webhook
 
 ## 截图
 
@@ -34,15 +33,7 @@
 
 ## 安装
 
-### 安装Webdriver
-
-配置示例使用`msedgedriver`, 对应Chromium版Edge浏览器. 此外理论上也支持`Chrome`和`Firefox`.
-
-请自行配置webdriver.
-
-### 克隆与配置本项目
-
-请确保安装了`git`, `python3`和对应的`pip`.
+请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
 
 ``` shell
 # clone本项目
@@ -102,17 +93,19 @@ python3 src/main.py
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot selenium demjson lxml opencv-python omegaconf
+    pip3 uninstall python-telegram-bot lxml opencv-python omegaconf tencentlogin
     ```
 
 ## Credits
 
 @bufuchangfeng [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py)
 
+Other dependencies: [Dependency Graph](https://github.com/JamzumSum/Qzone2TG/network/dependencies#setup.py)
+
 ## License
 
 - [AGPL-3.0](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
-- __不鼓励、不支持一切商用使用__
+- __不鼓励、不支持一切商业使用__
 
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"

@@ -10,7 +10,7 @@ PACKAGES = [LOWERCASE] + [f"{LOWERCASE}.{i}" for i in PACKAGES]
 
 setup(
     name='QZone2TG',
-    version='1.2.1',
+    version='1.3.0.dev2',
     description='Forward QZone feeds to telegram',
     author='JamzumSum',
     author_email='zzzzss990315@gmail.com',
@@ -19,11 +19,10 @@ setup(
     python_requires=">=3.8",                                                                         # for f-string and := op
     install_requires=[
         'python-telegram-bot',
-        'demjson',
         'lxml',
         'opencv-python',
         'omegaconf',
-        "TencentQR @ git+https://github.com/JamzumSum/QQQR.git"
+        "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],

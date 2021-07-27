@@ -14,7 +14,7 @@ from .compress import LikeId
 from .hook import TgUiHook
 
 br = '\n'
-hr = '==============='
+hr = '============================='
 
 SUPPORT_TYPEID = (0, 5)
 SUPPORT_APPID = (4, 202, 311)
@@ -85,17 +85,30 @@ class UI(TgUiHook):
                 parse_mode=telegram.ParseMode.MARKDOWN_V2
             )
 
-    def fetchEnd(self):
+    def fetchEnd(self, succ_num: int, err_num: int):
         if self.ui_msg.delete(): del self.ui_msg
+        if succ_num == 0 and err_num == 0:
+            cmd = "您已经跟上了时代✔"
+        else:
+            cmd = f"成功爬取{succ_num}条说说."
+            if err_num > 0:
+                cmd += f" 发送失败{err_num}条, 重试也没有用( 请检查服务端日志."
+        self.bot.send_message(chat_id=self.chat_id, text=cmd)
 
     def fetchError(self, msg=None):
+        if msg is None: msg = 'Ooops\\.\\.\\. 出错了qvq'
         if hasattr(self, 'ui_msg'):
-            if msg is None: msg = 'Ooops... 出错了qvq'
             self.ui_msg = self.ui_msg.edit_text(
                 self.ui_msg.text_markdown_v2 + '\n❌ ' + msg,
                 parse_mode=telegram.ParseMode.MARKDOWN_V2
             )
             del self.ui_msg
+        else:
+            self.bot.send_message(
+                chat_id=self.chat_id,
+                text='❌ ' + msg,
+                parse_mode=telegram.ParseMode.MARKDOWN_V2
+            )
 
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
@@ -173,7 +186,7 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser):
     except TimedOut as e:
         logger.warning(e.message)
     except NetworkError as e:
-        logger.error(f"{feed.hash}: {e.message}")
+        logger.error(f"{feed.hash}: {e.message}", exc_info=True, stack_info=True)
 
     if len(img) > 1:
         send_photos(bot, chat, img, f'{feed.nickname}于{feed.feedstime}')
@@ -239,7 +252,7 @@ class PollingBot:
         try:
             self.update.start_polling(**self.run_kwargs)
         except NetworkError as e:
-            logger.error(e.message)
+            logger.error(e.message, exc_info=True, stack_info=True)
             self.update.stop()
             return
         logger.info("start polling")
@@ -297,16 +310,21 @@ class PollingBot:
         except HTTPError:
             self.ui.fetchError('爬取出错, 刷新或许可以)')
             return
-        except Exception:
+        except Exception as e:
+            logger.error(str(e), exc_info=True, stack_info=True)
             self.ui.fetchError()
             return
 
+        err = 0
         for i in new:
-            send_feed(bot, self.chat_id, i)
+            try:
+                send_feed(bot, self.chat_id, i)
+            except Exception as e:
+                logger.error(f"{i.hash}: {str(e)}", exc_info=True, stack_info=True)
+                err += 1
+                continue
 
-        bot.send_message(
-            chat_id=self.chat_id, text=f"成功爬取{len(new)}条说说." if new else "您已经跟上了时代✔"
-        )
+        self.ui.fetchEnd(len(new) - err, err)
         logger.info(f"{cmd} end")
 
 
@@ -336,7 +354,7 @@ class WebhookBot(PollingBot):
             )
 
         except NetworkError as e:
-            logger.error(e.message)
+            logger.error(e.message, exc_info=True, stack_info=True)
             self.update.stop()
             return
         logger.info("start webhook")

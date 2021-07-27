@@ -19,6 +19,8 @@ def elm2txt(elm: list, richText=True) -> str:
         elif i.tag == 'br': txt += '\n'
         elif i.tag == 'img':
             txt += url2unicode(i.attrib['src'])
+        elif i.tag == 'div':
+            txt += elm2txt(i)
         elif i.tag == 'span':
             txt += elm2txt(i)
         elif i.tag == 'a':
@@ -42,6 +44,10 @@ class QZFeedParser:
 
     def __init__(self, feed):
         assert isinstance(feed, dict)
+        feed['html'] = re.sub(
+            r"\\{1,2}x([\dA-F]{2})", lambda m: chr(int(m.group(1), 16)),
+            feed['html']
+        )
         self.raw = feed
         self.src: HtmlElement = fromstring(feed['html'])
         self.raw['hash'] = self.__hash__()

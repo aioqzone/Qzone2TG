@@ -4,7 +4,6 @@ import logging
 import yaml
 from omegaconf import OmegaConf
 
-import qzonebackend.validator.jigsaw
 from qzonebackend.feed import FeedOperation
 from qzonebackend.qzone import QzoneScraper
 from tgfrontend.tg import PollingBot, WebhookBot
@@ -26,7 +25,6 @@ def main():
     bot = d.get("bot")
     qzone = d.get("qzone")
     feed = d.get('feed')
-    selenium = d.get('selenium')
 
     if 'qq' in qzone:
         print('QQ to login: %s' % qzone['qq'])
@@ -45,9 +43,7 @@ def main():
 
     del d, pwd
 
-    qzonebackend.validator.jigsaw.product = True
-
-    spider = QzoneScraper(selenium_conf=selenium, **qzone)
+    spider = QzoneScraper(**qzone)
     BotCls = {'polling': PollingBot, 'webhook': WebhookBot}[bot.pop('method')]
     bot = BotCls(feedmgr=FeedOperation(spider, **feed), **bot)
     spider.register_ui_hook(bot.ui)

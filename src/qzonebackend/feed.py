@@ -53,7 +53,7 @@ class FeedOperation:
             feeds = self.qzone.fetchPage(pagenum)
         except HTTPError as e:
             if e.response.status_code == 403 and retry > 0:
-                self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
+                return self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
             else:
                 raise e
         except QzoneError as e:
@@ -96,12 +96,11 @@ class FeedOperation:
             if not tmp: break
             feeds.extend(tmp)
             reload = False
-        self.qzone.ui.fetchEnd()
         return sorted(feeds, key=lambda f: f.abstime)
 
     def like(self, likedata: LikeId):
         self.qzone.updateStatus()
-        return self.qzone.do_like(likedata)
+        return self.qzone.doLike(likedata)
 
     def likeAFile(self, fname: str) -> bool:
         feed = {}
