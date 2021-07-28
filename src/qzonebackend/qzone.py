@@ -20,6 +20,7 @@ from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
 from tgfrontend.compress import LikeId
+from uihook import NullUI
 
 from . import QzoneError
 from .common import *
@@ -42,8 +43,8 @@ class LoginHelper:
         self.pwd = pwd
         self.qr_strategy = qr_strategy
 
-    def register_ui_hook(self, ui_hook):
-        self.ui = ui_hook
+    def register_ui_hook(self, ui: NullUI):
+        self.ui = ui
 
     def _upLogin(self):
         t = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
@@ -110,6 +111,8 @@ class HTTPHelper:
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
+    COOKIE_CACHE = 'tmp/cookie.yml'
+
     def __init__(
         self,
         qq: Union[str, int],
@@ -120,14 +123,12 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         UA=None,
         cookie_cache=None,
     ):
+        qq = int(qq)
         LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         HTTPHelper.__init__(self, qq, UA)
-        self.session = requests.Session()
         self.fetch_times = fetch_times
         self.extern = {1: "undefined"}
-
-        if cookie_cache: self.COOKIE_CACHE = cookie_cache
-        else: self.COOKIE_CACHE = f'tmp/{qq}.yml'
+        self.COOKIE_CACHE = cookie_cache or self.COOKIE_CACHE
 
     @staticmethod
     def cal_gtk(p_skey):
@@ -167,6 +168,10 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         if os.path.exists(self.COOKIE_CACHE):
             with open(self.COOKIE_CACHE) as f:
                 cookie: dict = yaml.safe_load(f)
+            if self.uin in cookie:
+                cookie = cookie[self.uin]
+            else:
+                force_login = True
         else:
             force_login = True
             os.makedirs(os.path.dirname(self.COOKIE_CACHE), exist_ok=True)
@@ -191,7 +196,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             self.ui.loginSuccessed()
 
             with open(self.COOKIE_CACHE, "w") as f:
-                yaml.safe_dump(cookie, f)
+                yaml.safe_dump({self.uin: cookie}, f)
         else:
             logger.info("使用缓存cookie")
 

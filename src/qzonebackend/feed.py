@@ -2,13 +2,14 @@ import logging
 import os
 import re
 import time
-from requests.exceptions import HTTPError
 
 import yaml
+from requests.exceptions import HTTPError
 from tgfrontend.compress import LikeId
+from uihook import NullUI
 
 from .qzfeedparser import QZFeedParser as Parser
-from .qzone import QzoneError, QzoneScraper
+from .qzone import QzoneScraper
 
 logger = logging.getLogger("Feed Manager")
 PAGE_LIMIT = 1000
@@ -19,12 +20,10 @@ def day_stamp(timestamp: float = None) -> int:
     return int(timestamp // 86400)
 
 
-class FeedOperation:
-    new_limit = 30
-
-    def __init__(self, qzone: QzoneScraper, keepdays=3):
+class FeedMgr:
+    def __init__(self, uin, keepdays=3) -> None:
+        self.uin = uin
         self.keepdays = keepdays
-        self.qzone = qzone
 
     def cleanFeed(self):
         if not os.path.exists("data"): return
@@ -47,6 +46,43 @@ class FeedOperation:
                     os.removedirs(f)
                     logger.info("clean folder: " + f)
 
+    @staticmethod
+    def dumpFeed(feed: Parser, path: str):
+        with open(path, 'w', encoding='utf-8') as f:
+            return yaml.safe_dump(feed.raw, f)
+
+    @staticmethod
+    def fromFile(fname):
+        with open(fname, encoding='utf8') as f:
+            feed = yaml.safe_load(f)
+            return Parser(feed)
+
+    def saveFeed(self, feed: Parser, force=False, get_complete_callback=None):
+        daystamp = day_stamp(feed.abstime)
+        if daystamp + self.keepdays <= day_stamp():
+            return False
+
+        folder = f"data/{self.uin}/{daystamp}"
+        os.makedirs(folder, exist_ok=True)
+        fname = folder + f"/{feed.hash}.yaml"
+        if force or not os.path.exists(fname):
+            if get_complete_callback and feed.isCut():
+                feed.updateHTML(get_complete_callback(feed.parseFeedData()))
+            self.dumpFeed(feed, fname)
+            return True
+        return False
+
+
+class QZCachedScraper(FeedMgr):
+    new_limit = 30         # not implement
+
+    def __init__(self, qzone: QzoneScraper, keepdays=3):
+        self.qzone = qzone
+        FeedMgr.__init__(self, qzone.uin, keepdays)
+
+    def register_ui_hook(self, ui: NullUI):
+        self.ui = ui
+
     def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
         self.qzone.updateStatus(reload)
         try:
@@ -56,39 +92,29 @@ class FeedOperation:
                 return self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
             else:
                 raise e
-        except QzoneError as e:
-            if e.code == -3000 and not reload:
-                if not reload:
-                    logger.warning("Cookie过期, 强制登陆. 建议修改cookie缓存时间.")
-                    self.getFeedsInPage(pagenum, True)
-            else:
-                raise e
+        except Exception:
+            logger.error(
+                f'Error fetch page {pagenum}{", force reload" if reload else ""}, retry remains={retry}',
+                exc_info=True
+            )
 
-        new = []
-        for feed in feeds:
-            feed = Parser(feed)
+        new = [
+            feed for i in feeds if self.saveFeed(
+                (feed := Parser(i)),
+                force=reload,
+                get_complete_callback=self.qzone.getCompleteFeed,
+            )
+        ]
 
-            daystamp = day_stamp(feed.abstime)
-            if daystamp + self.keepdays <= day_stamp():
-                continue
-            folder = f"data/{self.qzone.uin}/{daystamp}"
-            os.makedirs(folder, exist_ok=True)
-            fname = folder + f"/{feed.hash}.yaml"
-            if reload or not os.path.exists(fname):
-                if feed.isCut():
-                    feed.updateHTML(self.qzone.getCompleteFeed(feed.parseFeedData()))
-                new.append(feed)
-                feed.dump(fname)
-
-        self.qzone.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
         return new
 
     def fetchNewFeeds(self, reload=False):
         try:
             self.cleanFeed()
-        except OSError as e:
-            logger.error("Failed to clean feed: " + repr(e))
+        except OSError:
+            logger.error("Failed to clean feed", exc_info=True)
 
         feeds = []
         for i in range(PAGE_LIMIT):
@@ -99,15 +125,7 @@ class FeedOperation:
         return sorted(feeds, key=lambda f: f.abstime)
 
     def like(self, likedata: LikeId):
-        self.qzone.updateStatus()
         return self.qzone.doLike(likedata)
 
     def likeAFile(self, fname: str) -> bool:
-        feed = {}
-
-        if not os.path.exists(fname): raise FileNotFoundError(fname)
-        with open(fname) as f:
-            feed = yaml.load(f)
-
-        psr = Parser(feed)
-        return self.like(LikeId(psr.appid, psr.typeid, feed['key'], *psr.uckeys))
+        return self.like(self.fromFile(fname).getLikeId())

@@ -5,12 +5,15 @@ from demjson import undefined
 T = TypeVar('T')
 
 
-def pwdTransform(pwd):
-    return base64.b64encode(pwd.encode('utf8')).decode('utf8')
+def pwdTransform(pwd: str, prefex='$'):
+    return prefex + base64.b64encode(pwd.encode('utf8')).decode('utf8')
 
 
-def pwdTransBack(pwd):
-    return base64.b64decode(pwd.encode('utf8')).decode('utf8')
+def pwdTransBack(pwd: str, prefex='$'):
+    if pwd.startswith(prefex):
+        return base64.b64decode(pwd.encode('utf8')).decode('utf8')
+    else:
+        return pwd
 
 
 def undefined2None(dic: dict):

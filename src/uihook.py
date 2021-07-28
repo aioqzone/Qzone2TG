@@ -42,7 +42,7 @@ class QzoneEvent(ABC):
 
 
 class NullUI(QREvent, QzoneEvent):
-    def QrFetched(self, *args, **kwargs):
+    def QrFetched(self, png: bytes, *args, **kwargs):
         pass
 
     def QrSent(self, *args, **kwargs):
@@ -66,9 +66,5 @@ class NullUI(QREvent, QzoneEvent):
     def fetchEnd(self, *args, **kwargs):
         pass
 
-    def fetchError(self, *args, **kwargs):
+    def fetchError(self, msg, *args, **kwargs):
         pass
-
-
-class TgUiHook(QREvent, QzoneEvent):
-    pass

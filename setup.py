@@ -10,7 +10,7 @@ PACKAGES = [LOWERCASE] + [f"{LOWERCASE}.{i}" for i in PACKAGES]
 
 setup(
     name='QZone2TG',
-    version='1.3.0.dev2',
+    version='1.3.0.dev3',
     description='Forward QZone feeds to telegram',
     author='JamzumSum',
     author_email='zzzzss990315@gmail.com',

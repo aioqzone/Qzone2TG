@@ -3,6 +3,7 @@ import re
 
 import yaml
 from lxml.html import HtmlElement, fromstring, tostring
+from tgfrontend.compress import LikeId
 from utils import find_if
 from .emojimgr import url2unicode
 
@@ -71,10 +72,6 @@ class QZFeedParser:
             )
         )
 
-    def dump(self, path: str):
-        with open(path, 'w', encoding='utf-8') as f:
-            return yaml.safe_dump(self.raw, f) # TODO: maybe need to override the dumper
-
     @property
     def uin(self) -> int:
         return int(self.raw['uin'])
@@ -119,6 +116,9 @@ class QZFeedParser:
     @property
     def isLike(self) -> bool:
         return '1' in self.parseLikeData()['islike']
+
+    def getLikeId(self):
+        return LikeId(self.appid, self.typeid, self.feedkey, *self.uckeys)
 
     def parseBio(self) -> str:
         return self.src.xpath('//div[@class="user-pto"]/a/img/@src')[0]
