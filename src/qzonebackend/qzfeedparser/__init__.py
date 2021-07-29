@@ -1,10 +1,10 @@
 import logging
 import re
 
-import yaml
 from lxml.html import HtmlElement, fromstring, tostring
 from tgfrontend.compress import LikeId
 from utils import find_if
+
 from .emojimgr import url2unicode
 
 logger = logging.getLogger("Qzone HTML Parser")
@@ -47,7 +47,7 @@ class QZFeedParser:
         assert isinstance(feed, dict)
         feed['html'] = re.sub(
             r"\\{1,2}x([\dA-F]{2})", lambda m: chr(int(m.group(1), 16)),
-            feed['html']
+            feed['html'].strip()
         )
         self.raw = feed
         self.src: HtmlElement = fromstring(feed['html'])
@@ -123,8 +123,11 @@ class QZFeedParser:
     def parseBio(self) -> str:
         return self.src.xpath('//div[@class="user-pto"]/a/img/@src')[0]
 
-    def parseImage(self) -> list:
-        return self.src.xpath(self.f.ct + '//a[@class="img-item  "]/img/@src')
+    def parseImage(self):
+        return [
+            i.replace('rf=0-0', 'rf=viewer_311')
+            for i in self.src.xpath(self.f.ct + '//a[@class="img-item  "]/img/@src')
+        ]
 
     def parseForward(self) -> tuple:
         """parse forwarder

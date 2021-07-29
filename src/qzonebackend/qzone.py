@@ -77,7 +77,7 @@ class LoginHelper:
                 return self._upLogin()
 
         elif self.qr_strategy == 'allow':
-            if not (cookie := self._upLogin):
+            if not (cookie := self._upLogin()):
                 return self._qrLogin()
 
         elif self.qr_strategy == 'forbid':

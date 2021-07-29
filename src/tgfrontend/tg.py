@@ -168,7 +168,7 @@ class PollingBot(RefreshBot):
                 query.answer(text='点赞失败.')
                 return
         query.edit_message_text(
-            text=query.message.text_html + br + '❤', parse_mode=telegram.ParseMode.HTML
+            text=query.message.text_html + br * 2 + '❤', parse_mode=telegram.ParseMode.HTML
         )
         logger.info("like post end")
 

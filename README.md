@@ -4,7 +4,6 @@
 
 > 随缘修BUG</br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
-> 目前是一个能用的版本
 
 ## 功能
 
@@ -14,7 +13,7 @@
 * 爬取说说图片
 * 爬取说说转发
 * 点赞(应用消息的点赞受限)
-* 过滤部分广告(待测)
+* 过滤部分广告
 * 简单的tg机器人, 支持webhook
 
 ## 截图

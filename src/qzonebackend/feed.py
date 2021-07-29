@@ -49,7 +49,7 @@ class FeedMgr:
     @staticmethod
     def dumpFeed(feed: Parser, path: str):
         with open(path, 'w', encoding='utf-8') as f:
-            return yaml.safe_dump(feed.raw, f)
+            return yaml.safe_dump({k: v for k, v in feed.raw.items() if v}, f)
 
     @staticmethod
     def fromFile(fname):

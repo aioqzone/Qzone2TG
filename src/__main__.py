@@ -22,6 +22,7 @@ def getPassword(d: DictConfig, conf_path: str):
         OmegaConf.save(i, conf_path)
 
     if PWD_KEY in qzone:
+        qzone.pop('savepwd', None)
         if not qzone[PWD_KEY].startswith('$'):
             writePwd(qzone[PWD_KEY])
         else:
