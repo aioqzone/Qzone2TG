@@ -5,6 +5,9 @@
 > 随缘修BUG</br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 
+> [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) availible now!
+> Thanks to the contribution of [QQQR](https://github.com/JamzumSum/QQQR), it's possible to give up the dependency on `selenium` which interferes a lot with the deployment of Qzone2TG. Now we can login with QR Code much more quickly than before. Besides, the uin-pwd login doesn't need `selenium` any more either. However QQQR is not working on passing captcha or any security validation. So the function of uin-pwd login is limited.
+
 ## 功能
 
 * 自动登录空间, ~~cv过验证~~
