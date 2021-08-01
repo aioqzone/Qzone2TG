@@ -2,7 +2,7 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 随缘修BUG</br>
+> 1.3之后大概不会太频繁地更新功能了</br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 
 > [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) availible now!

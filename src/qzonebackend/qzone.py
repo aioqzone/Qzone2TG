@@ -38,6 +38,8 @@ RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 
 
 class LoginHelper:
+    ui = NullUI()
+
     def __init__(self, uin: int, *, pwd: str = None, qr_strategy='prefer') -> None:
         self.uin = uin
         self.pwd = pwd
@@ -46,12 +48,12 @@ class LoginHelper:
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui
 
-    def _upLogin(self):
+    def _upLogin(self) -> dict:
         t = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
         r = t.check()
         if r[0] == 0: return t.login(r, all_cookie=True)
 
-    def _qrLogin(self):
+    def _qrLogin(self) -> dict:
         t = QRLogin(QzoneAppid, QzoneProxy)
         try:
             for i, png in enumerate(t.loop(all_cookie=True)):
@@ -69,27 +71,18 @@ class LoginHelper:
         Returns:
             str: cookie
         """
-        if self.qr_strategy == 'force':
-            return self._qrLogin()
-
-        elif self.qr_strategy == 'prefer':
-            if not (cookie := self._qrLogin()):
-                return self._upLogin()
-
-        elif self.qr_strategy == 'allow':
-            if not (cookie := self._upLogin()):
-                return self._qrLogin()
-
-        elif self.qr_strategy == 'forbid':
-            return self._upLogin()
-
-        else:
-            raise ValueError(self.qr_strategy)
-        return cookie
+        for f in {
+                'force': (self._qrLogin, ),
+                'prefer': (self._qrLogin, self._upLogin),
+                'allow': (self._upLogin, self._qrLogin),
+                'forbid': (self._upLogin, ),
+        }[self.qr_strategy]:
+            if (r := f()): return r
+        return
 
 
 class HTTPHelper:
-    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 Edg/87.0.664.66"
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62"
 
     def __init__(self, uin, UA=None) -> None:
         self.header = {

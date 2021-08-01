@@ -1,10 +1,14 @@
-# 日志等级
 log:
-  level: 1
+  # 日志等级
+  level: info
+  # 日志格式, 可选
+  format: "[%(levelname)s] %(asctime)s %(name)s:\t%(message)s"
+  # 日志配置文件. 可选. 若该文件不存在, 务必移除此条目.
+  conf: misc/config.ini
 
 qzone:
   # UA
-  UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36 Edg/91.0.864.54
+  UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62
   
   # 拉取说说时允许重试次数
   fetch_times: 12
@@ -13,6 +17,8 @@ qzone:
   qq: 123456789
   # 是否保存密码. 强烈建议否
   savepwd: False
+  # 密码. 当以$开头时, 此为无损编码后的密码, 聊(并)胜(没)于(有)无(用). 不以$开头时视为用户输入.
+  password: uploginisnotrecommended
   # 二维码登录偏好. force/prefer/allow/forbid, 倾向逐次降低.
   qr_strategy: prefer
 
@@ -31,7 +37,7 @@ bot:
   # 运行程序后自动执行/start命令
   auto_start: True
   # 自动刷新间隔(秒). 0为禁用.
-  interval: 4800
+  interval: 86400
     
   # 代理, 可选.
   proxy:

@@ -39,23 +39,27 @@ def getPassword(d: DictConfig, conf_path: str):
 
 def LoggerConf(log_conf: DictConfig):
     if 'conf' in log_conf:
-        logging.config.fileConfig(log_conf.conf)
-    else:
-        logging.basicConfig(
-            format=log_conf.get(
-                'format', '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
-            ),
-            datefmt='%Y %b %d %H:%M:%S',
-            level=dict(
-                CRITICAL=50,
-                FATAL=50,
-                ERROR=40,
-                WARNING=30,
-                INFO=20,
-                DEBUG=10,
-                NOTSET=0
-            )[log_conf.get('level', 'INFO').upper()]
-        )
+        try:
+            logging.config.fileConfig(log_conf.conf)
+        except FileNotFoundError as e: 
+            print(str(e))
+        else: return
+
+    logging.basicConfig(
+        format=log_conf.get(
+            'format', '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
+        ),
+        datefmt='%Y %b %d %H:%M:%S',
+        level=dict(
+            CRITICAL=50,
+            FATAL=50,
+            ERROR=40,
+            WARNING=30,
+            INFO=20,
+            DEBUG=10,
+            NOTSET=0
+        )[log_conf.get('level', 'INFO').upper()]
+    )
 
 
 def main():
