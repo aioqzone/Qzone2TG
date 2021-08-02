@@ -2,11 +2,11 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 1.3之后大概不会太频繁地更新功能了</br>
+> 1.3之后大概不会太频繁地更新功能了 
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 
-> [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) availible now!
-> Thanks to the contribution of [QQQR](https://github.com/JamzumSum/QQQR), it's possible to give up the dependency on `selenium` which interferes a lot with the deployment of Qzone2TG. Now we can login with QR Code much more quickly than before. Besides, the uin-pwd login doesn't need `selenium` any more either. However QQQR is not working on passing captcha or any security validation. So the function of uin-pwd login is limited.
+> [v1.3.0][4] availible now!</br>
+> Thanks to the contribution of [QQQR](https://github.com/JamzumSum/QQQR), it's possible to give up the dependency on `selenium` which interferes a lot with the deployment of Qzone2TG. Now we can login with QR Code much more quickly than before. Besides, the uin-pwd login no longer needs `selenium` either. However, QQQR is not working on passing captcha or any security validation. So keep in mind that the function of uin-pwd login is __limited__.
 
 ## 功能
 
@@ -26,9 +26,11 @@
 ## 需求
 
 * 一台服务器
-* 访问tg的网络环境, 以下二选一:
-  * 你的服务器在国外
-  * 你有可用的代理
+  * 一切可运行`python`及`nodejs`的环境均可, 甚至包括tmux.
+  * 开启webhook需要域名和正确的DNS解析. 难以满足此要求可以使用`polling`或`refresh`模式.
+* 可访问tg的网络环境, 以下二选一:
+  * 服务器可访问telegram api
+  * 有可用的代理
 * 一个开通了空间的QQ号
 * 一个属于你的tg机器人, 得到token
 * 取得你的用户ID(acceptID)
@@ -46,12 +48,12 @@ cd Qzone2TG
 pip install -e .
 
 # 建立配置文档. 
-# Update: 请务必参看下方的配置文件说明
 mkdir config
+# 复制示例配置. 也可以参考wiki写配置
 cp misc/example.yaml config/config.yaml
 
-vim config.yaml     # 这里需要一个趁手的编辑器
-# 填写qq, tg bot token, acceptId以及可选的代理, 设置selenium
+vim config.yaml     # 使用趁手的编辑器
+# 填写qq, tg bot token, acceptId以及可选的代理
 ```
 
 ## 运行
@@ -62,16 +64,10 @@ vim config.yaml     # 这里需要一个趁手的编辑器
 
 配置各项的含义请参考[wiki][3]
 
-### PYTHONPATH
-
-源码存储于`src`下, 必须确保它加入了`PYTHONPATH`, 否则无法确保正确运行.
-
-默认的设置适用于Windows系统. Unix系统, 请将`.env`文件中的`;`改为`:`. ([详见此处][2])
-
 ### 启动
 
 ``` shell
-python3 src/main.py
+python3 -m qzone2tg
 # 输入密码或跳过
 ```
 
@@ -95,14 +91,19 @@ python3 src/main.py
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot lxml opencv-python omegaconf tencentlogin
+    pip3 uninstall python-telegram-bot lxml omegaconf tencentlogin
     ```
 
 ## Credits
 
-@bufuchangfeng [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py)
+> Versions before [v1.3.0][4] draw lessons of [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py), @bufuchangfeng, no licence.
 
-Other dependencies: [Dependency Graph](https://github.com/JamzumSum/Qzone2TG/network/dependencies#setup.py)
+### Third-Party
+
+- lxml: [BSD-3](https://github.com/lxml/lxml/blob/master/LICENSE.txt)
+- omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
+- python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
+- tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 
 ## License
 
@@ -112,3 +113,4 @@ Other dependencies: [Dependency Graph](https://github.com/JamzumSum/Qzone2TG/net
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0 "v1.3.0"

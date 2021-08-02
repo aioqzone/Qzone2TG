@@ -20,7 +20,6 @@ setup(
     install_requires=[
         'python-telegram-bot',
         'lxml',
-        'opencv-python',
         'omegaconf',
         "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
     ],
