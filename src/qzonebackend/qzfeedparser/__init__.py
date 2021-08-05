@@ -66,7 +66,7 @@ class QZHtmlParser:
         elif len(elm) == 1: elm = elm.pop()
         elif len(elm) == 2: elm = max(elm, key=lambda e: len(e))
         return elm2txt(
-            self.__x(self.f.single_content, f'//div[@class="{elm.attrib["class"]}"]')
+            self.__x(self.f.single_content, f'//div[@class="{elm.attrib["class"]}"]')[0]
         )
 
     @property
@@ -127,7 +127,7 @@ class QZHtmlParser:
         Returns:
             tuple: nickname, org link, text
         """
-        ls: list = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')
+        ls: HtmlElement = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')[0]
         if not ls: return
         elif len(ls) == 1: ls = ls.pop()
         elif len(ls) == 2: ls = max(ls, key=lambda e: len(e))
