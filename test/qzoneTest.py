@@ -15,14 +15,13 @@ def load_conf():
 class WalkerTest(unittest.TestCase):
     def setUp(self):
         import cv2 as cv, numpy as np
-        from urllib.request import urlopen
-        from tgfrontend.hook import NullUI
+        from uihook import NullUI
         q = load_conf()
         self.spider = QzoneScraper(**q)
 
         class UI(NullUI):
             def QrFetched(self, png: bytes):
-                img = cv.imdecode(png)
+                img = cv.imdecode(np.asarray(bytearray(png), dtype='uint8'), cv.IMREAD_COLOR)
                 cv.imshow('qrcode', img)
                 cv.waitKey()
 
@@ -37,7 +36,7 @@ class QzoneTest(unittest.TestCase):
     def setUp(self):
         q = load_conf()
         self.spider = QzoneScraper(**q)
-        from tgfrontend.hook import NullUI
+        from uihook import NullUI
 
         class UI(NullUI):
             def QrFetched(self, png: bytes):
