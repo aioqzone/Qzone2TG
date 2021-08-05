@@ -1,5 +1,7 @@
 __all__ = ['json_loads']
 
+from re import escape
+
 
 class ValueBuf:
     __slots__ = ('_v', )
@@ -33,6 +35,8 @@ class ValueBuf:
 
 
 class IrregulateJsonParser:
+    escape = ('/', )
+
     def __init__(self) -> None:
         self._dlevel = 0
         self._llevel = 0
@@ -105,7 +109,7 @@ class IrregulateJsonParser:
         for i, c in s:
             if c == '\\':
                 _, n = next(s)
-                buf.append(f"\\{n}")
+                buf.append(n if n in self.escape else f"\\{n}")
             elif c == S:
                 return ''.join(buf)
             else:
