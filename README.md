@@ -5,7 +5,7 @@
 > 1.3之后大概不会太频繁地更新功能了 
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 
-> [v1.3.0][4] availible now!</br>
+> [v1.3.1][4] availible now!</br>
 > Thanks to the contribution of [QQQR](https://github.com/JamzumSum/QQQR), it's possible to give up the dependency on `selenium` which interferes a lot with the deployment of Qzone2TG. Now we can login with QR Code much more quickly than before. Besides, the uin-pwd login no longer needs `selenium` either. However, QQQR is not working on passing captcha or any security validation. So keep in mind that the function of uin-pwd login is __limited__.
 
 ## 功能
@@ -96,7 +96,7 @@ python3 -m qzone2tg
 
 ## Credits
 
-> Versions before [v1.3.0][4] draw lessons of [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py), @bufuchangfeng, no licence.
+> Versions before [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) draw lessons of [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py), @bufuchangfeng, no licence.
 
 ### Third-Party
 
@@ -113,4 +113,4 @@ python3 -m qzone2tg
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0 "v1.3.0"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.1 "v1.3.1"
