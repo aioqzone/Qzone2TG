@@ -14,4 +14,5 @@ COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.
 
 WORKDIR /app
 
-CMD python src/__main__.py
+ENTRYPOINT ["python", "src/__main__.py"]
+CMD ["--no-interaction"]

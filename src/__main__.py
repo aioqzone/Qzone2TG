@@ -63,7 +63,10 @@ def LoggerConf(log_conf: DictConfig):
 def main():
     ca = OmegaConf.from_cli()
     CONF_PATH = ca.pop('--config', None) or "config/config.yaml"
-    NO_INTERACT = ca.pop('--no-interaction', False)
+    global NO_INTERACT 
+    if '--no-interaction' in ca: 
+        NO_INTERACT = True
+        ca.pop('--no-interaction')
 
     d = OmegaConf.load(CONF_PATH)
     d = OmegaConf.merge(d, ca)
