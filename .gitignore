@@ -17,6 +17,8 @@ test.*
 *.xml
 *.log
 
+dockerfile
+
 # build
 /build
 /dist

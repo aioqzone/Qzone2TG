@@ -7,12 +7,15 @@ from qzonebackend.feed import QZCachedScraper
 from qzonebackend.qzone import QzoneScraper
 from tgfrontend.tg import PollingBot, RefreshBot, WebhookBot
 
+NO_INTERACT = False
+DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
+
 
 def getPassword(d: DictConfig, conf_path: str):
     # getPassword w/ lasy import
     PWD_KEY = "password"
     qzone: dict = d.get('qzone')
-    if qzone.get('qr_strategy', 'prefer') == 'force': return qzone
+    if (strategy := qzone.get('qr_strategy', 'prefer')) == 'force': return qzone
 
     def writePwd(pwd):
         from utils import pwdTransform
@@ -30,7 +33,9 @@ def getPassword(d: DictConfig, conf_path: str):
             qzone[PWD_KEY] = pwdTransBack(qzone[PWD_KEY])
     else:
         from getpass import getpass
-        pwd: str = getpass('Password (press Enter to skip):')
+        pwd = '' if NO_INTERACT else getpass('Password (press Enter to skip):')
+        if strategy == 'forbid' and not pwd.strip():
+            raise ValueError('config: No password specified.')
         qzone[PWD_KEY] = pwd
         if qzone.pop('savepwd', False):
             writePwd(pwd)
@@ -41,31 +46,27 @@ def LoggerConf(log_conf: DictConfig):
     if 'conf' in log_conf:
         try:
             logging.config.fileConfig(log_conf.conf)
-        except FileNotFoundError as e: 
+        except FileNotFoundError as e:
             print(str(e))
-        else: return
+        else:
+            return
 
     logging.basicConfig(
-        format=log_conf.get(
-            'format', '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
-        ),
+        format=log_conf.get('format', DEFAULT_LOGGER_FMT),
         datefmt='%Y %b %d %H:%M:%S',
         level=dict(
-            CRITICAL=50,
-            FATAL=50,
-            ERROR=40,
-            WARNING=30,
-            INFO=20,
-            DEBUG=10,
-            NOTSET=0
+            CRITICAL=50, FATAL=50, ERROR=40, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
         )[log_conf.get('level', 'INFO').upper()]
     )
 
 
 def main():
-    CONF_PATH = "config/config.yaml"
+    ca = OmegaConf.from_cli()
+    CONF_PATH = ca.pop('--config', None) or "config/config.yaml"
+    NO_INTERACT = ca.pop('--no-interaction', False)
+
     d = OmegaConf.load(CONF_PATH)
-    d = OmegaConf.merge(d, OmegaConf.from_cli())
+    d = OmegaConf.merge(d, ca)
 
     LoggerConf(d.log or {})
     logger = logging.getLogger("Main")
@@ -73,6 +74,8 @@ def main():
 
     if 'qq' in d.qzone:
         print('Login as:', d.qzone.qq)
+    elif NO_INTERACT:
+        raise ValueError('config: No QQ specified.')
     else:
         d.qzone['qq'] = input('QQ: ')
     getPassword(d, CONF_PATH)
