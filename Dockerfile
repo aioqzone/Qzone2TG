@@ -16,6 +16,7 @@ WORKDIR /app
 
 RUN mkdir config
 RUN cp misc/example.yaml config/config.yaml
+RUN apk add nodejs
 
 ENTRYPOINT ["python", "src/__main__.py"]
 CMD ["--no-interaction"]
