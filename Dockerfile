@@ -14,5 +14,8 @@ COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.
 
 WORKDIR /app
 
+RUN mkdir config
+RUN cp misc/example.yaml config/config.yaml
+
 ENTRYPOINT ["python", "src/__main__.py"]
 CMD ["--no-interaction"]
