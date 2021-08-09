@@ -4,8 +4,8 @@ COPY . /app
 
 WORKDIR /app
 
-RUN pip install -e .
-RUN pip install python-telegram-bot[socks]
+RUN pip install -e . && \
+    pip install python-telegram-bot[socks]
 
 FROM python:3.9-alpine
 
@@ -14,9 +14,9 @@ COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.
 
 WORKDIR /app
 
-RUN mkdir config
-RUN cp misc/example.yaml config/config.yaml
-RUN apk add nodejs
+RUN mkdir config && \
+    cp misc/example.yaml config/config.yaml && \
+    apk add nodejs
 
 ENTRYPOINT ["python", "src/__main__.py"]
 CMD ["--no-interaction"]
