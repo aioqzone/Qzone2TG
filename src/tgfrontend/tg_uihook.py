@@ -32,6 +32,20 @@ class TgUI(NullUI):
             chat_id=self.chat_id,
             photo=png,
             caption='扫码登陆.',
+            reply_markup=telegram.InlineKeyboardMarkup([[
+                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh'),
+            ]]) if self._resend else None
+        )
+
+    def QrResend(self):
+        self.qr_msg = self.qr_msg.edit_media(
+            media=telegram.InputMediaPhoto(
+                self._resend(),
+                caption='二维码已刷新.',
+            ),
+            reply_markup=telegram.InlineKeyboardMarkup([[
+                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh')
+            ]]) if self._resend else None
         )
 
     def QrExpired(self, png: bytes):
@@ -39,8 +53,16 @@ class TgUI(NullUI):
             media=telegram.InputMediaPhoto(
                 png,
                 caption='二维码已过期, 重新扫描此二维码.',
-            )
+            ),
+            reply_markup=telegram.InlineKeyboardMarkup([[
+                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh')
+            ]]) if self._resend else None
         )
+
+    def QrFailed(self, *args, **kwargs):
+        if self.qr_msg.delete():
+            del self.qr_msg
+        self.bot.send_message("😢 扫码无响应")
 
     def QrScanSucceessed(self):
         if self.qr_msg.delete():

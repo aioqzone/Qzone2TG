@@ -37,6 +37,13 @@ UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_
 RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 
 
+class LoginError(RuntimeError):
+    def __init__(self, msg, qr_strategy=None) -> None:
+        super().__init__(msg, qr_strategy)
+        self.msg = msg
+        self.qr_strategy = qr_strategy
+
+
 class LoginHelper:
     ui = NullUI()
 
@@ -44,22 +51,26 @@ class LoginHelper:
         self.uin = uin
         self.pwd = pwd
         self.qr_strategy = qr_strategy
+        if qr_strategy != 'force':
+            self._up = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
+        if qr_strategy != 'forbid':
+            self._qr = QRLogin(QzoneAppid, QzoneProxy)
 
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui
+        self.ui.register_resend_callback(self._qr.show)
 
     def _upLogin(self) -> dict:
-        t = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
-        r = t.check()
-        if r[0] == 0: return t.login(r, all_cookie=True)
+        r = self._up.check()
+        if r[0] == 0: return self._up.login(r, all_cookie=True)
 
     def _qrLogin(self) -> dict:
-        t = QRLogin(QzoneAppid, QzoneProxy)
         try:
-            for i, png in enumerate(t.loop(all_cookie=True)):
+            for i, png in enumerate(self._qr.loop(all_cookie=True)):
                 if isinstance(png, bytes):
                     (self.ui.QrExpired if i else self.ui.QrFetched)(png)
         except TimeoutError:
+            self.ui.QrFailed()
             return
         else:
             self.ui.QrScanSucceessed()
@@ -176,11 +187,13 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             e = None
             if cookie is None:
                 if self.qr_strategy == 'forbid':
-                    e = RuntimeError("登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.")
+                    e = LoginError(
+                        "登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", self.qr_strategy
+                    )
                 else:
-                    e = RuntimeError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.")
+                    e = LoginError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
             elif "p_skey" not in cookie:
-                e = RuntimeError("登陆失败: 或许可以重新登陆.")
+                e = LoginError("登陆失败: 或许可以重新登陆.", self.qr_strategy)
             if e:
                 self.ui.loginFailed(e.args[0])
                 raise e

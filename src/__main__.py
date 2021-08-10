@@ -33,9 +33,22 @@ def getPassword(d: DictConfig, conf_path: str):
             qzone[PWD_KEY] = pwdTransBack(qzone[PWD_KEY])
     else:
         from getpass import getpass
-        pwd = '' if NO_INTERACT else getpass('Password (press Enter to skip):')
-        if strategy == 'forbid' and not pwd.strip():
-            raise ValueError('config: No password specified.')
+        pwd = '' if NO_INTERACT else getpass(
+            f'Password{"" if strategy == "forbid" else " (press Enter to skip)"}:'
+        )
+        if not pwd.strip():
+            if strategy == 'forbid':
+                raise ValueError('config: No password specified.')
+            elif strategy == 'prefer':
+                logging.info(
+                    'Password not given. qr_strategy changed from `prefer` to `force`.'
+                )
+                qzone.qr_strategy = 'force'
+            elif strategy == 'allow':
+                logging.warning(
+                    'Password not given. qr_strategy changed from `allow` to `force`.'
+                )
+                qzone.qr_strategy = 'force'
         qzone[PWD_KEY] = pwd
         if qzone.pop('savepwd', False):
             writePwd(pwd)
@@ -63,8 +76,8 @@ def LoggerConf(log_conf: DictConfig):
 def main():
     ca = OmegaConf.from_cli()
     CONF_PATH = ca.pop('--config', None) or "config/config.yaml"
-    global NO_INTERACT 
-    if '--no-interaction' in ca: 
+    global NO_INTERACT
+    if '--no-interaction' in ca:
         NO_INTERACT = True
         ca.pop('--no-interaction')
 

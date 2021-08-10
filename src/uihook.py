@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
+from typing import Callable
 
 
 class QREvent(ABC):
+    _resend = None
+    
     @abstractmethod
-    def QrFetched(self):
+    def QrFetched(self, png: bytes):
         pass
 
     @abstractmethod
-    def QrSent(self):
+    def QrFailed(self):
         pass
 
     @abstractmethod
@@ -15,8 +18,11 @@ class QREvent(ABC):
         pass
 
     @abstractmethod
-    def QrExpired(self):
+    def QrExpired(self, new_png: bytes):
         pass
+
+    def register_resend_callback(self, resend_callback: Callable[[], bytes]):
+        self._resend = resend_callback
 
 
 class QzoneEvent(ABC):
@@ -45,13 +51,13 @@ class NullUI(QREvent, QzoneEvent):
     def QrFetched(self, png: bytes, *args, **kwargs):
         pass
 
-    def QrSent(self, *args, **kwargs):
+    def QrFailed(self, *args, **kwargs):
         pass
 
     def QrScanSucceessed(self, *args, **kwargs):
         pass
 
-    def QrExpired(self, *args, **kwargs):
+    def QrExpired(self, new_png: bytes, *args, **kwargs):
         pass
 
     def loginSuccessed(self, *args, **kwargs):

@@ -9,7 +9,7 @@ from tgfrontend.compress import LikeId
 from uihook import NullUI
 
 from .qzfeedparser import QZFeedParser as Parser
-from .qzone import QzoneScraper
+from .qzone import LoginError, QzoneScraper
 
 logger = logging.getLogger("Feed Manager")
 PAGE_LIMIT = 1000
@@ -84,14 +84,20 @@ class QZCachedScraper(FeedMgr):
         self.ui = ui
 
     def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
-        self.qzone.updateStatus(reload)
         try:
+            self.qzone.updateStatus(reload)
             feeds = self.qzone.fetchPage(pagenum)
         except HTTPError as e:
             if e.response.status_code == 403 and retry > 0:
                 return self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
             else:
                 raise e
+        except LoginError:
+            logger.error(
+                f'Error fetch page {pagenum}{", force reload" if reload else ""}',
+                exc_info=True
+            )
+            return []
         except Exception:
             logger.error(
                 f'Error fetch page {pagenum}{", force reload" if reload else ""}, retry remains={retry}',
@@ -111,11 +117,6 @@ class QZCachedScraper(FeedMgr):
         return new
 
     def fetchNewFeeds(self, reload=False):
-        try:
-            self.cleanFeed()
-        except OSError:
-            logger.error("Failed to clean feed", exc_info=True)
-
         feeds = []
         for i in range(PAGE_LIMIT):
             tmp = self.getFeedsInPage(i + 1, reload)

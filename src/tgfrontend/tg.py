@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import time
 
 import telegram
 from qzonebackend.feed import QZCachedScraper
@@ -36,8 +37,12 @@ class RefreshBot:
         self.feedmgr = feedmgr
         self._token = token
         self.interval = interval
+        self.fetching = False
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
+        self.update.job_queue.run_daily(
+            lambda c: self.feedmgr.cleanFeed(), time(0, 0, 0, 1), name='cleanFeed'
+        )
         self.ui = TgUI(self.update.bot)
 
     def register_period_refresh(self):
@@ -67,31 +72,49 @@ class RefreshBot:
             bot.send_message(
                 chat_id=self.chat_id, text="Sorry. But bot won't answer unknown chat."
             )
+        if self.fetching:
+            logger.info('onFetch: new fetch excluded.')
+            bot.send_message(
+                chat_id=self.chat_id, text="Sorry. But the bot is fetching already."
+            )
+            return
+        else:
+            self.fetching = True
 
-        try:
-            new = self.feedmgr.fetchNewFeeds(reload)
-        except TimeoutError:
-            self.ui.fetchError("爬取超时, 刷新或许可以)")
-            return
-        except HTTPError:
-            self.ui.fetchError('爬取出错, 刷新或许可以)')
-            return
-        except Exception as e:
-            logger.error(str(e), exc_info=True, stack_info=True)
-            self.ui.fetchError()
-            return
-
-        err = 0
-        for i in new:
+        def fetch(context):
             try:
-                send_feed(bot, self.chat_id, i, hasattr(self, 'like'))
+                new = self.feedmgr.fetchNewFeeds(reload)
+            except TimeoutError:
+                self.ui.fetchError("爬取超时, 刷新或许可以)")
+                return
+            except HTTPError:
+                self.ui.fetchError('爬取出错, 刷新或许可以)')
+                return
             except Exception as e:
-                logger.error(f"{i.hash}: {str(e)}", exc_info=True, stack_info=True)
-                err += 1
-                continue
+                logger.error(str(e), exc_info=True, stack_info=True)
+                self.ui.fetchError()
+                return
 
-        self.ui.fetchEnd(len(new) - err, err)
-        logger.info(f"{cmd} end")
+            err = 0
+            for i in new:
+                try:
+                    send_feed(bot, self.chat_id, i, hasattr(self, 'like'))
+                except Exception as e:
+                    logger.error(f"{i.hash}: {str(e)}", exc_info=True, stack_info=True)
+                    err += 1
+                    continue
+
+            self.ui.fetchEnd(len(new) - err, err)
+            logger.info(f"{cmd} end")
+        def safe_fetch(context):
+            try:
+                fetch(context)
+            except Exception:
+                logger.error('uncought exception in fetch.', exc_info=True, stack_info=True)
+            finally:
+                self.fetching = False
+        
+        self.update.job_queue.run_custom(safe_fetch, {})
 
 
 class PollingBot(RefreshBot):
@@ -115,7 +138,7 @@ class PollingBot(RefreshBot):
         dispatcher = self.update.dispatcher
         dispatcher.add_handler(CommandHandler("start", self.onStart))
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
-        dispatcher.add_handler(CallbackQueryHandler(self.like))
+        dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
 
     def onRefresh(
         self, update: telegram.Update, context: CallbackContext, reload=False
@@ -148,9 +171,18 @@ class PollingBot(RefreshBot):
             )
         self.update.idle()
 
-    def like(self, update: telegram.Update, context):
-        logger.info("like post start")
+    def onButtonClick(self, update: telegram.Update, context):
         query: telegram.CallbackQuery = update.callback_query
+        data: str = query.data
+        if data in (d := {
+                'qr_refresh': self.ui.QrResend,
+        }):
+            d[data]()
+        else:
+            self.like(query)
+
+    def like(self, query: telegram.CallbackQuery):
+        logger.info("like post start")
         data: str = query.data
         if '/' in data:
             try:
@@ -168,7 +200,8 @@ class PollingBot(RefreshBot):
                 query.answer(text='点赞失败.')
                 return
         query.edit_message_text(
-            text=query.message.text_html + br * 2 + '❤', parse_mode=telegram.ParseMode.HTML
+            text=query.message.text_html + br * 2 + '❤',
+            parse_mode=telegram.ParseMode.HTML
         )
         logger.info("like post end")
 

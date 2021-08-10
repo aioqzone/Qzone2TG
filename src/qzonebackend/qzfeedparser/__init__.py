@@ -128,7 +128,7 @@ class QZHtmlParser:
             tuple: nickname, org link, text
         """
         ls: HtmlElement = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')[0]
-        if not ls: return
+        if len(ls) == 0: return
         elif len(ls) == 1: ls = ls.pop()
         elif len(ls) == 2: ls = max(ls, key=lambda e: len(e))
         ls = self.__x(self.f.ct, f'//div[@class="{ls.attrib["class"]}"]')
