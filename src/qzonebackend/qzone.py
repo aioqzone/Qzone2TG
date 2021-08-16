@@ -231,8 +231,18 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         r = r.text.replace('\n', '').replace('\t', '')
         r = json.loads(RE_CALLBACK.search(r).group(1))
 
-        if r["code"] == 0: return True
-        else: raise QzoneError(r["code"], r["message"])
+        def Expire():
+            logger.info("cookie已过期, 即将重新登陆.")
+            self.updateStatus(True)
+            return self.doLike(likedata)
+
+        if r['code'] in [0, -3000]:
+            return {0: True, -3000: Expire}[r['code']]()
+        elif r["code"] == -10001:
+            logger.info(r["message"])
+            time.sleep(5)
+        else:
+            raise QzoneError(r['code'], r['message'])
 
     def fetchPage(self, pagenum: int, count: int = 10):
         """
