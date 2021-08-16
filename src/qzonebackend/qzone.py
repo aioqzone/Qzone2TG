@@ -236,8 +236,11 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             self.updateStatus(True)
             return self.doLike(likedata)
 
+        def setTrue():
+            return True
+
         if r['code'] in [0, -3000]:
-            return {0: True, -3000: Expire}[r['code']]()
+            return {0: setTrue, -3000: Expire}[r['code']]()
         elif r["code"] == -10001:
             logger.info(r["message"])
             time.sleep(5)
