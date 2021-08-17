@@ -128,11 +128,11 @@ class QZHtmlParser:
             tuple: nickname, org link, text
         """
         ls: HtmlElement = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')
-        if not ls or len(ls) == 0: return
-        if len(ls := ls[0]) == 1: ls = ls.pop()
-        elif len(ls) == 2: ls = max(ls, key=lambda e: len(e))
-        ls = self.__x(self.f.ct, f'//div[@class="{ls.attrib["class"]}"]')[0]
-        for a in ls:
+        if not ls: return
+        if len(ls) == 1: txtbox = ls.pop()
+        elif len(ls) == 2: txtbox = max(ls, key=lambda e: len(e))
+
+        for a in txtbox:
             if not isinstance(a, HtmlElement): continue
 
             if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
@@ -148,7 +148,7 @@ class QZHtmlParser:
         else:
             return
 
-        txt = elm2txt(ls).strip('：').strip()
+        txt = elm2txt(txtbox).strip()
         return nick, link, txt
 
     def isCut(self) -> bool:

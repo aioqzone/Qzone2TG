@@ -120,30 +120,17 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.MARKDOWN_V2
             )
 
-def get_group_photos(img, caption):
-    pic_objs = []
-    for i in range(len(img)):
-        pic_objs.append(telegram.InputMediaPhoto(
-            media=img[i],
-            caption=caption.format(i + 1))
-            )
-        if caption:
-            caption = ''
-    return pic_objs
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
-    pic_objs = get_group_photos(img, caption)
+    assert 1 < len(img) <= 10
+    pic_objs = [telegram.InputMediaPhoto(media=img[0], caption=caption)] + \
+        [telegram.InputMediaPhoto(i) for i in img[1:]]
     try:
-        bot.send_media_group(
-            chat_id=chat,
-            media=pic_objs,
-            disable_notification=True
-        )
+        bot.send_media_group(chat_id=chat, media=pic_objs)
     except BadRequest as e:
         bot.send_message(
             chat_id=chat,
-            text=caption.format(i + 1) + br +
-            '(bot温馨提示: 部分图片好像没发过来?)'
+            text=caption + br + '(bot温馨提示: 部分图片好像没发过来?)' + br + html_link('P1', img[0])
         )
         logger.warning(e.message)
     except TimedOut as e:
@@ -177,8 +164,11 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser, like_button=True):
         rpl = telegram.InlineKeyboardMarkup([[btnLike]])
 
     if feed.appid not in (4, 311) or (feed.typeid == 5):
-        #TODO: forward
-        if (forward := feed.parseForward()) is None:
+        try:
+            forward = feed.parseForward()
+        except Exception:
+            forward = None
+        if (forward) is None:
             logger.warning(
                 f"{feed.hash}: cannot parse forward text. appid={feed.appid}, typeid={feed.typeid}"
             )
