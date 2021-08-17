@@ -120,27 +120,34 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.MARKDOWN_V2
             )
 
+def get_group_photos(img, caption):
+    pic_objs = []
+    for i in range(len(img)):
+        pic_objs.append(telegram.InputMediaPhoto(
+            media=img[i],
+            caption=caption.format(i + 1))
+            )
+        if caption:
+            caption = ''
+    return pic_objs
 
 def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
-    for i in range(len(img)):
-        try:
-            bot.send_photo(
-                chat_id=chat,
-                photo=img[i],
-                caption=caption.format(i + 1),
-                disable_notification=True
-            )
-        except BadRequest as e:
-            bot.send_message(
-                chat_id=chat,
-                text=caption.format(i + 1) + br +
-                '(bot温馨提示: %s好像没发过来?)' % html_link("图片", img[i]),
-                disable_web_page_preview=False,
-                parse_mode=telegram.ParseMode.HTML
-            )
-            logger.warning(e.message)
-        except TimedOut as e:
-            logger.warning(e.message)
+    pic_objs = get_group_photos(img, caption)
+    try:
+        bot.send_media_group(
+            chat_id=chat,
+            media=pic_objs,
+            disable_notification=True
+        )
+    except BadRequest as e:
+        bot.send_message(
+            chat_id=chat,
+            text=caption.format(i + 1) + br +
+            '(bot温馨提示: 部分图片好像没发过来?)'
+        )
+        logger.warning(e.message)
+    except TimedOut as e:
+        logger.warning(e.message)
 
 
 def send_feed(bot: telegram.Bot, chat, feed: Parser, like_button=True):
