@@ -1,8 +1,5 @@
 __all__ = ['json_loads']
 
-from re import escape
-
-
 class ValueBuf:
     __slots__ = ('_v', )
 
@@ -47,10 +44,11 @@ class IrregulateJsonParser:
             r = self._dict(s)
             assert self._dlevel == 0
             assert self._llevel == 0
-            if ''.join(s).strip():
-                raise SyntaxError(
-                    'global: json should match {...}, but something is attached after the last }'
-                )
+            for i, c in s:
+                if c.isprintable() and not c.isspace():
+                    raise SyntaxError(
+                        'global: json should match {...}, but something is attached after the last }'
+                    )
             return r
         raise SyntaxError('global: json should match {...}, but no { is detected')
 

@@ -143,8 +143,7 @@ class PollingBot(RefreshBot):
     def onRefresh(
         self, update: telegram.Update, context: CallbackContext, reload=False
     ):
-        self.chat_id = update.effective_chat.id
-        self.ui.chat_id = self.chat_id
+        self.chat_id = self.ui.chat_id = update.effective_chat.id
         self.onFetch(context.bot, reload)
 
     def onStart(self, update: telegram.Update, context):
@@ -174,6 +173,7 @@ class PollingBot(RefreshBot):
     def onButtonClick(self, update: telegram.Update, context):
         query: telegram.CallbackQuery = update.callback_query
         data: str = query.data
+        self.chat_id = self.ui.chat_id = update.effective_chat.id
         if data in (d := {
                 'qr_refresh': self.ui.QrResend,
         }):

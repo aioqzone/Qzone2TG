@@ -28,7 +28,7 @@ def elm2txt(elm: HtmlElement, richText=True) -> str:
                 'a': lambda: '' if i.attrib['href'].startswith("javascript") else
                 f'<a src="{i.attrib["href"]}">{i.text}</a>' if richText else i.text,
         }):
-            txt += switch[i.tag]()
+            txt += switch[i.tag]() + (i.tail or "")
         else:
             logger.warning("cannot recognize tag: " + i.tag)
     return txt
@@ -127,11 +127,11 @@ class QZHtmlParser:
         Returns:
             tuple: nickname, org link, text
         """
-        ls: HtmlElement = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')[0]
-        if len(ls) == 0: return
-        elif len(ls) == 1: ls = ls.pop()
+        ls: HtmlElement = self.__x(self.f.ct, '//div[starts-with(@class,"txt-box")]')
+        if not ls or len(ls) == 0: return
+        if len(ls := ls[0]) == 1: ls = ls.pop()
         elif len(ls) == 2: ls = max(ls, key=lambda e: len(e))
-        ls = self.__x(self.f.ct, f'//div[@class="{ls.attrib["class"]}"]')
+        ls = self.__x(self.f.ct, f'//div[@class="{ls.attrib["class"]}"]')[0]
         for a in ls:
             if not isinstance(a, HtmlElement): continue
 

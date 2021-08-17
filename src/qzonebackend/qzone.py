@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import time
+from functools import wraps
 from typing import Union
 from urllib.parse import quote, unquote
 
@@ -24,7 +25,7 @@ from uihook import NullUI
 
 from . import QzoneError
 from .common import *
-from .regjson import json_loads
+from .jsjson import json_loads
 
 logger = logging.getLogger("Qzone Scraper")
 
@@ -112,6 +113,22 @@ class HTTPHelper:
         r = self.session.get(*args, **kwargs, headers=self.header)
         if r.status_code != 200: raise HTTPError(response=r)
         return r
+
+
+def login_if_expire(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except QzoneError as e:
+            if e.code == -3000:
+                logger.info("cookie已过期, 即将重新登陆.")
+                QzoneScraper.updateStatus(self, force_login=True)
+                return func(self, *args, **kwargs)
+            else:
+                raise e
+
+    return wrapper
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
@@ -209,6 +226,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         self.gtk = self.cal_gtk(cookie["p_skey"])
         self.session.cookies.update(cookie)
 
+    @login_if_expire
     def doLike(self, likedata: LikeId) -> bool:
         if not hasattr(self, 'gtk'): self.updateStatus()
         body = {
@@ -234,6 +252,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
+    @login_if_expire
     def fetchPage(self, pagenum: int, count: int = 10):
         """
         make sure updateStatus is called before.
@@ -261,37 +280,28 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
             r = RE_CALLBACK.search(r.text).group(1)
             r = json_loads(r)
-
-            def OK():
-                nonlocal r
-                data: dict = r['data']
-                self.extern[pagenum + 1] = unquote(data['main']["externparam"])
-                feeddict = filter(
-                    lambda i: not (
-                        not i or                                    # `undefined` in feed datas or empty feed dict
-                        i['key'].startswith('advertisement_app') or # ad feed
-                        int(i['appid']) >=
-                        4096                                        # not supported (cannot encode), this might be removed
-                    ),
-                    data['data']
-                )
-                return list(feeddict)
-
-            def Expire():
-                logger.info("cookie已过期, 即将重新登陆.")
-                self.updateStatus(True)
-                return self.fetchPage(pagenum=pagenum, count=count)
-
-            if r['code'] in [0, -3000]:
-                return {0: OK, -3000: Expire}[r['code']]()
-            elif r["code"] == -10001:
+            if r["code"] == -10001:
                 logger.info(r["message"])
                 time.sleep(5)
-            else:
+            elif r['code'] != 0:
                 raise QzoneError(r['code'], r['message'])
+
+            data: dict = r['data']
+            self.extern[pagenum + 1] = unquote(data['main']["externparam"])
+            feeddict = filter(
+                lambda i: not (
+                    not i or                                    # `undefined` in feed datas or empty feed dict
+                    i['key'].startswith('advertisement_app') or # ad feed
+                    int(i['appid']) >=
+                    4096                                        # not supported (cannot encode), this might be removed
+                ),
+                data['data']
+            )
+            return list(feeddict)
 
         raise TimeoutError("network is always busy!")
 
+    @login_if_expire
     def checkUpdate(self):
         r = self.get(UPDATE_FEED_URL, params={'uin': self.uin, 'g_tk': self.gtk})
         r = RE_CALLBACK.search(r.text).group(1)
