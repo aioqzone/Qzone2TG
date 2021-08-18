@@ -94,6 +94,39 @@ python3 -m qzone2tg
     pip3 uninstall python-telegram-bot lxml omegaconf tencentlogin
     ```
 
+## Docker 部署
+
+For the docker image go to: https://hub.docker.com/r/jamzumsum/qzone2tg
+
+1. 下载配置文件到挂载目录（如果失败，请手动创建）
+
+``` shell
+mkdir -p ~/qzone2tg-data/config && \
+wget -O ~/qzone2tg-data/config/config.yml \
+    https://raw.githubusercontent.com/JamzumSum/Qzone2TG/master/misc/example.yaml
+```
+
+2. 修改配置文件
+
+``` shell
+vim ~/qzone2tg-data/config/config.yml
+```
+
+3. 创建并运行容器
+
+``` shell
+docker run -d --name qzone2tg \
+--restart on-failure \
+-v $HOME/qzone2tg-data/config:/app/config \
+-v $HOME/qzone2tg-data/data:/app/data \
+jamzumsum/qzone2tg:latest
+```
+
+### Note
+
+* 当配置为 webhook 模式时，需添加 `-p` 端口映射
+* 证书与私钥可以放在 `qzone2tg-data/config` 目录下
+
 ## Credits
 
 > Versions before [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) draw lessons of [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py), @bufuchangfeng, no licence.
