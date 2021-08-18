@@ -14,9 +14,10 @@ COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.
 
 WORKDIR /app
 
-RUN mkdir config && \
-    cp misc/example.yaml config/config.yaml && \
-    apk add nodejs
+RUN apk add nodejs
+
+VOLUME ["/app/config", "/app/data"]
+EXPOSE 80 88 443 8443
 
 ENTRYPOINT ["python", "src/__main__.py"]
 CMD ["--no-interaction"]

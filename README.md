@@ -37,6 +37,14 @@
 
 ## 安装
 
+### Docker Image
+
+> 感谢 @TigerCubDen 
+
+请移步[wiki][5]
+
+### 直接拉取
+
 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
 
 ``` shell
@@ -113,4 +121,5 @@ python3 -m qzone2tg
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.1 "v1.3.1"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.2 "v1.3.2"
+[5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
