@@ -37,9 +37,9 @@ class ParserTest(unittest.TestCase):
                 print(psr.parseText())
 
     def testForward(self):
-        # with open('tmp/raw/-6054028682261981261.yaml', encoding='utf-8') as f:
-        #     psr = Parser(yaml.safe_load(f))
-        #     print(psr.parseForward())
-        with open('tmp/html/-1067038948226604940.html', encoding='utf8') as f:
-            psr = QZHtmlParser(f.read())
+        with open('tmp/raw/7316402236730028655.yaml', encoding='utf-8') as f:
+            psr = Parser(yaml.safe_load(f))
             print(psr.parseForward())
+        # with open('tmp/raw/7316402236730028655.yaml', encoding='utf8') as f:
+        #     psr = QZHtmlParser(f.read())
+        #     print(psr.parseForward())

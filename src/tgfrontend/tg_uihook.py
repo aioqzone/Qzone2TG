@@ -121,16 +121,17 @@ class TgUI(NullUI):
             )
 
 
-def send_photos(bot: telegram.Bot, chat, img: list, caption: str = ""):
+def send_photos(bot: telegram.Bot, chat, img: list, caption="", reply_markup=None):
     assert 1 < len(img) <= 10
-    pic_objs = [telegram.InputMediaPhoto(media=img[0], caption=caption)] + \
+    pic_objs = [telegram.InputMediaPhoto(media=img[0], caption=caption, parse_mode=telegram.ParseMode.HTML)] + \
         [telegram.InputMediaPhoto(i) for i in img[1:]]
     try:
         bot.send_media_group(chat_id=chat, media=pic_objs)
     except BadRequest as e:
         bot.send_message(
             chat_id=chat,
-            text=caption + br + '(bot温馨提示: 部分图片好像没发过来?)' + br + html_link('P1', img[0])
+            text=caption + br + '(bot温馨提示: 部分图片好像没发过来?)' + br + html_link('P1', img[0]),
+            reply_markup=reply_markup,
         )
         logger.warning(e.message)
     except TimedOut as e:
@@ -181,8 +182,15 @@ def send_feed(bot: telegram.Bot, chat, feed: Parser, like_button=True):
             msg += forward_text
 
     img = feed.parseImage()
-    if len(img) == 1: msg += br + html_link('P1', img[0])
-    elif img: msg += f"{br}(bot温馨提示: 多图预警x{len(img)})"
+    if len(img) == 1:
+        bot.send_photo(
+            chat_id=chat,
+            photo=img[0],
+            caption=msg,
+            parse_mode=telegram.ParseMode.HTML,
+            reply_markup=rpl
+        )
+        return
 
     try:
         bot.send_message(

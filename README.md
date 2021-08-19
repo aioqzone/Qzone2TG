@@ -37,32 +37,36 @@
 
 ## 安装
 
+可选择docker image或直接安装.
+
 ### Docker Image
 
 > 感谢 @TigerCubDen 
 
 请移步[wiki][5]
 
-### 直接拉取
+### 源码安装
 
-请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
+1. 安装`nodejs` (若不使用账密登录可跳过此项)
+2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
+3. 
 
-``` shell
-# clone本项目
-git clone https://github.com/JamzumSum/Qzone2TG.git
-cd Qzone2TG
+  ``` shell
+  # clone本项目
+  git clone https://github.com/JamzumSum/Qzone2TG.git
+  cd Qzone2TG
 
-# 安装依赖
-pip install -e .
+  # 安装依赖
+  pip install -e .
 
-# 建立配置文档. 
-mkdir config
-# 复制示例配置. 也可以参考wiki写配置
-cp misc/example.yaml config/config.yaml
+  # 建立配置文档. 
+  mkdir config
+  # 复制示例配置. 也可以参考wiki写配置
+  cp misc/example.yaml config/config.yaml
 
-vim config.yaml     # 使用趁手的编辑器
-# 填写qq, tg bot token, acceptId以及可选的代理
-```
+  vim config.yaml     # 使用趁手的编辑器
+  # 填写qq, tg bot token, acceptId以及可选的代理
+  ```
 
 ## 运行
 

@@ -137,7 +137,7 @@ class QZHtmlParser:
 
             if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
                 if (a := find_if(a,
-                                 lambda i: i.attrib['class'].startswith('nickname'))):
+                                 lambda i: i.attrib['class'].startswith('nickname'))) is not None:
                     link = a.attrib['href']
                     nick = a.text.strip()
                     break
