@@ -1,9 +1,13 @@
+SUPPORT_TYPEID = (0, 5)
+SUPPORT_APPID = (4, 202, 311)
+APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
+
 import logging
 import re
 from datetime import time
 
 import telegram
-from qzonebackend.feed import QZCachedScraper
+from qzone.feed import QZCachedScraper
 from requests.models import HTTPError
 from telegram.error import NetworkError
 from telegram.ext import (
