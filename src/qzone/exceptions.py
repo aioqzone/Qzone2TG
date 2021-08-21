@@ -9,3 +9,10 @@ class QzoneError(RuntimeError):
 
     def __str__(self) -> str:
         return f"Code {self.code}: {self.msg}"
+
+
+class LoginError(RuntimeError):
+    def __init__(self, msg, qr_strategy=None) -> None:
+        super().__init__(msg, qr_strategy)
+        self.msg = msg
+        self.qr_strategy = qr_strategy

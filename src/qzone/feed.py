@@ -5,11 +5,11 @@ import time
 
 import yaml
 from requests.exceptions import HTTPError
-from tgfrontend.compress import LikeId
 from uihook import NullUI
 
-from .qzfeedparser import QZFeedParser as Parser
-from .qzone import LoginError, QzoneScraper
+from . import QzoneScraper
+from .exceptions import LoginError
+from .parser import QZFeedParser as Parser
 
 logger = logging.getLogger("Feed Manager")
 PAGE_LIMIT = 1000
@@ -125,7 +125,7 @@ class QZCachedScraper(FeedMgr):
             reload = False
         return sorted(feeds, key=lambda f: f.abstime)
 
-    def like(self, likedata: LikeId):
+    def like(self, likedata: dict):
         return self.qzone.doLike(likedata)
 
     def likeAFile(self, fname: str) -> bool:

@@ -4,7 +4,7 @@ from typing import Callable
 
 class QREvent(ABC):
     _resend = None
-    
+
     @abstractmethod
     def QrFetched(self, png: bytes):
         pass
@@ -47,7 +47,12 @@ class QzoneEvent(ABC):
         pass
 
 
-class NullUI(QREvent, QzoneEvent):
+class FeedEvent(ABC):
+    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+        pass
+
+
+class NullUI(QREvent, QzoneEvent, FeedEvent):
     def QrFetched(self, png: bytes, *args, **kwargs):
         pass
 
@@ -74,3 +79,6 @@ class NullUI(QREvent, QzoneEvent):
 
     def fetchError(self, msg, *args, **kwargs):
         pass
+
+    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+        return super().contentReady(msg, forward, img, *args, **kwargs)

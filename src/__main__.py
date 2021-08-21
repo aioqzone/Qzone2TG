@@ -3,9 +3,9 @@ import logging
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
-from qzonebackend.feed import QZCachedScraper
-from qzonebackend.qzone import QzoneScraper
-from tgfrontend.tg import PollingBot, RefreshBot, WebhookBot
+from qzone.feed import QZCachedScraper
+from qzone import QzoneScraper
+from frontend.tg import PollingBot, RefreshBot, WebhookBot
 
 NO_INTERACT = False
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'

@@ -16,16 +16,15 @@ from urllib.parse import quote, unquote
 
 import requests
 import yaml
+from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from tgfrontend.compress import LikeId
 from uihook import NullUI
 
-from . import QzoneError
 from .common import *
-from .jsjson import json_loads
+from .exceptions import LoginError, QzoneError
 
 logger = logging.getLogger("Qzone Scraper")
 
@@ -36,13 +35,6 @@ GET_PAGE_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
 UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
 
 RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
-
-
-class LoginError(RuntimeError):
-    def __init__(self, msg, qr_strategy=None) -> None:
-        super().__init__(msg, qr_strategy)
-        self.msg = msg
-        self.qr_strategy = qr_strategy
 
 
 class LoginHelper:
@@ -227,20 +219,17 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         self.session.cookies.update(cookie)
 
     @login_if_expire
-    def doLike(self, likedata: LikeId) -> bool:
+    def doLike(self, likedata: dict) -> bool:
         if not hasattr(self, 'gtk'): self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
             'opuin': self.uin,
-            'unikey': likedata.unikey,
-            'curkey': likedata.curkey,
-            'appid': likedata.appid,
-            'typeid': likedata.typeid,
-            'fid': likedata.fid,
             'from': 1,
             'active': 0,
-            'fupdate': 1
+            'fupdate': 1,
+            'fid': likedata.pop('key')
         }
+        body.update(likedata)
         try:
             r = self.post(DO_LIKE_URL, params={'g_tk': self.gtk}, data=body)
         except HTTPError:

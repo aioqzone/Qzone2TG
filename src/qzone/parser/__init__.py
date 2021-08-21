@@ -2,8 +2,7 @@ import logging
 import re
 
 from lxml.html import HtmlElement, fromstring, tostring
-from tgfrontend.compress import LikeId
-from utils import find_if
+from utils.iterutils import find_if
 
 from .emojimgr import url2unicode
 
@@ -136,8 +135,8 @@ class QZHtmlParser:
             if not isinstance(a, HtmlElement): continue
 
             if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
-                if (a := find_if(a,
-                                 lambda i: i.attrib['class'].startswith('nickname'))) is not None:
+                if (a := find_if(a, lambda i: i.attrib['class'].startswith('nickname'))
+                    ) is not None:
                     link = a.attrib['href']
                     nick = a.text.strip()
                     break
@@ -202,7 +201,13 @@ class QZFeedParser(QZHtmlParser):
         return int(self.raw['abstime'])
 
     def getLikeId(self):
-        return LikeId(self.appid, self.typeid, self.feedkey, *self.uckeys)
+        return {
+            'unikey': (uc := self.uckeys)[0],
+            'curkey': uc[1],
+            'appid': self.appid,
+            'typeid': self.typeid,
+            'key': self.feedkey,
+        }
 
     def __hash__(self) -> int:
         return hash((self.uin, self.abstime))
