@@ -1,12 +1,16 @@
 import logging
+from functools import wraps
 
 import telegram
-from qzonebackend.feed import day_stamp
-from qzonebackend.qzfeedparser import QZFeedParser as Parser
-from telegram.error import BadRequest, NetworkError, TimedOut
-from uihook import NullUI
+from middleware import ContentExtracter
+from middleware.uihook import NullUI
+from qzone.feed import day_stamp
+from telegram.error import BadRequest, TimedOut
+from .compress import LikeId
 
-from . import *
+SUPPORT_TYPEID = (0, 5)
+SUPPORT_APPID = (4, 202, 311)
+APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
 
 br = '\n'
 hr = '============================='
@@ -14,8 +18,35 @@ hr = '============================='
 logger = logging.getLogger("telegram")
 
 
-def html_link(txt, link) -> str:
-    return f'<a href="{link}">{txt}</a>'
+def retry_once(func, msg_callback=None):
+    log_kw = dict(exc_info=True, stack_info=True, stacklevel=2)
+
+    @wraps(func)
+    def retry_wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except TimedOut as e:
+            logger.warning(e.message)
+        except BadRequest as e:
+            logger.warning(
+                msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e),
+                **log_kw
+            )
+        except Exception as e:
+            logger.error(
+                msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e),
+                **log_kw
+            )
+
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(
+                (msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e)) +
+                " (retry failed)"
+            )
+
+    return retry_wrapper
 
 
 class TgUI(NullUI):
@@ -120,90 +151,92 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.MARKDOWN_V2
             )
 
-
-def send_photos(bot: telegram.Bot, chat, img: list, caption="", reply_markup=None):
-    assert 1 < len(img) <= 10
-    pic_objs = [telegram.InputMediaPhoto(media=img[0], caption=caption, parse_mode=telegram.ParseMode.HTML)] + \
-        [telegram.InputMediaPhoto(i) for i in img[1:]]
-    try:
-        bot.send_media_group(chat_id=chat, media=pic_objs)
-    except BadRequest as e:
-        bot.send_message(
-            chat_id=chat,
-            text=caption + br + '(bot温馨提示: 部分图片好像没发过来?)' + br + html_link('P1', img[0]),
-            reply_markup=reply_markup,
-        )
-        logger.warning(e.message)
-    except TimedOut as e:
-        logger.warning(e.message)
-
-
-def send_feed(bot: telegram.Bot, chat, feed: Parser, like_button=True):
-    if feed.appid not in SUPPORT_APPID: return
-    if feed.typeid not in SUPPORT_TYPEID: return
-
-    msg = feed.nickname + feed.feedstime
-
-    if feed.typeid == 5:
-        msg += "转发了{forward}的说说:"
-    else:
-        msg += "发表了说说:"
-    msg += br * 2
-    msg += feed.parseText()
-
-    if feed.isLike:
-        msg += br + br + '❤'
-        rpl = None
-    elif not like_button:
-        rpl = None
-    else:
-        if feed.appid == 311:
-            likeid = feed.getLikeId().tostr()
-        else:
-            likeid = f'{day_stamp(feed.abstime)}/{feed.hash}'
-        btnLike = telegram.InlineKeyboardButton("Like", callback_data=likeid)
-        rpl = telegram.InlineKeyboardMarkup([[btnLike]])
-
-    if feed.appid not in (4, 311) or (feed.typeid == 5):
-        try:
-            forward = feed.parseForward()
-        except Exception:
-            forward = None
-        if (forward) is None:
-            logger.warning(
-                f"{feed.hash}: cannot parse forward text. appid={feed.appid}, typeid={feed.typeid}"
+    def contentReady(self, msg: str, img: list, reply_markup=None):
+        if not img:
+            return self.bot.send_message(
+                chat_id=self.chat_id,
+                text=msg,
+                parse_mode=telegram.ParseMode.HTML,
+                reply_markup=reply_markup
             )
-            msg = msg.format(forward=APP_NAME[feed.appid])
+        elif len(img) == 1:
+            return self.bot.send_photo(
+                chat_id=self.chat_id,
+                caption=msg,
+                photo=img[0],
+                parse_mode=telegram.ParseMode.HTML,
+                reply_markup=reply_markup
+            )
+        elif reply_markup:
+            return [self.contentReady(msg, None, reply_markup)
+                    ] + self.contentReady(None, img)
         else:
-            forward_nick, forward_link, forward_text = forward
-            msg = msg.format(forward=html_link('@' + forward_nick, forward_link)) + br
-            msg += hr + br
-            msg += '@' + forward_nick + ': '
-            msg += forward_text
+            return self.bot.send_media_group(
+                chat_id=self.chat_id,
+                media=[telegram.InputMediaPhoto(media=img[0], caption=msg, parse_mode=telegram.ParseMode.HTML)] + \
+                    [telegram.InputMediaPhoto(i) for i in img[1:]]
+            )
 
-    img = feed.parseImage()
-    if len(img) == 1:
-        bot.send_photo(
-            chat_id=chat,
-            photo=img[0],
-            caption=msg,
-            parse_mode=telegram.ParseMode.HTML,
-            reply_markup=rpl
-        )
-        return
 
-    try:
-        bot.send_message(
-            chat_id=chat,
-            text=msg,
-            parse_mode=telegram.ParseMode.HTML,
-            disable_web_page_preview=len(img) != 1,
-            reply_markup=rpl
-        )
-    except TimedOut as e:
-        logger.warning(e.message)
-    except NetworkError as e:
-        logger.error(f"{feed.hash}: {e.message}", exc_info=True, stack_info=True)
+class TgExtracter(ContentExtracter):
+    def __init__(self, feed, uin: int) -> None:
+        super().__init__(feed)
+        self.uin = uin
 
-    if len(img) > 1:
-        send_photos(bot, chat, img, f'{feed.nickname}于{feed.feedstime}')
+    @staticmethod
+    def html_link(txt, link) -> str:
+        return f'<a href="{link}">{txt}</a>'
+
+    def msg(self):
+        if self.feed.appid not in SUPPORT_APPID: return
+        if self.feed.typeid not in SUPPORT_TYPEID: return
+
+        msg = self.feed.nickname + self.feed.feedstime
+
+        if self.feed.typeid == 5:
+            msg += "转发了{forward}的说说:"
+        else:
+            msg += "发表了说说:"
+        msg += br * 2
+        msg += self.feed.parseText()
+
+        if self.feed.isLike:
+            msg += br + br + '❤'
+
+        if self.feed.appid not in (4, 311) or (self.feed.typeid == 5):
+            try:
+                forward = self.feed.parseForward()
+            except Exception:
+                forward = None
+            if (forward) is None:
+                logger.warning(
+                    f"{self.feed.hash}: cannot parse forward text. appid={self.feed.appid}, typeid={self.feed.typeid}"
+                )
+                msg = msg.format(forward=APP_NAME[self.feed.appid])
+            else:
+                forward_nick, forward_link, forward_text = forward
+                msg = msg.format(
+                    forward=self.html_link('@' + forward_nick, forward_link)
+                ) + br
+                msg += hr + br
+                msg += '@' + forward_nick + ': '
+                msg += forward_text
+        return msg
+
+    def forward(self):
+        pass
+
+    def likeButton(self):
+        if self.feed.isLike: return
+        if self.feed.appid == 311:
+            likeid = LikeId(**self.feed.getLikeId()).tostr()
+        else:
+            likeid = f'{day_stamp(self.feed.abstime)}/{self.feed.hash}'
+        btnLike = telegram.InlineKeyboardButton("Like", callback_data=likeid)
+        return telegram.InlineKeyboardMarkup([[btnLike]])
+
+    def content(self):
+        return self.msg(), self.img()
+
+    def isBlocked(self):
+        return self.feed.uin == self.uin

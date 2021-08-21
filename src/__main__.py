@@ -1,24 +1,25 @@
+import argparse
 import logging
+import sys
 
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
-from qzone.feed import QZCachedScraper
-from qzone import QzoneScraper
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
+from qzone import QzoneScraper
+from qzone.feed import QZCachedScraper
 
-NO_INTERACT = False
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
 
 
 def getPassword(d: DictConfig, conf_path: str):
-    # getPassword w/ lasy import
+    """getPassword w/ lasy import"""
     PWD_KEY = "password"
     qzone: dict = d.get('qzone')
     if (strategy := qzone.get('qr_strategy', 'prefer')) == 'force': return qzone
 
     def writePwd(pwd):
-        from utils import pwdTransform
+        from utils.encrypt import pwdTransform
         i = OmegaConf.load(conf_path)
         i.qzone[PWD_KEY] = pwdTransform(pwd)
         i.qzone.savepwd = True
@@ -29,7 +30,7 @@ def getPassword(d: DictConfig, conf_path: str):
         if not qzone[PWD_KEY].startswith('$'):
             writePwd(qzone[PWD_KEY])
         else:
-            from utils import pwdTransBack
+            from utils.encrypt import pwdTransBack
             qzone[PWD_KEY] = pwdTransBack(qzone[PWD_KEY])
     else:
         from getpass import getpass
@@ -73,14 +74,8 @@ def LoggerConf(log_conf: DictConfig):
     )
 
 
-def main():
-    ca = OmegaConf.from_cli()
-    CONF_PATH = ca.pop('--config', None) or "config/config.yaml"
-    global NO_INTERACT
-    if '--no-interaction' in ca:
-        NO_INTERACT = True
-        ca.pop('--no-interaction')
-
+def main(args):
+    ca = OmegaConf.from_cli(args)
     d = OmegaConf.load(CONF_PATH)
     d = OmegaConf.merge(d, ca)
 
@@ -103,11 +98,29 @@ def main():
         'webhook': WebhookBot,
         "refresh": RefreshBot
     }[d.bot.pop('method')]
-    bot: RefreshBot = BotCls(feedmgr=feedmgr, **d.bot)
+    bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     spider.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)
     bot.run()
 
 
 if __name__ == '__main__':
-    main()
+    psr = argparse.ArgumentParser()
+    psr.add_argument(
+        '-c',
+        '--config',
+        default="config/config.yaml",
+        help='config path (*.yml;*.yaml)'
+    )
+    psr.add_argument(
+        '--no-interaction',
+        action='store_true',
+        help=
+        'Enter no-interaction mode: exit if any essential argument is missing instead of asking for input.'
+    )
+
+    arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
+    global CONF_PATH, NO_INTERACT
+    CONF_PATH = arg.config
+    NO_INTERACT = arg.no_interaction
+    main([i for i in sys.argv[1:] if not i.startswith('-')])

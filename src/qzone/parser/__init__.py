@@ -81,10 +81,13 @@ class QZHtmlParser:
         return self.__x('//div[@class="user-pto"]/a/img/@src')[0]
 
     def parseImage(self):
-        return [
-            i.replace('rf=0-0', 'rf=viewer_311')
-            for i in self.__x(self.f.ct, '//a[@class="img-item  "]/img/@src')
+        img = self.__x(self.f.ct, '//a[@class="img-item  "]/img')
+        img = [
+            src if (src := i.attrib['src']).startswith('http') else
+            re.search(r"trueSrc:'(http.*?)'",
+                      i.attrib['onload']).group(1).replace('\\', '') for i in img
         ]
+        return [i.replace('rf=0-0', 'rf=viewer_311') for i in img]
 
     def parseFeedData(self) -> dict:
         # 说实话这个好像没啥用

@@ -21,7 +21,7 @@ from requests.exceptions import HTTPError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from uihook import NullUI
+from middleware.uihook import NullUI
 
 from .common import *
 from .exceptions import LoginError, QzoneError
@@ -172,7 +172,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json.loads(r)
-        return r["newFeedXML"].strip()
+        if r["code"] == 0: return r["newFeedXML"].strip()
 
     def updateStatus(self, force_login=False):
         """

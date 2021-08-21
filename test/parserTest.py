@@ -2,7 +2,7 @@ import re
 import unittest
 
 import yaml
-from qzonebackend.qzfeedparser import QZFeedParser as Parser, QZHtmlParser
+from qzone.parser import QZFeedParser as Parser, QZHtmlParser
 
 
 class ParserTest(unittest.TestCase):
@@ -43,3 +43,8 @@ class ParserTest(unittest.TestCase):
         # with open('tmp/raw/7316402236730028655.yaml', encoding='utf8') as f:
         #     psr = QZHtmlParser(f.read())
         #     print(psr.parseForward())
+
+    def testImage(self):
+        with open('tmp/raw/-2491706649500478319.yaml', encoding='utf-8') as f:
+            psr = Parser(yaml.safe_load(f))
+            print(psr.parseImage())

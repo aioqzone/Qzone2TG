@@ -1,22 +1,17 @@
-SUPPORT_TYPEID = (0, 5)
-SUPPORT_APPID = (4, 202, 311)
-APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
-
 import logging
 import re
 from datetime import time
 
 import telegram
 from qzone.feed import QZCachedScraper
-from requests.models import HTTPError
+from requests.exceptions import HTTPError
 from telegram.error import NetworkError
 from telegram.ext import (
     CallbackContext, CallbackQueryHandler, CommandHandler, Updater
 )
 
-from . import *
 from .compress import LikeId
-from .tg_uihook import TgUI, br, send_feed
+from .tg_uihook import TgExtracter, TgUI, br, retry_once
 
 logger = logging.getLogger("telegram")
 
@@ -33,6 +28,7 @@ class RefreshBot:
         feedmgr: QZCachedScraper,
         token: str,
         accept_id: list,
+        uin: int,
         *,
         interval=0,
         proxy: dict = None,
@@ -40,6 +36,7 @@ class RefreshBot:
         self.accept_id = accept_id
         self.feedmgr = feedmgr
         self._token = token
+        self.uin = uin
         self.interval = interval
         self.fetching = False
 
@@ -102,22 +99,32 @@ class RefreshBot:
             err = 0
             for i in new:
                 try:
-                    send_feed(bot, self.chat_id, i, hasattr(self, 'like'))
+                    i = TgExtracter(i, self.uin)
+                    retry_once(
+                        self.ui.contentReady,
+                        lambda *a, exc, **k: f"feed {i.feed.hash}: {exc}"
+                    )(
+                        *i.content(),
+                        i.likeButton() if hasattr(self, 'like') else None,
+                    )
                 except Exception as e:
-                    logger.error(f"{i.hash}: {str(e)}", exc_info=True, stack_info=True)
+                    logger.error(f"{i.feed.hash}: {str(e)}", exc_info=True, stack_info=True)
                     err += 1
                     continue
 
             self.ui.fetchEnd(len(new) - err, err)
             logger.info(f"{cmd} end")
+
         def safe_fetch(context):
             try:
                 fetch(context)
             except Exception:
-                logger.error('uncought exception in fetch.', exc_info=True, stack_info=True)
+                logger.error(
+                    'uncought exception in fetch.', exc_info=True, stack_info=True
+                )
             finally:
                 self.fetching = False
-        
+
         self.update.job_queue.run_custom(safe_fetch, {})
 
 
@@ -129,13 +136,14 @@ class PollingBot(RefreshBot):
         feedmgr: QZCachedScraper,
         token: str,
         accept_id: list,
+        uin: int,
         *,
         interval=0,
         proxy: dict = None,
         polling: dict = None,
         auto_start=True,
     ):
-        super().__init__(feedmgr, token, accept_id, interval=interval, proxy=proxy)
+        super().__init__(feedmgr, token, accept_id, uin, interval=interval, proxy=proxy)
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
 
@@ -200,7 +208,7 @@ class PollingBot(RefreshBot):
                 )
                 return
         else:
-            if not self.feedmgr.like(LikeId.fromstr(data)):
+            if not self.feedmgr.like(LikeId.fromstr(data).todict()):
                 query.answer(text='点赞失败.')
                 return
         query.edit_message_text(
@@ -216,11 +224,12 @@ class WebhookBot(PollingBot):
         feedmgr: QZCachedScraper,
         token: str,
         accept_id: list,
+        uin: int,
         *,
         webhook: dict = None,
         **kwargs
     ):
-        super().__init__(feedmgr, token, accept_id, **kwargs, polling=webhook)
+        super().__init__(feedmgr, token, accept_id, uin, **kwargs, polling=webhook)
 
     def run(self):
         server = re.search(r'(?:https?://)?([^/]*)/?',

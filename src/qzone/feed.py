@@ -4,8 +4,8 @@ import re
 import time
 
 import yaml
+from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
-from uihook import NullUI
 
 from . import QzoneScraper
 from .exceptions import LoginError
@@ -67,7 +67,8 @@ class FeedMgr:
         fname = folder + f"/{feed.hash}.yaml"
         if force or not os.path.exists(fname):
             if get_complete_callback and feed.isCut():
-                feed.updateHTML(get_complete_callback(feed.parseFeedData()))
+                if (r := get_complete_callback(feed.parseFeedData())):
+                    feed.updateHTML(r)
             self.dumpFeed(feed, fname)
             return True
         return False
