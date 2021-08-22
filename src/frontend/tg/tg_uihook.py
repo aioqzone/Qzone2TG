@@ -238,5 +238,6 @@ class TgExtracter(ContentExtracter):
     def content(self):
         return self.msg(), self.img()
 
+    @property
     def isBlocked(self):
         return self.feed.uin == self.uin

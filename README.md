@@ -2,11 +2,11 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 1.3之后大概不会太频繁地更新功能了 
+> 2.0.0的功能和1.3.3相差无几. 但因为大面积修改了包名和包结构所以大版本号+1)</br>
+> `jssupport`包为QQQR附带(>=2.3.0). 暂时没有将其独立的想法.</br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 
-> [v1.3.2][4] availible now!</br>
-> Working on QQQR now.
+> [v2.0.0b1][4] availible now!</br>
 
 ## 功能
 

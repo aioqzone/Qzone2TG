@@ -1,7 +1,8 @@
-from qzonebackend.qzone import QzoneScraper
-from utils import pwdTransBack
-import yaml
 import unittest
+
+import yaml
+from qzone import QzoneScraper
+from utils.encrypt import pwdTransBack
 
 
 def load_conf():
@@ -14,14 +15,17 @@ def load_conf():
 
 class WalkerTest(unittest.TestCase):
     def setUp(self):
-        import cv2 as cv, numpy as np
-        from uihook import NullUI
+        import cv2 as cv
+        import numpy as np
+        from middleware.uihook import NullUI
         q = load_conf()
         self.spider = QzoneScraper(**q)
 
         class UI(NullUI):
             def QrFetched(self, png: bytes):
-                img = cv.imdecode(np.asarray(bytearray(png), dtype='uint8'), cv.IMREAD_COLOR)
+                img = cv.imdecode(
+                    np.asarray(bytearray(png), dtype='uint8'), cv.IMREAD_COLOR
+                )
                 cv.imshow('qrcode', img)
                 cv.waitKey()
 
@@ -36,12 +40,15 @@ class QzoneTest(unittest.TestCase):
     def setUp(self):
         q = load_conf()
         self.spider = QzoneScraper(**q)
-        from uihook import NullUI
+        from middleware.uihook import NullUI
 
         class UI(NullUI):
             def QrFetched(self, png: bytes):
-                import cv2 as cv, numpy as np
-                img = cv.imdecode(np.asarray(bytearray(png), dtype='uint8'), cv.IMREAD_COLOR)
+                import cv2 as cv
+                import numpy as np
+                img = cv.imdecode(
+                    np.asarray(bytearray(png), dtype='uint8'), cv.IMREAD_COLOR
+                )
                 cv.imshow('qrcode', img)
                 cv.waitKey()
 

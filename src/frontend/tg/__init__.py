@@ -100,6 +100,7 @@ class RefreshBot:
             for i in new:
                 try:
                     i = TgExtracter(i, self.uin)
+                    if i.isBlocked: continue
                     retry_once(
                         self.ui.contentReady,
                         lambda *a, exc, **k: f"feed {i.feed.hash}: {exc}"

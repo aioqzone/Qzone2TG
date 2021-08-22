@@ -20,7 +20,7 @@ def day_stamp(timestamp: float = None) -> int:
     return int(timestamp // 86400)
 
 
-class FeedMgr:
+class FeedStorage:
     def __init__(self, uin, keepdays=3) -> None:
         self.uin = uin
         self.keepdays = keepdays
@@ -57,14 +57,18 @@ class FeedMgr:
             feed = yaml.safe_load(f)
             return Parser(feed)
 
+    def feedPath(self, feed: Parser, daystamp=None):
+        daystamp = daystamp or day_stamp(feed.abstime)
+        folder = f"data/{self.uin}/{daystamp}"
+        os.makedirs(folder, exist_ok=True)
+        return folder + f"/{feed.hash}.yaml"
+
     def saveFeed(self, feed: Parser, force=False, get_complete_callback=None):
         daystamp = day_stamp(feed.abstime)
         if daystamp + self.keepdays <= day_stamp():
             return False
 
-        folder = f"data/{self.uin}/{daystamp}"
-        os.makedirs(folder, exist_ok=True)
-        fname = folder + f"/{feed.hash}.yaml"
+        fname = self.feedPath(feed, daystamp)
         if force or not os.path.exists(fname):
             if get_complete_callback and feed.isCut():
                 if (r := get_complete_callback(feed.parseFeedData())):
@@ -74,12 +78,12 @@ class FeedMgr:
         return False
 
 
-class QZCachedScraper(FeedMgr):
+class QZCachedScraper(FeedStorage):
     new_limit = 30         # not implement
 
     def __init__(self, qzone: QzoneScraper, keepdays=3):
         self.qzone = qzone
-        FeedMgr.__init__(self, qzone.uin, keepdays)
+        FeedStorage.__init__(self, qzone.uin, keepdays)
 
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui

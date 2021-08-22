@@ -3,7 +3,7 @@ from time import time
 from unittest import TestCase
 
 import demjson
-from qzonebackend.qzone import json_loads
+from jssupport.jsjson import json_loads
 
 # testDemjson (demjsonTest.TestSpeed) ... 1.7905035018920898 s
 # ok
