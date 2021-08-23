@@ -6,7 +6,7 @@ from utils.iterutils import find_if
 
 from .emojimgr import url2unicode
 
-logger = logging.getLogger("Qzone HTML Parser")
+logger = logging.getLogger(__name__)
 
 
 def elm2txt(elm: HtmlElement, richText=True) -> str:
@@ -164,7 +164,6 @@ class QZFeedParser(QZHtmlParser):
         assert isinstance(feed, dict)
         feed['html'] = QZHtmlParser.trans(feed['html'])
         self.raw = feed
-        self.raw['hash'] = self.__hash__()
         super().__init__(feed['html'])
 
     @property
@@ -173,6 +172,7 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def hash(self) -> int:
+        if 'hash' not in self.raw: self.raw['hash'] = self.__hash__()
         return self.raw['hash']
 
     @property
@@ -193,11 +193,11 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def fid(self) -> str:
-        return self.raw['key']
+        return self.raw['key'] if 'key' in self.raw else self.raw['fid']
 
     @property
     def feedkey(self) -> str:
-        return self.raw['key']
+        return self.fid
 
     @property
     def abstime(self) -> int:

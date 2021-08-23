@@ -21,6 +21,7 @@ setup(
         'python-telegram-bot',
         'lxml',
         'omegaconf',
+        "sqlite3",
         "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
     ],
     extras_require={

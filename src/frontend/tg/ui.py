@@ -4,7 +4,6 @@ from functools import wraps
 import telegram
 from middleware import ContentExtracter
 from middleware.uihook import NullUI
-from qzone.feed import day_stamp
 from telegram.error import BadRequest, TimedOut
 from .compress import LikeId
 
@@ -15,7 +14,7 @@ APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
 br = '\n'
 hr = '============================='
 
-logger = logging.getLogger("telegram")
+logger = logging.getLogger(__name__)
 
 
 def retry_once(func, msg_callback=None):
@@ -231,7 +230,7 @@ class TgExtracter(ContentExtracter):
         if self.feed.appid == 311:
             likeid = LikeId(**self.feed.getLikeId()).tostr()
         else:
-            likeid = f'{day_stamp(self.feed.abstime)}/{self.feed.hash}'
+            likeid = '/' + self.feed.fid
         btnLike = telegram.InlineKeyboardButton("Like", callback_data=likeid)
         return telegram.InlineKeyboardMarkup([[btnLike]])
 

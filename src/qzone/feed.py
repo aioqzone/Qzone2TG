@@ -1,9 +1,7 @@
+import enum
 import logging
-import os
-import re
-import time
 
-import yaml
+from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 
@@ -11,79 +9,16 @@ from . import QzoneScraper
 from .exceptions import LoginError
 from .parser import QZFeedParser as Parser
 
-logger = logging.getLogger("Feed Manager")
+logger = logging.getLogger(__name__)
 PAGE_LIMIT = 1000
 
 
-def day_stamp(timestamp: float = None) -> int:
-    if timestamp is None: timestamp = time.time()
-    return int(timestamp // 86400)
-
-
-class FeedStorage:
-    def __init__(self, uin, keepdays=3) -> None:
-        self.uin = uin
-        self.keepdays = keepdays
-
-    def cleanFeed(self):
-        if not os.path.exists("data"): return
-        ls = lambda f: [f + '/' + i for i in os.listdir(f)]
-        accounts = ls("data")
-        files = sum([ls(i) for i in accounts], [])
-
-        pattern = re.compile(r"/(\d+)$")
-        dic = {}
-        for i in files:
-            daystamp = int(pattern.search(i).group(1))
-            if daystamp in dic: dic[daystamp].append(i)
-            else: dic[daystamp] = [i]
-        daystamp = day_stamp()
-        for k, v in dic.items():
-            if k + self.keepdays <= daystamp:
-                for f in v:
-                    for i in ls(f):
-                        os.remove(i)
-                    os.removedirs(f)
-                    logger.info("clean folder: " + f)
-
-    @staticmethod
-    def dumpFeed(feed: Parser, path: str):
-        with open(path, 'w', encoding='utf-8') as f:
-            return yaml.safe_dump({k: v for k, v in feed.raw.items() if v}, f)
-
-    @staticmethod
-    def fromFile(fname):
-        with open(fname, encoding='utf8') as f:
-            feed = yaml.safe_load(f)
-            return Parser(feed)
-
-    def feedPath(self, feed: Parser, daystamp=None):
-        daystamp = daystamp or day_stamp(feed.abstime)
-        folder = f"data/{self.uin}/{daystamp}"
-        os.makedirs(folder, exist_ok=True)
-        return folder + f"/{feed.hash}.yaml"
-
-    def saveFeed(self, feed: Parser, force=False, get_complete_callback=None):
-        daystamp = day_stamp(feed.abstime)
-        if daystamp + self.keepdays <= day_stamp():
-            return False
-
-        fname = self.feedPath(feed, daystamp)
-        if force or not os.path.exists(fname):
-            if get_complete_callback and feed.isCut():
-                if (r := get_complete_callback(feed.parseFeedData())):
-                    feed.updateHTML(r)
-            self.dumpFeed(feed, fname)
-            return True
-        return False
-
-
-class QZCachedScraper(FeedStorage):
+class QZCachedScraper:
     new_limit = 30         # not implement
 
-    def __init__(self, qzone: QzoneScraper, keepdays=3):
+    def __init__(self, qzone: QzoneScraper, keepdays=3, archivedays=180, plugins=None):
         self.qzone = qzone
-        FeedStorage.__init__(self, qzone.uin, keepdays)
+        self.db = FeedBase(f"data/{qzone.uin}.db", keepdays, archivedays, plugins)
 
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui
@@ -102,36 +37,49 @@ class QZCachedScraper(FeedStorage):
                 f'Error fetch page {pagenum}{", force reload" if reload else ""}',
                 exc_info=True
             )
-            return []
+            return False
         except Exception:
             logger.error(
                 f'Error fetch page {pagenum}{", force reload" if reload else ""}, retry remains={retry}',
                 exc_info=True
             )
 
+        limit = day_stamp() - self.db.keepdays
         new = [
-            feed for i in feeds if self.saveFeed(
-                (feed := Parser(i)),
-                force=reload,
-                get_complete_callback=self.qzone.getCompleteFeed,
-            )
+            p for i in feeds
+            if (p := Parser(i)).fid not in self.db.feed and day_stamp(p.abstime) > limit
         ]
-
         self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
-        return new
+        if not new: return False
+
+        for i in new:
+            if not i.isCut(): continue
+            html = self.qzone.getCompleteFeed(i.parseFeedData())
+            if html:
+                i.updateHTML(html)
+            else:
+                logger.warning(f'feed {i.hash}: 获取完整说说失败')
+
+        self.db.saveFeeds(new)
+        return True
 
     def fetchNewFeeds(self, reload=False):
-        feeds = []
+        flag = False
         for i in range(PAGE_LIMIT):
             tmp = self.getFeedsInPage(i + 1, reload)
             if not tmp: break
-            feeds.extend(tmp)
+            flag = True
             reload = False
-        return sorted(feeds, key=lambda f: f.abstime)
+        return flag
 
     def like(self, likedata: dict):
         return self.qzone.doLike(likedata)
 
-    def likeAFile(self, fname: str) -> bool:
-        return self.like(self.fromFile(fname).getLikeId())
+    def likeAFile(self, fid: str) -> bool:
+        r = self.db.getFeed(f'fid={fid}')
+        if r:
+            r = r[0].getLikeId()
+        else:
+            r = self.db.getArchive(fid)
+        return r and self.like(r)

@@ -92,7 +92,13 @@ def main(args):
     getPassword(d, CONF_PATH)
 
     spider = QzoneScraper(**d.qzone)
-    feedmgr = QZCachedScraper(spider, **d.feed)
+    feedmgr = QZCachedScraper(
+        spider, **d.feed, plugins={
+            'tg': {
+                'is_sent': 'BOOLEAN default 0'
+            },
+        }
+    )
     BotCls = {
         'polling': PollingBot,
         'webhook': WebhookBot,

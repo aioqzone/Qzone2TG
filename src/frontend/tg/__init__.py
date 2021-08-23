@@ -11,9 +11,9 @@ from telegram.ext import (
 )
 
 from .compress import LikeId
-from .tg_uihook import TgExtracter, TgUI, br, retry_once
+from .ui import TgExtracter, TgUI, br, retry_once
 
-logger = logging.getLogger("telegram")
+logger = logging.getLogger(__name__)
 
 
 class FakeObj:
@@ -82,21 +82,13 @@ class RefreshBot:
         else:
             self.fetching = True
 
-        def fetch(context):
-            try:
-                new = self.feedmgr.fetchNewFeeds(reload)
-            except TimeoutError:
-                self.ui.fetchError("爬取超时, 刷新或许可以)")
-                return
-            except HTTPError:
-                self.ui.fetchError('爬取出错, 刷新或许可以)')
-                return
-            except Exception as e:
-                logger.error(str(e), exc_info=True, stack_info=True)
-                self.ui.fetchError()
-                return
-
+        def send(context):
             err = 0
+            new = self.feedmgr.db.getFeed(
+                cond_sql='is_sent IS NULL OR is_sent=0',
+                plugin_name='tg',
+                order=True,
+            )
             for i in new:
                 try:
                     i = TgExtracter(i, self.uin)
@@ -114,9 +106,24 @@ class RefreshBot:
                     )
                     err += 1
                     continue
-
+                self.feedmgr.db.setPluginData('tg', i.feed.fid, is_sent=1)
             self.ui.fetchEnd(len(new) - err, err)
-            logger.info(f"{cmd} end")
+
+        def fetch(context):
+            try:
+                self.feedmgr.fetchNewFeeds(reload)
+            except TimeoutError:
+                self.ui.fetchError("爬取超时, 刷新或许可以)")
+                return
+            except HTTPError:
+                self.ui.fetchError('爬取出错, 刷新或许可以)')
+                return
+            except Exception as e:
+                logger.error(str(e), exc_info=True, stack_info=True)
+                self.ui.fetchError()
+                return
+
+            self.update.job_queue.run_custom(send, {})
 
         def safe_fetch(context):
             try:
@@ -199,9 +206,9 @@ class PollingBot(RefreshBot):
     def like(self, query: telegram.CallbackQuery):
         logger.info("like post start")
         data: str = query.data
-        if '/' in data:
+        if data.startswith('/'):
             try:
-                if not self.feedmgr.likeAFile(data + ".json"):
+                if not self.feedmgr.likeAFile(data[1:]):
                     query.answer(text='点赞失败.')
                     return
             except FileNotFoundError:
@@ -221,9 +228,9 @@ class PollingBot(RefreshBot):
             )
         else:
             query.edit_message_caption(
-            caption=query.message.caption_html + br * 2 + '❤',
-            parse_mode=telegram.ParseMode.HTML
-        )
+                caption=query.message.caption_html + br * 2 + '❤',
+                parse_mode=telegram.ParseMode.HTML
+            )
         logger.info("like post end")
 
 

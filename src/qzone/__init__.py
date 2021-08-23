@@ -26,7 +26,7 @@ from middleware.uihook import NullUI
 from .common import *
 from .exceptions import LoginError, QzoneError
 
-logger = logging.getLogger("Qzone Scraper")
+logger = logging.getLogger(__name__)
 
 PROXY_DOMAIN = "https://user.qzone.qq.com/proxy/domain"
 COMPLETE_FEED_URL = PROXY_DOMAIN + "/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
