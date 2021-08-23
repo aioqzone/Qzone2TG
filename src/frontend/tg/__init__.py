@@ -109,7 +109,9 @@ class RefreshBot:
                         i.likeButton() if hasattr(self, 'like') else None,
                     )
                 except Exception as e:
-                    logger.error(f"{i.feed.hash}: {str(e)}", exc_info=True, stack_info=True)
+                    logger.error(
+                        f"{i.feed.hash}: {str(e)}", exc_info=True, stack_info=True
+                    )
                     err += 1
                     continue
 
@@ -212,8 +214,14 @@ class PollingBot(RefreshBot):
             if not self.feedmgr.like(LikeId.fromstr(data).todict()):
                 query.answer(text='点赞失败.')
                 return
-        query.edit_message_text(
-            text=query.message.text_html + br * 2 + '❤',
+        if query.message.text_html:
+            query.edit_message_text(
+                text=query.message.text_html + br * 2 + '❤',
+                parse_mode=telegram.ParseMode.HTML
+            )
+        else:
+            query.edit_message_caption(
+            caption=query.message.caption_html + br * 2 + '❤',
             parse_mode=telegram.ParseMode.HTML
         )
         logger.info("like post end")
