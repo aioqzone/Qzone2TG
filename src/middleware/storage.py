@@ -1,9 +1,10 @@
-from functools import wraps
 import logging
 import sqlite3
 import time
+from functools import wraps
 
 from qzone.parser import QZFeedParser as Feed
+from utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
 PAGE_LIMIT = 1000
@@ -33,8 +34,13 @@ def noexcept(func):
 
 
 class Table:
-    def __init__(self, name: str, cursor: sqlite3.Cursor, key: dict, pkey: str) -> None:
-        assert pkey in key
+    order_on = None
+
+    def __init__(
+        self, name: str, cursor: sqlite3.Cursor, key: dict, pkey: str = None
+    ) -> None:
+        pkey = pkey or find_if(key.items(), lambda t: 'PRIMARY KEY' in t[1])[0]
+        assert pkey and pkey in key
         self.name = name
         self.cursor = cursor
         self.key = key
@@ -62,10 +68,9 @@ class Table:
     def __setitem__(self, k, data: dict):
         assert all(i in self.key for i in data)
         if k in self:
-            f = lambda i: f"'{i}'" if isinstance(i, str) else str(i)
-            vals = ','.join(f"{k}={f(v)}" for k, v in data.items())
+            vals = ','.join(f"{k}={arglike(v)}" for k, v in data.items())
             self.cursor.execute(
-                f'update {self.name} SET ({vals}) WHERE {self.pkey}={arglike(k)};'
+                f'update {self.name} SET {vals} WHERE {self.pkey}={arglike(k)};'
             )
         else:
             ndata = data.copy()
@@ -84,11 +89,12 @@ class Table:
         return bool(self[i])
 
     @noexcept
-    def find(self, cond_sql: str = '', order=False):
+    def find(self, cond_sql: str = '', order=None):
         if cond_sql: cond_sql = 'WHERE ' + cond_sql
-        order = 'ORDER BY abstime' if order else ''
+        order = f'ORDER BY {order}' if order else ''
+        cols = ','.join(self.key)
 
-        self.cursor.execute(f'select * from {self.name} {cond_sql} {order};')
+        self.cursor.execute(f'select {cols} from {self.name} {cond_sql} {order};')
         return [{k: v for k, v in zip(self.key, i)} for i in self.cursor.fetchall()]
 
     def __mul__(self, tbl):
@@ -98,6 +104,9 @@ class Table:
         return Table(
             f'{self.name} LEFT OUTER JOIN {tbl.name}', self.cursor, key, self.pkey
         )
+
+    def __iter__(self):
+        yield from self.find(order=self.order_on)
 
 
 class FeedBase:
@@ -157,16 +166,16 @@ class FeedBase:
         self.db.commit()
 
         arch_limit = int(time.time() - self.keepdays * 86400)
-        move = self.getFeed(f'abstime <= {arch_limit}')
-        for i in move:
+        for i in self.getFeed(f'abstime <= {arch_limit}'):
+            # move to archive
             d = i.getLikeId()
             d.update(fid=d.pop('key'), abstime=i.abstime)
             self.archive[i.fid] = d
-            for k, v in self.plugin.items():
+            # remove from feed
+            for v in self.plugin.values():
                 del v[i.fid]
-                self.cursor.execute(f"delete from {k} WHERE fid='{i.fid}';")
-        self.cursor.execute(f'delete from feed WHERE abstime <= {arch_limit};')
-        self.db.commit()
+            del self.feed[i.fid]
+            self.db.commit()
 
     def dumpFeed(self, feed: Feed, flush=True):
         args = {
@@ -184,7 +193,12 @@ class FeedBase:
 
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         table = self.feed * self.plugin[plugin_name] if plugin_name else self.feed
-        return [Feed(i) for i in table.find(cond_sql=cond_sql, order=order)]
+        return [
+            Feed(i) for i in table.find(
+                cond_sql=cond_sql,
+                order='abstime' if order else None,
+            )
+        ]
 
     def getArchive(self, fid: str):
         return self.archive[fid]

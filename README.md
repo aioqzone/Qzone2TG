@@ -2,10 +2,12 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 2.0.0的功能和1.3.3相差无几. 但因为大面积修改了包名和包结构所以大版本号+1)</br>
-> `jssupport`包为QQQR附带(>=2.3.0). 暂时没有将其独立的想法.</br>
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
+> 2.0.0使用`sqlite3`存储, 理论上支持出错重发. 
+> 在2.0.0中, `qzone`与`frontend.tg`基本实现了分离.</br>
+> 除此之外还包含了一些细微的功能修复. 因为大面积修改了包名和包结构所以大版本号+1)</br>
+> 帮助: `jssupport`包为QQQR附带(>=2.3.0)</br>
 
+> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 > [v2.0.0b1][4] availible now!</br>
 
 ## 功能
@@ -125,5 +127,5 @@ python3 -m qzone2tg
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.2 "v1.3.2"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v2.0.0b1 "v2.0.0beta1"
 [5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
