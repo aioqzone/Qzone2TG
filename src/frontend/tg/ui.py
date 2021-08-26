@@ -57,14 +57,18 @@ class TgUI(NullUI):
         self.bot = bot
         if chat_id is not None: self.chat_id = chat_id
 
+    def _defaultButton(self):
+        return telegram.InlineKeyboardMarkup([[
+            telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh'),
+            telegram.InlineKeyboardButton('cancel', callback_data='qr_cancel'),
+        ]])
+
     def QrFetched(self, png: bytes):
         self.qr_msg = self.bot.send_photo(
             chat_id=self.chat_id,
             photo=png,
             caption='扫码登陆.',
-            reply_markup=telegram.InlineKeyboardMarkup([[
-                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh'),
-            ]]) if self._resend else None
+            reply_markup=self._defaultButton() if self._resend else None
         )
 
     def QrResend(self):
@@ -73,10 +77,13 @@ class TgUI(NullUI):
                 self._resend(),
                 caption='二维码已刷新.',
             ),
-            reply_markup=telegram.InlineKeyboardMarkup([[
-                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh')
-            ]]) if self._resend else None
+            reply_markup=self._defaultButton() if self._resend else None
         )
+
+    def QrCanceled(self):
+        if self.qr_msg.delete():
+            del self.qr_msg
+        self.bot.send_message(chat_id=self.chat_id, text='二维码登录已取消, 当前任务终止.')
 
     def QrExpired(self, png: bytes):
         self.qr_msg = self.qr_msg.edit_media(
@@ -84,9 +91,7 @@ class TgUI(NullUI):
                 png,
                 caption='二维码已过期, 重新扫描此二维码.',
             ),
-            reply_markup=telegram.InlineKeyboardMarkup([[
-                telegram.InlineKeyboardButton('refresh', callback_data='qr_refresh')
-            ]]) if self._resend else None
+            reply_markup=self._defaultButton() if self._resend else None
         )
 
     def QrFailed(self, *args, **kwargs):
@@ -105,28 +110,29 @@ class TgUI(NullUI):
             parse_mode=telegram.ParseMode.MARKDOWN_V2
         )
 
-    def loginFailed(self, msg="unknown"):
+    def loginFailed(self, msg: str = "unknown"):
         self.bot.send_message(
             chat_id=self.chat_id,
-            text=f'❌ 登录失败: __{msg}__',
-            parse_mode=telegram.ParseMode.MARKDOWN_V2
+            text=f'❌ 登录失败: <b>{msg}</b>',
+            parse_mode=telegram.ParseMode.HTML
         )
 
     def pageFetched(self, msg):
         if hasattr(self, 'ui_msg'):
             self.ui_msg = self.ui_msg.edit_text(
-                self.ui_msg.text_markdown_v2 + '\n✔ ' + msg,
-                parse_mode=telegram.ParseMode.MARKDOWN_V2
+                self.ui_msg.text_html + br + '✔ ' + msg,
+                parse_mode=telegram.ParseMode.HTML
             )
         else:
             self.ui_msg = self.bot.send_message(
                 chat_id=self.chat_id,
                 text='✔ ' + msg,
-                parse_mode=telegram.ParseMode.MARKDOWN_V2
+                parse_mode=telegram.ParseMode.HTML
             )
 
     def fetchEnd(self, succ_num: int, err_num: int):
-        if self.ui_msg.delete(): del self.ui_msg
+        if hasattr(self, 'ui_msg') and self.ui_msg.delete():
+            del self.ui_msg
         if succ_num == 0 and err_num == 0:
             cmd = "您已经跟上了时代✔"
         else:
@@ -136,18 +142,18 @@ class TgUI(NullUI):
         self.bot.send_message(chat_id=self.chat_id, text=cmd)
 
     def fetchError(self, msg=None):
-        if msg is None: msg = 'Ooops\\.\\.\\. 出错了qvq'
+        if msg is None: msg = 'Ooops... 出错了qvq'
         if hasattr(self, 'ui_msg'):
             self.ui_msg = self.ui_msg.edit_text(
-                self.ui_msg.text_markdown_v2 + '\n❌ ' + msg,
-                parse_mode=telegram.ParseMode.MARKDOWN_V2
+                self.ui_msg.text_html + '\n❌ ' + msg,
+                parse_mode=telegram.ParseMode.HTML
             )
             del self.ui_msg
         else:
             self.bot.send_message(
                 chat_id=self.chat_id,
                 text='❌ ' + msg,
-                parse_mode=telegram.ParseMode.MARKDOWN_V2
+                parse_mode=telegram.ParseMode.HTML
             )
 
     def contentReady(self, msg: str, img: list, reply_markup=None):

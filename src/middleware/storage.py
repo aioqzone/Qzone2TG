@@ -92,7 +92,11 @@ class Table:
     def find(self, cond_sql: str = '', order=None):
         if cond_sql: cond_sql = 'WHERE ' + cond_sql
         order = f'ORDER BY {order}' if order else ''
-        cols = ','.join(self.key)
+        keys = list(self.key.keys())
+        if hasattr(self, 'parent'):
+            i = keys.index(self.pkey)
+            keys[i] = f"{self.parent[0].name}.{keys[i]}"
+        cols = ','.join(keys)
 
         self.cursor.execute(f'select {cols} from {self.name} {cond_sql} {order};')
         return [{k: v for k, v in zip(self.key, i)} for i in self.cursor.fetchall()]
@@ -101,9 +105,11 @@ class Table:
         assert self.pkey == tbl.pkey
         key = self.key.copy()
         key.update(tbl.key)
-        return Table(
-            f'{self.name} LEFT OUTER JOIN {tbl.name}', self.cursor, key, self.pkey
+        r = Table(
+            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor, key, self.pkey
         )
+        r.parent = self, tbl
+        return r
 
     def __iter__(self):
         yield from self.find(order=self.order_on)

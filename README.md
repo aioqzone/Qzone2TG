@@ -37,6 +37,15 @@
 * 一个属于你的tg机器人, 得到token
 * 取得你的用户ID(acceptID)
 
+### Telegram commands
+
+```
+start - Force login. Then refresh and resend all feeds.
+refresh - Refresh and send any new feeds.
+resend - Resend any unsent feeds.
+help - Get help info.
+```
+
 ## 安装
 
 可选择docker image或直接安装.

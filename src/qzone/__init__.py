@@ -24,7 +24,7 @@ from tencentlogin.up import UPLogin, User
 from middleware.uihook import NullUI
 
 from .common import *
-from .exceptions import LoginError, QzoneError
+from .exceptions import LoginError, QzoneError, UserBreak
 
 logger = logging.getLogger(__name__)
 
@@ -58,22 +58,33 @@ class LoginHelper:
         if r[0] == 0: return self._up.login(r, all_cookie=True)
 
     def _qrLogin(self) -> dict:
+        r = [None]
+        sched = self._qr.loop(all_cookie=True)(
+            refresh_callback=lambda b: \
+                (self.ui.QrExpired if sched.cnt else self.ui.QrFetched)(b),
+            return_callback=lambda b: r.__setitem__(0, b),
+        )
+        self.ui.register_cancel_callback(lambda: sched.stop(exception=True))
         try:
-            for i, png in enumerate(self._qr.loop(all_cookie=True)):
-                if isinstance(png, bytes):
-                    (self.ui.QrExpired if i else self.ui.QrFetched)(png)
+            sched.start()
+            r = r[0]
+            if r: self.ui.QrScanSucceessed()
+            else: self.ui.QrFailed()
+            return r
         except TimeoutError:
             self.ui.QrFailed()
             return
-        else:
-            self.ui.QrScanSucceessed()
-            return png
+        except KeyboardInterrupt:
+            raise UserBreak
 
     def login(self) -> str:
         """login and return cookie
 
         Returns:
             str: cookie
+
+        Raises:
+            UserBreak
         """
         for f in {
                 'force': (self._qrLogin, ),

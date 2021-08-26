@@ -1,8 +1,10 @@
 import logging
 import re
+from contextlib import ExitStack
 from datetime import time
 
 import telegram
+from qzone.exceptions import UserBreak
 from qzone.feed import QZCachedScraper
 from requests.exceptions import HTTPError
 from telegram.error import NetworkError
@@ -38,13 +40,17 @@ class RefreshBot:
         self._token = token
         self.uin = uin
         self.interval = interval
-        self.fetching = False
+        self.fetching = None
+        self.sending = None
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         self.update.job_queue.run_daily(
             lambda c: self.feedmgr.cleanFeed(), time(0, 0, 0, 1), name='cleanFeed'
         )
         self.ui = TgUI(self.update.bot)
+
+    def __del__(self):
+        self.update.stop()
 
     def register_period_refresh(self):
         if self.interval > 0:
@@ -58,29 +64,18 @@ class RefreshBot:
     def run(self):
         assert len(self.accept_id) == 1, "refresh bot can only send to specific user!"
         assert self.interval > 0, 'refresh bot must refresh!'
-        self.chat_id = self.accept_id[0]
+        self.chat_id = self.ui.chat_id = self.accept_id[0]
         self.register_period_refresh()
         logger.info("start refreshing")
         self.update.idle()
 
-    def onFetch(self, bot: telegram.Bot, reload: bool):
-        cmd = "force-refresh" if reload else "refresh"
-
-        if self.chat_id in self.accept_id:
-            logger.info(f"{self.chat_id}: start {cmd}")
-        else:
-            logger.info(f"{self.chat_id}: illegal access")
+    def onSend(self, bot: telegram.Bot, reload: bool):
+        if self.sending:
+            logger.info('onSend: new send excluded.')
             bot.send_message(
-                chat_id=self.chat_id, text="Sorry. But bot won't answer unknown chat."
-            )
-        if self.fetching:
-            logger.info('onFetch: new fetch excluded.')
-            bot.send_message(
-                chat_id=self.chat_id, text="Sorry. But the bot is fetching already."
+                chat_id=self.chat_id, text="Sorry. But the bot is sending already."
             )
             return
-        else:
-            self.fetching = True
 
         def send(context):
             err = 0
@@ -109,6 +104,25 @@ class RefreshBot:
                 self.feedmgr.db.setPluginData('tg', i.feed.fid, is_sent=1)
             self.ui.fetchEnd(len(new) - err, err)
 
+        def safe_send(context):
+            with ExitStack() as s:
+                s.callback(lambda: self.__setattr__('sending', None))
+                send(context)
+
+        self.sending = self.update.job_queue.run_custom(safe_send, {})
+
+    def onFetch(self, bot: telegram.Bot, reload: bool):
+        cmd = "force-refresh" if reload else "refresh"
+
+        logger.info(f"{self.chat_id}: start {cmd}")
+
+        if self.fetching:
+            logger.info('onFetch: new fetch excluded.')
+            bot.send_message(
+                chat_id=self.chat_id, text="Sorry. But the bot is fetching already."
+            )
+            return
+
         def fetch(context):
             try:
                 self.feedmgr.fetchNewFeeds(reload)
@@ -118,28 +132,25 @@ class RefreshBot:
             except HTTPError:
                 self.ui.fetchError('爬取出错, 刷新或许可以)')
                 return
+            except UserBreak:
+                self.ui.QrCanceled()
+                return
             except Exception as e:
                 logger.error(str(e), exc_info=True, stack_info=True)
                 self.ui.fetchError()
                 return
-
-            self.update.job_queue.run_custom(send, {})
+            self.onSend(bot, reload)
 
         def safe_fetch(context):
-            try:
+            with ExitStack() as s:
+                s.callback(lambda: setattr(self, 'fetching', None))
                 fetch(context)
-            except Exception:
-                logger.error(
-                    'uncought exception in fetch.', exc_info=True, stack_info=True
-                )
-            finally:
-                self.fetching = False
 
-        self.update.job_queue.run_custom(safe_fetch, {})
+        self.fetching = self.update.job_queue.run_custom(safe_fetch, {})
 
 
 class PollingBot(RefreshBot):
-    reload_on_start = False
+    reload_on_start = True
 
     def __init__(
         self,
@@ -151,21 +162,35 @@ class PollingBot(RefreshBot):
         interval=0,
         proxy: dict = None,
         polling: dict = None,
-        auto_start=True,
+        auto_start=False,
     ):
         super().__init__(feedmgr, token, accept_id, uin, interval=interval, proxy=proxy)
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
+        self.__proxy = proxy
 
         dispatcher = self.update.dispatcher
         dispatcher.add_handler(CommandHandler("start", self.onStart))
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
+        dispatcher.add_handler(
+            CommandHandler("resend", lambda u, c: self.onSend(c.bot, True))
+        )
+        dispatcher.add_handler(CommandHandler('help', self.onHelp))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
+
+    def setChatId(self, bot, chat_id: int):
+        if chat_id in self.accept_id:
+            self.chat_id = self.ui.chat_id = chat_id
+        else:
+            logger.info(f"{chat_id}: illegal access")
+            bot.send_message(
+                chat_id=chat_id, text="Sorry. But bot won't answer unknown chat."
+            )
 
     def onRefresh(
         self, update: telegram.Update, context: CallbackContext, reload=False
     ):
-        self.chat_id = self.ui.chat_id = update.effective_chat.id
+        self.setChatId(context.bot, update.effective_chat.id)
         self.onFetch(context.bot, reload)
 
     def onStart(self, update: telegram.Update, context):
@@ -173,12 +198,28 @@ class PollingBot(RefreshBot):
         self.onRefresh(update, context, reload=self.reload_on_start)
         self.register_period_refresh()
 
+    def onHelp(self, update, context: CallbackContext):
+        self.setChatId(context.bot, update.effective_chat.id)
+        context.bot.send_message(
+            chat_id=self.chat_id,
+            text="/start - Force login. Then refresh and resend all feeds.\n"
+            "/refresh - Refresh and send any new feeds.\n"
+            "/resend - Resend any unsent feeds.\n"
+            "/help - Send this message."
+        )
+
     def run(self):
         try:
             self.update.start_polling(**self.run_kwargs)
         except NetworkError as e:
-            logger.error(e.message, exc_info=True, stack_info=True)
-            self.update.stop()
+            if self.__proxy:
+                logger.error(
+                    "Seems you're using `proxy + polling`. "
+                    "This might cause NetworkError for some unknown reason. Try using `webhook mode` :D \n"
+                    "Otherwise maybe wait for a while is enough. See FAQ in Wiki for details."
+                )
+            else:
+                logger.error(e.message, exc_info=True, stack_info=True)
             return
         logger.info("start polling")
         self.idle()
@@ -195,9 +236,10 @@ class PollingBot(RefreshBot):
     def onButtonClick(self, update: telegram.Update, context):
         query: telegram.CallbackQuery = update.callback_query
         data: str = query.data
-        self.chat_id = self.ui.chat_id = update.effective_chat.id
+        self.setChatId(context.bot, update.effective_chat.id)
         if data in (d := {
                 'qr_refresh': self.ui.QrResend,
+                'qr_cancel': self.ui._cancel,
         }):
             d[data]()
         else:
@@ -206,6 +248,20 @@ class PollingBot(RefreshBot):
     def like(self, query: telegram.CallbackQuery):
         logger.info("like post start")
         data: str = query.data
+
+        def remove_button(msg_callback=None):
+            ci = lambda f, x: f and f(x) or x                             # and > or
+            if query.message.text_html:
+                query.edit_message_text(
+                    text=ci(msg_callback, query.message.text_html),
+                    parse_mode=telegram.ParseMode.HTML
+                )
+            else:
+                query.edit_message_caption(
+                    caption=ci(msg_callback, query.message.caption_html),
+                    parse_mode=telegram.ParseMode.HTML
+                )
+
         if data.startswith('/'):
             try:
                 if not self.feedmgr.likeAFile(data[1:]):
@@ -213,24 +269,15 @@ class PollingBot(RefreshBot):
                     return
             except FileNotFoundError:
                 query.answer(text="该应用消息已超过服务器保留时限或保留上限, 超过时限的应用消息无法点赞.")
-                query.edit_message_text(
-                    text=query.message.text_html, parse_mode=telegram.ParseMode.HTML
-                )
-                return
+                remove_button()
+            except UserBreak:
+                self.ui.QrCanceled()
         else:
             if not self.feedmgr.like(LikeId.fromstr(data).todict()):
                 query.answer(text='点赞失败.')
                 return
-        if query.message.text_html:
-            query.edit_message_text(
-                text=query.message.text_html + br * 2 + '❤',
-                parse_mode=telegram.ParseMode.HTML
-            )
-        else:
-            query.edit_message_caption(
-                caption=query.message.caption_html + br * 2 + '❤',
-                parse_mode=telegram.ParseMode.HTML
-            )
+
+        remove_button(lambda m: m + br * 2 + '❤')
         logger.info("like post end")
 
 
@@ -262,7 +309,6 @@ class WebhookBot(PollingBot):
 
         except NetworkError as e:
             logger.error(e.message, exc_info=True, stack_info=True)
-            self.update.stop()
             return
         logger.info("start webhook")
         logger.debug(

@@ -1,4 +1,3 @@
-import enum
 import logging
 
 from middleware.storage import FeedBase, day_stamp
@@ -6,7 +5,7 @@ from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 
 from . import QzoneScraper
-from .exceptions import LoginError
+from .exceptions import LoginError, UserBreak
 from .parser import QZFeedParser as Parser
 
 logger = logging.getLogger(__name__)
@@ -32,17 +31,14 @@ class QZCachedScraper:
                 return self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
             else:
                 raise e
-        except LoginError:
-            logger.error(
-                f'Error fetch page {pagenum}{", force reload" if reload else ""}',
-                exc_info=True
-            )
-            return False
+        except UserBreak:
+            raise UserBreak
         except Exception:
             logger.error(
                 f'Error fetch page {pagenum}{", force reload" if reload else ""}, retry remains={retry}',
                 exc_info=True
             )
+            return False
 
         limit = day_stamp() - self.db.keepdays
         new = [
@@ -82,4 +78,5 @@ class QZCachedScraper:
             r = r[0].getLikeId()
         else:
             r = self.db.getArchive(fid)
-        return r and self.like(r)
+            if not r: raise FileNotFoundError
+        return self.like(r)
