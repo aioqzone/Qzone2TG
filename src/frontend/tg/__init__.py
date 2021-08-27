@@ -80,7 +80,7 @@ class RefreshBot:
         def send(context):
             err = 0
             new = self.feedmgr.db.getFeed(
-                cond_sql=None if reload else 'is_sent IS NULL OR is_sent=0',
+                cond_sql='' if reload else 'is_sent IS NULL OR is_sent=0',
                 plugin_name='tg',
                 order=True,
             )

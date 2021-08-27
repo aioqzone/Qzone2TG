@@ -6,10 +6,11 @@ from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
+from middleware.storage import FeedBase, TokenTable
 from qzone import QzoneScraper
 from qzone.feed import QZCachedScraper
 
-DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s:\t%(message)s'
+DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 
 
 def getPassword(d: DictConfig, conf_path: str):
@@ -91,14 +92,17 @@ def main(args):
         d.qzone['qq'] = input('QQ: ')
     getPassword(d, CONF_PATH)
 
-    spider = QzoneScraper(**d.qzone)
-    feedmgr = QZCachedScraper(
-        spider, **d.feed, plugins={
+    db = FeedBase(
+        f"data/{d.qzone.qq}.db",
+        **d.feed,
+        plugins={
             'tg': {
                 'is_sent': 'BOOLEAN default 0'
             },
-        }
+        },
     )
+    spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **d.qzone)
+    feedmgr = QZCachedScraper(spider, db)
     BotCls = {
         'polling': PollingBot,
         'webhook': WebhookBot,

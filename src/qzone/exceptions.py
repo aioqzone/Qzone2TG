@@ -13,6 +13,7 @@ class QzoneError(RuntimeError):
 
 class LoginError(RuntimeError):
     def __init__(self, msg, qr_strategy=None) -> None:
+        msg = "登陆失败: " + msg
         super().__init__(msg, qr_strategy)
         self.msg = msg
         self.qr_strategy = qr_strategy

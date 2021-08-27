@@ -7,7 +7,6 @@ qzone:
 
 import json
 import logging
-import os
 import re
 import time
 from functools import wraps
@@ -15,13 +14,13 @@ from typing import Union
 from urllib.parse import quote, unquote
 
 import requests
-import yaml
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
 from middleware.uihook import NullUI
+from middleware.storage import TokenTable
 
 from .common import *
 from .exceptions import LoginError, QzoneError, UserBreak
@@ -45,6 +44,7 @@ class LoginHelper:
         self.pwd = pwd
         self.qr_strategy = qr_strategy
         if qr_strategy != 'force':
+            assert self.pwd
             self._up = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
         if qr_strategy != 'forbid':
             self._qr = QRLogin(QzoneAppid, QzoneProxy)
@@ -135,24 +135,22 @@ def login_if_expire(func):
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
-    COOKIE_CACHE = 'tmp/cookie.yml'
-
     def __init__(
         self,
+        token_tbl: TokenTable,
         qq: Union[str, int],
         *,
         password: str = None,
         fetch_times=12,
         qr_strategy='prefer',
         UA=None,
-        cookie_cache=None,
     ):
         qq = int(qq)
         LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         HTTPHelper.__init__(self, qq, UA)
         self.fetch_times = fetch_times
+        self.db = token_tbl
         self.extern = {1: "undefined"}
-        self.COOKIE_CACHE = cookie_cache or self.COOKIE_CACHE
 
     @staticmethod
     def cal_gtk(p_skey):
@@ -183,22 +181,16 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json.loads(r)
-        if r["code"] == 0: return r["newFeedXML"].strip()
+        if r["err"] == 0: return r["newFeedXML"].strip()
 
     def updateStatus(self, force_login=False):
         """
         update cookie, gtk, qzonetoken
         """
-        if os.path.exists(self.COOKIE_CACHE):
-            with open(self.COOKIE_CACHE) as f:
-                cookie: dict = yaml.safe_load(f)
-            if self.uin in cookie:
-                cookie = cookie[self.uin]
-            else:
-                force_login = True
+        if self.uin in self.db:
+            if not force_login: cookie = self.db[self.uin]
         else:
             force_login = True
-            os.makedirs(os.path.dirname(self.COOKIE_CACHE), exist_ok=True)
 
         if force_login:
             logger.info("重新登陆.")
@@ -207,13 +199,11 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             e = None
             if cookie is None:
                 if self.qr_strategy == 'forbid':
-                    e = LoginError(
-                        "登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", self.qr_strategy
-                    )
+                    e = LoginError("您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", 'forbid')
                 else:
-                    e = LoginError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
+                    e = LoginError("您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
             elif "p_skey" not in cookie:
-                e = LoginError("登陆失败: 或许可以重新登陆.", self.qr_strategy)
+                e = LoginError("或许可以重新登陆.", self.qr_strategy)
             if e:
                 self.ui.loginFailed(e.args[0])
                 raise e
@@ -221,8 +211,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             logger.info('取得cookie')
             self.ui.loginSuccessed()
 
-            with open(self.COOKIE_CACHE, "w") as f:
-                yaml.safe_dump({self.uin: cookie}, f)
+            self.db[self.uin] = cookie
         else:
             logger.info("使用缓存cookie")
 
@@ -255,7 +244,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
     @login_if_expire
     def fetchPage(self, pagenum: int, count: int = 10):
         """
-        make sure updateStatus is called before.
+        fetch a page of feeds
         """
         if not hasattr(self, 'gtk'): self.updateStatus()
 
@@ -277,6 +266,10 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             except HTTPError as e:
                 logger.error(f"Http error when fetching page {pagenum}", exc_info=True)
                 raise e
+            except TypeError as e:
+                logger.debug('query = ' + str(query))
+                logger.error('BUG: please report this bug with `query`. thanks.', exc_info=True)
+                raise e
 
             r = RE_CALLBACK.search(r.text).group(1)
             r = json_loads(r)
@@ -292,8 +285,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
                 lambda i: not (
                     not i or                                    # `undefined` in feed datas or empty feed dict
                     i['key'].startswith('advertisement_app') or # ad feed
-                    int(i['appid']) >=
-                    4096                                        # not supported (cannot encode), this might be removed
+                    int(i['appid']) >= 4096                     # not supported (cannot encode)
                 ),
                 data['data']
             )

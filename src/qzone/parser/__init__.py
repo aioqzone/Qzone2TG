@@ -114,9 +114,9 @@ class QZHtmlParser:
         dict contains (islike, likecnt, showcount, unikey, curkey, ...)
         """
         if not hasattr(self, 'likeData'):
-            att: dict = self.__x(
-                self.f.single_foot, '//a[contains(@class,"%s")]' %
-                ('qz_like_btn_v3 ' if hasattr(self, 'complete') else 'qz_like_prase')
+            att: dict = (
+                self.__x(self.f.single_foot, '//a[contains(@class,"qz_like_prase")]') +
+                self.__x(self.f.single_foot, '//a[contains(@class,"qz_like_btn_v3 ")]')
             )[0].attrib
             assert att
             self.likeData = {k[5:]: v for k, v in att.items() if k.startswith('data-')}
@@ -155,7 +155,6 @@ class QZHtmlParser:
 
     def isCut(self) -> bool:
         txt: list = self.__x(self.f.info, '//a[@data-cmd="qz_toggle"]')
-        self.complete = True
         return bool(txt)
 
 
@@ -165,6 +164,10 @@ class QZFeedParser(QZHtmlParser):
         feed['html'] = QZHtmlParser.trans(feed['html'])
         self.raw = feed
         super().__init__(feed['html'])
+
+    def updateHTML(self, html: str):
+        self.raw['html'] = html
+        return super().updateHTML(html)
 
     @property
     def uin(self) -> int:

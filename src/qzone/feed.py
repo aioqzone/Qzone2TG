@@ -15,16 +15,15 @@ PAGE_LIMIT = 1000
 class QZCachedScraper:
     new_limit = 30         # not implement
 
-    def __init__(self, qzone: QzoneScraper, keepdays=3, archivedays=180, plugins=None):
+    def __init__(self, qzone: QzoneScraper, db: FeedBase):
         self.qzone = qzone
-        self.db = FeedBase(f"data/{qzone.uin}.db", keepdays, archivedays, plugins)
+        self.db = db
 
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui
 
     def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
         try:
-            self.qzone.updateStatus(reload)
             feeds = self.qzone.fetchPage(pagenum)
         except HTTPError as e:
             if e.response.status_code == 403 and retry > 0:
@@ -43,7 +42,8 @@ class QZCachedScraper:
         limit = day_stamp() - self.db.keepdays
         new = [
             p for i in feeds
-            if (p := Parser(i)).fid not in self.db.feed and day_stamp(p.abstime) > limit
+            if ((p := Parser(i)) and reload or p.fid not in self.db.feed)
+            and day_stamp(p.abstime) > limit
         ]
         self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
@@ -66,7 +66,6 @@ class QZCachedScraper:
             tmp = self.getFeedsInPage(i + 1, reload)
             if not tmp: break
             flag = True
-            reload = False
         return flag
 
     def like(self, likedata: dict):

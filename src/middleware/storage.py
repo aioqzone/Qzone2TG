@@ -2,6 +2,7 @@ import logging
 import sqlite3
 import time
 from functools import wraps
+from typing import Any, Dict, Union
 
 from qzone.parser import QZFeedParser as Feed
 from utils.iterutils import find_if
@@ -37,7 +38,11 @@ class Table:
     order_on = None
 
     def __init__(
-        self, name: str, cursor: sqlite3.Cursor, key: dict, pkey: str = None
+        self,
+        name: str,
+        cursor: sqlite3.Cursor,
+        key: Dict[str, Any],
+        pkey: str = None
     ) -> None:
         pkey = pkey or find_if(key.items(), lambda t: 'PRIMARY KEY' in t[1])[0]
         assert pkey and pkey in key
@@ -106,7 +111,8 @@ class Table:
         key = self.key.copy()
         key.update(tbl.key)
         r = Table(
-            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor, key, self.pkey
+            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor,
+            key, self.pkey
         )
         r.parent = self, tbl
         return r
@@ -115,14 +121,28 @@ class Table:
         yield from self.find(order=self.order_on)
 
 
-class FeedBase:
-    def __init__(self, db_path, keepdays=3, archivedays=180, plugins=None) -> None:
-        self.db_path = db_path
+class _DBBase:
+    def __init__(self, db: Union[str, sqlite3.Connection]) -> None:
+        if isinstance(db, sqlite3.Connection):
+            self.db = db
+        else:
+            self.db_path = db
+            self.db = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.cursor = self.db.cursor()
+
+
+class FeedBase(_DBBase):
+    def __init__(
+        self,
+        db: Union[str, sqlite3.Connection],
+        keepdays: int = 3,
+        archivedays: int = 180,
+        plugins: dict = None
+    ) -> None:
+
+        super().__init__(db)
         self.keepdays = keepdays
         self.archivedays = archivedays
-
-        self.db = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.cursor = self.db.cursor()
 
         self.feed = Table(
             'feed',
@@ -224,3 +244,25 @@ class FeedBase:
 
     def __del__(self):
         self.close()
+
+
+class TokenTable(Table):
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        super().__init__(
+            'token',
+            cursor,
+            key={
+                'uin': 'INT PRIMARY KEY',
+                'p_skey': 'VARCHAR NOT NULL',
+                'p_uin': 'VARCHAR NOT NULL',
+                'pt4_token': 'VARCHAR NOT NULL',
+                'skey': 'VARCHAR NOT NULL',
+            },
+            pkey='uin'
+        )
+        self.createTable()
+
+    def __getitem__(self, uin: int):
+        d = super().__getitem__(uin)
+        d['uin'] = f"o0{uin}"
+        return d
