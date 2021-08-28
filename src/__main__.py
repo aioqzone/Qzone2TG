@@ -103,11 +103,8 @@ def main(args):
     )
     spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **d.qzone)
     feedmgr = QZCachedScraper(spider, db)
-    BotCls = {
-        'polling': PollingBot,
-        'webhook': WebhookBot,
-        "refresh": RefreshBot
-    }[d.bot.pop('method')]
+    BotCls = {'polling': PollingBot, 'webhook': WebhookBot, "refresh": RefreshBot} \
+        [d.bot.pop('method')]
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     spider.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)

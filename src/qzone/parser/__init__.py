@@ -8,26 +8,40 @@ from .emojimgr import url2unicode
 
 logger = logging.getLogger(__name__)
 
+HTML_ENTITY = {
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+}
+
+
+def subHtmlEntity(txt: str):
+    return re.sub('[<>&]', lambda m: HTML_ENTITY[m.group(0)], txt)
+
 
 def elm2txt(elm: HtmlElement, richText=True) -> str:
     """
     elm: Iterable[HtmlElement]
     """
-    txt = elm.text or ""
+    txt = subHtmlEntity(elm.text or "")
+
     for i in elm:
         if not isinstance(i, HtmlElement):
-            txt += i
+            txt += subHtmlEntity(i)
             continue
 
+        hd = lambda: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
         if i.tag in (switch := {
+                'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd, \
                 'br': lambda: '\n',
                 'img': lambda: url2unicode(i.attrib['src']),
                 'div': lambda: elm2txt(i),
                 'span': lambda: elm2txt(i),
                 'a': lambda: '' if i.attrib['href'].startswith("javascript") else
-                f'<a src="{i.attrib["href"]}">{i.text}</a>' if richText else i.text,
+                    f'<a href="{i.attrib["href"]}">{subHtmlEntity(i.text)}</a>' if richText else \
+                    subHtmlEntity(i.text),
         }):
-            txt += switch[i.tag]() + (i.tail or "")
+            txt += switch[i.tag]() + subHtmlEntity(i.tail or "")
         else:
             logger.warning("cannot recognize tag: " + i.tag)
     return txt
@@ -134,6 +148,7 @@ class QZHtmlParser:
         if len(ls) == 1: txtbox = ls.pop()
         elif len(ls) == 2: txtbox = max(ls, key=lambda e: len(e))
 
+        nick = link = None
         for a in txtbox:
             if not isinstance(a, HtmlElement): continue
 
@@ -147,8 +162,6 @@ class QZHtmlParser:
                 link = a.attrib['href']
                 nick = a.text.strip()
                 break
-        else:
-            return
 
         txt = elm2txt(txtbox).strip()
         return nick, link, txt

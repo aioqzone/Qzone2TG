@@ -3,7 +3,7 @@ import re
 
 import yaml
 
-logger = logging.getLogger("Emoji Manager")
+logger = logging.getLogger(__name__)
 faceurl = re.compile(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)")
 
 

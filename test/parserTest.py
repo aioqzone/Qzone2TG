@@ -29,20 +29,18 @@ class ParserTest(unittest.TestCase):
             self.assertTrue(psr.isCut())
 
     def testText(self):
-        with open('tmp/feeds.yaml', encoding='utf-8') as f:
-            d = yaml.safe_load_all(f)
-            for i in d:
-                if not i: continue
-                psr = Parser(i)
-                print(psr.parseText())
+        with open('tmp/html/202-2.html', encoding='utf-8') as f:
+            psr = QZHtmlParser(f.read())
+            t = psr.parseText()
+            print(t)
 
     def testForward(self):
-        with open('tmp/raw/7316402236730028655.yaml', encoding='utf-8') as f:
-            psr = Parser(yaml.safe_load(f))
-            print(psr.parseForward())
-        # with open('tmp/raw/7316402236730028655.yaml', encoding='utf8') as f:
-        #     psr = QZHtmlParser(f.read())
+        # with open('tmp/raw/7316402236730028655.yaml', encoding='utf-8') as f:
+        #     psr = Parser(yaml.safe_load(f))
         #     print(psr.parseForward())
+        with open('tmp/html/202-2.html', encoding='utf8') as f:
+            psr = QZHtmlParser(f.read())
+            print(psr.parseForward())
 
     def testImage(self):
         with open('tmp/raw/-2491706649500478319.yaml', encoding='utf-8') as f:

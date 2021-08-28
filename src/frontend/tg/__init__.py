@@ -4,6 +4,7 @@ from contextlib import ExitStack
 from datetime import time
 
 import telegram
+from telegram.utils.helpers import effective_message_type
 from qzone.exceptions import UserBreak
 from qzone.feed import QZCachedScraper
 from requests.exceptions import HTTPError
@@ -69,10 +70,10 @@ class RefreshBot:
         logger.info("start refreshing")
         self.update.idle()
 
-    def onSend(self, bot: telegram.Bot, reload: bool):
+    def onSend(self, update: telegram.Update, context: CallbackContext, reload=False):
         if self.sending:
             logger.info('onSend: new send excluded.')
-            bot.send_message(
+            context.bot.send_message(
                 chat_id=self.chat_id, text="Sorry. But the bot is sending already."
             )
             return
@@ -90,18 +91,16 @@ class RefreshBot:
                     if i.isBlocked: continue
                     retry_once(
                         self.ui.contentReady,
-                        lambda *a, exc, **k: f"feed {i.feed.hash}: {exc}"
+                        lambda *a, exc, **k: f"feed {i.feed}: {exc}"
                     )(
                         *i.content(),
                         i.likeButton() if hasattr(self, 'like') else None,
                     )
+                    self.feedmgr.db.setPluginData('tg', i.feed.fid, is_sent=1)
                 except Exception as e:
-                    logger.error(
-                        f"{i.feed.hash}: {str(e)}", exc_info=True, stack_info=True
-                    )
+                    logger.error(f"{i.feed}: {str(e)}", exc_info=True)
                     err += 1
                     continue
-                self.feedmgr.db.setPluginData('tg', i.feed.fid, is_sent=1)
             self.ui.fetchEnd(len(new) - err, err)
 
         def safe_send(context):
@@ -123,7 +122,7 @@ class RefreshBot:
             )
             return
 
-        def fetch(context):
+        def fetch(context: CallbackContext):
             try:
                 self.feedmgr.fetchNewFeeds(reload)
             except TimeoutError:
@@ -139,7 +138,7 @@ class RefreshBot:
                 logger.error(str(e), exc_info=True, stack_info=True)
                 self.ui.fetchError()
                 return
-            self.onSend(bot, reload)
+            self.onSend(FakeObj(effective_chat=FakeObj(id=self.chat_id)), context, reload)
 
         def safe_fetch(context):
             with ExitStack() as s:
@@ -172,9 +171,7 @@ class PollingBot(RefreshBot):
         dispatcher = self.update.dispatcher
         dispatcher.add_handler(CommandHandler("start", self.onStart))
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
-        dispatcher.add_handler(
-            CommandHandler("resend", lambda u, c: self.onSend(c.bot, True))
-        )
+        dispatcher.add_handler(CommandHandler("resend", self.onSend))
         dispatcher.add_handler(CommandHandler('help', self.onHelp))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
 
@@ -186,6 +183,10 @@ class PollingBot(RefreshBot):
             bot.send_message(
                 chat_id=chat_id, text="Sorry. But bot won't answer unknown chat."
             )
+
+    def onSend(self, update: telegram.Update, context: CallbackContext, reload=False):
+        self.setChatId(context.bot, update.effective_chat.id)
+        return super().onSend(update, context, reload)
 
     def onRefresh(
         self, update: telegram.Update, context: CallbackContext, reload=False

@@ -5,11 +5,12 @@ import telegram
 from middleware import ContentExtracter
 from middleware.uihook import NullUI
 from telegram.error import BadRequest, TimedOut
+
 from .compress import LikeId
 
-SUPPORT_TYPEID = (0, 5)
+SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 202, 311)
-APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
+APP_NAME = {4: 'QQ相册', 202: '分享', 311: 'QQ空间'}
 
 br = '\n'
 hr = '============================='
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def retry_once(func, msg_callback=None):
-    log_kw = dict(exc_info=True, stack_info=True, stacklevel=2)
+    log_kw = dict(exc_info=True, stacklevel=2)
 
     @wraps(func)
     def retry_wrapper(*args, **kwargs):
@@ -158,6 +159,7 @@ class TgUI(NullUI):
 
     def contentReady(self, msg: str, img: list, reply_markup=None):
         if not img:
+            assert msg, "message cannot be empty"
             return self.bot.send_message(
                 chat_id=self.chat_id,
                 text=msg,
@@ -190,7 +192,7 @@ class TgExtracter(ContentExtracter):
 
     @staticmethod
     def html_link(txt, link) -> str:
-        return f'<a href="{link}">{txt}</a>'
+        return f'<a href="{link}">{txt}</a>' if link else txt
 
     def msg(self):
         if self.feed.appid not in SUPPORT_APPID: return
@@ -198,33 +200,41 @@ class TgExtracter(ContentExtracter):
 
         msg = self.feed.nickname + self.feed.feedstime
 
-        if self.feed.typeid == 5:
+        is_forward = self.feed.typeid == 5
+        has_text = bool(text := self.feed.parseText())
+
+        if is_forward:
             msg += "转发了{forward}的说说:"
         else:
             msg += "发表了说说:"
-        msg += br * 2
-        msg += self.feed.parseText()
+
+        if has_text:
+            msg += br * 2
+            msg += text
 
         if self.feed.isLike:
-            msg += br + br + '❤'
+            if has_text: msg += br * 2
+            msg += '❤'
 
-        if self.feed.appid not in (4, 311) or (self.feed.typeid == 5):
+        if is_forward or self.feed.appid not in (4, 311):
             try:
                 forward = self.feed.parseForward()
             except Exception:
                 forward = None
-            if (forward) is None:
+            if forward is None:
                 logger.warning(
-                    f"{self.feed.hash}: cannot parse forward text. appid={self.feed.appid}, typeid={self.feed.typeid}"
+                    f"{self.feed}: cannot parse forward text. appid={self.feed.appid}, typeid={self.feed.typeid}"
                 )
                 msg = msg.format(forward=APP_NAME[self.feed.appid])
             else:
                 forward_nick, forward_link, forward_text = forward
                 msg = msg.format(
-                    forward=self.html_link('@' + forward_nick, forward_link)
+                    forward=self.html_link(
+                        '@' + (forward_nick or APP_NAME[self.feed.appid]), forward_link
+                    )
                 ) + br
                 msg += hr + br
-                msg += '@' + forward_nick + ': '
+                if forward_nick: msg += '@' + forward_nick + ': '
                 msg += forward_text
         return msg
 

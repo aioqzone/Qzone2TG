@@ -3,7 +3,7 @@ log:
   level: info
   
   # 日志格式, 可选
-  # format: "[%(levelname)s] %(asctime)s %(name)s:\t%(message)s"
+  # format: "[%(levelname)s] %(asctime)s %(name)s: %(message)s"
   
   # 日志配置文件. 可选. 若该文件不存在, 务必移除此条目.
   # conf: misc/config.ini
@@ -30,6 +30,8 @@ qzone:
 feed:
   # 说说在本地缓存的天数
   keepdays: 3
+  # 归档存储时间. 说说的内容会被舍弃, 用于点赞的必要参数保留更长时间.
+  archivedays: 180
 
 bot:
   # polling/webhook/refresh

@@ -2,6 +2,7 @@ import logging
 import sqlite3
 import time
 from functools import wraps
+from pathlib import Path
 from typing import Any, Dict, Union
 
 from qzone.parser import QZFeedParser as Feed
@@ -91,7 +92,7 @@ class Table:
         self.cursor.execute(f'delete from archive WHERE {self.pkey}={arglike(i)};')
 
     def __contains__(self, i):
-        return bool(self[i])
+        return bool(Table.__getitem__(self, i))
 
     @noexcept
     def find(self, cond_sql: str = '', order=None):
@@ -126,6 +127,7 @@ class _DBBase:
         if isinstance(db, sqlite3.Connection):
             self.db = db
         else:
+            Path(db).parent.mkdir(parents=True, exist_ok=True)
             self.db_path = db
             self.db = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.db.cursor()
