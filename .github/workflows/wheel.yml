@@ -22,7 +22,7 @@ jobs:
           pip install build
 
       - name: Build package
-        run: python -m build
+        run: pip install -e .
 
       - name: check static import
         run: python ./src/__main__.py -v
@@ -34,5 +34,5 @@ jobs:
       - name: tigger docker CI for releases
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: docker CI for releases
+          workflow: '[docker] CI for releases'
           token: ${{ secrets.PERSONAL_TOKEN }}
