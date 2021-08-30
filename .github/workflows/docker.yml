@@ -1,5 +1,5 @@
 name: "[docker] CI for releases"
-on: push
+on: release
 
 jobs:
   build:
@@ -68,11 +68,3 @@ jobs:
             ${{env.LASTEST_TAG}}
           build-args: |
             ${{steps.version_step.outputs.version}}
-
-      - name: Update repo description
-        uses: peter-evans/dockerhub-description@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: jamzumsum/qzone2tg
-          short-description: ${{ github.event.repository.description }}

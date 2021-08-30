@@ -2,9 +2,13 @@
 
 爬取QQ空间说说并转发到telegram
 
-![](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/build%20wheel?logo=python) ![](https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github)
+<div style="text-align:center">
 
-![](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/%5Bdocker%5D%20CI%20for%20releases?logo=docker) ![](https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker)
+<!-- ![](https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social) -->
+
+![](https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github)   ![](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/%5Bdocker%5D%20CI%20for%20releases?logo=docker)  ![](https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker)
+
+</div>
 
 > tx修复了[#11](https://github.com/JamzumSum/Qzone2TG/issues/11)的接口问题. 2.0.0b2做出了适应性修改以应对新接口. <br>
 > 2.0.0b3修复了大量bug(x 优化了对'转发'的处理
