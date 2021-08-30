@@ -8,6 +8,7 @@ jobs:
       - name: Extract Version
         id: version_step
         run: |
+          echo ${GITHUB_REF/refs\/tags\//}
           echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
           echo ::set-output name=version_tag::$GITHUB_REPOSITORY:${GITHUB_REF/refs\/tags\//}
           echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest
@@ -27,6 +28,7 @@ jobs:
       - name: PrepareReg Names
         id: read-docker-image-identifiers
         run: |
+          echo ${{ steps.version_step.outputs.version }}
           echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
           echo LASTEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
