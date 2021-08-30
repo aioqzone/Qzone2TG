@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+from getpass import getpass
 
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
@@ -9,18 +10,17 @@ from frontend.tg import PollingBot, RefreshBot, WebhookBot
 from middleware.storage import FeedBase, TokenTable
 from qzone import QzoneScraper
 from qzone.feed import QZCachedScraper
+from utils.encrypt import pwdTransBack, pwdTransform
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 
 
 def getPassword(d: DictConfig, conf_path: str):
-    """getPassword w/ lasy import"""
     PWD_KEY = "password"
     qzone: dict = d.get('qzone')
     if (strategy := qzone.get('qr_strategy', 'prefer')) == 'force': return qzone
 
     def writePwd(pwd):
-        from utils.encrypt import pwdTransform
         i = OmegaConf.load(conf_path)
         i.qzone[PWD_KEY] = pwdTransform(pwd)
         i.qzone.savepwd = True
@@ -31,10 +31,8 @@ def getPassword(d: DictConfig, conf_path: str):
         if not qzone[PWD_KEY].startswith('$'):
             writePwd(qzone[PWD_KEY])
         else:
-            from utils.encrypt import pwdTransBack
             qzone[PWD_KEY] = pwdTransBack(qzone[PWD_KEY])
     else:
-        from getpass import getpass
         pwd = '' if NO_INTERACT else getpass(
             f'Password{"" if strategy == "forbid" else " (press Enter to skip)"}:'
         )
@@ -80,7 +78,11 @@ def main(args):
     d = OmegaConf.load(CONF_PATH)
     d = OmegaConf.merge(d, ca)
 
-    LoggerConf(d.log or {})
+    d.setdefault('qzone', {})
+    d.setdefault('log', {})
+    d.setdefault('feed', {})
+
+    LoggerConf(d.log)
     logger = logging.getLogger("Main")
     logger.info("config loaded")
 
@@ -104,7 +106,7 @@ def main(args):
     spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **d.qzone)
     feedmgr = QZCachedScraper(spider, db)
     BotCls = {'polling': PollingBot, 'webhook': WebhookBot, "refresh": RefreshBot} \
-        [d.bot.pop('method')]
+        [d.bot.pop('method', 'polling')]
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     spider.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)
@@ -125,8 +127,15 @@ if __name__ == '__main__':
         help=
         'Enter no-interaction mode: exit if any essential argument is missing instead of asking for input.'
     )
+    psr.add_argument(
+        '-v', '--version', action='store_true', help='print version and exit.'
+    )
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
+    if arg.version: 
+        from __version__ import version
+        print(version())
+        exit(0)
     global CONF_PATH, NO_INTERACT
     CONF_PATH = arg.config
     NO_INTERACT = arg.no_interaction

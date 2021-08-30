@@ -29,7 +29,7 @@ class ParserTest(unittest.TestCase):
             self.assertTrue(psr.isCut())
 
     def testText(self):
-        with open('tmp/html/202-2.html', encoding='utf-8') as f:
+        with open('tmp/html/emptytext.html', encoding='utf-8') as f:
             psr = QZHtmlParser(f.read())
             t = psr.parseText()
             print(t)

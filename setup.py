@@ -25,6 +25,7 @@ setup(
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
     },
+    tests_require=['demjson'],
     packages=PACKAGES,
     package_dir={
         NAME_LOWER: "src",

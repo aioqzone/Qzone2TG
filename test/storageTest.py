@@ -36,7 +36,7 @@ class SqlTest(TestCase):
         self.assertEqual(len(a), 0)
         self.s.cursor.execute('select * from tg')
         self.assertEqual(len(self.s.cursor.fetchall()), 0)
-        a = self.s.getArchive('397e51599d5ef560321f0000')
+        a = self.s.archive['397e51599d5ef560321f0000']
         print(a)
 
     def testGetUnsent(self):

@@ -30,7 +30,7 @@ class EmojiMgr:
             if name in self.emoji:
                 return self.emoji[name]
             else:
-                logger.warning('new gif: ' + name)
+                logger.warning('new gif: http://qzonestyle.gtimg.cn/qzone/em/e' + name)
                 return "[/表情]"
 
     def __getitem__(self, name):

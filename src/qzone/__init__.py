@@ -169,6 +169,8 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         return dic
 
     def getCompleteFeed(self, feedData: dict) -> str:
+        if not feedData: return
+        
         body = {
             "uin": feedData["uin"],
             "tid": feedData["tid"],

@@ -85,6 +85,7 @@ class RefreshBot:
                 plugin_name='tg',
                 order=True,
             )
+            if not new: return self.ui.fetchError('数据库出错, 请检查数据库')
             for i in new:
                 try:
                     i = TgExtracter(i, self.uin)
@@ -138,7 +139,9 @@ class RefreshBot:
                 logger.error(str(e), exc_info=True, stack_info=True)
                 self.ui.fetchError()
                 return
-            self.onSend(FakeObj(effective_chat=FakeObj(id=self.chat_id)), context, reload)
+            self.onSend(
+                FakeObj(effective_chat=FakeObj(id=self.chat_id)), context, reload
+            )
 
         def safe_fetch(context):
             with ExitStack() as s:

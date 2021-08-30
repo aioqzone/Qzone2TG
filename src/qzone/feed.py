@@ -71,11 +71,7 @@ class QZCachedScraper:
     def like(self, likedata: dict):
         return self.qzone.doLike(likedata)
 
-    def likeAFile(self, fid: str) -> bool:
-        r = self.db.getFeed(f'fid={fid}')
-        if r:
-            r = r[0].getLikeId()
-        else:
-            r = self.db.getArchive(fid)
-            if not r: raise FileNotFoundError
-        return self.like(r)
+    def likeAFile(self, fid: str):
+        r = self.db.feed[fid] or self.db.archive[fid]
+        if not r: raise FileNotFoundError
+        return self.like(Parser(r).getLikeId())

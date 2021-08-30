@@ -92,23 +92,29 @@ class QZHtmlParser:
         return '1' in self.parseLikeData()['islike']
 
     def parseBio(self) -> str:
-        return self.__x('//div[@class="user-pto"]/a/img/@src')[0]
+        return (bio := self.__x('//div[@class="user-pto"]/a/img/@src')) and bio[0]
 
     def parseImage(self):
         img = self.__x(self.f.ct, '//a[@class="img-item  "]/img')
         img = [
-            src if (src := i.attrib['src']).startswith('http') else
-            re.search(r"trueSrc:'(http.*?)'",
-                      i.attrib['onload']).group(1).replace('\\', '') for i in img
+            (src := i.attrib['src']).startswith('http') and src
+            or \
+            (src := re.search(r"trueSrc:'(http.*?)'", i.attrib['onload'])) and
+                src.group(1).replace('\\', '')
+            or
+            logger.warning('cannot parse @onload: ' + i.attrib['onload'])
+            for i in img
         ]
-        return [i.replace('rf=0-0', 'rf=viewer_311') for i in img]
+        return [i.replace('rf=0-0', 'rf=viewer_311') for i in img if i]
 
     def parseFeedData(self) -> dict:
-        # 说实话这个好像没啥用
         if not hasattr(self, 'feedData'):
-            elm = self.__x('//i[@name="feed_data"]')[0].attrib
-            assert elm
-            self.feedData = {k[5:]: v for k, v in elm.items() if k.startswith("data-")}
+            elm = (elm := self.__x('//i[@name="feed_data"]')) and elm[0].attrib
+            if elm:
+                self.feedData = {k[5:]: v for k, v in elm.items() if k.startswith("data-")}
+            else:
+                logger.warning('cannot parse i@name="feed_data"')
+                self.feedData = {}
         return self.feedData
 
     def parseLikeList(self):

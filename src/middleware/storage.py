@@ -30,7 +30,6 @@ def noexcept(func):
             return func(*args, **kwargs)
         except:
             logger.error('', exc_info=True, stack_info=True, stacklevel=2)
-            return False
 
     return noexcept_wrapper
 
@@ -221,15 +220,11 @@ class FeedBase(_DBBase):
 
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         table = self.feed * self.plugin[plugin_name] if plugin_name else self.feed
-        return [
-            Feed(i) for i in table.find(
-                cond_sql=cond_sql,
-                order='abstime' if order else None,
-            )
-        ]
-
-    def getArchive(self, fid: str):
-        return self.archive[fid]
+        r = table.find(
+            cond_sql=cond_sql,
+            order='abstime' if order else None,
+        )
+        return r is not None and [Feed(i) for i in r]
 
     def setPluginData(self, plugin: str, fid: str, flush=True, **data):
         self.plugin[plugin][fid] = data

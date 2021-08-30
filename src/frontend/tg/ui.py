@@ -137,7 +137,7 @@ class TgUI(NullUI):
         if succ_num == 0 and err_num == 0:
             cmd = "您已经跟上了时代✔"
         else:
-            cmd = f"成功爬取{succ_num}条说说."
+            cmd = f"成功发送{succ_num}条说说."
             if err_num > 0:
                 cmd += f" 发送失败{err_num}条, 重试也没有用( 请检查服务端日志."
         self.bot.send_message(chat_id=self.chat_id, text=cmd)
