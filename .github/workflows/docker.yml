@@ -1,6 +1,6 @@
 name: '[docker] CI for releases'
 
-on: release
+on: push
 jobs:
 
   build:
@@ -25,7 +25,7 @@ jobs:
         run: pip install -e .
 
       - name: check static import
-        run: echo VERSION=(python ./src/__main__.py -v) >> $GITHUB_ENV
+        run: echo VERSION=$(python ./src/__main__.py -v) >> $GITHUB_ENV
 
   docker-release:
     runs-on: ubuntu-latest
