@@ -1,13 +1,15 @@
-name: '[docker] CI for releases'
-
+name: "[docker] CI for releases"
 on: push
-jobs:
 
+jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.8, 3.9]
+
+    outputs:
+      output1: ${{ steps.check_version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v2
@@ -25,7 +27,8 @@ jobs:
         run: pip install -e .
 
       - name: check static import
-        run: echo VERSION=$(python ./src/__main__.py -v) >> $GITHUB_ENV
+        id: check_version
+        run: echo ::set-output name=version::$(python ./src/__main__.py -v)
 
   docker-release:
     runs-on: ubuntu-latest
@@ -34,7 +37,7 @@ jobs:
       - name: Extract Version
         id: version_step
         run: |
-          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:${{env.VERSION}}
+          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:${{ needs.build.outputs.output1 }}
           echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest
 
       - name: Set up QEMU
@@ -52,7 +55,6 @@ jobs:
       - name: PrepareReg Names
         id: read-docker-image-identifiers
         run: |
-          echo ${{ steps.version_step.outputs.version }}
           echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
           echo LASTEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
