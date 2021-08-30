@@ -8,9 +8,9 @@ jobs:
       - name: Extract Version
         id: version_step
         run: |
-          echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}"
-          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:${GITHUB_REF/refs\/tags\//}"
-          echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest"
+          echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
+          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:${GITHUB_REF/refs\/tags\//}
+          echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
