@@ -31,9 +31,9 @@ class SqlTest(TestCase):
         print(a)
 
     def testClean(self):
+        self.assertEqual(len(self.s.getFeed()), 1)
         self.s.cleanFeed()
-        a = self.s.getFeed()
-        self.assertEqual(len(a), 0)
+        self.assertEqual(len(self.s.getFeed()), 0)
         self.s.cursor.execute('select * from tg')
         self.assertEqual(len(self.s.cursor.fetchall()), 0)
         a = self.s.archive['397e51599d5ef560321f0000']

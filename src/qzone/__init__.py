@@ -21,6 +21,7 @@ from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
 from middleware.uihook import NullUI
 from middleware.storage import TokenTable
+from utils.decorator import Retry
 
 from .common import *
 from .exceptions import LoginError, QzoneError, UserBreak
@@ -118,20 +119,15 @@ class HTTPHelper:
         return r
 
 
-def login_if_expire(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except QzoneError as e:
-            if e.code == -3000:
-                logger.info("cookie已过期, 即将重新登陆.")
-                QzoneScraper.updateStatus(self, force_login=True)
-                return func(self, *args, **kwargs)
-            else:
-                raise e
+def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
+    if e.code != -3000: raise e
+    if i == 1: raise e
 
-    return wrapper
+    logger.info("cookie已过期, 即将重新登陆.")
+    QzoneScraper.updateStatus(self, force_login=True)
+
+
+login_if_expire = Retry({QzoneError: onLoginExpire}, inspect=True)
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
@@ -170,7 +166,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
     def getCompleteFeed(self, feedData: dict) -> str:
         if not feedData: return
-        
+
         body = {
             "uin": feedData["uin"],
             "tid": feedData["tid"],
@@ -270,7 +266,9 @@ class QzoneScraper(LoginHelper, HTTPHelper):
                 raise e
             except TypeError as e:
                 logger.debug('query = ' + str(query))
-                logger.error('BUG: please report this bug with `query`. thanks.', exc_info=True)
+                logger.error(
+                    'BUG: please report this bug with `query`. thanks.', exc_info=True
+                )
                 raise e
 
             r = RE_CALLBACK.search(r.text).group(1)

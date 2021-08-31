@@ -22,6 +22,9 @@ class QZCachedScraper:
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui
 
+    def cleanFeed(self):
+        self.db.cleanFeed()
+
     def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
         try:
             feeds = self.qzone.fetchPage(pagenum)

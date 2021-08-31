@@ -120,8 +120,7 @@ bot:
   ~~~ yaml
   method: webhook
   token: hereisyourtoken
-  accept_id:
-    - 123456789
+  accept_id: 123456789
   # auto_start: True
   # interval: 86400
   # proxy: ...
@@ -142,9 +141,11 @@ bot:
   bot token. __重要__. 指定机器人的唯一参数.
 
 --- 
-  > `acceptid`: list[integer]
+  > `accept_id`: list[integer] -> integer
 
   有权沟通bot的用户和对话. __重要__. 通常只需填写用户本身的`userid`即可. 未列入该列表的实体向bot发送的指令会被拒绝.
+
+  __FutureWarning__: `accept_id`变更为`int`类型. 在`2.0.0rc2`之前, 列表形式的`accept_id`会引发警告以提示用户更改配置; 该版本及之后会引发错误.
 
 --- 
   > `auto_start`: boolean
@@ -232,7 +233,7 @@ bot:
 ~~~ yaml
 bot: 
   token: ?
-  acceptid: [?]
+  accept_id: ?
   proxy: ?      # 可选
 ~~~
 
