@@ -5,6 +5,7 @@ from getpass import getpass
 
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
+from omegaconf.listconfig import ListConfig
 
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
 from middleware.storage import FeedBase, TokenTable
@@ -55,22 +56,32 @@ def getPassword(d: DictConfig, conf_path: str):
     return qzone
 
 
-def LoggerConf(log_conf: DictConfig):
+def configLogger(log_conf: DictConfig):
     if 'conf' in log_conf:
         try:
             logging.config.fileConfig(log_conf.conf)
         except FileNotFoundError as e:
             print(str(e))
-        else:
-            return
+    else:
+        logging.basicConfig(
+            format=log_conf.get('format', DEFAULT_LOGGER_FMT),
+            datefmt='%Y %b %d %H:%M:%S',
+            level=dict(
+                CRITICAL=50, FATAL=50, ERROR=40, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+            )[log_conf.get('level', 'INFO').upper()]
+        )
+    global logger
+    logger = logging.getLogger("Main")
 
-    logging.basicConfig(
-        format=log_conf.get('format', DEFAULT_LOGGER_FMT),
-        datefmt='%Y %b %d %H:%M:%S',
-        level=dict(
-            CRITICAL=50, FATAL=50, ERROR=40, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
-        )[log_conf.get('level', 'INFO').upper()]
-    )
+
+def configVersionControl(conf: DictConfig):
+    if isinstance(conf.bot.accept_id, ListConfig):
+        logger.warning(
+            "FutureWarning: In future versions, `bot.accept_id` is expected to be `int`. "
+            "The first value of list is used now."
+        )
+        conf.bot.accept_id = conf.bot.accept_id[0]
+    return conf
 
 
 def main(args):
@@ -82,9 +93,10 @@ def main(args):
     d.setdefault('log', {})
     d.setdefault('feed', {})
 
-    LoggerConf(d.log)
-    logger = logging.getLogger("Main")
+    configLogger(d.log)
     logger.info("config loaded")
+
+    d = configVersionControl(d)
 
     if 'qq' in d.qzone:
         print('Login as:', d.qzone.qq)
@@ -94,20 +106,19 @@ def main(args):
         d.qzone['qq'] = input('QQ: ')
     getPassword(d, CONF_PATH)
 
-    db = FeedBase(
-        f"data/{d.qzone.qq}.db",
-        **d.feed,
-        plugins={
-            'tg': {
-                'is_sent': 'BOOLEAN default 0'
-            },
-        },
-    )
+    tg_plugin_def = {'tg': {'is_sent': 'BOOLEAN default 0'}}
+    db = FeedBase(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
+    logger.debug('database OK')
+
     spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **d.qzone)
     feedmgr = QZCachedScraper(spider, db)
+    logger.debug('crawler OK')
+
     BotCls = {'polling': PollingBot, 'webhook': WebhookBot, "refresh": RefreshBot} \
         [d.bot.pop('method', 'polling')]
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
+    logger.debug('bot OK')
+
     spider.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)
     bot.run()
@@ -132,7 +143,7 @@ if __name__ == '__main__':
     )
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
-    if arg.version: 
+    if arg.version:
         from __version__ import version
         print(version())
         exit(0)

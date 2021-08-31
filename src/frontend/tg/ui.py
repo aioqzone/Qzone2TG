@@ -1,5 +1,4 @@
 import logging
-from functools import wraps
 
 import telegram
 from middleware import ContentExtracter
@@ -7,6 +6,8 @@ from middleware.uihook import NullUI
 from telegram.error import BadRequest, TimedOut
 
 from .compress import LikeId
+from utils.decorator import FloodControl, Retry
+from math import ceil
 
 SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 202, 311)
@@ -19,34 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 def retry_once(func, msg_callback=None):
-    log_kw = dict(exc_info=True, stacklevel=2)
-
-    @wraps(func)
-    def retry_wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except TimedOut as e:
-            logger.warning(e.message)
-        except BadRequest as e:
-            logger.warning(
-                msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e),
-                **log_kw
-            )
-        except Exception as e:
-            logger.error(
-                msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e),
-                **log_kw
-            )
-
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(
-                (msg_callback(*args, exc=e, **kwargs) if msg_callback else str(e)) +
-                " (retry failed)"
-            )
-
-    return retry_wrapper
+    msg_callback = msg_callback or (lambda exc: str(exc))
+    last_fail = lambda e: logger.error(msg_callback(exc=e) + " (retry failed)")
+    excc = {
+        TimedOut: lambda e, i: logger.warning(e.message) if i < 1 else last_fail(e),
+        BadRequest: lambda e, i: logger.warning(msg_callback(exc=e), exc_info=True)
+        if i < 1 else last_fail(e),
+        Exception: lambda e, i: logger.error(msg_callback(exc=e), exc_info=True)
+        if i < 1 else last_fail(e)
+    }
+    return Retry(excc)(func)
 
 
 class TgUI(NullUI):
@@ -56,7 +39,7 @@ class TgUI(NullUI):
     def __init__(self, bot, chat_id=None) -> None:
         super().__init__()
         self.bot = bot
-        if chat_id is not None: self.chat_id = chat_id
+        self.chat_id = chat_id
 
     def _defaultButton(self):
         return telegram.InlineKeyboardMarkup([[
@@ -68,8 +51,8 @@ class TgUI(NullUI):
         self.qr_msg = self.bot.send_photo(
             chat_id=self.chat_id,
             photo=png,
-            caption='扫码登陆.',
-            reply_markup=self._defaultButton() if self._resend else None
+            caption='扫码登陆:',
+            reply_markup=self._resend and self._defaultButton()
         )
 
     def QrResend(self):
@@ -78,7 +61,7 @@ class TgUI(NullUI):
                 self._resend(),
                 caption='二维码已刷新.',
             ),
-            reply_markup=self._defaultButton() if self._resend else None
+            reply_markup=self._resend and self._defaultButton()
         )
 
     def QrCanceled(self):
@@ -157,32 +140,52 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.HTML
             )
 
+    @FloodControl(
+        30,
+        lambda s, m, i, b=None: ceil(len(m) / 4096)
+        if not i else 1 + (ceil((len(m) - 1024) / 4096) if m else 0)
+        if len(i) == 1 else ceil(len(m) / 4096) + len(i) if b else len(i)
+    )
     def contentReady(self, msg: str, img: list, reply_markup=None):
         if not img:
             assert msg, "message cannot be empty"
-            return self.bot.send_message(
-                chat_id=self.chat_id,
-                text=msg,
-                parse_mode=telegram.ParseMode.HTML,
-                reply_markup=reply_markup
-            )
+            if len(msg) <= 4096:
+                return [
+                    self.bot.send_message(
+                        chat_id=self.chat_id,
+                        text=msg,
+                        parse_mode=telegram.ParseMode.HTML,
+                        reply_markup=reply_markup
+                    )
+                ]
+            else:
+                return self.contentReady(msg[:4096], None, reply_markup) + \
+                       self.contentReady(msg[4096:], None, reply_markup)
         elif len(img) == 1:
-            return self.bot.send_photo(
-                chat_id=self.chat_id,
-                caption=msg,
-                photo=img[0],
-                parse_mode=telegram.ParseMode.HTML,
-                reply_markup=reply_markup
-            )
+            if msg and len(msg) > 1024:
+                return self.contentReady(msg[:1024], img, reply_markup) + \
+                       self.contentReady(msg[1024:], None)
+            else:
+                return [
+                    self.bot.send_photo(
+                        chat_id=self.chat_id,
+                        caption=msg,
+                        photo=img[0],
+                        parse_mode=telegram.ParseMode.HTML,
+                        reply_markup=reply_markup
+                    )
+                ]
         elif reply_markup:
-            return [self.contentReady(msg, None, reply_markup)
-                    ] + self.contentReady(None, img)
-        else:
+            return self.contentReady(msg, None, reply_markup) + \
+                   self.contentReady(None, img)
+        elif len(img) <= 10:
             return self.bot.send_media_group(
                 chat_id=self.chat_id,
                 media=[telegram.InputMediaPhoto(media=img[0], caption=msg, parse_mode=telegram.ParseMode.HTML)] + \
                     [telegram.InputMediaPhoto(i) for i in img[1:]]
             )
+        else:
+            return self.contentReady(msg, img[:10]) + self.contentReady(msg, img[10:])
 
 
 class TgExtracter(ContentExtracter):

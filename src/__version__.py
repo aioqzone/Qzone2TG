@@ -2,9 +2,9 @@ NAME = 'Qzone2TG'
 NAME_LOWER = NAME.lower()
 
 __EPOCH__ = (2, 0, 0)
-__PRERELEASE__ = ('beta', 3)
+__PRERELEASE__ = ('beta', 4)
 __POSTRELEASE__ = None
-__DEV__ = 2
+__DEV__ = None
 
 __EPOCH_STR__ = '.'.join(str(i) for i in __EPOCH__)
 

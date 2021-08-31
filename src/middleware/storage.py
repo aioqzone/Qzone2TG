@@ -1,11 +1,12 @@
 import logging
 import sqlite3
 import time
-from functools import wraps
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Union
 
 from qzone.parser import QZFeedParser as Feed
+from utils.decorator import noexcept
 from utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
@@ -23,15 +24,10 @@ def arglike(i):
         str(i)
 
 
-def noexcept(func):
-    @wraps(func)
-    def noexcept_wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:
-            logger.error('', exc_info=True, stack_info=True, stacklevel=2)
-
-    return noexcept_wrapper
+sqlnoexcept = partial(
+    noexcept,
+    excc={Exception: lambda e: logger.error('sql error occured', exc_info=True)}
+)
 
 
 class Table:
@@ -51,7 +47,7 @@ class Table:
         self.key = key
         self.pkey = pkey
 
-    @noexcept
+    @sqlnoexcept
     def createTable(self, index: list = None):
         args = ','.join(f"{k} {v}" for k, v in self.key.items())
         self.cursor.execute(f"create table if not exists {self.name} ({args});")
@@ -61,7 +57,7 @@ class Table:
                 f"create index if not exists {self.name}_idx on {self.name} ({args});"
             )
 
-    @noexcept
+    @sqlnoexcept
     def __getitem__(self, i):
         self.cursor.execute(
             f'select * from {self.name} WHERE {self.pkey}={arglike(i)};'
@@ -69,10 +65,11 @@ class Table:
         if (r := self.cursor.fetchone()) is None: return
         return dict(zip(self.key, r))
 
-    @noexcept
+    @sqlnoexcept
     def __setitem__(self, k, data: dict):
         assert all(i in self.key for i in data)
         if k in self:
+            if self.pkey in data: data.pop(self.pkey)
             vals = ','.join(f"{k}={arglike(v)}" for k, v in data.items())
             self.cursor.execute(
                 f'update {self.name} SET {vals} WHERE {self.pkey}={arglike(k)};'
@@ -88,12 +85,12 @@ class Table:
         return data
 
     def __delitem__(self, i):
-        self.cursor.execute(f'delete from archive WHERE {self.pkey}={arglike(i)};')
+        self.cursor.execute(f'delete from {self.name} WHERE {self.pkey}={arglike(i)};')
 
     def __contains__(self, i):
         return bool(Table.__getitem__(self, i))
 
-    @noexcept
+    @sqlnoexcept
     def find(self, cond_sql: str = '', order=None):
         if cond_sql: cond_sql = 'WHERE ' + cond_sql
         order = f'ORDER BY {order}' if order else ''

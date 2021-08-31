@@ -11,7 +11,7 @@
 </div>
 
 > tx修复了[#11](https://github.com/JamzumSum/Qzone2TG/issues/11)的接口问题. 2.0.0b2做出了适应性修改以应对新接口. <br>
-> 2.0.0b3修复了大量bug(x 优化了对'转发'的处理
+> 2.0.0b4 又修复了大量bug(x
 
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
 > [v2.0.0b3][4] availible now!</br>
