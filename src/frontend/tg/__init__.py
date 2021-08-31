@@ -8,7 +8,7 @@ from telegram.utils.helpers import effective_message_type
 from qzone.exceptions import UserBreak
 from qzone.feed import QZCachedScraper
 from requests.exceptions import HTTPError
-from telegram.error import NetworkError
+from telegram.error import NetworkError, TelegramError
 from telegram.ext import (
     CallbackContext, CallbackQueryHandler, CommandHandler, Updater
 )
@@ -177,6 +177,15 @@ class PollingBot(RefreshBot):
         dispatcher.add_handler(CommandHandler("resend", self.onSend))
         dispatcher.add_handler(CommandHandler('help', self.onHelp))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
+
+        commands = [telegram.BotCommand(command="start", description="Force login. Then refresh and resend all feeds."),
+                    telegram.BotCommand(command="refresh", description="Refresh and send any new feeds.."),
+                    telegram.BotCommand(command="resend", description="Resend any unsent feeds."),
+                    telegram.BotCommand(command="help", description="Send this message.")]
+        try:
+            self.update.bot.set_my_commands(commands)
+        except TelegramError as e:
+            logger.warning(e.message)
 
     def setChatId(self, bot, chat_id: int):
         if chat_id in self.accept_id:
