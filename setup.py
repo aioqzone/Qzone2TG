@@ -19,7 +19,7 @@ setup(
     license="AGPL-3.0",
     python_requires=">=3.8",                                       # for f-string and := op
     install_requires=[
-        'python-telegram-bot', 'lxml', 'omegaconf',
+        'python-telegram-bot', 'lxml', 'omegaconf', 'keyring'
         "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
     ],
     extras_require={

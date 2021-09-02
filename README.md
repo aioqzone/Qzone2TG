@@ -6,15 +6,23 @@
 
 <!-- ![](https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social) -->
 
-![](https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github)   ![](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/%5Bdocker%5D%20CI%20for%20releases?logo=docker)  ![](https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker)
+<a href="https://github.com/JamzumSum/Qzone2TG/releases">
+<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">
+</a> 
+
+<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/%5Bdocker%5D%20CI%20for%20releases?logo=docker">
+
+<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
+<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+</a>
 
 </div>
 
-> tx修复了[#11](https://github.com/JamzumSum/Qzone2TG/issues/11)的接口问题. 2.0.0b2做出了适应性修改以应对新接口. <br>
-> 2.0.0b4 又修复了大量bug(x
+> __[安全策略]__ 2.0.0b5要求密码必须交由`keyring`存储, 请及时 __删除配置文件中的`password`, `savepwd`字段__ 👉[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3#%E7%88%AC%E8%99%AB)
+> 2.0.0b5 又双修复了少量bug(x
 
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
-> [v2.0.0b3][4] availible now!</br>
+> [v2.0.0b5][4] availible now!</br>
 
 ## 功能
 
@@ -44,6 +52,8 @@
 * 取得你的用户ID(acceptID)
 
 ### Telegram commands
+
+> 自`2.0.0b4`起, 脚本会自动设置如下命令. (感谢 @TigerCubDen)
 
 ```
 start - Force refresh and resend all feeds.
@@ -76,8 +86,6 @@ help - Get help info.
   # 安装依赖
   pip install -e .
 
-  # 建立配置文档. 
-  mkdir config
   # 复制示例配置. 也可以参考wiki写配置
   cp misc/example.yaml config/config.yaml
 
@@ -100,11 +108,6 @@ python3 -m qzone2tg
 # 输入密码或跳过
 ```
 
-注意, 当允许保存密码时, 您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
-因此 __强烈建议__ 不保存密码, 即在配置文件中保持`savepwd`为`False`(默认).
-
-注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
-
 ## 卸载
 
 |data directory |description  |
@@ -119,7 +122,7 @@ python3 -m qzone2tg
 
     ``` shell
     #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot lxml omegaconf tencentlogin
+    pip3 uninstall python-telegram-bot lxml omegaconf keyring tencentlogin
     ```
 
 ## Credits
@@ -141,5 +144,5 @@ python3 -m qzone2tg
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0b3 "2.0.0 beta3"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0b5 "2.0.0 beta5"
 [5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
