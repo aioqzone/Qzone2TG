@@ -14,6 +14,7 @@ PAGE_LIMIT = 1000
 
 class QZCachedScraper:
     new_limit = 30         # not implement
+    ui = NullUI()
 
     def __init__(self, qzone: QzoneScraper, db: FeedBase):
         self.qzone = qzone
@@ -37,10 +38,13 @@ class QZCachedScraper:
             raise UserBreak
         except Exception:
             logger.error(
-                f'Error fetch page {pagenum}{", force reload" if reload else ""}, retry remains={retry}',
+                f'Error fetching page {pagenum}{", force reload" if reload else ""}',
                 exc_info=True
             )
             return False
+
+        assert isinstance(feeds, list), "Uncaught error when fetchPage, " \
+                                        "please consider reporting this bug."
 
         limit = day_stamp() - self.db.keepdays
         new = [

@@ -6,12 +6,12 @@ __pycache__
 /data
 .pylintrc
 yapf_style.cfg
-test/compressTest.py
+.env
 test/botTest.py
+config/config.yaml
 
 # temporary files
 tmp
-config
 test.*
 *.html
 *.xml

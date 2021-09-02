@@ -1,13 +1,13 @@
 import logging
 
 import telegram
+from frontend.tg.utils import FixUserBot
 from middleware import ContentExtracter
 from middleware.uihook import NullUI
 from telegram.error import BadRequest, TimedOut
 
 from .compress import LikeId
-from utils.decorator import FloodControl, Retry
-from math import ceil
+from utils.decorator import Retry
 
 SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 202, 311)
@@ -33,13 +33,9 @@ def retry_once(func, msg_callback=None):
 
 
 class TgUI(NullUI):
-    bot: telegram.Bot
-    chat_id: int
-
     def __init__(self, bot, chat_id=None) -> None:
         super().__init__()
-        self.bot = bot
-        self.chat_id = chat_id
+        self.bot = FixUserBot(bot, chat_id, telegram.ParseMode.HTML)
 
     def _defaultButton(self):
         return telegram.InlineKeyboardMarkup([[
@@ -48,12 +44,9 @@ class TgUI(NullUI):
         ]])
 
     def QrFetched(self, png: bytes):
-        self.qr_msg = self.bot.send_photo(
-            chat_id=self.chat_id,
-            photo=png,
-            caption='扫码登陆:',
-            reply_markup=self._resend and self._defaultButton()
-        )
+        self.qr_msg = self.bot.sendImage(
+            '扫码登陆:', png, self._resend and self._defaultButton()
+        )[0]
 
     def QrResend(self):
         self.qr_msg = self.qr_msg.edit_media(
@@ -67,7 +60,7 @@ class TgUI(NullUI):
     def QrCanceled(self):
         if self.qr_msg.delete():
             del self.qr_msg
-        self.bot.send_message(chat_id=self.chat_id, text='二维码登录已取消, 当前任务终止.')
+        self.bot.sendMessage('二维码登录已取消, 当前任务终止.')
 
     def QrExpired(self, png: bytes):
         self.qr_msg = self.qr_msg.edit_media(
@@ -81,25 +74,17 @@ class TgUI(NullUI):
     def QrFailed(self, *args, **kwargs):
         if self.qr_msg.delete():
             del self.qr_msg
-        self.bot.send_message("😢 扫码无响应")
+        self.bot.sendMessage("😢 扫码无响应")
 
     def QrScanSucceessed(self):
         if self.qr_msg.delete():
             del self.qr_msg
 
     def loginSuccessed(self):
-        self.ui_msg = self.bot.send_message(
-            chat_id=self.chat_id,
-            text='✔ 登录成功',
-            parse_mode=telegram.ParseMode.MARKDOWN_V2
-        )
+        self.ui_msg = self.bot.sendMessage('✔ 登录成功')[0]
 
     def loginFailed(self, msg: str = "unknown"):
-        self.bot.send_message(
-            chat_id=self.chat_id,
-            text=f'❌ 登录失败: <b>{msg}</b>',
-            parse_mode=telegram.ParseMode.HTML
-        )
+        self.bot.sendMessage(f'❌ 登录失败: <b>{msg}</b>')
 
     def pageFetched(self, msg):
         if hasattr(self, 'ui_msg'):
@@ -108,11 +93,9 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.HTML
             )
         else:
-            self.ui_msg = self.bot.send_message(
-                chat_id=self.chat_id,
-                text='✔ ' + msg,
-                parse_mode=telegram.ParseMode.HTML
-            )
+            self.ui_msg = self.bot.sendMessage(
+                text='✔ ' + msg, parse_mode=telegram.ParseMode.HTML
+            )[0]
 
     def fetchEnd(self, succ_num: int, err_num: int):
         if hasattr(self, 'ui_msg') and self.ui_msg.delete():
@@ -123,7 +106,7 @@ class TgUI(NullUI):
             cmd = f"成功发送{succ_num}条说说."
             if err_num > 0:
                 cmd += f" 发送失败{err_num}条, 重试也没有用( 请检查服务端日志."
-        self.bot.send_message(chat_id=self.chat_id, text=cmd)
+        self.bot.sendMessage(cmd)
 
     def fetchError(self, msg=None):
         if msg is None: msg = 'Ooops... 出错了qvq'
@@ -134,58 +117,13 @@ class TgUI(NullUI):
             )
             del self.ui_msg
         else:
-            self.bot.send_message(
-                chat_id=self.chat_id,
-                text='❌ ' + msg,
-                parse_mode=telegram.ParseMode.HTML
-            )
+            self.bot.sendMessage('❌ ' + msg)
 
-    @FloodControl(
-        30,
-        lambda s, m, i, b=None: ceil(len(m) / 4096)
-        if not i else 1 + (ceil((len(m) - 1024) / 4096) if m else 0)
-        if len(i) == 1 else ceil(len(m) / 4096) + len(i) if b else len(i)
-    )
     def contentReady(self, msg: str, img: list, reply_markup=None):
-        if not img:
-            assert msg, "message cannot be empty"
-            if len(msg) <= 4096:
-                return [
-                    self.bot.send_message(
-                        chat_id=self.chat_id,
-                        text=msg,
-                        parse_mode=telegram.ParseMode.HTML,
-                        reply_markup=reply_markup
-                    )
-                ]
-            else:
-                return self.contentReady(msg[:4096], None, reply_markup) + \
-                       self.contentReady(msg[4096:], None, reply_markup)
-        elif len(img) == 1:
-            if msg and len(msg) > 1024:
-                return self.contentReady(msg[:1024], img, reply_markup) + \
-                       self.contentReady(msg[1024:], None)
-            else:
-                return [
-                    self.bot.send_photo(
-                        chat_id=self.chat_id,
-                        caption=msg,
-                        photo=img[0],
-                        parse_mode=telegram.ParseMode.HTML,
-                        reply_markup=reply_markup
-                    )
-                ]
-        elif reply_markup:
-            return self.contentReady(msg, None, reply_markup) + \
-                   self.contentReady(None, img)
-        elif len(img) <= 10:
-            return self.bot.send_media_group(
-                chat_id=self.chat_id,
-                media=[telegram.InputMediaPhoto(media=img[0], caption=msg, parse_mode=telegram.ParseMode.HTML)] + \
-                    [telegram.InputMediaPhoto(i) for i in img[1:]]
-            )
+        if img:
+            return self.bot.sendImage(msg, img, reply_markup)
         else:
-            return self.contentReady(msg, img[:10]) + self.contentReady(msg, img[10:])
+            return self.bot.sendMessage(msg, reply_markup)
 
 
 class TgExtracter(ContentExtracter):

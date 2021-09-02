@@ -16,6 +16,13 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
+def decoratorWargs(decorator, *da, **dk):
+    def catchFunc(func):
+        return decorator(func, *da, **dk)
+
+    return catchFunc
+
+
 def noexcept(func, excc: dict = None, *gea, **gekw):
     @wraps(func)
     def noexcept_wrapper(*args, **kwargs):
@@ -45,25 +52,30 @@ class Retry:
     def __call__(self, func):
         @wraps(func)
         def retry_wrapper(*args, **kwargs):
+            ecp = []
+            # hook to know whether an exception is raised
+            excc = {
+                k: lambda e, *a, **k: ecp.append(e) or v(e, *a, **k)
+                for k, v in self._excc.items()
+            }
             for i in range(self._times + 1):
-                f = noexcept(func, self._excc, i, *args, **kwargs) if self._inspect else \
-                    noexcept(func, self._excc, i)
-                return f(*args, **kwargs)
+                f = noexcept(func, excc, i, *args, **kwargs) if self._inspect else \
+                    noexcept(func, excc, i)
+                r = f(*args, **kwargs)
+                if ecp:
+                    ecp.clear()
+                    continue
+                return r
 
         return retry_wrapper
 
 
 class FloodControl:
-    def __init__(
-        self,
-        times_per_second: int,
-        pred_num_callback: Callable[[Any], int] = None,
-        epsilon=5e-2
-    ) -> None:
+    def __init__(self, times_per_second: int, epsilon=5e-2) -> None:
         self._tps = times_per_second
         self._ts = deque(maxlen=times_per_second)
-        self.countTask = pred_num_callback or (lambda r: 1)
         self.eps = epsilon
+        self._controling = False
 
     @property
     def task_num(self) -> int:
@@ -82,16 +94,25 @@ class FloodControl:
             if wait_task <= 0:
                 return i[0] + 1 + self.eps - time.time()
 
-    def __call__(self, func):
+    def __call__(self, func, pred_num_callback: Callable[[Any], int] = None):
+        pred_num_callback = pred_num_callback or (lambda *a, **k: 1)
+
         @wraps(func)
         def fc_wrapper(*args, **kwargs):
-            N = self.countTask(*args, **kwargs)
+            if self._controling: return func(*args, **kwargs)
+            self._controling = True
+
+            N = pred_num_callback(*args, **kwargs)
             while self._ts and self.earliest + 1 + self.eps < time.time():
                 self._ts.popleft()
             time.sleep(self.wait_time(N))
 
-            return self._run(func, N, *args, **kwargs)
+            try:
+                return self._run(func, N, *args, **kwargs)
+            finally:
+                self._controling = False
 
+        setattr(fc_wrapper, '__floodControl__', id(self._ts))
         return fc_wrapper
 
     def _run(self, func, N, *args, **kwargs):

@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import time as Time
+from datetime import datetime, time as Time, timedelta, timezone
 
 import telegram
 from qzone.exceptions import UserBreak
@@ -35,14 +35,14 @@ class RefreshBot:
         accept_id: int,
         uin: int,
         *,
-        interval=0,
+        daily: dict = None,
         proxy: dict = None,
     ):
         self.accept_id = accept_id
         self.feedmgr = feedmgr
         self._token = token
         self.uin = uin
-        self.interval = interval
+        self.daily = daily
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         self.ui = TgUI(self.update.bot, accept_id)
@@ -57,16 +57,25 @@ class RefreshBot:
         self.update.stop()
 
     def register_period_refresh(self):
-        if self.interval > 0:
-            self.update.job_queue.run_repeating(
-                lambda c: self.onFetch(c.bot, False),
-                self.interval,
-                name='period_refresh'
+        kw = dict(
+            callback=lambda c: self.onFetch(c.bot, False),
+            days=tuple(self.daily.get('days', range(7)))
+        )
+        if 'time' in self.daily and self.daily['time']:
+            for i in self.daily.time.split():
+                self.update.job_queue.run_daily(
+                    time=Time.fromisoformat(i), name='period_refresh_' + i, **kw
+                )
+        else:
+            self.update.job_queue.run_daily(
+                time=datetime.now(timezone(timedelta(hours=8))).time(),
+                name='period_refresh',
+                **kw
             )
         logger.info('periodically refresh registered.')
 
     def run(self):
-        assert self.interval > 0, 'refresh bot must refresh!'
+        assert self.daily, 'refresh bot must refresh!'
         self.register_period_refresh()
         logger.info("start refreshing")
         self.update.idle()
@@ -150,12 +159,12 @@ class PollingBot(RefreshBot):
         accept_id: int,
         uin: int,
         *,
-        interval=0,
+        daily: dict = None,
         proxy: dict = None,
         polling: dict = None,
         auto_start=False,
     ):
-        super().__init__(feedmgr, token, accept_id, uin, interval=interval, proxy=proxy)
+        super().__init__(feedmgr, token, accept_id, uin, daily=daily, proxy=proxy)
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
         self.__proxy = proxy
@@ -167,10 +176,19 @@ class PollingBot(RefreshBot):
         dispatcher.add_handler(CommandHandler('help', self.onHelp))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
 
-        commands = [telegram.BotCommand(command="start", description="Force login. Then refresh and resend all feeds."),
-                    telegram.BotCommand(command="refresh", description="Refresh and send any new feeds.."),
-                    telegram.BotCommand(command="resend", description="Resend any unsent feeds."),
-                    telegram.BotCommand(command="help", description="Send this message.")]
+        commands = [
+            telegram.BotCommand(
+                command="start",
+                description="Force login. Then refresh and resend all feeds."
+            ),
+            telegram.BotCommand(
+                command="refresh", description="Refresh and send any new feeds.."
+            ),
+            telegram.BotCommand(
+                command="resend", description="Resend any unsent feeds."
+            ),
+            telegram.BotCommand(command="help", description="Send this message.")
+        ]
         try:
             self.update.bot.set_my_commands(commands)
         except TelegramError as e:
@@ -233,11 +251,10 @@ class PollingBot(RefreshBot):
                 context=FakeObj(bot=self.update.bot)
             )
         else:
-            self.ui.bot.send_message(
-                text="You've disabled 'auto start'. "
+            self.ui.bot.sendMessage(
+                "You've disabled 'auto start'. "
                 "Then you may send /start to force refresh and resend all feeds, "
                 "or send /refresh to present a normal refresh.",
-                chat_id=self.accept_id
             )
         self.register_period_refresh()
         self.update.idle()
