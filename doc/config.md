@@ -4,7 +4,7 @@
 
 ### 配置格式
 
-本项目采用yaml存储和书写配置.
+本项目采用yaml存储和书写配置. 允许[omegaconf][omegaconf]的特定写法.
 
 ~~~ yaml
 log: 
@@ -17,6 +17,10 @@ bot:
 - qzone: [qzoneConfig](#爬虫), 爬虫参数和行为
 - feed: [feedConfig](#数据库), 指定数据保存期限
 - bot: [botConfig](#机器人), TG机器人配置, 触发时间, webhook等
+
+[omegaconf]: https://omegaconf.readthedocs.io/ "OmegaConf Documentation"
+
+---
 
 ### 日志
 
@@ -50,6 +54,8 @@ bot:
   > `conf`: string (path)
 
   日志配置文件. _可选_ 使用此ini文件所定义的日志行为、格式. 此文件的书写规范参考`logging`模块的`fileConfig`.
+
+---
 
 ### 爬虫
 
@@ -102,6 +108,8 @@ bot:
   - `allow`: 允许使用二维码. 先尝试密码登录, 失败后使用二维码登录. (推荐)
   - `forbid`: 禁用二维码登录. 仅允许密码登录. 密码为空时会引发错误.
 
+---
+
 ### 数据库
 
   键: `feed`
@@ -119,6 +127,8 @@ bot:
   > `archivedays`: integer
 
   归档存储时间. 超出`keepdays`后, 说说的内容会被舍弃, 用于点赞的必要参数将保留更长时间.
+
+---
 
 ### 机器人
 
@@ -172,6 +182,8 @@ bot:
 
   > webhook: [webhookConfig](#webhook), _可选_. 
 
+---
+
 #### 定时
 
   键: `bot.daily`
@@ -190,6 +202,8 @@ bot:
 
   表示要自动运行的日期(星期). 如`[1, 2, 3, 4, 5]`表示仅周一到周五运行.
   _可选_, 默认每天运行.
+
+---
 
 #### 代理
 
@@ -211,6 +225,7 @@ bot:
   支持`http`, `socks5`, `socks5h`, 支持代理认证.
   注: 要使用`socks5`, 需安装额外版本: `pip install python-telegram-bot[socks]`
   
+---
 
 #### webhook
 
