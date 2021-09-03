@@ -233,8 +233,10 @@ class FeedBase(_DBBase):
         self.db.commit()
 
     def close(self):
+        if not self.db: return
         self.cursor.close()
         self.db.close()
+        self.db = None
 
     def __del__(self):
         self.close()

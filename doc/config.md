@@ -1,5 +1,7 @@
 ## 配置文件说明
 
+> Tips: `ctrl+F`页内搜索`FutureWarning`以确保您的配置格式保持最新:D
+
 ### 配置格式
 
 本项目采用yaml存储和书写配置.
@@ -77,14 +79,19 @@ bot:
   __重要__. 在交互模式下, 未指定此参数时程序会等待用户输入. 禁用交互模式时, 未指定此参数会触发错误.
 
 --- 
-  > `savepwd`: boolean
-
-  是否保存密码. _可选_. 强烈建议否(默认)
-
---- 
   > `password`: string
 
-  密码. _可选_. 当以`$`开头时, 此为无损编码后的密码, 聊(并)胜(没)于(有)无(用). 不以`$`开头时视为用户输入.
+  密码. __cli only__. 
+
+  __FutureWarning & [安全策略]__ 自`2.0.0b5`起, 本项目采用[keyring][keyring]作为密码存储方式. 原有的配置文件存储即刻停止支持. 由于安全原因, 用户需要自行删除配置文件中的`password`和`savepwd`字段. 对于使用交互模式的用户而言, 启动程序的逻辑没有变化, 程序将提示您输入密码, 并由`keyring`"记住密码". 
+
+  Tips: 从命令行传入`password`仍然支持. 但请注意, 此功能的保留应仅用于开发用途. 非交互模式的用户的正确做法是在程序运行前执行
+
+  ~~~ shell
+  keyring qzone2tg <qq> <password>
+  ~~~
+
+  [keyring]: https://github.com/jaraco/keyring "keyring"
 
 --- 
   > `qr_strategy`: string (enum)
@@ -122,7 +129,7 @@ bot:
   token: hereisyourtoken
   accept_id: 123456789
   # auto_start: True
-  # interval: 86400
+  # daily: ...
   # proxy: ...
   webhook: ...
   ~~~
@@ -157,10 +164,32 @@ bot:
 
   自动刷新间隔.  _可选_. 为0时不自动刷新. 默认为0.
 
+  __FutureWarning__: 自`2.0.0b5`起, `interval`参数将被弃用. 请使用`daily`作为代替. 目前, `interval`将被固定为`86400(time=now, days=everyday)`
+
+  > `daily`: [dailyConfig](#定时), _可选_.
+
   > proxy: [proxyConfig](#代理), _可选_. 
 
   > webhook: [webhookConfig](#webhook), _可选_. 
 
+#### 定时
+
+  键: `bot.daily`
+
+  _可选_, 顾名思义, 每日定时运行bot.
+
+  > `time`: string | list
+
+  _可选_, 每天运行bot的时间. 可指定多个时间, 默认为当前时间.
+
+  - 字符串时间, 必须是%H:%M格式, 如"12:00"
+  - 空格分隔的字符串, 如"08:00 14:00 17:00"
+  - 字符串列表, 如["08:00", "14:00", "17:00"]
+  
+  > `days`: list (1~7)
+
+  表示要自动运行的日期(星期). 如`[1, 2, 3, 4, 5]`表示仅周一到周五运行.
+  _可选_, 默认每天运行.
 
 #### 代理
 

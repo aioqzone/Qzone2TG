@@ -62,7 +62,11 @@ class RefreshBot:
             days=tuple(self.daily.get('days', range(7)))
         )
         if 'time' in self.daily and self.daily['time']:
-            for i in self.daily.time.split():
+            if isinstance(self.daily.time, str):
+                timelist = self.daily.time.split()
+            else:
+                timelist = list(self.daily.time)
+            for i in timelist:
                 self.update.job_queue.run_daily(
                     time=Time.fromisoformat(i), name='period_refresh_' + i, **kw
                 )

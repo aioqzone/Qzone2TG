@@ -41,3 +41,6 @@ class FeedTest(unittest.TestCase):
             msg, img = i.content()
             self.assertTrue(msg)
             self.assertIsInstance(img, list)
+
+    def testzzzz(self):
+        db.close()

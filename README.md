@@ -10,7 +10,7 @@
 <img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">
 </a> 
 
-<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/%5Bdocker%5D%20CI%20for%20releases?logo=docker">
+<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Python%20application?logo=docker">
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
 <img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
@@ -134,6 +134,7 @@ python3 -m qzone2tg
 - lxml: [BSD-3](https://github.com/lxml/lxml/blob/master/LICENSE.txt)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
+- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 
 ## License

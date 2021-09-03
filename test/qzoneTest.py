@@ -49,3 +49,6 @@ class QzoneTest(unittest.TestCase):
             break
         else:
             self.skipTest('no sample crawled')
+
+    def testzzzz(self):
+        db.close()
