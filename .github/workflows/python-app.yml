@@ -3,14 +3,14 @@
 
 name: Python application
 
-on: release
+on: push
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.9]
+        python-version: [3.9]
 
     steps:
       - uses: actions/checkout@v2
@@ -26,8 +26,9 @@ jobs:
 
       - name: Test with unittest
         env:
-          PYTHONPATH: ${env.PYTHONPATH}:$(pwd)/src
+          PYTHONPATH: $(pwd)/src
         run: |
+          export PYTHONPATH=$(pwd)/src
           python -m unittest discover -v -s ./test -p "*Test.py"
 
   trigger:
