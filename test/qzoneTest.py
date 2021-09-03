@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import unittest
 
@@ -8,10 +9,10 @@ from qzone.exceptions import LoginError
 from qzone.parser import QZFeedParser
 
 
-def load_conf(args=None):
+def load_conf():
     from src.__main__ import dueWithConfig
     d = OmegaConf.load('config/test_conf.yml')
-    ca = OmegaConf.from_cli(args or [])
+    ca = OmegaConf.from_dotlist([f'qzone.password={os.environ.get("TEST_PASSWORD")}'])
     d = OmegaConf.merge(d, ca)
     return dueWithConfig(d, True)
 

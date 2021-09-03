@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from frontend.tg.ui import TgExtracter
@@ -7,10 +8,10 @@ from qzone import QzoneScraper
 from qzone.feed import QZCachedScraper
 
 
-def load_conf(args=None):
+def load_conf():
     from src.__main__ import dueWithConfig
     d = OmegaConf.load('config/test_conf.yml')
-    ca = OmegaConf.from_cli(args or [])
+    ca = OmegaConf.from_dotlist([f'qzone.password={os.environ.get("TEST_PASSWORD")}'])
     d = OmegaConf.merge(d, ca)
     return dueWithConfig(d, True)
 
