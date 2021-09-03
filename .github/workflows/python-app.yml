@@ -25,8 +25,10 @@ jobs:
           pip install -e .
 
       - name: Test with unittest
+        env:
+          PYTHONPATH: ${env.PYTHONPATH}:$(pwd)/src
         run: |
-          PYTHONPATH=src; python -m unittest discover -v -s ./test -p "*Test.py"
+          python -m unittest discover -v -s ./test -p "*Test.py"
 
   trigger:
     runs-on: ubuntu-latest
