@@ -26,8 +26,13 @@ jobs:
           pip install demjson
 
       - name: Test with unittest
+        env:
+          TEST_UIN: ${{ TEST_UIN }}
+          TEST_BOT_TOKEN: ${{ TEST_BOT_TOKEN }}
+          TEST_ACCEPTID: ${{ TEST_ACCEPTID }}
+          TEST_PASSWORD: ${{ TEST_PASSWORD }}
+          PYTHONPATH: $(pwd)/src
         run: |
-          export PYTHONPATH=$(pwd)/src
           python -m unittest discover -v -s ./test -p "*Test.py"
 
   trigger:
