@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import sqlite3
 import unittest
 
@@ -17,6 +18,7 @@ def load_conf():
     return dueWithConfig(d, True)
 
 
+Path('data').mkdir(exist_ok=True)
 db = sqlite3.connect('data/test.db', check_same_thread=False)
 spider = QzoneScraper(token_tbl=TokenTable(db.cursor()), **load_conf().qzone)
 
