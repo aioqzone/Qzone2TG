@@ -27,10 +27,10 @@ jobs:
 
       - name: Test with unittest
         env:
-          TEST_UIN: ${{ TEST_UIN }}
-          TEST_BOT_TOKEN: ${{ TEST_BOT_TOKEN }}
-          TEST_ACCEPTID: ${{ TEST_ACCEPTID }}
-          TEST_PASSWORD: ${{ TEST_PASSWORD }}
+          TEST_UIN: ${{ secrets.TEST_UIN }}
+          TEST_BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
+          TEST_ACCEPTID: ${{ secrets.TEST_ACCEPTID }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           PYTHONPATH: $(pwd)/src
         run: |
           python -m unittest discover -v -s ./test -p "*Test.py"
