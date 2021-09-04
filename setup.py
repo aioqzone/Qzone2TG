@@ -20,7 +20,7 @@ setup(
     python_requires=">=3.8",                                       # for f-string and := op
     install_requires=[
         'python-telegram-bot', 'lxml', 'omegaconf', 'keyring',
-        "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
+        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git"
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
