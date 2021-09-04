@@ -9,13 +9,13 @@ import json
 import logging
 import re
 import time
-from functools import wraps
 from typing import Union
 from urllib.parse import quote, unquote
 
 import requests
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
+from tencentlogin import TencentLoginError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
@@ -55,8 +55,10 @@ class LoginHelper:
         self.ui.register_resend_callback(self._qr.show)
 
     def _upLogin(self) -> dict:
-        r = self._up.check()
-        if r[0] == 0: return self._up.login(r, all_cookie=True)
+        try:
+            return self._up.login(self._up.check(), all_cookie=True)
+        except TencentLoginError as e:
+            logger.warning(str(e))
 
     def _qrLogin(self) -> dict:
         r = [None]

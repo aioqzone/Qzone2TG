@@ -18,12 +18,17 @@ def load_conf():
     return dueWithConfig(d, True)
 
 
-Path('data').mkdir(exist_ok=True)
-db = sqlite3.connect('data/test.db', check_same_thread=False)
-spider = QzoneScraper(token_tbl=TokenTable(db.cursor()), **load_conf().qzone)
+def __init__():
+    global db, spider
+    Path('data').mkdir(exist_ok=True)
+    db = sqlite3.connect('data/test.db', check_same_thread=False)
+    spider = QzoneScraper(token_tbl=TokenTable(db.cursor()), **load_conf().qzone)
 
 
 class QzoneTest(unittest.TestCase):
+    def test0000(self):
+        __init__()
+
     def test0_UpdateStatus(self):
         try:
             spider.updateStatus()
@@ -31,10 +36,12 @@ class QzoneTest(unittest.TestCase):
             self.skipTest('Account banned.')
 
     def test1_FetchPage(self):
+        global FEEDS
+        FEEDS = None
         feeds = spider.fetchPage(1)
+        self.assertIsNotNone(feeds)
         self.assertTrue(0 < len(feeds) <= 10)
         feeds.extend(spider.fetchPage(2))
-        global FEEDS
         FEEDS = [QZFeedParser(i) for i in feeds]
 
     def test2_GetFullContent(self):
@@ -47,6 +54,7 @@ class QzoneTest(unittest.TestCase):
         if not hit: self.skipTest('no sample crawled')
 
     def test3_doLike(self):
+        if not FEEDS: self.skipTest('pred test failed')
         for i in FEEDS:
             if not i.isLike: spider.doLike(i.getLikeId())
             break

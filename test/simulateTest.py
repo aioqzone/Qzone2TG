@@ -16,12 +16,17 @@ def load_conf():
     return dueWithConfig(d, True)
 
 
-db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **load_conf().qzone)
-spider = QZCachedScraper(spider, db)
+def __init__():
+    global db, spider
+    db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
+    spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **load_conf().qzone)
+    spider = QZCachedScraper(spider, db)
 
 
 class FeedTest(unittest.TestCase):
+    def test0000(self):
+        __init__()
+
     def test0_Fetch(self):
         self.assertTrue(spider.getFeedsInPage(1))
         self.assertTrue(spider.getFeedsInPage(2))

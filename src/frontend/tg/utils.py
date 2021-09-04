@@ -2,7 +2,7 @@ from math import ceil
 import telegram
 from telegram.bot import Bot
 
-from utils.decorator import FloodControl, decoratorWargs
+from utils.decorator import FloodControl
 
 
 class FixUserBot:
@@ -19,7 +19,7 @@ class FixUserBot:
     def register_flood_control(cls, *args, **kwargs):
         cls._fc = FloodControl(*args, **kwargs)
 
-    @decoratorWargs(_fc, lambda s, t, *a, **kw: ceil(len(t) / 4096))
+    @_fc(lambda s, t, *a, **kw: ceil(len(t) / 4096))
     def sendMessage(self, text: str, reply_markup=None, *args, **kwargs):
         assert text
         if len(text) < 4096:
@@ -35,8 +35,7 @@ class FixUserBot:
             return self.sendMessage(text[:4096], reply_markup, *args, **kwargs) + \
                    self.sendMessage(text[4096:], None, *args, **kwargs)
 
-    @decoratorWargs(
-        _fc,
+    @_fc(
         lambda s, m, i, b=None, *a, **kw: ceil(len(m) / 4096)
         if not i else 1 + (ceil((len(m) - 1024) / 4096) if m else 0)
         if len(i) == 1 else ceil(len(m) / 4096) + len(i) if b else len(i)

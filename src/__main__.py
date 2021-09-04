@@ -83,6 +83,11 @@ def configVersionControl(conf: DictConfig):
             "Please lookup wiki for details. Current timer is set to daily (interval=86400)"
         )
         conf.bot.pop('interval')
+    if 'savepwd' in conf.qzone:
+        fw(
+            "From 2.0.0b5, `qzone.savepwd` is deprecated. Password saving will be powered by `keyring`. "
+            "Just remove this config item. "
+        )
 
     return conf
 
@@ -119,8 +124,8 @@ def main(args):
     "Then remove `qzone.password` and `qzone.savepwd` from config file and try again.\n"
     "PS: passing password from cli is allowed."
 
-    d = dueWithConfig(d, NO_INTERACT)
     configLogger(d.get('log', {}))
+    d = dueWithConfig(d, NO_INTERACT)
     logger.info("config loaded")
 
     tg_plugin_def = {'tg': {'is_sent': 'BOOLEAN default 0'}}

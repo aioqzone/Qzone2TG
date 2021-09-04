@@ -16,25 +16,21 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
-def decoratorWargs(decorator, *da, **dk):
-    def catchFunc(func):
-        return decorator(func, *da, **dk)
+def noexcept(excc: dict = None, *gea, **gekw):
+    def noexceptDecorator(func):
+        @wraps(func)
+        def noexcept_wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not excc: return
+                ty = find_if(exc_chain(type(e)), lambda i: i in excc)
+                f = ty and excc[ty]
+                if f and f(e, *gea, **gekw): return
 
-    return catchFunc
+        return noexcept_wrapper
 
-
-def noexcept(func, excc: dict = None, *gea, **gekw):
-    @wraps(func)
-    def noexcept_wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            if not excc: return
-            ty = find_if(exc_chain(type(e)), lambda i: i in excc)
-            f = ty and excc[ty]
-            if f and f(e, *gea, **gekw): return
-
-    return noexcept_wrapper
+    return noexceptDecorator
 
 
 class Retry:
@@ -59,8 +55,8 @@ class Retry:
                 for k, v in self._excc.items()
             }
             for i in range(self._times + 1):
-                f = noexcept(func, excc, i, *args, **kwargs) if self._inspect else \
-                    noexcept(func, excc, i)
+                f = noexcept(excc, i, *args, **kwargs)(func) if self._inspect else \
+                    noexcept(excc, i)(func)
                 r = f(*args, **kwargs)
                 if ecp:
                     ecp.clear()
@@ -94,26 +90,28 @@ class FloodControl:
             if wait_task <= 0:
                 return i[0] + 1 + self.eps - time.time()
 
-    def __call__(self, func, pred_num_callback: Callable[[Any], int] = None):
+    def __call__(self, pred_num_callback: Callable[[Any], int] = None):
         pred_num_callback = pred_num_callback or (lambda *a, **k: 1)
 
-        @wraps(func)
-        def fc_wrapper(*args, **kwargs):
-            if self._controling: return func(*args, **kwargs)
-            self._controling = True
+        def fcDecorator(func):
+            @wraps(func)
+            def fc_wrapper(*args, **kwargs):
+                if self._controling: return func(*args, **kwargs)
+                self._controling = True
 
-            N = pred_num_callback(*args, **kwargs)
-            while self._ts and self.earliest + 1 + self.eps < time.time():
-                self._ts.popleft()
-            time.sleep(self.wait_time(N))
+                N = pred_num_callback(*args, **kwargs)
+                while self._ts and self.earliest + 1 + self.eps < time.time():
+                    self._ts.popleft()
+                time.sleep(self.wait_time(N))
 
-            try:
-                return self._run(func, N, *args, **kwargs)
-            finally:
-                self._controling = False
+                try:
+                    return self._run(func, N, *args, **kwargs)
+                finally:
+                    self._controling = False
 
-        setattr(fc_wrapper, '__floodControl__', id(self._ts))
-        return fc_wrapper
+            return fc_wrapper
+
+        return fcDecorator
 
     def _run(self, func, N, *args, **kwargs):
         try:

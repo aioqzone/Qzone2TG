@@ -24,10 +24,9 @@ def arglike(i):
         str(i)
 
 
-sqlnoexcept = partial(
-    noexcept,
-    excc={Exception: lambda e: logger.error('sql error occured', exc_info=True)}
-)
+sqlnoexcept = noexcept({
+    Exception: lambda e: logger.error('sql error occured', exc_info=True)
+})
 
 
 class Table:

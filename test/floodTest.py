@@ -14,27 +14,29 @@ def bomb(i):
     raise NotImplementedError
 
 
+fc30 = FloodControl(30)
+
 class TestFlood(TestCase):
     def setUp(self) -> None:
         global BASE_TIME
         BASE_TIME = time.time()
 
     def testFlood(self):
-        f = FloodControl(30)(echo)
+        f = fc30()(echo)
         st = time.time()
         for i in range(150):
             f(i)
         self.assertGreater(time.time(), st + 4)
 
     def testCount(self):
-        f = FloodControl(30)(echo, len)
+        f = fc30(len)(echo)
         st = time.time()
         for i in range(0, 150, 5):
             f(list(range(i, i + 5)))
         self.assertGreater(time.time(), st + 4)
 
     def testExpt(self):
-        f = FloodControl(30)(bomb)
+        f = fc30()(bomb)
         st = time.time()
         for i in range(150):
             try:
@@ -45,11 +47,11 @@ class TestFlood(TestCase):
 
     def testParentControl(self):
         fc = FloodControl(30)
-        fe = fc(echo)
+        fe = fc()(echo)
 
         def callfe(i):
             return fe(i)
 
-        fb = fc(callfe, lambda i: 2)
+        fb = fc(lambda i: 2)(callfe)
         fb(0)
         self.assertEqual(fc.task_num, 2)

@@ -1,5 +1,5 @@
 log:
-  level: error
+  level: warning
   
 bot:
   accept_id: ${oc.env:TEST_ACCEPTID}
