@@ -18,48 +18,48 @@ def load_conf():
     return dueWithConfig(d, True)
 
 
-def __init__():
-    global db, spider
-    Path('data').mkdir(exist_ok=True)
-    db = sqlite3.connect('data/test.db', check_same_thread=False)
-    spider = QzoneScraper(token_tbl=TokenTable(db.cursor()), **load_conf().qzone)
-
-
 class QzoneTest(unittest.TestCase):
-    def test0000(self):
-        __init__()
+    @classmethod
+    def setUpClass(cls):
+        Path('data').mkdir(exist_ok=True)
+        cls.db = sqlite3.connect('data/test.db', check_same_thread=False)
+        cls.spider = QzoneScraper(
+            token_tbl=TokenTable(cls.db.cursor()), **load_conf().qzone
+        )
 
     def test0_UpdateStatus(self):
         try:
-            spider.updateStatus()
+            self.spider.updateStatus()
+            QzoneTest.login = True
         except LoginError:
             self.skipTest('Account banned.')
+            QzoneTest.login = False
 
     def test1_FetchPage(self):
-        global FEEDS
-        FEEDS = None
-        feeds = spider.fetchPage(1)
+        if not QzoneTest.login: self.skipTest('pred test failed')
+        feeds = self.spider.fetchPage(1)
         self.assertIsNotNone(feeds)
         self.assertTrue(0 < len(feeds) <= 10)
-        feeds.extend(spider.fetchPage(2))
-        FEEDS = [QZFeedParser(i) for i in feeds]
+        feeds.extend(self.spider.fetchPage(2))
+        QzoneTest.FEEDS = [QZFeedParser(i) for i in feeds]
 
     def test2_GetFullContent(self):
-        if not FEEDS: self.skipTest('pred test failed')
+        if not QzoneTest.FEEDS: self.skipTest('pred test failed')
         hit = False
-        for i in FEEDS:
+        for i in QzoneTest.FEEDS:
             if not i.isCut(): continue
-            spider.getCompleteFeed(i.parseFeedData())
+            self.spider.getCompleteFeed(i.parseFeedData())
             hit = True
         if not hit: self.skipTest('no sample crawled')
 
     def test3_doLike(self):
-        if not FEEDS: self.skipTest('pred test failed')
-        for i in FEEDS:
-            if not i.isLike: spider.doLike(i.getLikeId())
+        if not QzoneTest.FEEDS: self.skipTest('pred test failed')
+        for i in QzoneTest.FEEDS:
+            if not i.isLike: self.spider.doLike(i.getLikeId())
             break
         else:
             self.skipTest('no sample crawled')
 
-    def testzzzz(self):
-        db.close()
+    @classmethod
+    def tearDownClass(cls) -> None:
+        return cls.db.close()

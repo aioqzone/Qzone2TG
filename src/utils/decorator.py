@@ -16,17 +16,20 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
-def noexcept(excc: dict = None, *gea, **gekw):
+def exc_handler(exc: Exception, excc: dict[type[Exception], Callable]):
+    ty = find_if(exc_chain(type(exc)), lambda i: i in excc)
+    return ty and excc[ty]
+
+
+def noexcept(excc: dict = None, excd: Callable = None):
     def noexceptDecorator(func):
         @wraps(func)
         def noexcept_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if not excc: return
-                ty = find_if(exc_chain(type(e)), lambda i: i in excc)
-                f = ty and excc[ty]
-                if f and f(e, *gea, **gekw): return
+                excd and excd(e)
+                if excc: exc_handler(e, excc)(e)
 
         return noexcept_wrapper
 
@@ -37,31 +40,31 @@ class Retry:
     def __init__(
         self,
         exc_callback: dict[type, Callable[[Exception, int], bool]],
+        exc_default: Callable = None,
         times: int = 1,
         inspect=False,
     ):
         assert times >= 0
         self._excc = exc_callback
+        self._excd = exc_default
         self._times = times
         self._inspect = inspect
 
     def __call__(self, func):
         @wraps(func)
         def retry_wrapper(*args, **kwargs):
-            ecp = []
-            # hook to know whether an exception is raised
-            excc = {
-                k: lambda e, *a, **k: ecp.append(e) or v(e, *a, **k)
-                for k, v in self._excc.items()
-            }
             for i in range(self._times + 1):
-                f = noexcept(excc, i, *args, **kwargs)(func) if self._inspect else \
-                    noexcept(excc, i)(func)
-                r = f(*args, **kwargs)
-                if ecp:
-                    ecp.clear()
-                    continue
-                return r
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    self._excd and self._excd(e, i)
+                    if self._excc:
+                        f = exc_handler(e, self._excc)
+                        if not f: raise e
+                        r = f(e, i, *args, **kwargs) if self._inspect else f(e, i)
+                        if r: return r
+                    else:
+                        raise e
 
         return retry_wrapper
 

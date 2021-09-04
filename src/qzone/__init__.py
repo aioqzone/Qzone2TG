@@ -9,7 +9,7 @@ import json
 import logging
 import re
 import time
-from typing import Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote, unquote
 
 import requests
@@ -40,7 +40,9 @@ RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 class LoginHelper:
     ui = NullUI()
 
-    def __init__(self, uin: int, *, pwd: str = None, qr_strategy='prefer') -> None:
+    def __init__(
+        self, uin: int, *, pwd: str = None, qr_strategy: str = 'prefer'
+    ) -> None:
         self.uin = uin
         self.pwd = pwd
         self.qr_strategy = qr_strategy
@@ -80,11 +82,11 @@ class LoginHelper:
         except KeyboardInterrupt:
             raise UserBreak
 
-    def login(self) -> str:
+    def login(self) -> Optional[dict]:
         """login and return cookie
 
         Returns:
-            str: cookie
+            dict: cookie
 
         Raises:
             UserBreak
@@ -122,14 +124,22 @@ class HTTPHelper:
 
 
 def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
-    if e.code != -3000: raise e
-    if i == 1: raise e
+    if e.code == -10001:
+        if i >= 11: raise TimeoutError('Network is always busy!')
+        logger.info(e.msg)
+        time.sleep(5)
+        return
 
+    if e.code != -3000: raise e
+
+    # e.code == -3000
+    if i == 1: raise e
     logger.info("cookie已过期, 即将重新登陆.")
     QzoneScraper.updateStatus(self, force_login=True)
 
 
-login_if_expire = Retry({QzoneError: onLoginExpire}, inspect=True)
+# retry QzoneError only
+login_if_expire = Retry({QzoneError: onLoginExpire}, times=12, inspect=True)
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
@@ -184,8 +194,14 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         if r["err"] == 0: return r["newFeedXML"].strip()
 
     def updateStatus(self, force_login=False):
-        """
-        update cookie, gtk, qzonetoken
+        """update cookie, gtk
+
+        Args:
+            `force_login` (bool, optional): force to login. Defaults to False.
+
+        Raises:
+            `UserBreak`: SIGINT is sent or `UserBreak` sent by user
+            `LoginError`: Cannot get cookie under current strategy
         """
         if self.uin in self.db:
             if not force_login: cookie = self.db[self.uin]
@@ -242,9 +258,26 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         else: raise QzoneError(r["code"], r["message"])
 
     @login_if_expire
-    def fetchPage(self, pagenum: int, count: int = 10):
-        """
-        fetch a page of feeds
+    def fetchPage(
+        self,
+        pagenum: int,
+        count: int = 10,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """fetch a page of feeds
+
+        Args:
+            pagenum (int): page #
+            count (int, optional): Max feeds num. Defaults to 10.
+
+        Raises:
+            `UserBreak`: see `updateStatus`
+            `LoginError`: see `updateStatus`
+            `QzoneError`: exceptions that are raised by Qzone
+            `TimeoutError`: if no respone get 200 in `fetch_times` times.
+
+        Returns:
+            `list[dict[str, Any]] | None`, each dict reps a feed.
+            None is caused by retry decorator.
         """
         if not hasattr(self, 'gtk'): self.updateStatus()
 
@@ -260,40 +293,34 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         }
         query.update(Args4GettingFeeds)
 
-        for _ in range(self.fetch_times):
-            try:
-                r = self.get(GET_PAGE_URL, params=query)
-            except HTTPError as e:
-                logger.error(f"Http error when fetching page {pagenum}", exc_info=True)
-                raise e
-            except TypeError as e:
-                logger.debug('query = ' + str(query))
-                logger.error(
-                    'BUG: please report this bug with `query`. thanks.', exc_info=True
-                )
-                raise e
-
-            r = RE_CALLBACK.search(r.text).group(1)
-            r = json_loads(r)
-            if r["code"] == -10001:
-                logger.info(r["message"])
-                time.sleep(5)
-            elif r['code'] != 0:
-                raise QzoneError(r['code'], r['message'])
-
-            data: dict = r['data']
-            self.extern[pagenum + 1] = unquote(data['main']["externparam"])
-            feeddict = filter(
-                lambda i: not (
-                    not i or                                    # `undefined` in feed datas or empty feed dict
-                    i['key'].startswith('advertisement_app') or # ad feed
-                    int(i['appid']) >= 4096                     # not supported (cannot encode)
-                ),
-                data['data']
+        try:
+            r = self.get(GET_PAGE_URL, params=query)
+        except HTTPError as e:
+            logger.error(f"Http error when fetching page {pagenum}", exc_info=True)
+            raise e
+        except TypeError as e:
+            logger.debug('query = ' + str(query))
+            logger.error(
+                'BUG: please report this bug with `query`. thanks.', exc_info=True
             )
-            return list(feeddict)
+            raise e
 
-        raise TimeoutError("network is always busy!")
+        r = RE_CALLBACK.search(r.text).group(1)
+        r = json_loads(r)
+        if r['code'] != 0:
+            raise QzoneError(r['code'], r['message'])
+
+        data: dict = r['data']
+        self.extern[pagenum + 1] = unquote(data['main']["externparam"])
+        feeddict = filter(
+            lambda i: not (
+                not i or                                    # `undefined` in feed datas or empty feed dict
+                i['key'].startswith('advertisement_app') or # ad feed
+                int(i['appid']) >= 4096                     # not supported (cannot encode)
+            ),
+            data['data']
+        )
+        return list(feeddict)
 
     @login_if_expire
     def checkUpdate(self):

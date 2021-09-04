@@ -5,6 +5,7 @@ from frontend.tg.ui import TgExtracter
 from middleware.storage import FeedBase, TokenTable
 from omegaconf import OmegaConf
 from qzone import QzoneScraper
+from qzone.exceptions import LoginError
 from qzone.feed import QZCachedScraper
 
 
@@ -16,24 +17,31 @@ def load_conf():
     return dueWithConfig(d, True)
 
 
-def __init__():
-    global db, spider
-    db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-    spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **load_conf().qzone)
-    spider = QZCachedScraper(spider, db)
-
-
 class FeedTest(unittest.TestCase):
-    def test0000(self):
-        __init__()
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.db = FeedBase(
+            'data/test.db', plugins={'tg': {
+                'is_sent': 'BOOLEAN default 0'
+            }}
+        )
+        spider = QzoneScraper(token_tbl=TokenTable(cls.db.cursor), **load_conf().qzone)
+        cls.spider = QZCachedScraper(spider, cls.db)
 
     def test0_Fetch(self):
-        self.assertTrue(spider.getFeedsInPage(1))
-        self.assertTrue(spider.getFeedsInPage(2))
+        try:
+            self.spider.qzone.updateStatus()
+            FeedTest.login = True
+        except LoginError:
+            FeedTest.login = False
+            self.skipTest('Account banned.')
+        self.assertTrue(self.spider.getFeedsInPage(1))
+        self.assertTrue(self.spider.getFeedsInPage(2))
 
     def test1_New(self):
+        if not FeedTest.login: self.skipTest('pred test failed.')
         global FEEDS
-        FEEDS = db.getFeed(
+        FEEDS = self.db.getFeed(
             cond_sql='is_sent IS NULL OR is_sent=0',
             plugin_name='tg',
             order=True,
@@ -43,10 +51,10 @@ class FeedTest(unittest.TestCase):
     def test2_Extract(self):
         if not FEEDS: self.skipTest('pred test failed.')
         for i in FEEDS:
-            i = TgExtracter(i, spider.qzone.uin)
+            i = TgExtracter(i, self.spider.qzone.uin)
             msg, img = i.content()
             self.assertTrue(msg)
             self.assertIsInstance(img, list)
 
     def testzzzz(self):
-        db.close()
+        self.db.close()

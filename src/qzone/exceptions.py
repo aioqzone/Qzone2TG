@@ -19,6 +19,6 @@ class LoginError(RuntimeError):
         self.qr_strategy = qr_strategy
 
 
-class UserBreak(RuntimeError):
+class UserBreak(KeyboardInterrupt):
     def __init__(self) -> None:
         super().__init__()

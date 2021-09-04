@@ -4,6 +4,8 @@ from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 
+from utils.decorator import Retry
+
 from . import QzoneScraper
 from .exceptions import LoginError, UserBreak
 from .parser import QZFeedParser as Parser
@@ -26,25 +28,45 @@ class QZCachedScraper:
     def cleanFeed(self):
         self.db.cleanFeed()
 
-    def getFeedsInPage(self, pagenum: int, reload=False, retry=1):
+    def getFeedsInPage(self, pagenum: int, reload=False):
+        """get compelte feeds from qzone and save them to database
+
+        Args:
+            `pagenum` (int): page #
+            `reload` (bool, optional): whether to ignore existing feed. Defaults to False.
+
+        Return:
+            bool: if success
+
+        Raises:
+            UserBreak: see qzone.updateStatus
+        """        
+        def bomb(e):            raise e    # yapf: disable
+
+        retry403 = Retry({
+            HTTPError: lambda e, i: e.response.status_code != 403 and bomb(e)
+        })
+        fetch_w_retry = retry403(self.qzone.fetchPage)
         try:
-            feeds = self.qzone.fetchPage(pagenum)
+            feeds = fetch_w_retry(pagenum)
         except HTTPError as e:
-            if e.response.status_code == 403 and retry > 0:
-                return self.getFeedsInPage(pagenum, reload=reload, retry=retry - 1)
-            else:
-                raise e
-        except UserBreak:
-            raise UserBreak
-        except Exception:
             logger.error(
-                f'Error fetching page {pagenum}{", force reload" if reload else ""}',
-                exc_info=True
+                f"HTTPError when getting page {pagenum}. Code: {e.response.status_code}"
+            )
+            return False
+        except KeyboardInterrupt:
+            raise UserBreak
+        except LoginError as e:
+            logger.error(f"LoginError: " + e.msg)
+            return False
+        except Exception as e:
+            logger.error(
+                f"{type(e)} when getting page {pagenum}. " + str(e), exc_info=True
             )
             return False
 
-        assert isinstance(feeds, list), "Uncaught error when fetchPage, " \
-                                        "please consider reporting this bug."
+        if feeds is None: return False
+        assert isinstance(feeds, list)
 
         limit = day_stamp() - self.db.keepdays
         new = [
