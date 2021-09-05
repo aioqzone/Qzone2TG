@@ -13,7 +13,6 @@ from frontend.tg import PollingBot, RefreshBot, WebhookBot
 from middleware.storage import FeedBase, TokenTable
 from qzone import QzoneScraper
 from qzone.feed import QZCachedScraper
-from utils.encrypt import pwdTransBack
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 

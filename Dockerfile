@@ -4,8 +4,7 @@ COPY . /app
 
 WORKDIR /app
 
-RUN pip install -e . && \
-    pip install python-telegram-bot[socks]
+RUN pip install -e .\[socks\]
 
 FROM python:3.9-alpine
 

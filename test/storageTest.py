@@ -4,8 +4,9 @@ from qzone.parser import QZFeedParser
 
 
 class SqlTest(TestCase):
-    def setUp(self):
-        self.s = FeedBase(
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.s = FeedBase(
             'data/test.db',
             plugins={'tg': {
                 'is_sent': 'BOOLEAN default 0'
@@ -46,5 +47,6 @@ class SqlTest(TestCase):
         a = self.s.getFeed('is_sent IS NULL OR is_sent=0', 'tg')
         self.assertTrue(a)
 
-    def testzzzz(self):
-        self.s.close()
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.s.close()

@@ -31,15 +31,15 @@ class FeedTest(unittest.TestCase):
     def test0_Fetch(self):
         try:
             self.spider.qzone.updateStatus()
-            FeedTest.login = True
+            self.login = True
         except LoginError:
-            FeedTest.login = False
+            self.login = False
             self.skipTest('Account banned.')
         self.assertTrue(self.spider.getFeedsInPage(1))
         self.assertTrue(self.spider.getFeedsInPage(2))
 
     def test1_New(self):
-        if not FeedTest.login: self.skipTest('pred test failed.')
+        if not self.login: self.skipTest('pred test failed.')
         global FEEDS
         FEEDS = self.db.getFeed(
             cond_sql='is_sent IS NULL OR is_sent=0',

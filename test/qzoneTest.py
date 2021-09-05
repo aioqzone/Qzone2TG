@@ -30,31 +30,31 @@ class QzoneTest(unittest.TestCase):
     def test0_UpdateStatus(self):
         try:
             self.spider.updateStatus()
-            QzoneTest.login = True
+            self.login = True
         except LoginError:
             self.skipTest('Account banned.')
-            QzoneTest.login = False
+            self.login = False
 
     def test1_FetchPage(self):
-        if not QzoneTest.login: self.skipTest('pred test failed')
+        if not self.login: self.skipTest('pred test failed')
         feeds = self.spider.fetchPage(1)
         self.assertIsNotNone(feeds)
         self.assertTrue(0 < len(feeds) <= 10)
         feeds.extend(self.spider.fetchPage(2))
-        QzoneTest.FEEDS = [QZFeedParser(i) for i in feeds]
+        self.FEEDS = [QZFeedParser(i) for i in feeds]
 
     def test2_GetFullContent(self):
-        if not QzoneTest.FEEDS: self.skipTest('pred test failed')
+        if not self.FEEDS: self.skipTest('pred test failed')
         hit = False
-        for i in QzoneTest.FEEDS:
+        for i in self.FEEDS:
             if not i.isCut(): continue
             self.spider.getCompleteFeed(i.parseFeedData())
             hit = True
         if not hit: self.skipTest('no sample crawled')
 
     def test3_doLike(self):
-        if not QzoneTest.FEEDS: self.skipTest('pred test failed')
-        for i in QzoneTest.FEEDS:
+        if not self.FEEDS: self.skipTest('pred test failed')
+        for i in self.FEEDS:
             if not i.isLike: self.spider.doLike(i.getLikeId())
             break
         else:
