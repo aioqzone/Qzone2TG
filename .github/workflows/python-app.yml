@@ -26,9 +26,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel
           pip install -e .
-          pip install demjson
+          pip install demjson pytest
 
-      - name: Test with unittest
+      - name: Test with pytest
         env:
           TEST_UIN: ${{ secrets.TEST_UIN }}
           TEST_BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
@@ -36,7 +36,7 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
           export PYTHONPATH=$(pwd)/src
-          python -m unittest discover -v -s ./test -p "*Test.py"
+          python -m pytest test
 
   trigger:
     runs-on: ubuntu-latest

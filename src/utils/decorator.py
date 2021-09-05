@@ -76,6 +76,10 @@ class FloodControl:
         self.eps = epsilon
         self._controling = False
 
+    def reset(self):
+        assert not self._controling
+        self._ts.clear()
+
     @property
     def task_num(self) -> int:
         return sum(i[1] for i in self._ts)

@@ -7,7 +7,7 @@ __pycache__
 .pylintrc
 yapf_style.cfg
 .env
-test/botTest.py
+test/test_bot.py
 config/config.yaml
 
 # temporary files

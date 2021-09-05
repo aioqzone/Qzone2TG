@@ -1,11 +1,11 @@
-from unittest import TestCase
+import pytest
 from middleware.storage import FeedBase
 from qzone.parser import QZFeedParser
 
 
-class SqlTest(TestCase):
+class TestSql:
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         cls.s = FeedBase(
             'data/test.db',
             plugins={'tg': {
@@ -24,29 +24,29 @@ class SqlTest(TestCase):
         #yapf: enable
         feed = QZFeedParser(feed)
         if feed.fid in self.s.feed:
-            self.skipTest('feed already in database')
+            pytest.skip('feed already in database')
         self.s.dumpFeed(feed)
 
     def test2_Read(self):
-        self.assertEqual(len(self.s.getFeed('abstime < 100000000')), 0)
+        assert (len(self.s.getFeed('abstime < 100000000')) == 0)
         a = self.s.feed['397e51599d4ef560321f0000']
-        self.assertIsNotNone(a)
-        self.assertEqual(a['fid'], '397e51599d4ef560321f0000')
-        self.assertEqual(a['abstime'], 100000000)
-
-    def test4_Clean(self):
-        self.assertTrue(len(self.s.getFeed()))
-        self.s.cleanFeed()
-        self.assertEqual(len(self.s.getFeed()), 0)
-        self.s.cursor.execute('select * from tg')
-        self.assertEqual(len(self.s.cursor.fetchall()), 0)
-        a = self.s.archive['397e51599d4ef560321f0000']
-        self.assertIsNotNone(a)
+        assert a is not None
+        assert (a['fid'] == '397e51599d4ef560321f0000')
+        assert (a['abstime'] == 100000000)
 
     def test3_GetUnsent(self):
         a = self.s.getFeed('is_sent IS NULL OR is_sent=0', 'tg')
-        self.assertTrue(a)
+        assert a
+
+    def test4_Clean(self):
+        assert len(self.s.getFeed())
+        self.s.cleanFeed()
+        assert len(self.s.getFeed()) == 0
+        self.s.cursor.execute('select * from tg')
+        assert len(self.s.cursor.fetchall()) == 0
+        a = self.s.archive['397e51599d4ef560321f0000']
+        assert a is not None
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         cls.s.close()

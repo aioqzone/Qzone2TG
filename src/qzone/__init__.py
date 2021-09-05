@@ -143,6 +143,8 @@ login_if_expire = Retry({QzoneError: onLoginExpire}, times=12, inspect=True)
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
+    gtk: int = None
+
     def __init__(
         self,
         token_tbl: TokenTable,
@@ -236,7 +238,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
     @login_if_expire
     def doLike(self, likedata: dict) -> bool:
-        if not hasattr(self, 'gtk'): self.updateStatus()
+        if self.gtk is None: self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
             'opuin': self.uin,
@@ -279,7 +281,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             `list[dict[str, Any]] | None`, each dict reps a feed.
             None is caused by retry decorator.
         """
-        if not hasattr(self, 'gtk'): self.updateStatus()
+        if self.gtk is None: self.updateStatus()
 
         query = {
             'uin': self.uin,
