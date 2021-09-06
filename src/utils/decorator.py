@@ -1,6 +1,6 @@
 from functools import wraps
 import time
-from typing import Any, Callable, Type
+from typing import Any, Callable, Dict, Type
 from utils.iterutils import find_if
 from collections import deque
 
@@ -16,7 +16,7 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
-def exc_handler(exc: Exception, excc: dict[Type[Exception], Callable]):
+def exc_handler(exc: Exception, excc: Dict[Type[Exception], Callable]):
     ty = find_if(exc_chain(type(exc)), lambda i: i in excc)
     return ty and excc[ty]
 
@@ -39,7 +39,7 @@ def noexcept(excc: dict = None, excd: Callable = None):
 class Retry:
     def __init__(
         self,
-        exc_callback: dict[type, Callable[[Exception, int], bool]],
+        exc_callback: Dict[type, Callable[[Exception, int], bool]],
         exc_default: Callable = None,
         times: int = 1,
         inspect=False,
