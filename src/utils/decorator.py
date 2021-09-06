@@ -1,6 +1,6 @@
 from functools import wraps
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Type
 from utils.iterutils import find_if
 from collections import deque
 
@@ -16,7 +16,7 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
-def exc_handler(exc: Exception, excc: dict[type[Exception], Callable]):
+def exc_handler(exc: Exception, excc: dict[Type[Exception], Callable]):
     ty = find_if(exc_chain(type(exc)), lambda i: i in excc)
     return ty and excc[ty]
 

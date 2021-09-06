@@ -50,9 +50,6 @@ class QZCachedScraper:
         try:
             feeds = fetch_w_retry(pagenum)
         except HTTPError as e:
-            logger.error(
-                f"HTTPError when getting page {pagenum}. Code: {e.response.status_code}"
-            )
             return False
         except KeyboardInterrupt:
             raise UserBreak

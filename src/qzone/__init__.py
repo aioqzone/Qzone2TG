@@ -298,10 +298,12 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         try:
             r = self.get(GET_PAGE_URL, params=query)
         except HTTPError as e:
-            logger.error(f"Http error when fetching page {pagenum}", exc_info=True)
+            logger.error(
+                f"HttpError when fetching page {pagenum}, Code: {e.response.status_code}"
+            )
             raise e
         except TypeError as e:
-            logger.debug('query = ' + str(query))
+            print('query = ' + str(query))
             logger.error(
                 'BUG: please report this bug with `query`. thanks.', exc_info=True
             )

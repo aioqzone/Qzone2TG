@@ -74,6 +74,8 @@ help - Get help info.
 
 ### 源码安装
 
+> 目前仍支持python3.8, 但推荐使用python3.9. 不排除未来停止py38支持的可能. 
+
 1. 安装`nodejs` (若不使用账密登录可跳过此项)
 2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
 3. 
