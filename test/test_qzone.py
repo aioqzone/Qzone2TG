@@ -49,7 +49,7 @@ def test_FetchPage():
 
 
 def test_GetFullContent():
-    if FEEDS is None: pytest.mark.skpif('pred test failed.')
+    if FEEDS is None: pytest.skip('pred test failed.')
     hit = False
     for i in FEEDS:
         if not i.isCut(): continue
@@ -59,7 +59,7 @@ def test_GetFullContent():
 
 
 def test_doLike():
-    if FEEDS is None: pytest.mark.skpif('pred test failed.')
+    if FEEDS is None: pytest.skip('pred test failed.')
     if not FEEDS: pytest.skip('pred test failed')
     for i in FEEDS:
         if not i.isLike: spider.doLike(i.getLikeId())
