@@ -26,7 +26,7 @@ def getPassword(qzone: DictConfig):
         pwd = getpass(
             f'Password{"" if strategy == "forbid" else " (press Enter to skip)"}:'
         )
-        if (pwd := pwd.strip()): keyring.set_password(NAME_LOWER, qzone.qq, pwd)
+        if (pwd := pwd.strip()): keyring.set_password(NAME_LOWER, str(qzone.qq), pwd)
     if not (pwd and pwd.strip()):
         if strategy == 'forbid':
             raise ValueError('config: No password specified.')
