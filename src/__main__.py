@@ -15,6 +15,7 @@ from qzone import QzoneScraper
 from qzone.feed import QZCachedScraper
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
+NO_INTERACT: bool = True
 
 
 def getPassword(qzone: DictConfig):
@@ -24,7 +25,7 @@ def getPassword(qzone: DictConfig):
 
     if PWD_KEY in qzone:
         assert NO_INTERACT, "password can be passed by CLI only when no-interact"
-        logger.info('got password from CLI.')
+        return
 
     pwd = keyring.get_password(NAME_LOWER, str(qzone.qq))
     if not pwd and not NO_INTERACT:
@@ -168,7 +169,7 @@ if __name__ == '__main__':
         from __version__ import version
         print(version())
         exit(0)
-    global CONF_PATH, NO_INTERACT
+    global CONF_PATH
     CONF_PATH = arg.config
     NO_INTERACT = arg.no_interaction
     main([i for i in sys.argv[1:] if not i.startswith('-')])
