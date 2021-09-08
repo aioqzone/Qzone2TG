@@ -19,7 +19,12 @@ DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 
 def getPassword(qzone: DictConfig):
     PWD_KEY = "password"
-    if (strategy := qzone.get('qr_strategy', 'prefer')) == 'force': return qzone
+    strategy = qzone.get('qr_strategy', 'prefer')
+    if strategy == 'force': return qzone
+
+    if PWD_KEY in qzone:
+        assert NO_INTERACT, "password can be passed by CLI only when no-interact"
+        logger.info('got password from CLI.')
 
     pwd = keyring.get_password(NAME_LOWER, str(qzone.qq))
     if not pwd and not NO_INTERACT:
@@ -28,18 +33,16 @@ def getPassword(qzone: DictConfig):
         )
         if (pwd := pwd.strip()): keyring.set_password(NAME_LOWER, str(qzone.qq), pwd)
     if not (pwd and pwd.strip()):
-        if strategy == 'forbid':
-            raise ValueError('config: No password specified.')
-        elif strategy == 'prefer':
-            logging.info(
+        d = {
+            'forbid': lambda: ValueError('config: No password specified.'),
+            'prefer': lambda: logging.info(
                 'Password not given. qr_strategy changed from `prefer` to `force`.'
-            )
-            qzone.qr_strategy = 'force'
-        elif strategy == 'allow':
-            logging.warning(
+            ) or qzone.__setitem__('qr_strategy', 'force'),
+            'allow': lambda: logging.warning(
                 'Password not given. qr_strategy changed from `allow` to `force`.'
-            )
-            qzone.qr_strategy = 'force'
+            ) or qzone.__setitem__('qr_strategy', 'force')
+        }
+        if (e := d[strategy]()): raise e
     qzone[PWD_KEY] = pwd
     return qzone
 
@@ -104,10 +107,7 @@ def dueWithConfig(conf: DictConfig, NO_INTERACT=False):
         raise ValueError('config: No QQ specified.')
     else:
         conf.qzone.qq = input('QQ: ')
-    if 'password' in conf.qzone:
-        print('Got password passed from cli.')
-    else:
-        getPassword(conf.qzone)
+    getPassword(conf.qzone)
     return conf
 
 
