@@ -7,7 +7,7 @@ services:
     environment:
       DBUS_SESSION_BUS_ADDRESS: ${DBUS_SESSION_BUS_ADDRESS}
     volumes:
-      - ${DBUS_SESSION_BUS_ADDRESS}:${DBUS_SESSION_BUS_ADDRESS}:ro
+      - ${DBUS_SESSION_BUS_PATH}:${DBUS_SESSION_BUS_PATH}:ro
       - $PWD/config/config.yaml:/app/config/config.yaml:ro
       - $PWD/data:/app/data
     # privileged: true

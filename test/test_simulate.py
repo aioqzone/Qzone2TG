@@ -34,8 +34,8 @@ def test_Fetch():
     except LoginError:
         login = False
         pytest.skip('Account banned.', allow_module_level=True)
-    assert spider.getFeedsInPage(1)
-    assert spider.getFeedsInPage(2)
+    assert spider.getFeedsInPage(1, True)
+    assert spider.getFeedsInPage(2, True)
 
 
 def test_New():

@@ -6,11 +6,15 @@
 
 <!-- ![](https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social) -->
 
+<img src="https://img.shields.io/badge/python-3.8%2F3.9-blue">
+
 <a href="https://github.com/JamzumSum/Qzone2TG/releases">
 <img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">
 </a> 
 
-<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Python%20application?logo=docker">
+<a href="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml">
+<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Python%20application?logo=github">
+</a>
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
 <img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
@@ -18,11 +22,11 @@
 
 </div>
 
-> __[安全策略]__ 2.0.0b5要求密码必须交由`keyring`存储, 请及时 __删除配置文件中的`password`, `savepwd`字段__ 👉[wiki](https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3#%E7%88%AC%E8%99%AB)
-> 2.0.0b5 又双修复了少量bug(x
+> [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)
 
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
-> [v2.0.0b5][4] availible now!</br>
+> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
+
+> [v2.0.0b5][4] availible now!
 
 ## 功能
 
@@ -78,7 +82,7 @@ help - Get help info.
 
 1. 安装`nodejs` (若不使用账密登录可跳过此项)
 2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
-3. 
+3. 依序执行:
 
   ``` shell
   # clone本项目
@@ -106,8 +110,7 @@ help - Get help info.
 ### 启动
 
 ``` shell
-python3 -m qzone2tg
-# 输入密码或跳过
+python src/__main__.py
 ```
 
 ## 卸载
@@ -116,14 +119,19 @@ python3 -m qzone2tg
 |:--------------|:------------|
 |data           |保存数据库     |
 
-脚本没有在Qzone2TG文件夹外存储数据. 
+您的密码保存于系统的keyring中. 除此之外, 脚本没有在Qzone2TG文件夹外存储数据. 
+
+删除密码:
+~~~ shell
+keyring del qzone2tg <your-qq>
+~~~
 
 如果您需要完全卸载:
 1. 删除clone的源文件夹, 在未被修改的情况下, 是`Qzone2TG`
 2. _可选的_  删除安装的依赖:
 
     ``` shell
-    #您可以自行选择卸载哪些扩展.
+    # python依赖
     pip3 uninstall python-telegram-bot lxml omegaconf keyring tencentlogin
     ```
 

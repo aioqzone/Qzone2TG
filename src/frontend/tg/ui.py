@@ -10,7 +10,7 @@ from .compress import LikeId
 from utils.decorator import Retry
 
 SUPPORT_TYPEID = (0, 2, 5)
-SUPPORT_APPID = (4, 202, 311)
+SUPPORT_APPID = (4, 11, 202, 311)
 APP_NAME = {4: 'QQ相册', 202: '分享', 311: 'QQ空间'}
 
 br = '\n'
@@ -136,8 +136,9 @@ class TgExtracter(ContentExtracter):
         return f'<a href="{link}">{txt}</a>' if link else txt
 
     def msg(self):
-        if self.feed.appid not in SUPPORT_APPID: return
-        if self.feed.typeid not in SUPPORT_TYPEID: return
+        if self.feed.appid not in SUPPORT_APPID: return ''
+        if self.feed.typeid not in SUPPORT_TYPEID:
+            logger.warning(f'Unsupported typeid={self.feed.typeid}')
 
         msg = self.feed.nickname + self.feed.feedstime
 

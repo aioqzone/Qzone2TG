@@ -72,7 +72,7 @@ class RefreshBot:
                 )
         else:
             self.update.job_queue.run_daily(
-                time=datetime.now(timezone(timedelta(hours=8))).time(),
+                time=(datetime.utcnow() + timedelta(hours=8)).time(),
                 name='period_refresh',
                 **kw
             )

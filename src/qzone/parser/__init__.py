@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Optional
 
 from lxml.html import HtmlElement, fromstring, tostring
 from utils.iterutils import find_if
@@ -15,7 +16,8 @@ HTML_ENTITY = {
 }
 
 
-def subHtmlEntity(txt: str):
+def subHtmlEntity(txt: Optional[str]):
+    if txt is None: return ''
     return re.sub('[<>&]', lambda m: HTML_ENTITY[m.group(0)], txt)
 
 
@@ -23,25 +25,26 @@ def elm2txt(elm: HtmlElement, richText=True) -> str:
     """
     elm: Iterable[HtmlElement]
     """
-    txt = subHtmlEntity(elm.text or "")
+    txt = subHtmlEntity(elm.text)
+
+    hd = lambda i: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
+    switch = {'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd}
+    switch.update(
+        br=lambda i: '\n',
+        img=lambda i: url2unicode(i.attrib['src']),
+        div=lambda i: elm2txt(i, richText),
+        span=lambda i: elm2txt(i, richText),
+        a=lambda i: '' if i.attrib['href'].startswith("javascript") else
+        f'<a href="{i.attrib["href"]}">{subHtmlEntity(i.text)}</a>'
+        if richText else subHtmlEntity(i.text)
+    )
 
     for i in elm:
         if not isinstance(i, HtmlElement):
             txt += subHtmlEntity(i)
             continue
-
-        hd = lambda: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
-        if i.tag in (switch := {
-                'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd, \
-                'br': lambda: '\n',
-                'img': lambda: url2unicode(i.attrib['src']),
-                'div': lambda: elm2txt(i),
-                'span': lambda: elm2txt(i),
-                'a': lambda: '' if i.attrib['href'].startswith("javascript") else
-                    f'<a href="{i.attrib["href"]}">{subHtmlEntity(i.text)}</a>' if richText else \
-                    subHtmlEntity(i.text),
-        }):
-            txt += switch[i.tag]() + subHtmlEntity(i.tail or "")
+        if i.tag in switch:
+            txt += switch[i.tag](i) + subHtmlEntity(i.tail)
         else:
             logger.warning("cannot recognize tag: " + i.tag)
     return txt
@@ -111,7 +114,10 @@ class QZHtmlParser:
         if not hasattr(self, 'feedData'):
             elm = (elm := self.__x('//i[@name="feed_data"]')) and elm[0].attrib
             if elm:
-                self.feedData = {k[5:]: v for k, v in elm.items() if k.startswith("data-")}
+                self.feedData = {
+                    k[5:]: v
+                    for k, v in elm.items() if k.startswith("data-")
+                }
             else:
                 logger.warning('cannot parse i@name="feed_data"')
                 self.feedData = {}
