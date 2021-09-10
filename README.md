@@ -2,11 +2,16 @@
 
 爬取QQ空间说说并转发到telegram
 
-<div style="text-align:center">
+<div style="text-align:left">
 
 <!-- ![](https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social) -->
 
 <img src="https://img.shields.io/badge/python-3.8%2F3.9-blue">
+
+<a href="https://github.com/JamzumSum/QQQR/actions/workflows/python-app.yml">
+<img src="https://img.shields.io/github/workflow/status/JamzumSum/QQQR/Python%20application?event=schedule&label=QQQR">
+</img>
+</a>
 
 <a href="https://github.com/JamzumSum/Qzone2TG/releases">
 <img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">

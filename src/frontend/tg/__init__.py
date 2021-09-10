@@ -1,6 +1,7 @@
 import logging
 import re
-from datetime import datetime, time as Time, timedelta, timezone
+from datetime import datetime, time as Time, timedelta
+from pytz import timezone
 
 import telegram
 from qzone.exceptions import UserBreak
@@ -17,6 +18,7 @@ from .compress import LikeId
 from .ui import TgExtracter, TgUI, br, retry_once
 
 logger = logging.getLogger(__name__)
+TIME_ZONE = timezone('Asia/Shanghai')
 
 
 class FakeObj:
@@ -50,7 +52,7 @@ class RefreshBot:
         def cleanFeed(context):
             self.feedmgr.cleanFeed()
 
-        self.update.job_queue.run_daily(cleanFeed, Time(0, 0, 0, 1))
+        self.update.job_queue.run_daily(cleanFeed, Time(tzinfo=TIME_ZONE))
         self.update.job_queue.run_custom(cleanFeed, {})
 
     def __del__(self):
@@ -61,6 +63,7 @@ class RefreshBot:
             callback=lambda c: self.onFetch(c.bot, False),
             days=tuple(self.daily.get('days', range(7)))
         )
+        tctz = lambda t: t.replace(second=0, microsecond=0, tzinfo=TIME_ZONE)
         if 'time' in self.daily and self.daily['time']:
             if isinstance(self.daily.time, str):
                 timelist = self.daily.time.split()
@@ -68,11 +71,11 @@ class RefreshBot:
                 timelist = list(self.daily.time)
             for i in timelist:
                 self.update.job_queue.run_daily(
-                    time=Time.fromisoformat(i), name='period_refresh_' + i, **kw
+                    time=tctz(Time.fromisoformat(i)), name='period_refresh_' + i, **kw
                 )
         else:
             self.update.job_queue.run_daily(
-                time=(datetime.utcnow() + timedelta(hours=8)).time(),
+                time=tctz((datetime.utcnow() + timedelta(hours=8)).time()),
                 name='period_refresh',
                 **kw
             )
@@ -186,12 +189,12 @@ class PollingBot(RefreshBot):
                 description="Force login. Then refresh and resend all feeds."
             ),
             telegram.BotCommand(
-                command="refresh", description="Refresh and send any new feeds.."
+                command="refresh", description="Refresh and send any new feeds."
             ),
             telegram.BotCommand(
                 command="resend", description="Resend any unsent feeds."
             ),
-            telegram.BotCommand(command="help", description="Send this message.")
+            telegram.BotCommand(command="help", description="Send help message.")
         ]
         try:
             self.update.bot.set_my_commands(commands)

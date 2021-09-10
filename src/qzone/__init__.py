@@ -56,19 +56,32 @@ class LoginHelper:
         self.ui = ui
         self.ui.register_resend_callback(self._qr.show)
 
-    def _upLogin(self) -> dict:
+    def _upLogin(self) -> Optional[dict]:
+        """login use uin and pwd
+
+        Returns:
+            Optional[dict]: cookie dict if success, else None
+        """
         try:
             return self._up.login(self._up.check(), all_cookie=True)
         except TencentLoginError as e:
             logger.warning(str(e))
 
-    def _qrLogin(self) -> dict:
+    def _qrLogin(self, refresh_time=6) -> Optional[dict]:
+        """Login with QR. BLOCK until user interact or timeout.
+
+        Raises:
+            UserBreak: if user break the login procedure.
+
+        Returns:
+            Optional[dict]: cookie dict if success, else None
+        """
         r = [None]
-        sched = self._qr.loop(all_cookie=True)(
-            refresh_callback=lambda b: \
-                (self.ui.QrExpired if sched.cnt else self.ui.QrFetched)(b),
+        sched = self._qr.loop(refresh_time=refresh_time, all_cookie=True)(  # yapf: disable
+            refresh_callback=lambda b: sendmethod()(b),
             return_callback=lambda b: r.__setitem__(0, b),
         )
+        sendmethod = lambda: self.ui.QrExpired if sched.cnt else self.ui.QrFetched
         self.ui.register_cancel_callback(lambda: sched.stop(exception=True))
         try:
             sched.start()
@@ -83,10 +96,10 @@ class LoginHelper:
             raise UserBreak
 
     def login(self) -> Optional[dict]:
-        """login and return cookie
+        """login and return cookie according to qr_strategy
 
         Returns:
-            dict: cookie
+            Optional[dict]: cookie dict if success, else None
 
         Raises:
             UserBreak
@@ -238,6 +251,19 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
     @login_if_expire
     def doLike(self, likedata: dict) -> bool:
+        """like a post according to likedata
+
+        - login_if_expire
+
+        Args:
+            likedata (dict): data contains essential args to like a post
+
+        Raises:
+            QzoneError: Error from qzone interface
+
+        Returns:
+            bool: if success
+        """        
         if self.gtk is None: self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
@@ -267,6 +293,8 @@ class QzoneScraper(LoginHelper, HTTPHelper):
     ) -> Optional[List[Dict[str, Any]]]:
         """fetch a page of feeds
 
+        - login_if_expire
+        
         Args:
             pagenum (int): page #
             count (int, optional): Max feeds num. Defaults to 10.
