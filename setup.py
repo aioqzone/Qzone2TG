@@ -20,7 +20,7 @@ setup(
     install_requires=[
         'python-telegram-bot', 'lxml', 'omegaconf', 'keyring',
         "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
-        "QzEmoji @ https://github.com/JamzumSum/QzEmoji.git"
+        "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git"
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
