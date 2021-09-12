@@ -4,7 +4,7 @@ COPY . /app
 
 WORKDIR /app
 
-RUN apt update -y && apt install -y gnome-keyring && \
+RUN apt-get update -y && apt-get install -y gnome-keyring && \
     pip install -e .\[socks\]
 
 FROM python:3.9-alpine

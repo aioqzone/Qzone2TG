@@ -12,17 +12,8 @@ qzone:
   # UA
   # UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62
   
-  # 拉取说说时允许重试次数
-  # fetch_times: 12
-
   # qq
   qq: 123456789
-  
-  # 是否保存密码. 强烈建议否
-  # savepwd: False
-  
-  # 密码. 当以$开头时, 此为无损编码后的密码, 聊(并)胜(没)于(有)无(用). 不以$开头时视为用户输入.
-  # password: uploginisnotrecommended
   
   # 二维码登录偏好. force/prefer/allow/forbid, 倾向逐次降低.
   qr_strategy: prefer
@@ -41,14 +32,14 @@ bot:
   token: hereisyourtoken
   
   # admin id
-  accept_id:
-    - 123456789
+  accept_id: 123456789
   
   # 运行程序后自动执行/start命令, 默认True
   # auto_start: True
   
-  # 自动刷新间隔(秒). 0为禁用.
-  # interval: 86400
+  # 定时刷新设置.
+  # daily: 
+  #   time: 11:00 20:00
     
   # 代理, 可选.
   # proxy:

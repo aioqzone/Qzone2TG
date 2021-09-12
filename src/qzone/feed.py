@@ -3,7 +3,6 @@ import logging
 from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
-
 from utils.decorator import Retry
 
 from . import QzoneScraper
@@ -15,7 +14,8 @@ PAGE_LIMIT = 1000
 
 
 class QZCachedScraper:
-    new_limit = 30         # not implement
+    """Scraper + Database
+    """    
     ui = NullUI()
 
     def __init__(self, qzone: QzoneScraper, db: FeedBase):
@@ -87,6 +87,14 @@ class QZCachedScraper:
         return True
 
     def fetchNewFeeds(self, reload=False):
+        """fetch all new feeds.
+
+        Args:
+            reload (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
+
+        Returns:
+            bool: if success
+        """        
         flag = False
         for i in range(PAGE_LIMIT):
             tmp = self.getFeedsInPage(i + 1, reload)
@@ -95,9 +103,28 @@ class QZCachedScraper:
         return flag
 
     def like(self, likedata: dict):
+        """like a post specified by likedata
+
+        Args:
+            likedata (dict): data for do like
+
+        Returns:
+            bool: if success
+        """        
         return self.qzone.doLike(likedata)
 
     def likeAFile(self, fid: str):
+        """like a post specified by fid
+
+        Args:
+            fid (str): use fid to lookup the storage for likedata
+
+        Raises:
+            FileNotFoundError: if fid not exist
+
+        Returns:
+            bool: if success
+        """        
         r = self.db.feed[fid] or self.db.archive[fid]
         if not r: raise FileNotFoundError
         return self.like(Parser(r).getLikeId())

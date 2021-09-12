@@ -136,8 +136,19 @@ def main(args):
     feedmgr = QZCachedScraper(spider, db)
     logger.debug('crawler OK')
 
-    BotCls = {'polling': PollingBot, 'webhook': WebhookBot, "refresh": RefreshBot} \
-        [d.bot.pop('method', 'polling')]
+    method = d.bot.method
+    if 'webhook' in d.bot:
+        if method == 'polling':
+            logger.warning(
+                "You've specified `webhook` ConfigDict but leaving `method` as `polling`. "
+                "Webhook is used in this case."
+            )
+        method = 'webhook'
+    BotCls = {
+        'polling': PollingBot,
+        'webhook': WebhookBot,
+        "refresh": RefreshBot
+    }[method]
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     logger.debug('bot OK')
 
