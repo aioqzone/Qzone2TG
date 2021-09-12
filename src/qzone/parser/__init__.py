@@ -3,9 +3,8 @@ import re
 from typing import Optional
 
 from lxml.html import HtmlElement, fromstring, tostring
+from qzemoji import query
 from utils.iterutils import find_if
-
-from .emojimgr import url2unicode
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,14 @@ HTML_ENTITY = {
 def subHtmlEntity(txt: Optional[str]):
     if txt is None: return ''
     return re.sub('[<>&]', lambda m: HTML_ENTITY[m.group(0)], txt)
+
+
+def url2unicode(src: str):
+    m = re.search(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)", src)
+    if m is None: return ""
+    m = query(m.group(1))
+    if m is None: return ""
+    return f"[/{m}]"
 
 
 def elm2txt(elm: HtmlElement, richText=True) -> str:

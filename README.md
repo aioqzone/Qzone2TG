@@ -26,11 +26,13 @@
 
 </div>
 
+> We are using [QzEmoji](https://github.com/JamzumSum/QzEmoji) to transfer emoji HTML link to text and actual emoji. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
+
 > [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)
 
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
 
-> [v2.0.0b5][4] availible now!
+> [v2.0.0rc2][4] availible now!
 
 ## 功能
 
@@ -136,7 +138,7 @@ keyring del qzone2tg <your-qq>
 
     ``` shell
     # python依赖
-    pip3 uninstall python-telegram-bot lxml omegaconf keyring tencentlogin
+    pip3 uninstall python-telegram-bot lxml omegaconf keyring tencentlogin qzemoji
     ```
 
 ## Credits
@@ -150,6 +152,7 @@ keyring del qzone2tg <your-qq>
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
 - keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
+- qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
 ## License
 
@@ -159,5 +162,5 @@ keyring del qzone2tg <your-qq>
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0b5 "2.0.0 beta5"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc "2.0.0 rc2"
 [5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"

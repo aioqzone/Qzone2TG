@@ -4,7 +4,7 @@ from src.__version__ import version, NAME, NAME_LOWER
 from setuptools import setup, find_packages
 
 PACKAGES = find_packages(where='src')
-PACKAGES += ['misc', 'utils']
+PACKAGES += ['utils']
 
 PACKAGES = [NAME_LOWER] + [f"{NAME_LOWER}.{i}" for i in PACKAGES]
 
@@ -19,7 +19,8 @@ setup(
     python_requires=">=3.8",                                       # for f-string and := op
     install_requires=[
         'python-telegram-bot', 'lxml', 'omegaconf', 'keyring',
-        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git"
+        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
+        "QzEmoji @ https://github.com/JamzumSum/QzEmoji.git"
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
@@ -28,8 +29,6 @@ setup(
     packages=PACKAGES,
     package_dir={
         NAME_LOWER: "src",
-        f"{NAME_LOWER}.misc": 'misc',
     },
     include_package_data=True,
-    package_data={'f{NAME_LOWER}.misc': ['*.yaml']}
 )

@@ -2,7 +2,7 @@ NAME = 'Qzone2TG'
 NAME_LOWER = NAME.lower()
 
 __EPOCH__ = (2, 0, 0)
-__PRERELEASE__ = ('release candiadate', 1)
+__PRERELEASE__ = ('release candiadate', 2)
 __POSTRELEASE__ = None
 __DEV__ = None
 
