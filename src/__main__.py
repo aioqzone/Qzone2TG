@@ -136,7 +136,7 @@ def main(args):
     feedmgr = QZCachedScraper(spider, db)
     logger.debug('crawler OK')
 
-    method = d.bot.method
+    method = d.bot.pop('method', None)
     if 'webhook' in d.bot:
         if method == 'polling':
             logger.warning(
