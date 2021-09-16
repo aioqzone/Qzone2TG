@@ -263,7 +263,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
         Returns:
             bool: if success
-        """        
+        """
         if self.gtk is None: self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
@@ -271,7 +271,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             'from': 1,
             'active': 0,
             'fupdate': 1,
-            'fid': likedata.pop('key')
+            'fid': likedata.get('key', None) or likedata.get('fid', None)
         }
         body.update(likedata)
         try:

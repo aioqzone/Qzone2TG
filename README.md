@@ -17,7 +17,7 @@
 </a> 
 
 <a href="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml">
-<img src="https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Python%20application?logo=github">
+<img src="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml/badge.svg">
 </a>
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">

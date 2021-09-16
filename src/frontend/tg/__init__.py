@@ -283,17 +283,14 @@ class PollingBot(RefreshBot):
         data: str = query.data
 
         def remove_button(msg_callback=None):
-            ci = lambda f, x: f and f(x) or x                             # and > or
-            if query.message.text_html:
-                query.edit_message_text(
-                    text=ci(msg_callback, query.message.text_html),
-                    parse_mode=telegram.ParseMode.HTML
-                )
+            ci = lambda x: msg_callback and msg_callback(x) or x
+            kw = dict(parse_mode=telegram.ParseMode.HTML, reply_markup=None)
+            if query.message.text_html is not None:
+                query.edit_message_text(text=ci(query.message.text_html), **kw)
+            elif query.message.caption_html is not None:
+                query.edit_message_caption(caption=ci(query.message.caption_html), **kw)
             else:
-                query.edit_message_caption(
-                    caption=ci(msg_callback, query.message.caption_html),
-                    parse_mode=telegram.ParseMode.HTML
-                )
+                logger.warning('Message has neither text nor caption')
 
         if data.startswith('/'):
             try:
