@@ -14,7 +14,7 @@ SUPPORT_APPID = (4, 11, 202, 311)
 APP_NAME = {4: 'QQ相册', 202: '分享', 311: 'QQ空间'}
 
 br = '\n'
-hr = '============================='
+hr = '=========================='
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class TgUI(NullUI):
         ]])
 
     def QrFetched(self, png: bytes):
-        self.qr_msg = self.bot.sendImage(
+        self.qr_msg = self.bot.sendMedia(
             '扫码登陆:', png, self._resend and self._defaultButton()
         )[0]
 
@@ -119,9 +119,9 @@ class TgUI(NullUI):
         else:
             self.bot.sendMessage('❌ ' + msg)
 
-    def contentReady(self, msg: str, img: list, reply_markup=None):
-        if img:
-            return self.bot.sendImage(msg, img, reply_markup)
+    def contentReady(self, msg: str, media: list, reply_markup=None):
+        if media:
+            return self.bot.sendMedia(msg, media, reply_markup)
         else:
             return self.bot.sendMessage(msg, reply_markup)
 
@@ -170,13 +170,12 @@ class TgExtracter(ContentExtracter):
                 msg = msg.format(forward=APP_NAME[self.feed.appid])
             else:
                 forward_nick, forward_link, forward_text = forward
-                msg = msg.format(
-                    forward=self.html_link(
-                        '@' + (forward_nick or APP_NAME[self.feed.appid]), forward_link
-                    )
-                ) + br
+                html_forwardee = self.html_link(
+                    '@' + (forward_nick or APP_NAME[self.feed.appid]), forward_link
+                )
+                msg = msg.format(forward=html_forwardee) + br
                 msg += hr + br
-                if forward_nick: msg += '@' + forward_nick + ': '
+                if forward_nick: msg += html_forwardee + ': '
                 msg += forward_text
         return msg
 
@@ -193,7 +192,7 @@ class TgExtracter(ContentExtracter):
         return telegram.InlineKeyboardMarkup([[btnLike]])
 
     def content(self):
-        return self.msg(), self.img()
+        return self.msg(), self.img() + self.video()
 
     @property
     def isBlocked(self):

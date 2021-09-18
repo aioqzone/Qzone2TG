@@ -18,6 +18,9 @@ class ContentExtracter(ABC):
     def img(self):
         return self.feed.parseImage()
 
+    def video(self):
+        return self.feed.parseVideo()
+
     def content(self):
         return self.img(), self.forward(), self.img()
 

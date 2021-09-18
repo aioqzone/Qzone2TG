@@ -24,6 +24,18 @@ def setup_module() -> None:
     db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
     spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **load_conf().qzone)
     spider = QZCachedScraper(spider, db)
+    spider.cleanFeed()
+
+
+def is_sorted(iterable, key=None):
+    it = iter(iterable)
+    cur = next(it)
+    cur = key(cur) if key else cur
+    for i in it:
+        i = key(i) if key else i
+        if cur > i: return False
+        cur = i
+    return True
 
 
 def test_Fetch():
@@ -48,15 +60,16 @@ def test_New():
         order=True,
     )
     assert isinstance(FEEDS, list)
+    assert is_sorted(FEEDS, lambda f: f.abstime)
 
 
 def test_Extract():
     if not FEEDS: pytest.skip('pred test failed.')
     for i in FEEDS:
         i = TgExtracter(i, spider.qzone.uin)
-        msg, img = i.content()
+        msg, media = i.content()
         assert msg
-        assert isinstance(img, list)
+        assert isinstance(media, list)
 
 
 def teardown_module():

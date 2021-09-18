@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Optional
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from lxml.html import HtmlElement, fromstring, tostring
 from qzemoji import query
@@ -28,11 +28,11 @@ def url2unicode(src: str):
     return f"[/{m}]"
 
 
-def elm2txt(elm: HtmlElement, richText=True) -> str:
+def elm2txt(elm: Union[HtmlElement, Iterable[HtmlElement]], richText=True) -> str:
     """
     elm: Iterable[HtmlElement]
     """
-    txt = subHtmlEntity(elm.text)
+    txt = subHtmlEntity(elm.text) if isinstance(elm, HtmlElement) else ''
 
     hd = lambda i: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
     switch = {'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd}
@@ -93,31 +93,43 @@ class QZHtmlParser:
         )
 
     @property
-    def uckeys(self) -> tuple:
+    def uckeys(self):
         self.parseLikeData()
         return self.likeData['unikey'], self.likeData['curkey']
 
     @property
-    def isLike(self) -> bool:
+    def isLike(self):
         return '1' in self.parseLikeData()['islike']
 
-    def parseBio(self) -> str:
-        return (bio := self.__x('//div[@class="user-pto"]/a/img/@src')) and bio[0]
+    def parseBio(self) -> Optional[str]:
+        bio = self.__x('//div[@class="user-pto"]/a/img/@src')
+        if bio: return bio[0]
 
-    def parseImage(self):
+    def parseImage(self) -> List[str]:
         img = self.__x(self.f.ct, '//a[@class="img-item  "]/img')
-        img = [
-            (src := i.attrib['src']).startswith('http') and src
-            or \
-            (src := re.search(r"trueSrc:'(http.*?)'", i.attrib['onload'])) and
-                src.group(1).replace('\\', '')
-            or
-            logger.warning('cannot parse @onload: ' + i.attrib['onload'])
-            for i in img
-        ]
-        return [i.replace('rf=0-0', 'rf=viewer_311') for i in img if i]
+        r = []
+        for i in img:
+            src = i.attrib['src']
+            if src.startswith('http'):
+                r.append(src)
+                continue
 
-    def parseFeedData(self) -> dict:
+            src = re.search(r"trueSrc:'(http.*?)'", i.attrib['onload'])
+            if src:
+                r.append(src.group(1).replace('\\', ''))
+                continue
+
+            if 'onload' in i.attrib:
+                logger.warning('cannot parse @onload: ' + i.attrib['onload'])
+            else:
+                logger.warning('cannot parse @src: ' + i.attrib['src'])
+        return r
+
+    def parseVideo(self) -> List[str]:
+        video = self.__x(self.f.ct, '//div[contains(@class,"f-video-wrap")]')
+        return [i.attrib['url3'] for i in video]
+
+    def parseFeedData(self) -> Dict[str, str]:
         if not hasattr(self, 'feedData'):
             elm = (elm := self.__x('//i[@name="feed_data"]')) and elm[0].attrib
             if elm:
@@ -130,13 +142,13 @@ class QZHtmlParser:
                 self.feedData = {}
         return self.feedData
 
-    def parseLikeList(self):
+    def parseLikeList(self) -> List[str]:
         return [
             tostring(i, encoding='utf-8').decode('utf-8')
             for i in self.__x(self.f.single_foot, '//div[@class="user-list"]')
         ]
 
-    def parseComments(self):
+    def parseComments(self) -> List[str]:
         return [
             tostring(i, encoding='utf-8').decode('utf-8') for i in
             self.__x('//div[@class="mod-comments"]', '/div[@class="comments-list "]')
@@ -152,11 +164,14 @@ class QZHtmlParser:
                 self.__x(self.f.single_foot, '//a[contains(@class,"qz_like_btn_v3 ")]')
             )[0].attrib
             assert att
-            self.likeData = {k[5:]: v for k, v in att.items() if k.startswith('data-')}
+            self.likeData: Dict[str, str] = {
+                k[5:]: v
+                for k, v in att.items() if k.startswith('data-')
+            }
 
         return self.likeData
 
-    def parseForward(self) -> tuple:
+    def parseForward(self) -> Tuple[Optional[str], Optional[str], str]:
         """parse forwarder
 
         Returns:
@@ -182,10 +197,14 @@ class QZHtmlParser:
                 nick = a.text.strip()
                 break
 
-        txt = elm2txt(txtbox).strip()
+        txt = elm2txt(
+            a for a in txtbox if not isinstance(a, HtmlElement)
+            or not ((a.tag == 'div' and a.attrib['class'].startswith('brand-name')) or
+                    (a.tag == 'a' and a.attrib['class'].startswith('nickname')))
+        ).strip().lstrip('：')
         return nick, link, txt
 
-    def isCut(self) -> bool:
+    def isCut(self):
         txt: list = self.__x(self.f.info, '//a[@data-cmd="qz_toggle"]')
         return bool(txt)
 

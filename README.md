@@ -28,19 +28,15 @@
 
 > We are using [QzEmoji](https://github.com/JamzumSum/QzEmoji) to transfer emoji HTML link to text and actual emoji. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)
-
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)
-
-> [v2.0.0rc2][4] availible now!
+> [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)<br>
+> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)<br>
+> [v2.0.0rc3][4] availible now! This version supports forwarding video!<br>
 
 ## 功能
 
-* 自动登录空间, ~~cv过验证~~
+* 自动登录空间, ~~cv过验证~~(broken)
 * 二维码登录
-* 爬取说说文本
-* 爬取说说图片
-* 爬取说说转发
+* 爬取说说文本、图片、视频以及常见转发格式
 * 点赞(应用消息的点赞有时间限制)
 * 过滤部分广告
 * 简单的tg机器人, 支持webhook
@@ -63,6 +59,8 @@
 
 ### Telegram commands
 
+<details>
+
 > 自`2.0.0b4`起, 脚本会自动设置如下命令. (感谢 @TigerCubDen)
 
 ```
@@ -71,6 +69,8 @@ refresh - Refresh and send any new feeds.
 resend - Resend any unsent feeds.
 help - Get help info.
 ```
+
+</details>
 
 ## 安装
 
@@ -162,5 +162,5 @@ keyring del qzone2tg <your-qq>
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc "2.0.0 rc2"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc3 "2.0.0 release candidate 3"
 [5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"

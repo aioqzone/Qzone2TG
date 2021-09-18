@@ -1,4 +1,7 @@
 from math import ceil
+from pathlib import PurePath
+from urllib.parse import urlparse
+
 import telegram
 from telegram.bot import Bot
 
@@ -28,42 +31,62 @@ class FixUserBot:
                     text=text,
                     chat_id=self.to,
                     parse_mode=self.parse_mode,
-                    reply_markup=reply_markup
+                    reply_markup=reply_markup,
+                    *args,
+                    **kwargs
                 )
             ]
         else:
             return self.sendMessage(text[:4096], reply_markup, *args, **kwargs) + \
                    self.sendMessage(text[4096:], None, *args, **kwargs)
 
+    @staticmethod
+    def getExt(url):
+        return PurePath(urlparse(url).path).suffix
+
+    def _send_single(self, media: str, **kwargs):
+        if self.getExt(media) == '.mp4':
+            return self._bot.send_video(video=media, **kwargs)
+        else:
+            return self._bot.send_photo(photo=media, **kwargs)
+
+    @classmethod
+    def _single_media(cls, media: str, **kwargs):
+        if cls.getExt(media) == '.mp4':
+            return telegram.InputMediaVideo(media=media, **kwargs)
+        else:
+            return telegram.InputMediaPhoto(media=media, **kwargs)
+
     @_fc(
         lambda s, m, i, b=None, *a, **kw: ceil(len(m) / 4096)
         if not i else 1 + (ceil((len(m) - 1024) / 4096) if m else 0)
         if len(i) == 1 else ceil(len(m) / 4096) + len(i) if b else len(i)
     )
-    def sendImage(self, text: str, img: list, reply_markup=None, *args, **kwargs):
-        if len(img) == 1:
+    def sendMedia(self, text: str, media: list, reply_markup=None, **kwargs):
+        if len(media) == 1:
             if len(text) < 1024:
                 return [
-                    self._bot.send_photo(
+                    self._send_single(
+                        media[0],
                         chat_id=self.to,
-                        photo=img[0],
                         caption=text,
                         parse_mode=self.parse_mode,
-                        reply_markup=reply_markup
+                        reply_markup=reply_markup,
+                        **kwargs
                     )
                 ]
             else:
-                return self.sendImage(text[:1024], img, reply_markup, *args, **kwargs) + \
-                       self.sendMessage(text[1024:], None, *args, **kwargs)
+                return self.sendMedia(text[:1024], media, reply_markup, **kwargs) + \
+                       self.sendMessage(text[1024:], **kwargs)
         elif reply_markup:
-            return self.sendMessage(text, reply_markup, *args, **kwargs) + \
-                   self.sendImage(None, img, *args, **kwargs)
-        elif len(img) > 10:
-            return self.sendImage(text, img[:10], *args, **kwargs) + \
-                   self.sendImage(None, img[10:], *args, **kwargs)
+            return self.sendMessage(text, reply_markup, **kwargs) + \
+                   self.sendMedia(None, media, **kwargs)
+        elif len(media) > 10:
+            return self.sendMedia(text, media[:10], **kwargs) + \
+                   self.sendMedia(None, media[10:], **kwargs)
         else:
             return self._bot.send_media_group(
                 chat_id=self.to,
-                media=[telegram.InputMediaPhoto(media=img[0], caption=text, parse_mode=self.parse_mode)] + \
-                      [telegram.InputMediaPhoto(i) for i in img[1:]]
+                media=[self._single_media(media[0], caption=text, parse_mode=self.parse_mode)] + \
+                      [self._single_media(i) for i in media[1:]]
             )
