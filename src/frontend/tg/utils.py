@@ -22,7 +22,7 @@ class FixUserBot:
     def register_flood_control(cls, *args, **kwargs):
         cls._fc = FloodControl(*args, **kwargs)
 
-    @_fc(lambda s, t=None, **kw: ceil(len(t) / 4096) if t else 0)
+    @_fc(lambda s, t=None, b=None, **kw: ceil(len(t) / 4096) if t else 0)
     def sendMessage(self, text: str, reply_markup=None, **kwargs):
         assert text
         if len(text) < 4096:
