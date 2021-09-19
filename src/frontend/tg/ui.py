@@ -93,9 +93,7 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.HTML
             )
         else:
-            self.ui_msg = self.bot.sendMessage(
-                text='✔ ' + msg, parse_mode=telegram.ParseMode.HTML
-            )[0]
+            self.ui_msg = self.bot.sendMessage(text='✔ ' + msg)[0]
 
     def fetchEnd(self, succ_num: int, err_num: int):
         if hasattr(self, 'ui_msg') and self.ui_msg.delete():

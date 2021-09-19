@@ -144,7 +144,8 @@ def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
         return
 
     if e.code != -3000: raise e
-
+    if self.uin in self.db:
+        del self.db[self.uin]
     # e.code == -3000
     if i == 1: raise e
     logger.info("cookie已过期, 即将重新登陆.")

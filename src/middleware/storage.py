@@ -18,12 +18,6 @@ def day_stamp(timestamp: float = None) -> int:
     return int(timestamp // 86400)
 
 
-def arglike(i):
-    return f"'{i}'" if isinstance(i, str) else \
-        str(int(i)) if isinstance(i, bool) else \
-        str(i)
-
-
 sqlnoexcept = noexcept({
     Exception: lambda e: logger.error('sql error occured', exc_info=True)
 })
@@ -46,6 +40,12 @@ class Table:
         self.key = key
         self.pkey = pkey
 
+    @staticmethod
+    def arglike(i):
+        return f"'{i}'" if isinstance(i, str) else \
+            str(int(i)) if isinstance(i, bool) else \
+            str(i)
+
     @sqlnoexcept
     def createTable(self, index: list = None):
         args = ','.join(f"{k} {v}" for k, v in self.key.items())
@@ -59,7 +59,7 @@ class Table:
     @sqlnoexcept
     def __getitem__(self, i):
         self.cursor.execute(
-            f'select * from {self.name} WHERE {self.pkey}={arglike(i)};'
+            f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};'
         )
         if (r := self.cursor.fetchone()) is None: return
         return dict(zip(self.key, r))
@@ -69,9 +69,9 @@ class Table:
         assert all(i in self.key for i in data)
         if k in self:
             if self.pkey in data: data.pop(self.pkey)
-            vals = ','.join(f"{k}={arglike(v)}" for k, v in data.items())
+            vals = ','.join(f"{k}={self.arglike(v)}" for k, v in data.items())
             self.cursor.execute(
-                f'update {self.name} SET {vals} WHERE {self.pkey}={arglike(k)};'
+                f'update {self.name} SET {vals} WHERE {self.pkey}={self.arglike(k)};'
             )
         else:
             ndata = data.copy()
@@ -84,7 +84,9 @@ class Table:
         return data
 
     def __delitem__(self, i):
-        self.cursor.execute(f'delete from {self.name} WHERE {self.pkey}={arglike(i)};')
+        self.cursor.execute(
+            f'delete from {self.name} WHERE {self.pkey}={self.arglike(i)};'
+        )
 
     def __contains__(self, i):
         return bool(Table.__getitem__(self, i))
@@ -149,7 +151,6 @@ class FeedBase(_DBBase):
                 'abstime': 'int NOT NULL',
                 'appid': 'int NOT NULL',
                 'typeid': 'int NOT NULL',
-                'feedstime': 'VARCHAR NOT NULL',
                 'nickname': 'VARCHAR NOT NULL',
                 'uin': 'int NOT NULL',
                 'html': 'VARCHAR NOT NULL',
@@ -169,7 +170,7 @@ class FeedBase(_DBBase):
             },
             'fid',
         )
-        self._createTable(plugins)
+        self._createTable(plugins or {})
 
     def _createTable(self, plugin_defs: dict, create_index=True):
         index = ('fid', 'abstime') if create_index else None
@@ -206,10 +207,9 @@ class FeedBase(_DBBase):
             'abstime': feed.abstime,
             'appid': feed.appid,
             'typeid': feed.typeid,
-            'feedstime': feed.feedstime,
             'nickname': feed.nickname,
             'uin': feed.uin,
-            'html': feed.raw['html'].replace("'", '"'),
+            'html': feed.raw['html'].replace("'", "''"),
         }
         self.feed[feed.fid] = args
         if flush: self.db.commit()

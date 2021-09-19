@@ -1,60 +1,12 @@
 import logging
 import re
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from lxml.html import HtmlElement, fromstring, tostring
-from qzemoji import query
 from utils.iterutils import find_if
+from .utils import elm2txt, sementicTime
 
 logger = logging.getLogger(__name__)
-
-HTML_ENTITY = {
-    '<': '&lt;',
-    '>': '&gt;',
-    '&': '&amp;',
-}
-
-
-def subHtmlEntity(txt: Optional[str]):
-    if txt is None: return ''
-    return re.sub('[<>&]', lambda m: HTML_ENTITY[m.group(0)], txt)
-
-
-def url2unicode(src: str):
-    m = re.search(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)", src)
-    if m is None: return ""
-    m = query(m.group(1))
-    if m is None: return ""
-    return f"[/{m}]"
-
-
-def elm2txt(elm: Union[HtmlElement, Iterable[HtmlElement]], richText=True) -> str:
-    """
-    elm: Iterable[HtmlElement]
-    """
-    txt = subHtmlEntity(elm.text) if isinstance(elm, HtmlElement) else ''
-
-    hd = lambda i: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
-    switch = {'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd}
-    switch.update(
-        br=lambda i: '\n',
-        img=lambda i: url2unicode(i.attrib['src']),
-        div=lambda i: elm2txt(i, richText),
-        span=lambda i: elm2txt(i, richText),
-        a=lambda i: '' if i.attrib['href'].startswith("javascript") else
-        f'<a href="{i.attrib["href"]}">{subHtmlEntity(i.text)}</a>'
-        if richText else subHtmlEntity(i.text)
-    )
-
-    for i in elm:
-        if not isinstance(i, HtmlElement):
-            txt += subHtmlEntity(i)
-            continue
-        if i.tag in switch:
-            txt += switch[i.tag](i) + subHtmlEntity(i.tail)
-        else:
-            logger.warning("cannot recognize tag: " + i.tag)
-    return txt
 
 
 class QZHtmlParser:
@@ -183,24 +135,26 @@ class QZHtmlParser:
         elif len(ls) == 2: txtbox = max(ls, key=lambda e: len(e))
 
         nick = link = None
+        safe_cls = lambda a: a.attrib.get('class', '')
+
         for a in txtbox:
             if not isinstance(a, HtmlElement): continue
 
-            if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
-                if (a := find_if(a, lambda i: i.attrib['class'].startswith('nickname'))
-                    ) is not None:
+            if a.tag == 'div' and safe_cls(a).startswith('brand-name'):
+                if (a := find_if(
+                        a, lambda i: safe_cls(i).startswith('nickname'))) is not None:
                     link = a.attrib['href']
                     nick = a.text.strip()
                     break
-            elif a.tag == 'a' and a.attrib['class'].startswith('nickname'):
+            elif a.tag == 'a' and safe_cls(a).startswith('nickname'):
                 link = a.attrib['href']
                 nick = a.text.strip()
                 break
 
         txt = elm2txt(
             a for a in txtbox if not isinstance(a, HtmlElement)
-            or not ((a.tag == 'div' and a.attrib['class'].startswith('brand-name')) or
-                    (a.tag == 'a' and a.attrib['class'].startswith('nickname')))
+            or not ((a.tag == 'div' and safe_cls(a).startswith('brand-name')) or
+                    (a.tag == 'a' and safe_cls(a).startswith('nickname')))
         ).strip().lstrip('：')
         return nick, link, txt
 
@@ -235,7 +189,7 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def feedstime(self) -> str:
-        return self.raw['feedstime'].strip()
+        return sementicTime(self.abstime)
 
     @property
     def appid(self) -> int:

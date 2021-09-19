@@ -31,6 +31,7 @@
 > [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)<br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)<br>
 > [v2.0.0rc3][4] availible now! This version supports forwarding video!<br>
+> __BEFORE UPGRADE__: Database is changed in 2.0.0rc3. See [#24](https://github.com/JamzumSum/Qzone2TG/discussions/24)
 
 ## 功能
 

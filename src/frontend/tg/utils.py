@@ -22,8 +22,8 @@ class FixUserBot:
     def register_flood_control(cls, *args, **kwargs):
         cls._fc = FloodControl(*args, **kwargs)
 
-    @_fc(lambda s, t, *a, **kw: ceil(len(t) / 4096))
-    def sendMessage(self, text: str, reply_markup=None, *args, **kwargs):
+    @_fc(lambda s, t=None, **kw: ceil(len(t) / 4096) if t else 0)
+    def sendMessage(self, text: str, reply_markup=None, **kwargs):
         assert text
         if len(text) < 4096:
             return [
@@ -32,13 +32,12 @@ class FixUserBot:
                     chat_id=self.to,
                     parse_mode=self.parse_mode,
                     reply_markup=reply_markup,
-                    *args,
                     **kwargs
                 )
             ]
         else:
-            return self.sendMessage(text[:4096], reply_markup, *args, **kwargs) + \
-                   self.sendMessage(text[4096:], None, *args, **kwargs)
+            return self.sendMessage(text[:4096], reply_markup, **kwargs) + \
+                   self.sendMessage(text[4096:], None, **kwargs)
 
     @staticmethod
     def getExt(url):

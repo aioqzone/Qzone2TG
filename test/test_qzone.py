@@ -30,7 +30,7 @@ def setup_module():
 def test_UpdateStatus():
     global login
     try:
-        spider.updateStatus()
+        spider.updateStatus(force_login=True)
         login = True
     except LoginError:
         login = False
