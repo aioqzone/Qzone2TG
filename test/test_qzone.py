@@ -24,7 +24,7 @@ def setup_module():
     global db, spider
     Path('data').mkdir(exist_ok=True)
     db = sqlite3.connect('data/test.db', check_same_thread=False)
-    spider = QzoneScraper(token_tbl=TokenTable(db.cursor()), **load_conf().qzone)
+    spider = QzoneScraper(token_tbl=TokenTable(db), **load_conf().qzone)
 
 
 def test_UpdateStatus():

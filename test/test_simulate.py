@@ -22,7 +22,7 @@ def load_conf():
 def setup_module() -> None:
     global db, spider
     db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-    spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **load_conf().qzone)
+    spider = QzoneScraper(token_tbl=TokenTable(db.db), **load_conf().qzone)
     spider = QZCachedScraper(spider, db)
     spider.cleanFeed()
 
