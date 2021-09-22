@@ -99,6 +99,7 @@ class QZHtmlParser:
             if cover: media.append(cover[0])
             else:
                 logger.warning('Cannot get video album: url=' + url)
+        return media
 
     def parseFeedData(self) -> Dict[str, str]:
         if not hasattr(self, 'feedData'):

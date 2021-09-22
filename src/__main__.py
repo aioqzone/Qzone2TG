@@ -132,7 +132,7 @@ def main(args):
     db = FeedBase(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
     logger.debug('database OK')
 
-    spider = QzoneScraper(token_tbl=TokenTable(db.cursor), **d.qzone)
+    spider = QzoneScraper(token_tbl=TokenTable(db.db), **d.qzone)
     feedmgr = QZCachedScraper(spider, db)
     logger.debug('crawler OK')
 

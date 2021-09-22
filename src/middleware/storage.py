@@ -183,6 +183,7 @@ class FeedBase(_DBBase):
         }
         for i in self.plugin.values():
             i.createTable()
+        self.db.commit()
 
     def cleanFeed(self):
         del_limit = int(time.time() - self.archivedays * 86400)
@@ -190,7 +191,9 @@ class FeedBase(_DBBase):
         self.db.commit()
 
         arch_limit = int(time.time() - self.keepdays * 86400)
-        for i in self.getFeed(f'abstime <= {arch_limit}'):
+        to_move = self.getFeed(f'abstime <= {arch_limit}')
+        assert isinstance(to_move, list)
+        for i in to_move:
             # move to archive
             d = i.getLikeId()
             d.update(fid=d.pop('key'), abstime=i.abstime)
@@ -235,17 +238,17 @@ class FeedBase(_DBBase):
         if not self.db: return
         self.cursor.close()
         self.db.close()
-        self.db = None
+        self.db: sqlite3.Connection = None
 
     def __del__(self):
         self.close()
 
 
 class TokenTable(Table):
-    def __init__(self, cursor: sqlite3.Cursor) -> None:
+    def __init__(self, db: sqlite3.Connection) -> None:
         super().__init__(
             'token',
-            cursor,
+            db.cursor(),
             key={
                 'uin': 'INT PRIMARY KEY',
                 'p_skey': 'VARCHAR NOT NULL',
@@ -255,9 +258,18 @@ class TokenTable(Table):
             },
             pkey='uin'
         )
+        self.db = db
         self.createTable()
 
     def __getitem__(self, uin: int):
         d = super().__getitem__(uin)
         d['uin'] = f"o0{uin}"
         return d
+
+    def __setitem__(self, k, data: dict):
+        super().__setitem__(k, data)
+        self.db.commit()
+
+    def __delitem__(self, i):
+        super().__delitem__(i)
+        self.db.commit()
