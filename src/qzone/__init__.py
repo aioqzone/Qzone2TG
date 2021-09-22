@@ -34,6 +34,10 @@ DO_LIKE_URL = PROXY_DOMAIN + "/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
 GET_PAGE_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
 UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
 
+BLOCK_LIST = [
+    20050606,      # Qzone Official
+]
+
 RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 
 
@@ -349,7 +353,8 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             lambda i: not (
                 not i or                                    # `undefined` in feed datas or empty feed dict
                 i['key'].startswith('advertisement_app') or # ad feed
-                int(i['appid']) >= 4096                     # not supported (cannot encode)
+                int(i['appid']) >= 4096 or                  # not supported (cannot encode)
+                int(i['uin']) in BLOCK_LIST                 # in blocklist
             ),
             data['data']
         )

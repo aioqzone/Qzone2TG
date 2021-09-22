@@ -1,9 +1,13 @@
 import logging
 import re
+from pathlib import PurePath
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
+
 from utils.iterutils import find_if
+
 from .utils import elm2txt, sementicTime
 
 logger = logging.getLogger(__name__)
@@ -78,8 +82,23 @@ class QZHtmlParser:
         return r
 
     def parseVideo(self) -> List[str]:
+        CANNOT = ['.swf']
+        ext = lambda url: PurePath(urlparse(url).path).suffix
         video = self.__x(self.f.ct, '//div[contains(@class,"f-video-wrap")]')
-        return [i.attrib['url3'] for i in video]
+        media = []
+        for i in video:
+            url = i.attrib['url3']
+            if ext(url) not in CANNOT:
+                media.append(i)
+                continue
+
+            cover = self.__x(
+                self.f.ct, f'//div[@url3="{url}"]', '/div[@class="video-img"]',
+                '/img/@src'
+            )
+            if cover: media.append(cover[0])
+            else:
+                logger.warning('Cannot get video album: url=' + url)
 
     def parseFeedData(self) -> Dict[str, str]:
         if not hasattr(self, 'feedData'):

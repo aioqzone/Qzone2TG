@@ -53,7 +53,6 @@ class RefreshBot:
             self.feedmgr.cleanFeed()
 
         self.update.job_queue.run_daily(cleanFeed, Time(tzinfo=TIME_ZONE))
-        self.update.job_queue.run_custom(cleanFeed, {})
 
     def __del__(self):
         self.update.stop()
@@ -69,7 +68,7 @@ class RefreshBot:
                 timelist = self.daily.time.split()
             else:
                 timelist = list(self.daily.time)
-            for i in timelist:
+            for i in set(timelist):
                 self.update.job_queue.run_daily(
                     time=tctz(Time.fromisoformat(i)), name='period_refresh_' + i, **kw
                 )
@@ -146,7 +145,7 @@ class RefreshBot:
                 self.ui.QrCanceled()
                 return
             except Exception as e:
-                logger.error(str(e), exc_info=True, stack_info=True)
+                logger.error(str(e), exc_info=True)
                 self.ui.fetchError()
                 return
             self.onSend(
@@ -245,7 +244,7 @@ class PollingBot(RefreshBot):
                     "Otherwise maybe wait for a while is enough. See FAQ in Wiki for details."
                 )
             else:
-                logger.fatal(e.message, exc_info=True, stack_info=True)
+                logger.fatal(e.message, exc_info=True)
             return
         logger.info("start polling")
         self.idle()
@@ -338,7 +337,7 @@ class WebhookBot(PollingBot):
             )
 
         except NetworkError as e:
-            logger.error(e.message, exc_info=True, stack_info=True)
+            logger.error(e.message, exc_info=True)
             return
         logger.info("start webhook")
         logger.debug(

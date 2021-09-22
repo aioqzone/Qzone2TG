@@ -21,6 +21,7 @@ class QZCachedScraper:
     def __init__(self, qzone: QzoneScraper, db: FeedBase):
         self.qzone = qzone
         self.db = db
+        self.cleanFeed()
 
     def register_ui_hook(self, ui: NullUI):
         self.ui = ui

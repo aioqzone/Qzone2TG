@@ -1,4 +1,5 @@
 import logging
+from time import sleep
 
 import telegram
 from frontend.tg.utils import FixUserBot
@@ -6,8 +7,9 @@ from middleware import ContentExtracter
 from middleware.uihook import NullUI
 from telegram.error import BadRequest, TimedOut
 
-from .compress import LikeId
 from utils.decorator import Retry
+
+from .compress import LikeId
 
 SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 11, 202, 311)
@@ -17,6 +19,7 @@ br = '\n'
 hr = '=========================='
 
 logger = logging.getLogger(__name__)
+badreq_retry = Retry({BadRequest: lambda e, i: sleep(1 + i)})
 
 
 def retry_once(func, msg_callback=None):
