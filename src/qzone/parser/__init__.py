@@ -89,7 +89,7 @@ class QZHtmlParser:
         for i in video:
             url = i.attrib['url3']
             if ext(url) not in CANNOT:
-                media.append(i)
+                media.append(url)
                 continue
 
             cover = self.__x(
