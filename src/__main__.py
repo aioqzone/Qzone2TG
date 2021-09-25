@@ -3,7 +3,6 @@ import logging
 import sys
 from getpass import getpass
 
-import keyring
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
@@ -27,7 +26,12 @@ def getPassword(qzone: DictConfig):
         assert NO_INTERACT, "password can be passed by CLI only when no-interact"
         return
 
-    pwd = keyring.get_password(NAME_LOWER, str(qzone.qq))
+    try:
+        import keyring
+        pwd = keyring.get_password(NAME_LOWER, str(qzone.qq))
+    except ImportError:
+        pwd = None
+
     if not pwd and not NO_INTERACT:
         pwd = getpass(
             f'Password{"" if strategy == "forbid" else " (press Enter to skip)"}:'

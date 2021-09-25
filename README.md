@@ -4,7 +4,7 @@
 
 <div style="text-align:left">
 
-<!-- ![](https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social) -->
+<!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
 
 <img src="https://img.shields.io/badge/python-3.8%2F3.9-blue">
 
@@ -26,12 +26,12 @@
 
 </div>
 
-> We are using [QzEmoji](https://github.com/JamzumSum/QzEmoji) to transfer emoji HTML link to text and actual emoji. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
+> We are using [QzEmoji](https://github.com/JamzumSum/QzEmoji) to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [2.0.0rc is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)<br>
+> [2.0.0 is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)<br>
 > [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)<br>
-> [v2.0.0rc3][4] availible now! This version supports forwarding video!<br>
-> __BEFORE UPGRADE__: Database is changed in 2.0.0rc3. See [#24](https://github.com/JamzumSum/Qzone2TG/discussions/24)
+> [v2.0.0rc4][4] availible now!<br>
+> For other announcements, see [Discussion][6]
 
 ## 功能
 
@@ -39,7 +39,7 @@
 * 二维码登录
 * 爬取说说文本、图片、视频以及常见转发格式
 * 点赞(应用消息的点赞有时间限制)
-* 过滤部分广告
+* 过滤广告
 * 简单的tg机器人, 支持webhook
 
 ## 截图
@@ -49,14 +49,15 @@
 ## 需求
 
 * 一台服务器
-  * 一切可运行`python`及`nodejs`的环境均可, 甚至包括tmux.
+  * 一切可运行`python`及`nodejs`的环境均可*, 甚至包括tmux.
   * 开启webhook需要域名和正确的DNS解析. 难以满足此要求可以使用`polling`或`refresh`模式.
 * 可访问tg的网络环境, 以下二选一:
   * 服务器可访问telegram api
   * 有可用的代理
-* 一个开通了空间的QQ号
-* 一个属于你的tg机器人, 得到token
-* 取得你的用户ID(acceptID)
+* QQ号和tg用户ID
+* tg机器人的`bot token`
+
+> *运行环境: **U**in-**P**wd登录和验证码解析需要`nodejs`. 如果您的二维码策略总保持`force`, 甚至不需要安装`nodejs`. 非windows或linux系统可能会遇到keyring的配置问题, 但这可以通过交互模式或命令行传参的方式解决. 或者保持二维码策略为`force`可以避免UP登录带来的一切问题(
 
 ### Telegram commands
 
@@ -75,50 +76,63 @@ help - Get help info.
 
 ## 安装
 
-可选择docker image或直接安装.
+可选择[docker镜像][5](感谢@TigerCubDen), 源码安装(develop install), 常规pip安装.
 
-### Docker Image
-
-> 感谢 @TigerCubDen 
-
-请移步[wiki][5]
-
-### 源码安装
-
-> 目前仍支持python3.8, 但推荐使用python3.9. 不排除未来停止py38支持的可能. 
+### 安装依赖
 
 1. 安装`nodejs` (若不使用账密登录可跳过此项)
 2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
-3. 依序执行:
+3. linux环境请确保安装`gnome-keyring`:
+  ~~~ shell
+  apt install gnome-keyring
+  ~~~
 
-  ``` shell
-  # clone本项目
-  git clone https://github.com/JamzumSum/Qzone2TG.git
-  cd Qzone2TG
+### 安装Qzone2TG
 
-  # 安装依赖
-  pip install -e .
+<details>
+<summary> 源码安装(develop install) </summary>
 
-  # 复制示例配置. 也可以参考wiki写配置
-  cp misc/example.yaml config/config.yaml
+``` shell
+# clone本项目
+git clone https://github.com/JamzumSum/Qzone2TG.git
+cd Qzone2TG
 
-  vim config.yaml     # 使用趁手的编辑器
-  # 填写qq, tg bot token, acceptId以及可选的代理
-  ```
+# 安装依赖
+pip install -e .
+# 复制示例配置. 也可以参考wiki写配置
+cp misc/example.yaml config/config.yaml
+```
+
+</details>
+
+
+<details>
+<summary> pip安装 </summary>
+
+~~~ shell
+# 安装到site-package
+pip install git+https://github.com/JamzumSum/Qzone2TG.git
+# 构建工作区
+mkdir Qzone2TG && cd Qzone2TG && mkdir config
+~~~
+
+</details>
 
 ## 运行
 
 ### 配置文件
 
-应用的配置文件在`config`目录下的`config.yaml`. 配置文件示例在`misc`目录下的`example.yaml`.
+请参考[wiki][3]
 
-配置各项的含义请参考[wiki][3]
+~~~ shell
+vim config/config.yaml
+# 填写qq, bot token, acceptId以及可选的代理
+~~~
 
 ### 启动
 
-``` shell
-python src/__main__.py
-```
+- pip develop install: `python src/__main__.py`
+- pip安装: `python -m qzone2tg`
 
 ## 卸载
 
@@ -134,12 +148,13 @@ keyring del qzone2tg <your-qq>
 ~~~
 
 如果您需要完全卸载:
-1. 删除clone的源文件夹, 在未被修改的情况下, 是`Qzone2TG`
+1. - develop install: 删除`Qzone2TG`文件夹
+   - pip安装: `pip uninstall qzone2tg`
 2. _可选的_  删除安装的依赖:
 
     ``` shell
     # python依赖
-    pip3 uninstall python-telegram-bot lxml omegaconf keyring tencentlogin qzemoji
+    pip uninstall python-telegram-bot lxml omegaconf keyring tencentlogin qzemoji
     ```
 
 ## Credits
@@ -163,5 +178,6 @@ keyring del qzone2tg <your-qq>
 [1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
 [2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
 [3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc3 "2.0.0 release candidate 3"
+[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc4 "2.0.0 release candidate 4"
 [5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
+[6]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
