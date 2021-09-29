@@ -7,27 +7,26 @@ qzone:
 
 import json
 import logging
-import os
 import re
 import time
-from functools import wraps
-from typing import Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote, unquote
 
 import requests
-import yaml
+from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
+from tencentlogin import TencentLoginError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from tgfrontend.compress import LikeId
-from uihook import NullUI
+from middleware.uihook import NullUI
+from middleware.storage import TokenTable
+from utils.decorator import Retry
 
-from . import QzoneError
 from .common import *
-from .jsjson import json_loads
+from .exceptions import LoginError, QzoneError, UserBreak
 
-logger = logging.getLogger("Qzone Scraper")
+logger = logging.getLogger(__name__)
 
 PROXY_DOMAIN = "https://user.qzone.qq.com/proxy/domain"
 COMPLETE_FEED_URL = PROXY_DOMAIN + "/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
@@ -35,24 +34,24 @@ DO_LIKE_URL = PROXY_DOMAIN + "/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
 GET_PAGE_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
 UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
 
+BLOCK_LIST = [
+    20050606,      # Qzone Official
+]
+
 RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
-
-
-class LoginError(RuntimeError):
-    def __init__(self, msg, qr_strategy=None) -> None:
-        super().__init__(msg, qr_strategy)
-        self.msg = msg
-        self.qr_strategy = qr_strategy
 
 
 class LoginHelper:
     ui = NullUI()
 
-    def __init__(self, uin: int, *, pwd: str = None, qr_strategy='prefer') -> None:
+    def __init__(
+        self, uin: int, *, pwd: str = None, qr_strategy: str = 'prefer'
+    ) -> None:
         self.uin = uin
         self.pwd = pwd
         self.qr_strategy = qr_strategy
         if qr_strategy != 'force':
+            assert self.pwd
             self._up = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
         if qr_strategy != 'forbid':
             self._qr = QRLogin(QzoneAppid, QzoneProxy)
@@ -61,27 +60,53 @@ class LoginHelper:
         self.ui = ui
         self.ui.register_resend_callback(self._qr.show)
 
-    def _upLogin(self) -> dict:
-        r = self._up.check()
-        if r[0] == 0: return self._up.login(r, all_cookie=True)
+    def _upLogin(self) -> Optional[dict]:
+        """login use uin and pwd
 
-    def _qrLogin(self) -> dict:
+        Returns:
+            Optional[dict]: cookie dict if success, else None
+        """
         try:
-            for i, png in enumerate(self._qr.loop(all_cookie=True)):
-                if isinstance(png, bytes):
-                    (self.ui.QrExpired if i else self.ui.QrFetched)(png)
+            return self._up.login(self._up.check(), all_cookie=True)
+        except TencentLoginError as e:
+            logger.warning(str(e))
+
+    def _qrLogin(self, refresh_time=6) -> Optional[dict]:
+        """Login with QR. BLOCK until user interact or timeout.
+
+        Raises:
+            UserBreak: if user break the login procedure.
+
+        Returns:
+            Optional[dict]: cookie dict if success, else None
+        """
+        r = [None]
+        sched = self._qr.loop(refresh_time=refresh_time, all_cookie=True)(  # yapf: disable
+            refresh_callback=lambda b: sendmethod()(b),
+            return_callback=lambda b: r.__setitem__(0, b),
+        )
+        sendmethod = lambda: self.ui.QrExpired if sched.cnt else self.ui.QrFetched
+        self.ui.register_cancel_callback(lambda: sched.stop(exception=True))
+        try:
+            sched.start()
+            r = r[0]
+            if r: self.ui.QrScanSucceessed()
+            else: self.ui.QrFailed()
+            return r
         except TimeoutError:
             self.ui.QrFailed()
             return
-        else:
-            self.ui.QrScanSucceessed()
-            return png
+        except KeyboardInterrupt:
+            raise UserBreak
 
-    def login(self) -> str:
-        """login and return cookie
+    def login(self) -> Optional[dict]:
+        """login and return cookie according to qr_strategy
 
         Returns:
-            str: cookie
+            Optional[dict]: cookie dict if success, else None
+
+        Raises:
+            UserBreak
         """
         for f in {
                 'force': (self._qrLogin, ),
@@ -115,41 +140,45 @@ class HTTPHelper:
         return r
 
 
-def login_if_expire(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except QzoneError as e:
-            if e.code == -3000:
-                logger.info("cookie已过期, 即将重新登陆.")
-                QzoneScraper.updateStatus(self, force_login=True)
-                return func(self, *args, **kwargs)
-            else:
-                raise e
+def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
+    if e.code == -10001:
+        if i >= 11: raise TimeoutError('Network is always busy!')
+        logger.info(e.msg)
+        time.sleep(5)
+        return
 
-    return wrapper
+    if e.code != -3000: raise e
+    if self.uin in self.db:
+        del self.db[self.uin]
+    # e.code == -3000
+    if i == 1: raise e
+    logger.info("cookie已过期, 即将重新登陆.")
+    QzoneScraper.updateStatus(self, force_login=True)
+
+
+# retry QzoneError only
+login_if_expire = Retry({QzoneError: onLoginExpire}, times=12, inspect=True)
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
-    COOKIE_CACHE = 'tmp/cookie.yml'
+    gtk: int = None
 
     def __init__(
         self,
+        token_tbl: TokenTable,
         qq: Union[str, int],
         *,
         password: str = None,
         fetch_times=12,
         qr_strategy='prefer',
         UA=None,
-        cookie_cache=None,
     ):
         qq = int(qq)
         LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         HTTPHelper.__init__(self, qq, UA)
         self.fetch_times = fetch_times
+        self.db = token_tbl
         self.extern = {1: "undefined"}
-        self.COOKIE_CACHE = cookie_cache or self.COOKIE_CACHE
 
     @staticmethod
     def cal_gtk(p_skey):
@@ -168,6 +197,8 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         return dic
 
     def getCompleteFeed(self, feedData: dict) -> str:
+        if not feedData: return
+
         body = {
             "uin": feedData["uin"],
             "tid": feedData["tid"],
@@ -180,22 +211,22 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json.loads(r)
-        return r["newFeedXML"].strip()
+        if r["err"] == 0: return r["newFeedXML"].strip()
 
     def updateStatus(self, force_login=False):
+        """update cookie, gtk
+
+        Args:
+            `force_login` (bool, optional): force to login. Defaults to False.
+
+        Raises:
+            `UserBreak`: SIGINT is sent or `UserBreak` sent by user
+            `LoginError`: Cannot get cookie under current strategy
         """
-        update cookie, gtk, qzonetoken
-        """
-        if os.path.exists(self.COOKIE_CACHE):
-            with open(self.COOKIE_CACHE) as f:
-                cookie: dict = yaml.safe_load(f)
-            if self.uin in cookie:
-                cookie = cookie[self.uin]
-            else:
-                force_login = True
+        if self.uin in self.db:
+            if not force_login: cookie = self.db[self.uin]
         else:
             force_login = True
-            os.makedirs(os.path.dirname(self.COOKIE_CACHE), exist_ok=True)
 
         if force_login:
             logger.info("重新登陆.")
@@ -204,13 +235,11 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             e = None
             if cookie is None:
                 if self.qr_strategy == 'forbid':
-                    e = LoginError(
-                        "登陆失败: 您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", self.qr_strategy
-                    )
+                    e = LoginError("您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", 'forbid')
                 else:
-                    e = LoginError("登陆失败: 您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
+                    e = LoginError("您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
             elif "p_skey" not in cookie:
-                e = LoginError("登陆失败: 或许可以重新登陆.", self.qr_strategy)
+                e = LoginError("或许可以重新登陆.", self.qr_strategy)
             if e:
                 self.ui.loginFailed(e.args[0])
                 raise e
@@ -218,8 +247,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             logger.info('取得cookie')
             self.ui.loginSuccessed()
 
-            with open(self.COOKIE_CACHE, "w") as f:
-                yaml.safe_dump({self.uin: cookie}, f)
+            self.db[self.uin] = cookie
         else:
             logger.info("使用缓存cookie")
 
@@ -227,20 +255,30 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         self.session.cookies.update(cookie)
 
     @login_if_expire
-    def doLike(self, likedata: LikeId) -> bool:
-        if not hasattr(self, 'gtk'): self.updateStatus()
+    def doLike(self, likedata: dict) -> bool:
+        """like a post according to likedata
+
+        - login_if_expire
+
+        Args:
+            likedata (dict): data contains essential args to like a post
+
+        Raises:
+            QzoneError: Error from qzone interface
+
+        Returns:
+            bool: if success
+        """
+        if self.gtk is None: self.updateStatus()
         body = {
             'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
             'opuin': self.uin,
-            'unikey': likedata.unikey,
-            'curkey': likedata.curkey,
-            'appid': likedata.appid,
-            'typeid': likedata.typeid,
-            'fid': likedata.fid,
             'from': 1,
             'active': 0,
-            'fupdate': 1
+            'fupdate': 1,
+            'fid': likedata.get('key', None) or likedata.get('fid', None)
         }
+        body.update(likedata)
         try:
             r = self.post(DO_LIKE_URL, params={'g_tk': self.gtk}, data=body)
         except HTTPError:
@@ -253,11 +291,30 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         else: raise QzoneError(r["code"], r["message"])
 
     @login_if_expire
-    def fetchPage(self, pagenum: int, count: int = 10):
+    def fetchPage(
+        self,
+        pagenum: int,
+        count: int = 10,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """fetch a page of feeds
+
+        - login_if_expire
+        
+        Args:
+            pagenum (int): page #
+            count (int, optional): Max feeds num. Defaults to 10.
+
+        Raises:
+            `UserBreak`: see `updateStatus`
+            `LoginError`: see `updateStatus`
+            `QzoneError`: exceptions that are raised by Qzone
+            `TimeoutError`: if no respone get 200 in `fetch_times` times.
+
+        Returns:
+            `list[dict[str, Any]] | None`, each dict reps a feed.
+            None is caused by retry decorator.
         """
-        make sure updateStatus is called before.
-        """
-        if not hasattr(self, 'gtk'): self.updateStatus()
+        if self.gtk is None: self.updateStatus()
 
         query = {
             'uin': self.uin,
@@ -271,35 +328,37 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         }
         query.update(Args4GettingFeeds)
 
-        for _ in range(self.fetch_times):
-            try:
-                r = self.get(GET_PAGE_URL, params=query)
-            except HTTPError as e:
-                logger.error(f"Http error when fetching page {pagenum}", exc_info=True)
-                raise e
-
-            r = RE_CALLBACK.search(r.text).group(1)
-            r = json_loads(r)
-            if r["code"] == -10001:
-                logger.info(r["message"])
-                time.sleep(5)
-            elif r['code'] != 0:
-                raise QzoneError(r['code'], r['message'])
-
-            data: dict = r['data']
-            self.extern[pagenum + 1] = unquote(data['main']["externparam"])
-            feeddict = filter(
-                lambda i: not (
-                    not i or                                    # `undefined` in feed datas or empty feed dict
-                    i['key'].startswith('advertisement_app') or # ad feed
-                    int(i['appid']) >=
-                    4096                                        # not supported (cannot encode), this might be removed
-                ),
-                data['data']
+        try:
+            r = self.get(GET_PAGE_URL, params=query)
+        except HTTPError as e:
+            logger.error(
+                f"HttpError when fetching page {pagenum}, Code: {e.response.status_code}"
             )
-            return list(feeddict)
+            raise e
+        except TypeError as e:
+            print('query = ' + str(query))
+            logger.error(
+                'BUG: please report this bug with `query`. thanks.', exc_info=True
+            )
+            raise e
 
-        raise TimeoutError("network is always busy!")
+        r = RE_CALLBACK.search(r.text).group(1)
+        r = json_loads(r)
+        if r['code'] != 0:
+            raise QzoneError(r['code'], r['message'])
+
+        data: dict = r['data']
+        self.extern[pagenum + 1] = unquote(data['main']["externparam"])
+        feeddict = filter(
+            lambda i: not (
+                not i or                                    # `undefined` in feed datas or empty feed dict
+                i['key'].startswith('advertisement_app') or # ad feed
+                int(i['appid']) >= 4096 or                  # not supported (cannot encode)
+                int(i['uin']) in BLOCK_LIST                 # in blocklist
+            ),
+            data['data']
+        )
+        return list(feeddict)
 
     @login_if_expire
     def checkUpdate(self):

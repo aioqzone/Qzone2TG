@@ -1,0 +1,3 @@
+[submodule "doc"]
+	path = doc
+	url = https://github.com/JamzumSum/Qzone2TG.wiki.git

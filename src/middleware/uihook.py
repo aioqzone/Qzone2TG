@@ -4,7 +4,8 @@ from typing import Callable
 
 class QREvent(ABC):
     _resend = None
-    
+    _cancel = None
+
     @abstractmethod
     def QrFetched(self, png: bytes):
         pass
@@ -21,8 +22,15 @@ class QREvent(ABC):
     def QrExpired(self, new_png: bytes):
         pass
 
+    @abstractmethod
+    def QrCanceled(self):
+        pass
+
     def register_resend_callback(self, resend_callback: Callable[[], bytes]):
         self._resend = resend_callback
+
+    def register_cancel_callback(self, cancel_callback: Callable[[], None]):
+        self._cancel = cancel_callback
 
 
 class QzoneEvent(ABC):
@@ -47,7 +55,12 @@ class QzoneEvent(ABC):
         pass
 
 
-class NullUI(QREvent, QzoneEvent):
+class FeedEvent(ABC):
+    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+        pass
+
+
+class NullUI(QREvent, QzoneEvent, FeedEvent):
     def QrFetched(self, png: bytes, *args, **kwargs):
         pass
 
@@ -58,6 +71,9 @@ class NullUI(QREvent, QzoneEvent):
         pass
 
     def QrExpired(self, new_png: bytes, *args, **kwargs):
+        pass
+
+    def QrCanceled(self):
         pass
 
     def loginSuccessed(self, *args, **kwargs):
@@ -74,3 +90,6 @@ class NullUI(QREvent, QzoneEvent):
 
     def fetchError(self, msg, *args, **kwargs):
         pass
+
+    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+        return super().contentReady(msg, forward, img, *args, **kwargs)

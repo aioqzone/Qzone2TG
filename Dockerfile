@@ -4,8 +4,8 @@ COPY . /app
 
 WORKDIR /app
 
-RUN pip install -e . && \
-    pip install python-telegram-bot[socks]
+RUN apt-get update -y && apt-get install -y gnome-keyring && \
+    pip install -e .\[socks\]
 
 FROM python:3.9-alpine
 
@@ -19,5 +19,4 @@ RUN apk add nodejs
 VOLUME ["/app/config", "/app/data"]
 EXPOSE 80 88 443 8443
 
-ENTRYPOINT ["python", "src/__main__.py"]
-CMD ["--no-interaction"]
+ENTRYPOINT python src/__main__.py --no-interaction

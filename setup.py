@@ -1,35 +1,37 @@
-# setup.py
-#!/usr/bin/env python
+from setuptools import find_packages, setup
 
-from setuptools import setup, find_packages, find_namespace_packages
+with open('src/VERSION') as f:
+    __version__ = f.read()
 
-NAME = 'QZone2TG'
-LOWERCASE = NAME.lower()
-PACKAGES = find_packages(where='src') + find_namespace_packages(include=['misc'])
-PACKAGES = [LOWERCASE] + [f"{LOWERCASE}.{i}" for i in PACKAGES]
+NAME = 'Qzone2TG'
+NAME_LOWER = NAME.lower()
+PACKAGES = find_packages(where='src')
+PACKAGES += ['utils']
+
+PACKAGES = [f"{NAME_LOWER}.{i}" for i in PACKAGES]
 
 setup(
-    name='QZone2TG',
-    version='1.3.3',
-    description='Forward QZone feeds to telegram',
+    name=NAME,
+    version=__version__,
+    description='Forward Qzone feeds to telegram',
     author='JamzumSum',
     author_email='zzzzss990315@gmail.com',
     url='https://github.com/JamzumSum/Qzone2TG',
     license="AGPL-3.0",
-    python_requires=">=3.8",                                                                         # for f-string and := op
+    python_requires=">=3.8",
     install_requires=[
         'python-telegram-bot',
         'lxml',
         'omegaconf',
-        "TencentLogin @ git+https://github.com/JamzumSum/QQQR.git"
+        'keyring',
+        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
+        "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git",
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
     },
+    tests_require=['pytest'],
     packages=PACKAGES,
-    package_dir={
-        LOWERCASE: "src",
-        f"{LOWERCASE}.misc": 'misc',
-    },
+    package_dir={NAME_LOWER: "src"},
     include_package_data=True,
 )

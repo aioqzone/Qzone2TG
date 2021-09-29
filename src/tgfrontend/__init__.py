@@ -1,5 +1,0 @@
-SUPPORT_TYPEID = (0, 5)
-SUPPORT_APPID = (4, 202, 311)
-APP_NAME = {4: 'QQ相册', 202: '微信', 311: 'QQ空间'}
-
-__all__ = ['SUPPORT_TYPEID', 'SUPPORT_APPID', 'APP_NAME']

@@ -1,37 +1,16 @@
 import logging
 import re
+from pathlib import PurePath
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
-from tgfrontend.compress import LikeId
-from utils import find_if
 
-from .emojimgr import url2unicode
+from utils.iterutils import find_if
 
-logger = logging.getLogger("Qzone HTML Parser")
+from .utils import elm2txt, sementicTime
 
-
-def elm2txt(elm: HtmlElement, richText=True) -> str:
-    """
-    elm: Iterable[HtmlElement]
-    """
-    txt = elm.text or ""
-    for i in elm:
-        if not isinstance(i, HtmlElement):
-            txt += i
-            continue
-
-        if i.tag in (switch := {
-                'br': lambda: '\n',
-                'img': lambda: url2unicode(i.attrib['src']),
-                'div': lambda: elm2txt(i),
-                'span': lambda: elm2txt(i),
-                'a': lambda: '' if i.attrib['href'].startswith("javascript") else
-                f'<a src="{i.attrib["href"]}">{i.text}</a>' if richText else i.text,
-        }):
-            txt += switch[i.tag]() + (i.tail or "")
-        else:
-            logger.warning("cannot recognize tag: " + i.tag)
-    return txt
+logger = logging.getLogger(__name__)
 
 
 class QZHtmlParser:
@@ -70,38 +49,78 @@ class QZHtmlParser:
         )
 
     @property
-    def uckeys(self) -> tuple:
+    def uckeys(self):
         self.parseLikeData()
         return self.likeData['unikey'], self.likeData['curkey']
 
     @property
-    def isLike(self) -> bool:
+    def isLike(self):
         return '1' in self.parseLikeData()['islike']
 
-    def parseBio(self) -> str:
-        return self.__x('//div[@class="user-pto"]/a/img/@src')[0]
+    def parseBio(self) -> Optional[str]:
+        bio = self.__x('//div[@class="user-pto"]/a/img/@src')
+        if bio: return bio[0]
 
-    def parseImage(self):
-        return [
-            i.replace('rf=0-0', 'rf=viewer_311')
-            for i in self.__x(self.f.ct, '//a[@class="img-item  "]/img/@src')
-        ]
+    def parseImage(self) -> List[str]:
+        img = self.__x(self.f.ct, '//a[@class="img-item  "]/img')
+        r = []
+        for i in img:
+            src = i.attrib['src']
+            if src.startswith('http'):
+                r.append(src)
+                continue
 
-    def parseFeedData(self) -> dict:
-        # 说实话这个好像没啥用
+            src = re.search(r"trueSrc:'(http.*?)'", i.attrib['onload'])
+            if src:
+                r.append(src.group(1).replace('\\', ''))
+                continue
+
+            if 'onload' in i.attrib:
+                logger.warning('cannot parse @onload: ' + i.attrib['onload'])
+            else:
+                logger.warning('cannot parse @src: ' + i.attrib['src'])
+        return r
+
+    def parseVideo(self) -> List[str]:
+        CANNOT = ['.swf']
+        ext = lambda url: PurePath(urlparse(url).path).suffix
+        video = self.__x(self.f.ct, '//div[contains(@class,"f-video-wrap")]')
+        media = []
+        for i in video:
+            url = i.attrib['url3']
+            if ext(url) not in CANNOT:
+                media.append(url)
+                continue
+
+            cover = self.__x(
+                self.f.ct, f'//div[@url3="{url}"]', '/div[@class="video-img"]',
+                '/img/@src'
+            )
+            if cover: media.append(cover[0])
+            else:
+                logger.warning('Cannot get video album: url=' + url)
+        return media
+
+    def parseFeedData(self) -> Dict[str, str]:
         if not hasattr(self, 'feedData'):
-            elm = self.__x('//i[@name="feed_data"]')[0].attrib
-            assert elm
-            self.feedData = {k[5:]: v for k, v in elm.items() if k.startswith("data-")}
+            elm = (elm := self.__x('//i[@name="feed_data"]')) and elm[0].attrib
+            if elm:
+                self.feedData = {
+                    k[5:]: v
+                    for k, v in elm.items() if k.startswith("data-")
+                }
+            else:
+                logger.warning('cannot parse i@name="feed_data"')
+                self.feedData = {}
         return self.feedData
 
-    def parseLikeList(self):
+    def parseLikeList(self) -> List[str]:
         return [
             tostring(i, encoding='utf-8').decode('utf-8')
             for i in self.__x(self.f.single_foot, '//div[@class="user-list"]')
         ]
 
-    def parseComments(self):
+    def parseComments(self) -> List[str]:
         return [
             tostring(i, encoding='utf-8').decode('utf-8') for i in
             self.__x('//div[@class="mod-comments"]', '/div[@class="comments-list "]')
@@ -112,16 +131,19 @@ class QZHtmlParser:
         dict contains (islike, likecnt, showcount, unikey, curkey, ...)
         """
         if not hasattr(self, 'likeData'):
-            att: dict = self.__x(
-                self.f.single_foot, '//a[contains(@class,"%s")]' %
-                ('qz_like_btn_v3 ' if hasattr(self, 'complete') else 'qz_like_prase')
+            att: dict = (
+                self.__x(self.f.single_foot, '//a[contains(@class,"qz_like_prase")]') +
+                self.__x(self.f.single_foot, '//a[contains(@class,"qz_like_btn_v3 ")]')
             )[0].attrib
             assert att
-            self.likeData = {k[5:]: v for k, v in att.items() if k.startswith('data-')}
+            self.likeData: Dict[str, str] = {
+                k[5:]: v
+                for k, v in att.items() if k.startswith('data-')
+            }
 
         return self.likeData
 
-    def parseForward(self) -> tuple:
+    def parseForward(self) -> Tuple[Optional[str], Optional[str], str]:
         """parse forwarder
 
         Returns:
@@ -132,28 +154,32 @@ class QZHtmlParser:
         if len(ls) == 1: txtbox = ls.pop()
         elif len(ls) == 2: txtbox = max(ls, key=lambda e: len(e))
 
+        nick = link = None
+        safe_cls = lambda a: a.attrib.get('class', '')
+
         for a in txtbox:
             if not isinstance(a, HtmlElement): continue
 
-            if a.tag == 'div' and a.attrib['class'].startswith('brand-name'):
-                if (a := find_if(a,
-                                 lambda i: i.attrib['class'].startswith('nickname'))) is not None:
+            if a.tag == 'div' and safe_cls(a).startswith('brand-name'):
+                if (a := find_if(
+                        a, lambda i: safe_cls(i).startswith('nickname'))) is not None:
                     link = a.attrib['href']
                     nick = a.text.strip()
                     break
-            elif a.tag == 'a' and a.attrib['class'].startswith('nickname'):
+            elif a.tag == 'a' and safe_cls(a).startswith('nickname'):
                 link = a.attrib['href']
                 nick = a.text.strip()
                 break
-        else:
-            return
 
-        txt = elm2txt(txtbox).strip()
+        txt = elm2txt(
+            a for a in txtbox if not isinstance(a, HtmlElement)
+            or not ((a.tag == 'div' and safe_cls(a).startswith('brand-name')) or
+                    (a.tag == 'a' and safe_cls(a).startswith('nickname')))
+        ).strip().lstrip('：')
         return nick, link, txt
 
-    def isCut(self) -> bool:
+    def isCut(self):
         txt: list = self.__x(self.f.info, '//a[@data-cmd="qz_toggle"]')
-        self.complete = True
         return bool(txt)
 
 
@@ -162,8 +188,11 @@ class QZFeedParser(QZHtmlParser):
         assert isinstance(feed, dict)
         feed['html'] = QZHtmlParser.trans(feed['html'])
         self.raw = feed
-        self.raw['hash'] = self.__hash__()
         super().__init__(feed['html'])
+
+    def updateHTML(self, html: str):
+        self.raw['html'] = html
+        return super().updateHTML(html)
 
     @property
     def uin(self) -> int:
@@ -171,6 +200,7 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def hash(self) -> int:
+        if 'hash' not in self.raw: self.raw['hash'] = self.__hash__()
         return self.raw['hash']
 
     @property
@@ -179,7 +209,7 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def feedstime(self) -> str:
-        return self.raw['feedstime'].strip()
+        return sementicTime(self.abstime)
 
     @property
     def appid(self) -> int:
@@ -191,18 +221,24 @@ class QZFeedParser(QZHtmlParser):
 
     @property
     def fid(self) -> str:
-        return self.raw['key']
+        return self.raw['key'] if 'key' in self.raw else self.raw['fid']
 
     @property
     def feedkey(self) -> str:
-        return self.raw['key']
+        return self.fid
 
     @property
     def abstime(self) -> int:
         return int(self.raw['abstime'])
 
     def getLikeId(self):
-        return LikeId(self.appid, self.typeid, self.feedkey, *self.uckeys)
+        return {
+            'unikey': (uc := self.uckeys)[0],
+            'curkey': uc[1],
+            'appid': self.appid,
+            'typeid': self.typeid,
+            'key': self.feedkey,
+        }
 
     def __hash__(self) -> int:
         return hash((self.uin, self.abstime))

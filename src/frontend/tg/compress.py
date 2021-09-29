@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 import re, base64, zlib
 import sys
 
@@ -74,6 +75,7 @@ class MoodUrl(Compress):
         )
 
 
+@dataclass(frozen=True)
 class LikeId(Compress):
     '''
     compress do_like args to 52 bytes, 
@@ -81,18 +83,12 @@ class LikeId(Compress):
 
     support "appid = 311" now.
     '''
+    __slots__ = ('appid', 'typeid', 'key', 'unikey', 'curkey')
     appid: int
     typeid: int
     key: str
     unikey: str
     curkey: str
-
-    def __init__(self, appid: int, typeid: int, key: str, unikey: str, curkey: str):
-        self.appid = appid
-        self.typeid = typeid
-        self.key = key
-        self.unikey = unikey
-        self.curkey = curkey
 
     @property
     def fid(self):
@@ -115,6 +111,15 @@ class LikeId(Compress):
         b = zlib.compress(self.tobytes(), 9)
         assert len(b) <= 48
         return base64.b64encode(b, b'!-').decode(encoding)
+
+    def todict(self):
+        return {
+            'unikey': self.unikey,
+            'curkey': self.curkey,
+            'appid': self.appid,
+            'typeid': self.typeid,
+            'key': self.key,
+        }
 
     @staticmethod
     def frombytes(b: bytes):

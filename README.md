@@ -2,21 +2,42 @@
 
 爬取QQ空间说说并转发到telegram
 
-> 1.3之后大概不会太频繁地更新功能了 
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)</br>
+<div style="text-align:left">
 
-> [v1.3.2][4] availible now!</br>
-> Working on QQQR now.
+<!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
+
+<img src="https://img.shields.io/badge/python-3.8%2F3.9-blue">
+
+<a href="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml">
+<img src="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml/badge.svg">
+</a>
+
+<a href="https://github.com/JamzumSum/Qzone2TG/releases">
+<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">
+</a> 
+
+<a href="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml">
+<img src="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml/badge.svg">
+</a>
+
+<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
+<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+</a>
+
+</div>
+
+> We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
+
+> [v2][latest] availible now!<br>
+> For other announcements, see [Discussion][notice]
 
 ## 功能
 
-* 自动登录空间, ~~cv过验证~~
+* 自动登录空间, ~~cv过验证~~(broken)
 * 二维码登录
-* 爬取说说文本
-* 爬取说说图片
-* 爬取说说转发
-* 点赞(应用消息的点赞受限)
-* 过滤部分广告
+* 爬取说说文本、图片、视频以及常见转发格式
+* 点赞(应用消息的点赞有时间限制)
+* 过滤广告
 * 简单的tg机器人, 支持webhook
 
 ## 截图
@@ -26,84 +47,110 @@
 ## 需求
 
 * 一台服务器
-  * 一切可运行`python`及`nodejs`的环境均可, 甚至包括tmux.
+  * 一切可运行`python`及`nodejs`的环境均可*, 甚至包括Termux.
   * 开启webhook需要域名和正确的DNS解析. 难以满足此要求可以使用`polling`或`refresh`模式.
 * 可访问tg的网络环境, 以下二选一:
   * 服务器可访问telegram api
   * 有可用的代理
-* 一个开通了空间的QQ号
-* 一个属于你的tg机器人, 得到token
-* 取得你的用户ID(acceptID)
+* QQ号和tg用户ID
+* tg机器人的`bot token`
+
+> *运行环境: **U**in-**P**wd登录和验证码解析需要`nodejs`. 如果您的二维码策略总保持`force`, 甚至不需要安装`nodejs`. 非windows或linux系统可能会遇到keyring的配置问题, 但这可以通过交互模式或命令行传参的方式解决. 或者保持二维码策略为`force`可以避免UP登录带来的一切问题(
+
+### Telegram commands
+
+<details>
+
+```
+start - Force refresh and resend all feeds.
+refresh - Refresh and send any new feeds.
+resend - Resend any unsent feeds.
+help - Get help info.
+```
+
+</details>
 
 ## 安装
 
-可选择docker image或直接安装.
+可选择[docker镜像][docker](感谢@TigerCubDen), 源码安装(develop install), 常规pip安装.
 
-### Docker Image
-
-> 感谢 @TigerCubDen 
-
-请移步[wiki][5]
-
-### 源码安装
+### 安装依赖
 
 1. 安装`nodejs` (若不使用账密登录可跳过此项)
 2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
-3. 
+3. linux环境请确保安装`gnome-keyring`:
+  ~~~ shell
+  apt install gnome-keyring
+  ~~~
 
-  ``` shell
-  # clone本项目
-  git clone https://github.com/JamzumSum/Qzone2TG.git
-  cd Qzone2TG
+### 安装Qzone2TG
 
-  # 安装依赖
-  pip install -e .
+<details>
+<summary> 源码安装(develop install) </summary>
 
-  # 建立配置文档. 
-  mkdir config
-  # 复制示例配置. 也可以参考wiki写配置
-  cp misc/example.yaml config/config.yaml
+``` shell
+# clone本项目
+git clone https://github.com/JamzumSum/Qzone2TG.git
+cd Qzone2TG
 
-  vim config.yaml     # 使用趁手的编辑器
-  # 填写qq, tg bot token, acceptId以及可选的代理
-  ```
+# 安装依赖
+pip install -e .
+# 复制示例配置. 也可以参考wiki写配置
+cp misc/example.yaml config/config.yaml
+```
+
+</details>
+
+
+<details>
+<summary> pip安装 </summary>
+
+~~~ shell
+# 安装到site-package
+pip install git+https://github.com/JamzumSum/Qzone2TG.git
+# 构建工作区
+mkdir Qzone2TG && cd Qzone2TG && mkdir config
+~~~
+
+</details>
 
 ## 运行
 
 ### 配置文件
 
-应用的配置文件在`config`目录下的`config.yaml`. 配置文件示例在`misc`目录下的`example.yaml`.
+请参考[wiki][conf]
 
-配置各项的含义请参考[wiki][3]
+~~~ shell
+vim config/config.yaml
+# 填写qq, bot token, acceptId以及可选的代理
+~~~
 
 ### 启动
 
-``` shell
-python3 -m qzone2tg
-# 输入密码或跳过
-```
-
-注意, 当允许保存密码时, 您的密码将在配置文件中无损失地存储. __脚本能够无需密钥地还原出您的密码, 您的管理员和攻击者也能够做到这一点.__ 请确保您主机或伺服器的安全性. 
-因此 __强烈建议__ 不保存密码, 即在配置文件中保持`savepwd`为`False`(默认).
-
-注意, 如果您的存储不安全, 攻击者可能通过缓存的cookie __直接操作您的QQ空间__. 
+- pip develop install: `python src/__main__.py`
+- pip安装: `python -m qzone2tg`
 
 ## 卸载
 
 |data directory |description  |
 |:--------------|:------------|
-|data           |用于缓存`keepdays`天内的feed|
-|tmp            |本地保存cookie等|
+|data           |保存数据库     |
 
-脚本没有在Qzone2TG文件夹外存储数据. 
+您的密码保存于系统的keyring中. 除此之外, 脚本没有在Qzone2TG文件夹外存储数据. 
+
+删除密码:
+~~~ shell
+keyring del qzone2tg <your-qq>
+~~~
 
 如果您需要完全卸载:
-1. 删除clone的源文件夹, 在未被修改的情况下, 是`Qzone2TG`
+1. - develop install: 删除`Qzone2TG`文件夹
+   - pip安装: `pip uninstall qzone2tg`
 2. _可选的_  删除安装的依赖:
 
     ``` shell
-    #您可以自行选择卸载哪些扩展.
-    pip3 uninstall python-telegram-bot lxml omegaconf tencentlogin
+    # python依赖
+    pip uninstall python-telegram-bot lxml omegaconf keyring tencentlogin qzemoji
     ```
 
 ## Credits
@@ -115,15 +162,18 @@ python3 -m qzone2tg
 - lxml: [BSD-3](https://github.com/lxml/lxml/blob/master/LICENSE.txt)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
+- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
+- qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
 ## License
 
 - [AGPL-3.0](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
 - __不鼓励、不支持一切商业使用__
 
-[1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
-[2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
-[3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.2 "v1.3.2"
-[5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
+
+[conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0 "2.0.0"
+[docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
+[notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
+[qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
