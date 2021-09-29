@@ -24,8 +24,8 @@ setup(
         'lxml',
         'omegaconf',
         'keyring',
-        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git>=2.3.0b5",
-        "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git>=0.2",
+        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
+        "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git",
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
