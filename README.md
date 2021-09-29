@@ -26,12 +26,10 @@
 
 </div>
 
-> We are using [QzEmoji](https://github.com/JamzumSum/QzEmoji) to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
+> We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [2.0.0 is comming!](https://github.com/JamzumSum/Qzone2TG/discussions/21)<br>
-> [Project board](https://github.com/JamzumSum/Qzone2TG/projects/2)<br>
-> [v2.0.0rc4][4] availible now!<br>
-> For other announcements, see [Discussion][6]
+> [v2][latest] availible now!<br>
+> For other announcements, see [Discussion][notice]
 
 ## 功能
 
@@ -49,7 +47,7 @@
 ## 需求
 
 * 一台服务器
-  * 一切可运行`python`及`nodejs`的环境均可*, 甚至包括tmux.
+  * 一切可运行`python`及`nodejs`的环境均可*, 甚至包括Termux.
   * 开启webhook需要域名和正确的DNS解析. 难以满足此要求可以使用`polling`或`refresh`模式.
 * 可访问tg的网络环境, 以下二选一:
   * 服务器可访问telegram api
@@ -63,8 +61,6 @@
 
 <details>
 
-> 自`2.0.0b4`起, 脚本会自动设置如下命令. (感谢 @TigerCubDen)
-
 ```
 start - Force refresh and resend all feeds.
 refresh - Refresh and send any new feeds.
@@ -76,7 +72,7 @@ help - Get help info.
 
 ## 安装
 
-可选择[docker镜像][5](感谢@TigerCubDen), 源码安装(develop install), 常规pip安装.
+可选择[docker镜像][docker](感谢@TigerCubDen), 源码安装(develop install), 常规pip安装.
 
 ### 安装依赖
 
@@ -122,7 +118,7 @@ mkdir Qzone2TG && cd Qzone2TG && mkdir config
 
 ### 配置文件
 
-请参考[wiki][3]
+请参考[wiki][conf]
 
 ~~~ shell
 vim config/config.yaml
@@ -175,9 +171,9 @@ keyring del qzone2tg <your-qq>
 - [AGPL-3.0](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
 - __不鼓励、不支持一切商业使用__
 
-[1]: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Working-Behind-a-Proxy "Working Behind a Proxy"
-[2]: https://code.visualstudio.com/docs/python/environments#_environment-variable-definitions-file "Use of the PYTHONPATH variable"
-[3]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[4]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0rc4 "2.0.0 release candidate 4"
-[5]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
-[6]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
+
+[conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0 "2.0.0"
+[docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
+[notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
+[qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"

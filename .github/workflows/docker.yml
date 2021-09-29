@@ -15,7 +15,7 @@ jobs:
       - name: Extract Version
         id: version_step
         run: |
-          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:$(python ./src/__version__.py)
+          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:$(cat ./src/VERSION)
           echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest
 
       - name: Set up QEMU

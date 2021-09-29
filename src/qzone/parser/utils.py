@@ -1,11 +1,11 @@
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Iterable, Optional, Union
 from pytz import timezone
 
 from lxml.html import HtmlElement
-from qzemoji import query
+from qzemoji import query, resolve
 
 HTML_ENTITY = {
     '<': '&lt;',
@@ -23,11 +23,13 @@ def subHtmlEntity(txt: Optional[str]):
 
 
 def url2unicode(src: str):
-    m = re.search(r"http://qzonestyle.gtimg.cn/qzone/em/e(\d+\..*)", src)
-    if m is None: return ""
-    m = query(m.group(1))
-    if m is None: return ""
-    return f"[/{m}]"
+    try:
+        m = query(resolve(src))
+        if m is None: return ""
+        return f"[/{m}]"
+    except ValueError:
+        logger.warning('cannot resolve emoji: ' + src)
+        return ""
 
 
 def elm2txt(elm: Union[HtmlElement, Iterable[HtmlElement]], richText=True) -> str:
@@ -36,7 +38,7 @@ def elm2txt(elm: Union[HtmlElement, Iterable[HtmlElement]], richText=True) -> st
     """
     txt = subHtmlEntity(elm.text) if isinstance(elm, HtmlElement) else ''
 
-    hd = lambda i: f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)
+    hd = lambda i: (f"<b>{elm2txt(i)}</b>" if richText else elm2txt(i)) + '\n'
     switch = {'h1': hd, 'h2': hd, 'h3': hd, 'h4': hd, 'h5': hd, 'h6': hd}
     switch.update(
         br=lambda i: '\n',

@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
 
-from __version__ import NAME, NAME_LOWER
+from . import NAME
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
 from middleware.storage import FeedBase, TokenTable
 from qzone import QzoneScraper
@@ -15,6 +15,7 @@ from qzone.feed import QZCachedScraper
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 NO_INTERACT: bool = True
+NAME_LOWER = NAME.lower()
 
 
 def getPassword(qzone: DictConfig):
@@ -181,8 +182,8 @@ if __name__ == '__main__':
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
     if arg.version:
-        from __version__ import version
-        print(version())
+        from . import __version__
+        print(__version__)
         exit(0)
     global CONF_PATH
     CONF_PATH = arg.config

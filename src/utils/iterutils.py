@@ -1,9 +1,9 @@
-from typing import Callable, Iterable, Optional, TypeVar
+from typing import Callable, Iterable, TypeVar
 
 T = TypeVar('T')
 
 
-def find_if(iter: Iterable[T], pred: Callable[[T], bool]) -> Optional[T]:
+def find_if(it: Iterable[T], pred: Callable[[T], bool]):
     """As that in C++
 
     Args:
@@ -13,5 +13,4 @@ def find_if(iter: Iterable[T], pred: Callable[[T], bool]) -> Optional[T]:
     Returns:
         Optional[T]: the first i that pred(i) == True
     """
-    for i in iter:
-        if pred(i): return i
+    return next(filter(pred, it), None)

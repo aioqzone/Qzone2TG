@@ -30,7 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel
           pip install -e .
-          pip install demjson pytest
+          pip install pytest
 
       - name: Test with pytest
         env:
