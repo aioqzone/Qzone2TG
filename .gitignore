@@ -1,11 +1,11 @@
-# vs code config and cache
+# config and cache
 __pycache__
 .vscode
+yapf_style.cfg
+.pylintrc
 
 # my private data
 /data
-.pylintrc
-yapf_style.cfg
 .env
 test/test_bot.py
 config/config.yaml
@@ -23,3 +23,6 @@ dockerfile
 /build
 /dist
 *.egg-info
+
+# archive
+archive
