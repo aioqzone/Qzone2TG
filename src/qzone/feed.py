@@ -1,21 +1,22 @@
 import logging
+from math import ceil
 
 from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 from utils.decorator import Retry
+from itertools import takewhile
 
 from . import QzoneScraper
 from .exceptions import LoginError, UserBreak
 from .parser import QZFeedParser as Parser
 
 logger = logging.getLogger(__name__)
-PAGE_LIMIT = 1000
 
 
 class QZCachedScraper:
     """Scraper + Database
-    """    
+    """
     ui = NullUI()
 
     def __init__(self, qzone: QzoneScraper, db: FeedBase):
@@ -41,7 +42,7 @@ class QZCachedScraper:
 
         Raises:
             UserBreak: see qzone.updateStatus
-        """        
+        """
         def bomb(e):            raise e    # yapf: disable
 
         retry403 = Retry({
@@ -51,19 +52,19 @@ class QZCachedScraper:
         try:
             feeds = fetch_w_retry(pagenum)
         except HTTPError as e:
-            return False
+            return 0
         except KeyboardInterrupt:
             raise UserBreak
         except LoginError as e:
             logger.error(f"LoginError: " + e.msg)
-            return False
+            return 0
         except Exception as e:
             logger.error(
                 f"{type(e)} when getting page {pagenum}. " + str(e), exc_info=True
             )
-            return False
+            return 0
 
-        if feeds is None: return False
+        if feeds is None: return 0
         assert isinstance(feeds, list)
 
         limit = day_stamp() - self.db.keepdays
@@ -74,7 +75,7 @@ class QZCachedScraper:
         ]
         self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
-        if not new: return False
+        if not new: return 0
 
         for i in new:
             if not i.isCut(): continue
@@ -85,7 +86,7 @@ class QZCachedScraper:
                 logger.warning(f'feed {i.hash}: 获取完整说说失败')
 
         self.db.saveFeeds(new)
-        return True
+        return len(new)
 
     def fetchNewFeeds(self, reload=False):
         """fetch all new feeds.
@@ -95,13 +96,17 @@ class QZCachedScraper:
 
         Returns:
             bool: if success
-        """        
-        flag = False
-        for i in range(PAGE_LIMIT):
-            tmp = self.getFeedsInPage(i + 1, reload)
-            if not tmp: break
-            flag = True
-        return flag
+        """
+        sup = self.qzone.checkUpdate()
+        if sup == 0: return False
+        page = 1 + ceil((sup - 6) / 10)
+
+        s = sum(
+            takewhile(bool, (self.getFeedsInPage(i + 1, reload) for i in range(page)))
+        )
+        if s < sup:
+            logger.warning(f'Expect to get {sup} new feeds, but actually {s}')
+        return s
 
     def like(self, likedata: dict):
         """like a post specified by likedata
@@ -111,7 +116,7 @@ class QZCachedScraper:
 
         Returns:
             bool: if success
-        """        
+        """
         return self.qzone.doLike(likedata)
 
     def likeAFile(self, fid: str):
@@ -125,7 +130,7 @@ class QZCachedScraper:
 
         Returns:
             bool: if success
-        """        
+        """
         r = self.db.feed[fid] or self.db.archive[fid]
         if not r: raise FileNotFoundError
         return self.like(Parser(r).getLikeId())

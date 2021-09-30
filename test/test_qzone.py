@@ -37,11 +37,16 @@ def test_UpdateStatus():
         pytest.skip('Account banned.', allow_module_level=True)
 
 
+def test_checkUpdate():
+    spider.checkUpdate()
+
+
 def test_FetchPage():
-    if not login: pytest.skip('not login', allow_module_level=True)
+    if login is None: test_checkUpdate()
+    if login == False: pytest.skip('not login', allow_module_level=True)
     global FEEDS
     FEEDS = None
-    feeds = spider.fetchPage(1)
+    feeds = spider.fetchPage(1, 1)
     assert feeds is not None
     assert 0 < len(feeds) <= 10
     feeds.extend(spider.fetchPage(2))

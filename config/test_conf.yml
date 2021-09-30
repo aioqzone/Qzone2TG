@@ -5,7 +5,6 @@ bot:
   accept_id: ${oc.env:TEST_ACCEPTID}
   method: polling
   token: ${oc.env:TEST_BOT_TOKEN}
-  daily: "12:00"
 
 feed:
   keepdays: 0

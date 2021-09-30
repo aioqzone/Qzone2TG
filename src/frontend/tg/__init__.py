@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, time as Time, timedelta
+from datetime import time as Time
 from pytz import timezone
 
 import telegram
@@ -37,14 +37,12 @@ class RefreshBot:
         accept_id: int,
         uin: int,
         *,
-        daily: dict = None,
         proxy: dict = None,
     ):
         self.accept_id = accept_id
         self.feedmgr = feedmgr
         self._token = token
         self.uin = uin
-        self.daily = daily
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
         self.ui = TgUI(self.update.bot, accept_id)
@@ -58,35 +56,23 @@ class RefreshBot:
         self.update.stop()
 
     def register_period_refresh(self):
-        kw = dict(
-            callback=lambda c: self.onFetch(c.bot, False),
-            days=tuple(self.daily.get('days', range(7)))
+        self.update.job_queue.run_repeating(
+            lambda c: self.onFetch(c.bot, False, True), 300, name='period_refresh'
         )
-        tctz = lambda t: t.replace(second=0, microsecond=0, tzinfo=TIME_ZONE)
-        if 'time' in self.daily and self.daily['time']:
-            if isinstance(self.daily.time, str):
-                timelist = self.daily.time.split()
-            else:
-                timelist = list(self.daily.time)
-            for i in set(timelist):
-                self.update.job_queue.run_daily(
-                    time=tctz(Time.fromisoformat(i)), name='period_refresh_' + i, **kw
-                )
-        else:
-            self.update.job_queue.run_daily(
-                time=tctz((datetime.utcnow() + timedelta(hours=8)).time()),
-                name='period_refresh',
-                **kw
-            )
         logger.info('periodically refresh registered.')
 
     def run(self):
-        assert self.daily, 'refresh bot must refresh!'
         self.register_period_refresh()
         logger.info("start refreshing")
         self.update.idle()
 
-    def onSend(self, update: telegram.Update, context: CallbackContext, reload=False):
+    def onSend(
+        self,
+        update: telegram.Update,
+        context: CallbackContext,
+        reload=False,
+        period=False
+    ):
         @Locked(
             lambda: logger.info('onSend: new send excluded.') or context.bot.
             send_message(
@@ -118,19 +104,18 @@ class RefreshBot:
                     logger.error(f"{i.feed}: {str(e)}", exc_info=True)
                     err += 1
                     continue
-            self.ui.fetchEnd(len(new) - err, err)
+            self.ui.fetchEnd(len(new) - err, err, period)
 
         self.update.job_queue.run_custom(send, {})
 
-    def onFetch(self, bot: telegram.Bot, reload: bool):
+    def onFetch(self, bot: telegram.Bot, reload: bool, period=False):
         cmd = "force-refresh" if reload else "refresh"
 
         logger.info(f"{self.accept_id}: start {cmd}")
 
         @Locked(
-            lambda: logger.info('onFetch: new fetch excluded.') or bot.send_message(
-                chat_id=self.accept_id, text="Sorry. But the bot is fetching already."
-            )
+            lambda: logger.info('onFetch: new fetch excluded.') or self.ui.bot.
+            sendMessage("Sorry. But the bot is fetching already.")
         )
         def fetch(context: CallbackContext):
             try:
@@ -149,7 +134,8 @@ class RefreshBot:
                 self.ui.fetchError()
                 return
             self.onSend(
-                FakeObj(effective_chat=FakeObj(id=self.accept_id)), context, reload
+                FakeObj(effective_chat=FakeObj(id=self.accept_id)), context, reload,
+                period
             )
 
         self.update.job_queue.run_custom(fetch, {})
@@ -165,12 +151,11 @@ class PollingBot(RefreshBot):
         accept_id: int,
         uin: int,
         *,
-        daily: dict = None,
         proxy: dict = None,
         polling: dict = None,
         auto_start=False,
     ):
-        super().__init__(feedmgr, token, accept_id, uin, daily=daily, proxy=proxy)
+        super().__init__(feedmgr, token, accept_id, uin, proxy=proxy)
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
         self.__proxy = proxy

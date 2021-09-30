@@ -95,6 +95,12 @@ def configVersionControl(conf: DictConfig):
             "From 2.0.0b5, `qzone.savepwd` is deprecated. Password saving will be powered by `keyring`. "
             "Just remove this config item. "
         )
+    if 'daily' in conf.bot:
+        fw(
+            "From 2.1.0, `bot.daily` will not be used. Please lookup wiki for details. "
+            "Cron refreshing is an outdated technique now."
+        )
+        conf.bot.pop('daily')
 
     return conf
 

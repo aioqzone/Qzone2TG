@@ -147,7 +147,7 @@ def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
         time.sleep(5)
         return
 
-    if e.code != -3000: raise e
+    if e.code not in [-3000, -4002]: raise e
     if self.uin in self.db:
         del self.db[self.uin]
     # e.code == -3000
@@ -361,9 +361,21 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         return list(feeddict)
 
     @login_if_expire
-    def checkUpdate(self):
+    def checkUpdate(self) -> int:
+        """return the super of new feed amount.
+
+        Raises:
+            QzoneError: if unkown qzone code returned
+
+        Returns:
+            int: super of new feed amount
+        """
+        if self.gtk is None: self.updateStatus()
         r = self.get(UPDATE_FEED_URL, params={'uin': self.uin, 'g_tk': self.gtk})
         r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)
-        if r["code"] == 0: return r["data"]
-        else: raise QzoneError(r['code'], r['message'])
+        if r["code"] != 0: raise QzoneError(r['code'], r['message'])
+
+        r = r['data']
+        cal_item = 'friendFeeds_new_cnt', 'friendFeeds_newblog_cnt', 'friendFeeds_newphoto_cnt', 'myFeeds_new_cnt'
+        return sum(r[i] for i in cal_item)
