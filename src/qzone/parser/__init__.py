@@ -6,9 +6,9 @@ from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
 
-from src.utils.iterutils import find_if
+from utils.iterutils import find_if
 
-from src.qzone.parser.utils import elm2txt, sementicTime
+from .utils import elm2txt, sementicTime
 
 logger = logging.getLogger(__name__)
 
