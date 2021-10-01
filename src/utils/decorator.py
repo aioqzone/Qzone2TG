@@ -1,8 +1,9 @@
-from functools import wraps
 import time
-from typing import Any, Callable, Dict, Type
-from utils.iterutils import find_if
 from collections import deque
+from functools import wraps
+from typing import Any, Callable, Dict, Generic, Type, TypeVar
+
+from utils.iterutils import find_if
 
 
 def exc_chain(exc: type):
@@ -127,23 +128,54 @@ class FloodControl:
             self._ts.append((time.time(), N))
 
 
-class Locked:
-    """NOTE: Not used for concurency!!!"""
+FT = TypeVar('FT')
+
+
+class Locked(Generic[FT]):
+    """NOTE: Not designed for concurency!!!"""
     _lock = False
 
-    def __init__(self, conflict_callback=None) -> None:
+    class _ConflictException(RuntimeError):
+        pass
+
+    def __init__(self, conflict_callback: Callable[[], None] = None) -> None:
         self._on_conflict = conflict_callback
 
-    def __call__(self, func):
+    def __call__(self, func: FT) -> FT:
         @wraps(func)
         def lockWrapper(*args, **kwargs):
-            if self._lock:
-                return self._on_conflict and self._on_conflict()
-
-            try:
-                self._lock = True
+            with self:
                 return func(*args, **kwargs)
-            finally:
-                self._lock = False
+
+        return lockWrapper
+
+    def __enter__(self, *a, **k):
+        if self._lock:
+            raise self._ConflictException
+        self._lock = True
+
+    def __exit__(self, ty: type, e: Exception, trace):
+        if ty == self._ConflictException:
+            return self._on_conflict and self._on_conflict()
+
+        self._lock = False
+        if e: raise e
+
+
+class LockedMethod(Locked):
+    _that = None
+
+    def __init__(self, conflict_callback: Callable[[Any], None] = None) -> None:
+        if conflict_callback: conflict_callback = lambda: conflict_callback(self._that)
+        super().__init__(conflict_callback=conflict_callback)
+
+    def __call__(self, func: FT) -> FT:
+        this = self
+
+        @wraps(func)
+        def lockWrapper(self, *args, **kwargs):
+            this._that = self
+            with this:
+                return func(self, *args, **kwargs)
 
         return lockWrapper

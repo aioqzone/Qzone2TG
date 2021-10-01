@@ -1,7 +1,7 @@
 import logging
 from math import ceil
 
-from middleware.storage import FeedBase, day_stamp
+from middleware.storage import PAGE_LIMIT, FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 from utils.decorator import Retry
@@ -38,7 +38,7 @@ class QZCachedScraper:
             `reload` (bool, optional): whether to ignore existing feed. Defaults to False.
 
         Return:
-            bool: if success
+            int: new feeds amount
 
         Raises:
             UserBreak: see qzone.updateStatus
@@ -83,7 +83,7 @@ class QZCachedScraper:
             if html:
                 i.updateHTML(html)
             else:
-                logger.warning(f'feed {i.hash}: 获取完整说说失败')
+                logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
 
         self.db.saveFeeds(new)
         return len(new)
@@ -95,11 +95,14 @@ class QZCachedScraper:
             reload (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
 
         Returns:
-            bool: if success
+            int: new feeds amount
         """
         sup = self.qzone.checkUpdate()
-        if sup == 0: return False
-        page = 1 + ceil((sup - 6) / 10)
+        if reload:
+            page = 1000
+        else:
+            if sup == 0: return 0
+            page = 1 + ceil((sup - 6) / 10)
 
         s = sum(
             takewhile(bool, (self.getFeedsInPage(i + 1, reload) for i in range(page)))

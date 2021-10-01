@@ -15,7 +15,7 @@ from urllib.parse import quote, unquote
 import requests
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
-from tencentlogin import TencentLoginError
+from tencentlogin.exception import TencentLoginError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User

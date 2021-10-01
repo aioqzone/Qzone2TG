@@ -25,8 +25,7 @@ def subHtmlEntity(txt: Optional[str]):
 def url2unicode(src: str):
     try:
         m = query(resolve(src))
-        if m is None: return ""
-        return f"[/{m}]"
+        return f"[/{m or '表情'}]"
     except ValueError:
         logger.warning('cannot resolve emoji: ' + src)
         return ""

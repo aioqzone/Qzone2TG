@@ -6,9 +6,9 @@ from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
 
-from utils.iterutils import find_if
+from src.utils.iterutils import find_if
 
-from .utils import elm2txt, sementicTime
+from src.qzone.parser.utils import elm2txt, sementicTime
 
 logger = logging.getLogger(__name__)
 
@@ -157,25 +157,22 @@ class QZHtmlParser:
         nick = link = None
         safe_cls = lambda a: a.attrib.get('class', '')
 
-        for a in txtbox:
+        txtbox = list(txtbox)
+        for i, a in enumerate(txtbox):
             if not isinstance(a, HtmlElement): continue
 
             if a.tag == 'div' and safe_cls(a).startswith('brand-name'):
-                if (a := find_if(
+                if (ia := find_if(
                         a, lambda i: safe_cls(i).startswith('nickname'))) is not None:
-                    link = a.attrib['href']
-                    nick = a.text.strip()
-                    break
+                    link = ia.attrib['href']
+                    nick = ia.text.strip()
+                    txtbox[i] = a.tail or ""
             elif a.tag == 'a' and safe_cls(a).startswith('nickname'):
                 link = a.attrib['href']
                 nick = a.text.strip()
-                break
+                txtbox[i] = a.tail or ""
 
-        txt = elm2txt(
-            a for a in txtbox if not isinstance(a, HtmlElement)
-            or not ((a.tag == 'div' and safe_cls(a).startswith('brand-name')) or
-                    (a.tag == 'a' and safe_cls(a).startswith('nickname')))
-        ).strip().lstrip('：')
+        txt = elm2txt(txtbox).strip().lstrip('：')
         return nick, link, txt
 
     def isCut(self):
@@ -241,7 +238,7 @@ class QZFeedParser(QZHtmlParser):
         }
 
     def __hash__(self) -> int:
-        return hash((self.uin, self.abstime))
+        return int(self.feedkey, 16)
 
     def __repr__(self) -> str:
         return f"{self.nickname}, {self.feedstime}"

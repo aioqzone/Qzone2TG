@@ -28,7 +28,9 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [v2][latest] availible now!<br>
+> [v2.1][latest] availible now!<br>
+> We achieved persistence login in v2.1 (Maybe for one day?) 
+> Era of hourly refreshing ends. We are checking for new feeds every 5 minutes now!
 > For other announcements, see [Discussion][notice]
 
 ## 功能
@@ -56,19 +58,6 @@
 * tg机器人的`bot token`
 
 > *运行环境: **U**in-**P**wd登录和验证码解析需要`nodejs`. 如果您的二维码策略总保持`force`, 甚至不需要安装`nodejs`. 非windows或linux系统可能会遇到keyring的配置问题, 但这可以通过交互模式或命令行传参的方式解决. 或者保持二维码策略为`force`可以避免UP登录带来的一切问题(
-
-### Telegram commands
-
-<details>
-
-```
-start - Force refresh and resend all feeds.
-refresh - Refresh and send any new feeds.
-resend - Resend any unsent feeds.
-help - Get help info.
-```
-
-</details>
 
 ## 安装
 
@@ -173,7 +162,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.0.0 "2.0.0"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.1.0 "2.1.0"
 [docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"

@@ -1,148 +1,40 @@
 import logging
 import re
-from datetime import time as Time
-from pytz import timezone
+from functools import wraps
 
 import telegram
 from qzone.exceptions import UserBreak
 from qzone.feed import QZCachedScraper
-from requests.exceptions import HTTPError
 from telegram.error import NetworkError, TelegramError
-from telegram.ext import (
-    CallbackContext, CallbackQueryHandler, CommandHandler, Updater
-)
+from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler
 
-from utils.decorator import Locked
-
+from .base import RefreshBot
 from .compress import LikeId
-from .ui import TgExtracter, TgUI, br, retry_once
+from .ui import br
 
 logger = logging.getLogger(__name__)
-TIME_ZONE = timezone('Asia/Shanghai')
 
 
-class FakeObj:
-    def __init__(self, **kwargs) -> None:
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+class _DecHelper:
+    @staticmethod
+    def CA(func):
+        @wraps(func)
+        def CAWrapper(self, *a, **tk):
+            if len(a) == 2:
+                if not self.checkAccess(*a): return
+            return func(self, **tk)
+
+        return CAWrapper
 
 
-class RefreshBot:
-    flood_limit = 30
-
-    def __init__(
-        self,
-        feedmgr: QZCachedScraper,
-        token: str,
-        accept_id: int,
-        uin: int,
-        *,
-        proxy: dict = None,
-    ):
-        self.accept_id = accept_id
-        self.feedmgr = feedmgr
-        self._token = token
-        self.uin = uin
-
-        self.update = Updater(token, use_context=True, request_kwargs=proxy)
-        self.ui = TgUI(self.update.bot, accept_id)
-
-        def cleanFeed(context):
-            self.feedmgr.cleanFeed()
-
-        self.update.job_queue.run_daily(cleanFeed, Time(tzinfo=TIME_ZONE))
-
-    def __del__(self):
-        self.update.stop()
-
-    def register_period_refresh(self):
-        self.update.job_queue.run_repeating(
-            lambda c: self.onFetch(c.bot, False, True), 300, name='period_refresh'
-        )
-        logger.info('periodically refresh registered.')
-
-    def run(self):
-        self.register_period_refresh()
-        logger.info("start refreshing")
-        self.update.idle()
-
-    def onSend(
-        self,
-        update: telegram.Update,
-        context: CallbackContext,
-        reload=False,
-        period=False
-    ):
-        @Locked(
-            lambda: logger.info('onSend: new send excluded.') or context.bot.
-            send_message(
-                chat_id=self.accept_id, text="Sorry. But the bot is sending already."
-            )
-        )
-        def send(context):
-            err = 0
-            new = self.feedmgr.db.getFeed(
-                cond_sql='' if reload else 'is_sent IS NULL OR is_sent=0',
-                plugin_name='tg',
-                order=True,
-            )
-            if new == False: return self.ui.fetchError('数据库出错, 请检查数据库')
-
-            for i in new:
-                try:
-                    i = TgExtracter(i, self.uin)
-                    if i.isBlocked: continue
-                    send_w_retry = retry_once(
-                        self.ui.contentReady, lambda exc: f"feed {i.feed}: {exc}"
-                    )
-                    send_w_retry(
-                        *i.content(),
-                        i.likeButton() if hasattr(self, 'like') else None,
-                    )
-                    self.feedmgr.db.setPluginData('tg', i.feed.fid, is_sent=1)
-                except Exception as e:
-                    logger.error(f"{i.feed}: {str(e)}", exc_info=True)
-                    err += 1
-                    continue
-            self.ui.fetchEnd(len(new) - err, err, period)
-
-        self.update.job_queue.run_custom(send, {})
-
-    def onFetch(self, bot: telegram.Bot, reload: bool, period=False):
-        cmd = "force-refresh" if reload else "refresh"
-
-        logger.info(f"{self.accept_id}: start {cmd}")
-
-        @Locked(
-            lambda: logger.info('onFetch: new fetch excluded.') or self.ui.bot.
-            sendMessage("Sorry. But the bot is fetching already.")
-        )
-        def fetch(context: CallbackContext):
-            try:
-                self.feedmgr.fetchNewFeeds(reload)
-            except TimeoutError:
-                self.ui.fetchError("爬取超时, 刷新或许可以)")
-                return
-            except HTTPError:
-                self.ui.fetchError('爬取出错, 刷新或许可以)')
-                return
-            except UserBreak:
-                self.ui.QrCanceled()
-                return
-            except Exception as e:
-                logger.error(str(e), exc_info=True)
-                self.ui.fetchError()
-                return
-            self.onSend(
-                FakeObj(effective_chat=FakeObj(id=self.accept_id)), context, reload,
-                period
-            )
-
-        self.update.job_queue.run_custom(fetch, {})
-
-
-class PollingBot(RefreshBot):
+class PollingBot(RefreshBot, _DecHelper):
     reload_on_start = True
+    commands = {
+        "start": "Force login. Then refresh and resend all feeds.",
+        "refresh": "Refresh and send any new feeds.",
+        "resend": "Resend any unsent feeds.",
+        "help": "Send help message."
+    }
 
     def __init__(
         self,
@@ -167,56 +59,41 @@ class PollingBot(RefreshBot):
         dispatcher.add_handler(CommandHandler('help', self.onHelp))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
 
-        commands = [
-            telegram.BotCommand(
-                command="start",
-                description="Force login. Then refresh and resend all feeds."
-            ),
-            telegram.BotCommand(
-                command="refresh", description="Refresh and send any new feeds."
-            ),
-            telegram.BotCommand(
-                command="resend", description="Resend any unsent feeds."
-            ),
-            telegram.BotCommand(command="help", description="Send help message.")
-        ]
         try:
-            self.update.bot.set_my_commands(commands)
+            self.update.bot.set_my_commands([
+                telegram.BotCommand(command=k, description=v)
+                for k, v in self.commands.items()
+            ])
         except TelegramError as e:
             logger.warning(e.message)
 
-    def checkAccess(self, bot, chat_id: int):
-        if chat_id != self.accept_id:
-            logger.warning(f"illegal access: {chat_id}")
-            bot.send_message(
-                chat_id=chat_id, text="Sorry. But bot won't answer unknown chat."
+    def checkAccess(self, update: telegram.Update, context: CallbackContext):
+        if update.effective_chat.id != self.accept_id:
+            logger.warning(f"illegal access: {update.effective_chat.id}")
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Sorry. But bot won't answer unknown chat."
             )
             return False
         return True
 
-    def onSend(self, update: telegram.Update, context: CallbackContext, reload=False):
-        if self.checkAccess(context.bot, update.effective_chat.id):
-            return super().onSend(update, context, reload)
+    @_DecHelper.CA
+    def onSend(self, *, reload=False, period=False):
+        return super().onSend(reload=reload, period=period)
 
-    def onRefresh(
-        self, update: telegram.Update, context: CallbackContext, reload=False
-    ):
-        if self.checkAccess(context.bot, update.effective_chat.id):
-            self.onFetch(context.bot, reload)
+    @_DecHelper.CA
+    def onRefresh(self, *, reload=False):
+        self.onFetch(reload=reload)
 
-    def onStart(self, update: telegram.Update, context):
-        self.onRefresh(update, context, reload=self.reload_on_start)
+    @_DecHelper.CA
+    def onStart(self):
+        self.onRefresh(reload=self.reload_on_start)
         self.register_period_refresh()
 
-    def onHelp(self, update, context: CallbackContext):
-        if self.checkAccess(context.bot, update.effective_chat.id):
-            context.bot.send_message(
-                chat_id=self.accept_id,
-                text="/start - Force login. Then refresh and resend all feeds.\n"
-                "/refresh - Refresh and send any new feeds.\n"
-                "/resend - Resend any unsent feeds.\n"
-                "/help - Send this message."
-            )
+    @_DecHelper.CA
+    def onHelp(self):
+        helpm = '\n'.join(f"/{k} - {v}" for k, v in self.commands.items())
+        self.ui.bot.sendMessage(helpm)
 
     def run(self):
         try:
@@ -237,10 +114,7 @@ class PollingBot(RefreshBot):
     def idle(self):
         if self.auto_start:
             logger.info('auto start')
-            self.onStart(
-                update=FakeObj(effective_chat=FakeObj(id=self.accept_id)),
-                context=FakeObj(bot=self.update.bot)
-            )
+            self.onStart()
         else:
             self.ui.bot.sendMessage(
                 "You've disabled 'auto start'. "
@@ -251,9 +125,9 @@ class PollingBot(RefreshBot):
         self.update.idle()
 
     def onButtonClick(self, update: telegram.Update, context):
+        if not self.checkAccess(update, context): return
         query: telegram.CallbackQuery = update.callback_query
         data: str = query.data
-        if not self.checkAccess(context.bot, update.effective_chat.id): return
         if data in (d := {
                 'qr_refresh': self.ui.QrResend,
                 'qr_cancel': self.ui._cancel,
@@ -262,6 +136,7 @@ class PollingBot(RefreshBot):
         else:
             self.like(query)
 
+    @RefreshBot.asyncRun
     def like(self, query: telegram.CallbackQuery):
         logger.info("like post start")
         data: str = query.data
