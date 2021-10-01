@@ -38,6 +38,8 @@ def test_UpdateStatus():
 
 
 def test_checkUpdate():
+    if login is None: test_checkUpdate()
+    if login == False: pytest.skip('not login', allow_module_level=True)
     spider.checkUpdate()
 
 

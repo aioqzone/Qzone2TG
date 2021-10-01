@@ -71,7 +71,7 @@ class RefreshBot(_DecHelper):
         self.update.stop()
 
     def register_period_refresh(self):
-        self.update.job_queue.run_repeating(
+        self._refresh_job = self.update.job_queue.run_repeating(
             lambda c: self.onFetch(reload=False, period=True),
             300,
             name='period_refresh'
@@ -124,7 +124,7 @@ class RefreshBot(_DecHelper):
         logger.info(f"{self.accept_id}: start {cmd}")
 
         try:
-            self.feedmgr.fetchNewFeeds(reload)
+            r = self.feedmgr.fetchNewFeeds(reload)
         except TimeoutError:
             self.ui.fetchError("爬取超时, 刷新或许可以)")
             return
@@ -138,4 +138,8 @@ class RefreshBot(_DecHelper):
             logger.error(str(e), exc_info=True)
             self.ui.fetchError()
             return
-        self.onSend(reload=reload, period=period)
+
+        if r: self.onSend(reload=reload, period=period)
+        if not period:
+            job = self._refresh_job.job
+            job.reschedule(job.trigger)
