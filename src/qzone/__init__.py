@@ -9,19 +9,21 @@ import json
 import logging
 import re
 import time
+from random import random
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote, unquote
 
 import requests
 from jssupport.jsjson import json_loads
+from middleware.storage import TokenTable
+from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
-from tencentlogin.exception import TencentLoginError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
+from tencentlogin.encrypt import gtk
+from tencentlogin.exception import TencentLoginError
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from middleware.uihook import NullUI
-from middleware.storage import TokenTable
-from utils.decorator import Retry
+from utils.decorator import Retry, noexcept
 
 from .common import *
 from .exceptions import LoginError, QzoneError, UserBreak
@@ -118,8 +120,45 @@ class LoginHelper:
         return
 
 
+class _DecHelper:
+    @staticmethod
+    def onLoginExpire(self, e: QzoneError, i):
+        if e.code == -10001:
+            if i >= 11: raise TimeoutError('Network is always busy!')
+            logger.info(e.msg)
+            time.sleep(5)
+            return
+
+        if e.code not in [-3000, -4002]: raise e
+        if self.uin in self.db:
+            del self.db[self.uin]
+
+        if i >= 1: raise e
+        logger.info("cookie已过期, 即将重新登陆.")
+        QzoneScraper.updateStatus(self, force_login=True)
+
+    @staticmethod
+    def onHTTPError(e: HTTPError, i):
+        if e.response.status_code != 403: raise e
+        if i >= 1: raise e
+
+    @classmethod
+    @property
+    def login_if_expire(cls):
+        return Retry(
+            {QzoneError: cls.onLoginExpire},
+            times=12,
+            with_self=True,
+        )
+
+    @classmethod
+    @property
+    def retry_403(cls):
+        return Retry({HTTPError: cls.onHTTPError})
+
+
 class HTTPHelper:
-    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62"
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36 Edg/94.0.992.31"
 
     def __init__(self, uin, UA=None) -> None:
         self.header = {
@@ -129,35 +168,23 @@ class HTTPHelper:
         }
         self.session = requests.Session()
 
+    @noexcept({ConnectionError: lambda e: logger.error('ConnectionError when post.')})
+    @_DecHelper.retry_403
     def post(self, *args, **kwargs):
         r = self.session.post(*args, **kwargs, headers=self.header)
-        if r.status_code != 200: raise HTTPError(response=r)
+        if r.status_code != 200: 
+            logger.warning(f'{r.status_code} when posting {r.url}')
+            raise HTTPError(response=r)
         return r
 
+    @noexcept({ConnectionError: lambda e: logger.error('ConnectionError when get.')})
+    @_DecHelper.retry_403
     def get(self, *args, **kwargs):
         r = self.session.get(*args, **kwargs, headers=self.header)
-        if r.status_code != 200: raise HTTPError(response=r)
+        if r.status_code != 200: 
+            logger.warning(f'{r.status_code} when getting {r.url}')
+            raise HTTPError(response=r)
         return r
-
-
-def onLoginExpire(e: QzoneError, i, self, *args, **kwargs):
-    if e.code == -10001:
-        if i >= 11: raise TimeoutError('Network is always busy!')
-        logger.info(e.msg)
-        time.sleep(5)
-        return
-
-    if e.code not in [-3000, -4002]: raise e
-    if self.uin in self.db:
-        del self.db[self.uin]
-    # e.code == -3000
-    if i == 1: raise e
-    logger.info("cookie已过期, 即将重新登陆.")
-    QzoneScraper.updateStatus(self, force_login=True)
-
-
-# retry QzoneError only
-login_if_expire = Retry({QzoneError: onLoginExpire}, times=12, inspect=True)
 
 
 class QzoneScraper(LoginHelper, HTTPHelper):
@@ -169,23 +196,14 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         qq: Union[str, int],
         *,
         password: str = None,
-        fetch_times=12,
         qr_strategy='prefer',
         UA=None,
     ):
         qq = int(qq)
         LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         HTTPHelper.__init__(self, qq, UA)
-        self.fetch_times = fetch_times
         self.db = token_tbl
         self.extern = {1: "undefined"}
-
-    @staticmethod
-    def cal_gtk(p_skey):
-        phash = 5381
-        for i in p_skey:
-            phash += (phash << 5) + ord(i)
-        return phash & 0x7fffffff
 
     @staticmethod
     def parseExternParam(unquoted: str) -> dict:
@@ -196,7 +214,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             dic[s[0]] = s[1] if len(s) > 1 else None
         return dic
 
-    def getCompleteFeed(self, feedData: dict) -> str:
+    def getCompleteFeed(self, feedData: dict) -> Optional[str]:
         if not feedData: return
 
         body = {
@@ -208,6 +226,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         body.update(Arg4CompleteFeed)
 
         r = self.post(COMPLETE_FEED_URL, params={'g_tk': self.gtk}, data=body)
+        if r is None: return
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json.loads(r)
@@ -251,10 +270,10 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         else:
             logger.info("使用缓存cookie")
 
-        self.gtk = self.cal_gtk(cookie["p_skey"])
+        self.gtk = gtk(cookie["p_skey"])
         self.session.cookies.update(cookie)
 
-    @login_if_expire
+    @_DecHelper.login_if_expire
     def doLike(self, likedata: dict) -> bool:
         """like a post according to likedata
 
@@ -283,6 +302,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             r = self.post(DO_LIKE_URL, params={'g_tk': self.gtk}, data=body)
         except HTTPError:
             return False
+        if r is None: return False
 
         r = r.text.replace('\n', '').replace('\t', '')
         r = json.loads(RE_CALLBACK.search(r).group(1))
@@ -290,7 +310,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
-    @login_if_expire
+    @_DecHelper.login_if_expire
     def fetchPage(
         self,
         pagenum: int,
@@ -317,6 +337,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         if self.gtk is None: self.updateStatus()
 
         query = {
+            'rd': random(),
             'uin': self.uin,
             'pagenum': pagenum,
             'g_tk': self.gtk,
@@ -328,19 +349,8 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         }
         query.update(Args4GettingFeeds)
 
-        try:
-            r = self.get(GET_PAGE_URL, params=query)
-        except HTTPError as e:
-            logger.error(
-                f"HttpError when fetching page {pagenum}, Code: {e.response.status_code}"
-            )
-            raise e
-        except TypeError as e:
-            print('query = ' + str(query))
-            logger.error(
-                'BUG: please report this bug with `query`. thanks.', exc_info=True
-            )
-            raise e
+        r = self.get(GET_PAGE_URL, params=query)
+        if r is None: return []
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)
@@ -360,7 +370,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         )
         return list(feeddict)
 
-    @login_if_expire
+    @_DecHelper.login_if_expire
     def checkUpdate(self) -> int:
         """return the super of new feed amount.
 
@@ -371,7 +381,10 @@ class QzoneScraper(LoginHelper, HTTPHelper):
             int: super of new feed amount
         """
         if self.gtk is None: self.updateStatus()
-        r = self.get(UPDATE_FEED_URL, params={'uin': self.uin, 'g_tk': self.gtk})
+        query = {'uin': self.uin, 'rd': random(), 'g_tk': self.gtk}
+        r = self.get(UPDATE_FEED_URL, params=query)
+        if r is None: return 0
+
         r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)
         if r["code"] != 0: raise QzoneError(r['code'], r['message'])

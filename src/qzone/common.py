@@ -5,9 +5,9 @@ Some constants.
 Args4GettingFeeds = {
     'scope': 0,
     'view': 1,
-    'daylist': None,
-    'uinlist': None,
-    'gid': None,
+    'daylist': '',
+    'uinlist': '',
+    'gid': '',
     'flag': 1,
     'filter': 'all',
     'applist': 'all',

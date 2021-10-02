@@ -43,24 +43,15 @@ class QZCachedScraper:
         Raises:
             UserBreak: see qzone.updateStatus
         """
-        def bomb(e):            raise e    # yapf: disable
-
-        retry403 = Retry({
-            HTTPError: lambda e, i: e.response.status_code != 403 and bomb(e)
-        })
-        fetch_w_retry = retry403(self.qzone.fetchPage)
         try:
-            feeds = fetch_w_retry(pagenum)
-        except HTTPError as e:
-            return 0
+            feeds = self.qzone.fetchPage(pagenum)
         except KeyboardInterrupt:
             raise UserBreak
-        except LoginError as e:
-            logger.error(f"LoginError: " + e.msg)
-            return 0
         except Exception as e:
+            omit_type = [HTTPError, LoginError]
             logger.error(
-                f"{type(e)} when getting page {pagenum}. " + str(e), exc_info=True
+                f"{type(e)} when getting page {pagenum}: " + str(e),
+                exc_info=not isinstance(e, omit_type),
             )
             return 0
 

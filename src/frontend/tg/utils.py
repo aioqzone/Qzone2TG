@@ -87,5 +87,6 @@ class FixUserBot:
             return self._bot.send_media_group(
                 chat_id=self.to,
                 media=[self._single_media(media[0], caption=text, parse_mode=self.parse_mode)] + \
-                      [self._single_media(i) for i in media[1:]]
+                      [self._single_media(i) for i in media[1:]],
+                disable_notification=True
             )

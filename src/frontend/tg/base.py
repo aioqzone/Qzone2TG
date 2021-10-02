@@ -121,7 +121,10 @@ class RefreshBot(_DecHelper):
     @_DecHelper.notifyLock('fetching')
     def onFetch(self, reload: bool, period=False):
         cmd = "force-refresh" if reload else "refresh"
-        logger.info(f"{self.accept_id}: start {cmd}")
+        if period:
+            logger.debug(f"start period {cmd}")
+        else:
+            logger.info(f"{self.accept_id}: start {cmd}")
 
         try:
             r = self.feedmgr.fetchNewFeeds(reload)

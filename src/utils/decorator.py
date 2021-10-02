@@ -1,12 +1,17 @@
 import time
 from collections import deque
 from functools import wraps
-from typing import Any, Callable, Dict, Generic, Type, TypeVar
+from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Type, TypeVar, Union
 
 from utils.iterutils import find_if
 
+Exc = TypeVar('Exc', Exception, type)
+ExH = Callable[[Exc], None]
+ExiH = Callable[[Exc, int], bool]
+DE = TypeVar('DE', Callable, callable)
 
-def exc_chain(exc: type):
+
+def exc_chain(exc: Exc) -> Generator[Optional[Exc], Any, Any]:
     if exc == Exception:
         yield Exception
         return
@@ -17,39 +22,82 @@ def exc_chain(exc: type):
         yield from exc_chain(exc.__bases__[0])
 
 
-def exc_handler(exc: Exception, excc: Dict[Type[Exception], Callable]):
+def bomb(e: Exc, i=0):
+    raise e
+
+
+def skip(e: Exc, i=0):
+    pass
+
+
+def exc_handler(exc: Exc, excc: Dict[Type[Exc], Union[ExH, ExiH]]):
     ty = find_if(exc_chain(type(exc)), lambda i: i in excc)
     return ty and excc[ty]
 
 
-def noexcept(excc: dict = None, excd: Callable = None):
-    def noexceptDecorator(func):
+class noexcept(Generic[DE]):
+    def __init__(
+        self,
+        excc: Union[Dict[Exc, ExH], List[Exc], Exception] = None,
+        excd: ExH = None,
+        exit: Union[bool, int] = False
+    ):
+        """Pass in exception handlers and skip the exception. Else raise it.
+
+        Args:
+            excc (Union[dict[Exc, ExH], list[Exc], Exception], optional): exception handlers. Defaults to `None`.
+            excd (ExH, optional): Call this whenever a exception occured, BEFORE excc is called. Defaults to `None`.
+            exit (Union[bool, int], optional): whether call `exit` when no handler matched. Defaults to False.
+        """
+        if isinstance(excc, list): excc = {i: skip for i in excc}
+        if isinstance(excc, Exception): excc = {excc: skip}
+        excc = excc or {}
+        assert isinstance(excc, dict)
+        self._excc = excc
+        self._excd = excd
+        self.exit = exit
+
+    def __call__(self, func: DE) -> DE:
         @wraps(func)
         def noexcept_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                excd and excd(e)
-                if excc: exc_handler(e, excc)(e)
+                self._excd and self._excd(e)
+                if (f := exc_handler(e, self._excc)): f(e)
+                elif self.exit: exit(int(self.exit))
+                else: raise e
 
         return noexcept_wrapper
 
-    return noexceptDecorator
 
-
-class Retry:
+class Retry(Generic[DE]):
     def __init__(
         self,
-        exc_callback: Dict[type, Callable[[Exception, int], bool]],
-        exc_default: Callable = None,
+        excc: Union[Dict[Exc, ExiH], List[Exc], Exception],
+        excd: ExiH = None,
         times: int = 1,
-        inspect=False,
+        with_self=False,
     ):
+        """retry for given times and exception handlers
+
+        Args:
+            excc (Union[Dict[Exc, ExiH], List[Exc], Exception]): exception handlers. \
+                if the handler return an object that `bool(o) == True`, then the loop will be broken at once, \
+                with the retval as `o`.
+            excd (ExiH, optional): Call this whenever a exception occured, BEFORE excc is called. Defaults to None.
+            times (int, optional): retry times. Defaults to 1.
+            with_self (bool, optional): whether call handler with self in func args. useful for methods.
+        """
         assert times >= 0
-        self._excc = exc_callback
-        self._excd = exc_default
+        if isinstance(excc, list): excc = {i: skip for i in excc}
+        if isinstance(excc, Exception): excc = {excc: skip}
+        excc = excc or {}
+        assert isinstance(excc, dict)
+        self._excc = excc
+        self._excd = excd
         self._times = times
-        self._inspect = inspect
+        self._wself = with_self
 
     def __call__(self, func):
         @wraps(func)
@@ -59,13 +107,10 @@ class Retry:
                     return func(*args, **kwargs)
                 except Exception as e:
                     self._excd and self._excd(e, i)
-                    if self._excc:
-                        f = exc_handler(e, self._excc)
-                        if not f: raise e
-                        r = f(e, i, *args, **kwargs) if self._inspect else f(e, i)
-                        if r: return r
-                    else:
-                        raise e
+                    f = exc_handler(e, self._excc)
+                    if f is None: raise e
+                    r = f(args[0], e, i) if self._wself else f(e, i)
+                    if r: return r
 
         return retry_wrapper
 
