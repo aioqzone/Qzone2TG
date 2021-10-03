@@ -30,7 +30,7 @@ class QZCachedScraper:
     def cleanFeed(self):
         self.db.cleanFeed()
 
-    def getFeedsInPage(self, pagenum: int, reload=False):
+    def getFeedsInPage(self, pagenum: int, ignore_exist=False):
         """get compelte feeds from qzone and save them to database
 
         Args:
@@ -61,7 +61,7 @@ class QZCachedScraper:
         limit = day_stamp() - self.db.keepdays
         new = [
             p for i in feeds
-            if ((p := Parser(i)) and reload or p.fid not in self.db.feed)
+            if ((p := Parser(i)) and ignore_exist or p.fid not in self.db.feed)
             and day_stamp(p.abstime) > limit
         ]
         self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
@@ -79,7 +79,7 @@ class QZCachedScraper:
         self.db.saveFeeds(new)
         return len(new)
 
-    def fetchNewFeeds(self, reload=False):
+    def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):
         """fetch all new feeds.
 
         Args:
@@ -88,18 +88,18 @@ class QZCachedScraper:
         Returns:
             int: new feeds amount
         """
-        sup = self.qzone.checkUpdate()
-        if reload:
+        pred_new = self.qzone.checkUpdate()
+        if no_pred or ignore_exist:
             page = 1000
         else:
-            if sup == 0: return 0
-            page = 1 + ceil((sup - 6) / 10)
+            if pred_new == 0: return 0
+            page = 1 + ceil((pred_new - 5) / 10)
 
         s = sum(
-            takewhile(bool, (self.getFeedsInPage(i + 1, reload) for i in range(page)))
+            takewhile(bool, (self.getFeedsInPage(i + 1, ignore_exist) for i in range(page)))
         )
-        if s < sup:
-            logger.warning(f'Expect to get {sup} new feeds, but actually {s}')
+        if s < pred_new:
+            logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')
         return s
 
     def like(self, likedata: dict):

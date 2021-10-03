@@ -24,7 +24,7 @@ setup(
         'lxml',
         'omegaconf',
         'keyring',
-        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git@2.3.1b1",
+        "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
         "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git",
     ],
     extras_require={

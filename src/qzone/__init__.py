@@ -163,7 +163,7 @@ class HTTPHelper:
     def __init__(self, uin, UA=None) -> None:
         self.header = {
             'User-Agent': UA or self.UA,
-            "Referer": f"https://user.qzone.qq.com/{uin}", # add referer
+            "Referer": f"https://user.qzone.qq.com/{uin}",
             "dnt": "1"
         }
         self.session = requests.Session()
@@ -172,18 +172,14 @@ class HTTPHelper:
     @_DecHelper.retry_403
     def post(self, *args, **kwargs):
         r = self.session.post(*args, **kwargs, headers=self.header)
-        if r.status_code != 200: 
-            logger.warning(f'{r.status_code} when posting {r.url}')
-            raise HTTPError(response=r)
+        r.raise_for_status()
         return r
 
     @noexcept({ConnectionError: lambda e: logger.error('ConnectionError when get.')})
     @_DecHelper.retry_403
     def get(self, *args, **kwargs):
         r = self.session.get(*args, **kwargs, headers=self.header)
-        if r.status_code != 200: 
-            logger.warning(f'{r.status_code} when getting {r.url}')
-            raise HTTPError(response=r)
+        r.raise_for_status()
         return r
 
 
@@ -372,7 +368,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
 
     @_DecHelper.login_if_expire
     def checkUpdate(self) -> int:
-        """return the super of new feed amount.
+        """return the predict of new feed amount.
 
         Raises:
             QzoneError: if unkown qzone code returned
@@ -384,6 +380,7 @@ class QzoneScraper(LoginHelper, HTTPHelper):
         query = {'uin': self.uin, 'rd': random(), 'g_tk': self.gtk}
         r = self.get(UPDATE_FEED_URL, params=query)
         if r is None: return 0
+        logger.debug('heartbeat OK')
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)

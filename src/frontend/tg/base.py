@@ -127,7 +127,7 @@ class RefreshBot(_DecHelper):
             logger.info(f"{self.accept_id}: start {cmd}")
 
         try:
-            r = self.feedmgr.fetchNewFeeds(reload)
+            r = self.feedmgr.fetchNewFeeds(no_pred=not period, ignore_exist=reload)
         except TimeoutError:
             self.ui.fetchError("爬取超时, 刷新或许可以)")
             return
