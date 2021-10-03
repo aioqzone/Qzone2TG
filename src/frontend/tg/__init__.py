@@ -43,11 +43,21 @@ class PollingBot(RefreshBot, _DecHelper):
         accept_id: int,
         uin: int,
         *,
+        times_per_second: int = None,
+        disable_notification: bool = False,
         proxy: dict = None,
         polling: dict = None,
         auto_start=False,
     ):
-        super().__init__(feedmgr, token, accept_id, uin, proxy=proxy)
+        super().__init__(
+            feedmgr,
+            token,
+            accept_id,
+            uin,
+            times_per_second=times_per_second,
+            disable_notification=disable_notification,
+            proxy=proxy
+        )
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
         self.__proxy = proxy
@@ -181,7 +191,7 @@ class WebhookBot(PollingBot):
         webhook: dict = None,
         **kwargs
     ):
-        super().__init__(feedmgr, token, accept_id, uin, **kwargs, polling=webhook)
+        super().__init__(feedmgr, token, accept_id, uin, polling=webhook, **kwargs)
 
     def run(self):
         server = re.search(r'(?:https?://)?([^/]*)/?',

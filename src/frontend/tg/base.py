@@ -50,6 +50,8 @@ class RefreshBot(_DecHelper):
         accept_id: int,
         uin: int,
         *,
+        times_per_second: int = None,
+        disable_notification: bool = False,
         proxy: dict = None,
     ):
         self.accept_id = int(accept_id)
@@ -58,7 +60,12 @@ class RefreshBot(_DecHelper):
         self.uin = int(uin)
 
         self.update = Updater(token, use_context=True, request_kwargs=proxy)
-        self.ui = TgUI(self.update.bot, accept_id)
+        self.ui = TgUI(
+            self.update.bot,
+            accept_id,
+            times_per_second=times_per_second,
+            disable_notification=disable_notification,
+        )
         self.silentApscheduler()
 
         self.update.job_queue.run_daily(

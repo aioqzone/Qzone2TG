@@ -16,7 +16,7 @@ qzone:
   qq: 123456789
   
   # 二维码登录偏好. force/prefer/allow/forbid, 倾向逐次降低.
-  qr_strategy: prefer
+  qr_strategy: allow
 
 feed:
   # 说说在本地缓存的天数
@@ -33,14 +33,16 @@ bot:
   
   # admin id
   accept_id: 123456789
+
+  # bot每秒钟最多发送多少条消息. 注意: 如果您不清楚为什么会有此限制, 就请不要调高此值!!!
+  times_per_second: 30
+
+  # 通知静音. 通常TG客户端会有更丰富的设置. "相册模式"总是静音, 不受此项节制.
+  disable_notification: False
   
   # 运行程序后自动执行/start命令, 默认True
   # auto_start: True
   
-  # 定时刷新设置.
-  # daily: 
-  #   time: 11:00 20:00
-    
   # 代理, 可选.
   # proxy:
   #   # NOTE: to enable socks5 feature, run `pip install python-telegram-bot[socks]` 

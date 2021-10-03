@@ -127,6 +127,15 @@ class FloodControl:
         self._ts.clear()
 
     @property
+    def tps(self):
+        return self._tps
+
+    @tps.setter
+    def tps(self, tps):
+        self.reset()
+        self._tps = tps
+
+    @property
     def task_num(self) -> int:
         return sum(i[1] for i in self._ts)
 
@@ -135,7 +144,7 @@ class FloodControl:
         return bool(self._ts) and self._ts[0][0]
 
     def wait_time(self, N) -> float:
-        wait_task = self.task_num + N - self._tps
+        wait_task = self.task_num + N - self.tps
         if wait_task <= 0: return 0
         for i in self._ts:
             if wait_task > 0:

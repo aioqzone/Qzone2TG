@@ -17,7 +17,7 @@ import requests
 from jssupport.jsjson import json_loads
 from middleware.storage import TokenTable
 from middleware.uihook import NullUI
-from requests.exceptions import HTTPError
+from requests.exceptions import ConnectionError, HTTPError
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.encrypt import gtk
 from tencentlogin.exception import TencentLoginError

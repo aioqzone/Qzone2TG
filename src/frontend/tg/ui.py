@@ -36,9 +36,21 @@ def retry_once(func, msg_callback=None):
 
 
 class TgUI(NullUI):
-    def __init__(self, bot, chat_id=None) -> None:
+    def __init__(
+        self,
+        bot,
+        chat_id: int = None,
+        times_per_second: int = None,
+        disable_notification: bool = False
+    ) -> None:
         super().__init__()
-        self.bot = FixUserBot(bot, chat_id, telegram.ParseMode.HTML)
+        self.bot = FixUserBot(
+            bot,
+            chat_id,
+            telegram.ParseMode.HTML,
+            times_per_second=times_per_second,
+            disable_notification=disable_notification
+        )
 
     def _defaultButton(self):
         return telegram.InlineKeyboardMarkup([[
