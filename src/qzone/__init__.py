@@ -10,15 +10,16 @@ import logging
 import re
 import time
 from random import random
-from typing import Any, Dict, Iterable, List, Optional, Union
-from urllib.parse import parse_qs, quote, unquote, urlunparse
+from typing import Any, Dict, Iterable, Optional
+from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
-from requests.exceptions import ConnectionError, HTTPError
+from requests.exceptions import HTTPError
+
 from qzone.cookie import QzLoginCookie
 
 from .common import *
-from .exceptions import LoginError, QzoneError
+from .exceptions import QzoneError
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
 
 
 class QzoneScraper:
-    gtk: int = None
+    lastHB: float = None
 
     def __init__(
         self,
@@ -45,8 +46,10 @@ class QzoneScraper:
         self.extern = {1: "undefined"}
         self.new_pred = None
         self.cookie = cookiestorage
+
         self.get = self.cookie.get
         self.post = self.cookie.post
+        self.uin = self.cookie.uin
 
     def parseExternParam(self, page: int):
         unquoted = self.extern[page]
@@ -60,7 +63,7 @@ class QzoneScraper:
             "uin": feedData["uin"],
             "tid": feedData["tid"],
             "feedsType": feedData["feedstype"],
-            "qzreferrer": f"https://user.qzone.qq.com/{self.cookie.uin}",
+            "qzreferrer": f"https://user.qzone.qq.com/{self.uin}",
         }
         body.update(Arg4CompleteFeed)
 
@@ -87,8 +90,8 @@ class QzoneScraper:
             bool: if success
         """
         body = {
-            'qzreferrer': f'https://user.qzone.qq.com/{self.cookie.uin}',
-            'opuin': self.cookie.uin,
+            'qzreferrer': f'https://user.qzone.qq.com/{self.uin}',
+            'opuin': self.uin,
             'from': 1,
             'active': 0,
             'fupdate': 1,
@@ -135,7 +138,7 @@ class QzoneScraper:
 
         query = {
             'rd': random(),
-            'uin': self.cookie.uin,
+            'uin': self.uin,
             'pagenum': pagenum,
             'g_tk': self.cookie.gtk,
             'begintime': self.parseExternParam(pagenum).get("basetime", "undefined"),
@@ -162,7 +165,7 @@ class QzoneScraper:
                 i['key'].startswith('advertisement_app') or # ad feed
                 int(i['appid']) >= 4096 or                  # not supported (cannot encode)
                 int(i['uin']) in BLOCK_LIST or              # in blocklist
-                int(i['uin']) == self.cookie.uin            # is mine
+                int(i['uin']) == self.uin                   # is mine
             ),
             data['data']
         )
@@ -178,10 +181,12 @@ class QzoneScraper:
         Returns:
             int: super of new feed amount
         """
-        query = {'uin': self.cookie.uin, 'rd': random(), 'g_tk': self.cookie.gtk}
+        query = {'uin': self.uin, 'rd': random(), 'g_tk': self.cookie.gtk}
         r = self.get(UPDATE_FEED_URL, params=query)
         if r is None: return 0
+
         logger.debug('heartbeat OK')
+        self.lastHB = time.time()
 
         r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)
@@ -191,3 +196,9 @@ class QzoneScraper:
         cal_item = 'friendFeeds_new_cnt', 'friendFeeds_newblog_cnt', 'friendFeeds_newphoto_cnt', 'myFeeds_new_cnt'
         self.new_pred = sum(r[i] for i in cal_item)
         return self.new_pred
+
+    def status(self):
+        return {
+            'last_heartbeat': self.lastHB,
+            'last_login': self.cookie.lastLG,
+        }

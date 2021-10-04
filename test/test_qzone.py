@@ -6,10 +6,11 @@ import pytest
 from middleware.storage import TokenTable
 from omegaconf import OmegaConf
 from qzone import QzoneScraper
+from qzone.cookie import QzLoginCookie
 from qzone.exceptions import LoginError
 from qzone.parser import QZFeedParser
 
-login = FEEDS = None
+login = loginer = FEEDS = None
 
 
 def load_conf():
@@ -21,16 +22,17 @@ def load_conf():
 
 
 def setup_module():
-    global db, spider
+    global db, spider, loginer
     Path('data').mkdir(exist_ok=True)
     db = sqlite3.connect('data/test.db', check_same_thread=False)
-    spider = QzoneScraper(token_tbl=TokenTable(db), **load_conf().qzone)
+    loginer = QzLoginCookie(TokenTable(db), **load_conf().qzone)
+    spider = QzoneScraper(loginer)
 
 
 def test_UpdateStatus():
     global login
     try:
-        spider.updateStatus(force_login=True)
+        loginer.updateStatus(force_login=True)
         login = True
     except LoginError:
         login = False

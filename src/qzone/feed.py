@@ -1,11 +1,11 @@
 import logging
+from itertools import takewhile
 from math import ceil
 
 from middleware.storage import PAGE_LIMIT, FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
-from utils.decorator import Retry
-from itertools import takewhile
+from utils.decorator import classwrapper
 
 from . import QzoneScraper
 from .exceptions import LoginError, UserBreak
@@ -30,21 +30,10 @@ class QZCachedScraper:
     def cleanFeed(self):
         self.db.cleanFeed()
 
-    def getFeedsInPage(self, pagenum: int, ignore_exist=False):
-        """get compelte feeds from qzone and save them to database
-
-        Args:
-            `pagenum` (int): page #
-            `reload` (bool, optional): whether to ignore existing feed. Defaults to False.
-
-        Return:
-            int: new feeds amount
-
-        Raises:
-            UserBreak: see qzone.updateStatus
-        """
+    @classwrapper
+    def _logexc(self, func, pagenum: int, ignore_exist=False):
         try:
-            feeds = self.qzone.fetchPage(pagenum)
+            return func(self, pagenum, ignore_exist)
         except KeyboardInterrupt:
             raise UserBreak
         except Exception as e:
@@ -55,8 +44,24 @@ class QZCachedScraper:
             )
             return 0
 
+    @_logexc
+    def getNewFeeds(self, pagenum: int, ignore_exist=False):
+        """get compelte feeds from qzone and save them to database
+
+        Args:
+            `pagenum` (int): page #
+            `ignore_exist` (bool, optional): whether to ignore existing feed. Defaults to False.
+
+        Return:
+            int: new feeds amount
+
+        Raises:
+            UserBreak: see qzone.updateStatus
+        """
+        feeds = self.qzone.fetchPage(pagenum)
+
         if feeds is None: return 0
-        assert isinstance(feeds, list)
+        feeds = list(feeds)
 
         limit = day_stamp() - self.db.keepdays
         new = [
@@ -83,7 +88,8 @@ class QZCachedScraper:
         """fetch all new feeds.
 
         Args:
-            reload (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
+            `no_pred`: do not predict new feeds amount
+            `ignore_exist` (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
 
         Returns:
             int: new feeds amount
@@ -96,7 +102,9 @@ class QZCachedScraper:
             page = 1 + ceil((pred_new - 5) / 10)
 
         s = sum(
-            takewhile(bool, (self.getFeedsInPage(i + 1, ignore_exist) for i in range(page)))
+            takewhile(
+                bool, (self.getNewFeeds(i + 1, ignore_exist) for i in range(page))
+            )
         )
         if s < pred_new:
             logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')

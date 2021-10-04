@@ -7,8 +7,9 @@ from omegaconf import OmegaConf
 from qzone import QzoneScraper
 from qzone.exceptions import LoginError
 from qzone.feed import QZCachedScraper
+from qzone.cookie import QzLoginCookie
 
-login = FEEDS = None
+login = loginer = FEEDS = None
 
 
 def load_conf():
@@ -20,10 +21,10 @@ def load_conf():
 
 
 def setup_module() -> None:
-    global db, spider
+    global db, spider, loginer
     db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-    spider = QzoneScraper(token_tbl=TokenTable(db.db), **load_conf().qzone)
-    spider = QZCachedScraper(spider, db)
+    loginer = QzLoginCookie(TokenTable(db.db), **load_conf().qzone)
+    spider = QZCachedScraper(QzoneScraper(loginer), db)
     spider.cleanFeed()
 
 
@@ -39,15 +40,15 @@ def is_sorted(iterable, key=None):
 
 
 def test_Fetch():
-    global login
+    global login, loginer
     try:
-        spider.qzone.updateStatus()
+        loginer.updateStatus()
         login = True
     except LoginError:
         login = False
         pytest.skip('Account banned.', allow_module_level=True)
-    assert spider.getFeedsInPage(1, True)
-    assert spider.getFeedsInPage(2, True)
+    assert spider.getNewFeeds(1, True)
+    assert spider.getNewFeeds(2, True)
 
 
 def test_New():
@@ -64,7 +65,7 @@ def test_New():
 
 
 def test_Extract():
-    if not FEEDS: pytest.skip('pred test failed.')
+    if FEEDS is None: pytest.skip('pred test failed.')
     for i in FEEDS:
         i = TgExtracter(i, spider.qzone.uin)
         msg, media = i.content()

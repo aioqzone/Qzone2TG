@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable, Optional, Union
+from typing import Optional
 
 import requests
 from middleware.storage import TokenTable
@@ -150,6 +150,8 @@ class _HTTPHelper:
 
 
 class QzLoginCookie(_LoginHelper, _HTTPHelper):
+    lastLG: float = None
+
     def __init__(
         self,
         token_tbl: TokenTable,
@@ -197,6 +199,7 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
                 raise e
 
             logger.info('取得cookie')
+            self.lastLG = time.time()
             self.ui.loginSuccessed()
 
             self.db[self.uin] = cookie

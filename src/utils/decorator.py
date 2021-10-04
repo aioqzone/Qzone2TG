@@ -233,3 +233,41 @@ class LockedMethod(Locked):
                 return func(self, *args, **kwargs)
 
         return lockWrapper
+
+
+class classwrapper:
+    def __init__(self, wrapper: Callable[[object, Callable, Any], Any]) -> None:
+        """With wrapper decorated by this decorator, you can decorate methods with the wrapper 
+        defined in the same class as the methods.
+
+        Args:
+            wrapper (`Callable[[object, Callable, Any], Any]`): (self, func, *a, **k) -> Any
+        
+        Example:
+
+        ~~~ 
+        class A:
+            def __init__(self, token) -> None:
+                self.token = token
+
+            @classdecorator
+            def desc(self, func, *a, **k):
+                print(self.token)
+                return func(self, *a, **k)
+
+            @desc
+            def cc(self):
+                print('cc call')
+        ~~~
+        """
+        def decorator(func):
+            @wraps(func)
+            def fwrap(self, *a, **k):
+                return wrapper(self, func, *a, **k)
+
+            return fwrap
+
+        self._d = decorator
+
+    def __call__(self, func):
+        return self._d(func)
