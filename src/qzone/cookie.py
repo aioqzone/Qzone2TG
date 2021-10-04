@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional
+from typing import Dict, Optional
 
 import requests
 from middleware.storage import TokenTable
@@ -104,7 +104,7 @@ class _LoginHelper:
         except KeyboardInterrupt:
             raise UserBreak
 
-    def login(self) -> Optional[dict]:
+    def login(self) -> Dict[str, str]:
         """login and return cookie according to qr_strategy
 
         Returns:
@@ -120,7 +120,11 @@ class _LoginHelper:
                 'forbid': (self._upLogin, ),
         }[self.qr_strategy]:
             if (r := f()): return r
-        return
+
+        if self.qr_strategy == 'forbid':
+            raise LoginError("您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", 'forbid')
+        else:
+            raise LoginError("您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
 
 
 class _HTTPHelper:
@@ -151,6 +155,7 @@ class _HTTPHelper:
 
 class QzLoginCookie(_LoginHelper, _HTTPHelper):
     lastLG: float = None
+    _gtk: int
 
     def __init__(
         self,
@@ -165,7 +170,13 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
         _LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         _HTTPHelper.__init__(self, qq, UA=UA)
         self.db = token_tbl
-        self.updateStatus()
+        self._gtk = None
+
+    @property
+    def gtk(self):
+        if self._gtk is None:
+            self.updateStatus()
+        return self._gtk
 
     def updateStatus(self, force_login=False):
         """update cookie, gtk
@@ -186,17 +197,8 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
             logger.info("重新登陆.")
             cookie = self.login()
 
-            e = None
-            if cookie is None:
-                if self.qr_strategy == 'forbid':
-                    e = LoginError("您可能被限制账密登陆, 或自动跳过验证失败. 扫码登陆仍然可行.", 'forbid')
-                else:
-                    e = LoginError("您可能被限制登陆, 或自动跳过验证失败.", self.qr_strategy)
-            elif "p_skey" not in cookie:
-                e = LoginError("或许可以重新登陆.", self.qr_strategy)
-            if e:
-                self.ui.loginFailed(e.args[0])
-                raise e
+            if "p_skey" not in cookie:
+                raise LoginError("或许可以重新登陆.", self.qr_strategy)
 
             logger.info('取得cookie')
             self.lastLG = time.time()
@@ -206,7 +208,7 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
         else:
             logger.info("使用缓存cookie")
 
-        self.gtk = gtk(cookie["p_skey"])
+        self._gtk = gtk(cookie["p_skey"])
         self.session.cookies.update(cookie)
 
     login_if_expire = Retry(

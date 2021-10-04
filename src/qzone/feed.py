@@ -36,8 +36,11 @@ class QZCachedScraper:
             return func(self, pagenum, ignore_exist)
         except KeyboardInterrupt:
             raise UserBreak
+        except LoginError as e:
+            self.ui.loginFailed(e.args[0])
+            return 0
         except Exception as e:
-            omit_type = [HTTPError, LoginError]
+            omit_type = [HTTPError]
             logger.error(
                 f"{type(e)} when getting page {pagenum}: " + str(e),
                 exc_info=not isinstance(e, omit_type),
