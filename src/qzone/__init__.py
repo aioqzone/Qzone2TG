@@ -121,40 +121,35 @@ class LoginHelper:
 
 
 class _DecHelper:
-    @staticmethod
-    def onLoginExpire(self, e: QzoneError, i):
-        if e.code == -10001:
-            if i >= 11: raise TimeoutError('Network is always busy!')
-            logger.info(e.msg)
-            time.sleep(5)
-            return
+    class CallBacks:
+        @staticmethod
+        def onLoginExpire(self, e: QzoneError, i):
+            if e.code == -10001:
+                if i >= 11: raise TimeoutError('Network is always busy!')
+                logger.info(e.msg)
+                time.sleep(5)
+                return
 
-        if e.code not in [-3000, -4002]: raise e
-        if self.uin in self.db:
-            del self.db[self.uin]
+            if e.code not in [-3000, -4002]: raise e
+            if self.uin in self.db:
+                del self.db[self.uin]
 
-        if i >= 1: raise e
-        logger.info("cookie已过期, 即将重新登陆.")
-        QzoneScraper.updateStatus(self, force_login=True)
+            if i >= 1: raise e
+            logger.info("cookie已过期, 即将重新登陆.")
+            QzoneScraper.updateStatus(self, force_login=True)
 
-    @staticmethod
-    def onHTTPError(e: HTTPError, i):
-        if e.response.status_code != 403: raise e
-        if i >= 1: raise e
+        @staticmethod
+        def onHTTPError(e: HTTPError, i):
+            if e.response.status_code != 403: raise e
+            if i >= 1: raise e
 
-    @classmethod
-    @property
-    def login_if_expire(cls):
-        return Retry(
-            {QzoneError: cls.onLoginExpire},
-            times=12,
-            with_self=True,
-        )
+    login_if_expire = Retry(
+        {QzoneError: CallBacks.onLoginExpire},
+        times=12,
+        with_self=True,
+    )
 
-    @classmethod
-    @property
-    def retry_403(cls):
-        return Retry({HTTPError: cls.onHTTPError})
+    retry_403 = Retry({HTTPError: CallBacks.onHTTPError})
 
 
 class HTTPHelper:

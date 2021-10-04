@@ -35,7 +35,7 @@ class _FCHelper:
 
     @classmethod
     def needfc(cls, func: Callable):
-        return cls._fc(cls._fc(getattr(cls, func.__name__))(func))(func)
+        return cls._fc(getattr(cls, func.__name__))(func)
 
 
 class FixUserBot:
