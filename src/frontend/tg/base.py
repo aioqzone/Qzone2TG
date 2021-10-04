@@ -41,7 +41,7 @@ class _DecHelper:
 
 
 class RefreshBot(_DecHelper):
-    flood_limit = 30
+    reload_on_start = False
 
     def __init__(
         self,
@@ -90,10 +90,13 @@ class RefreshBot(_DecHelper):
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
-    def run(self):
+    def idle(self):
+        self.onFetch(reload=self.reload_on_start)
         self.register_period_refresh()
-        logger.info("start refreshing")
         self.update.idle()
+
+    def run(self):
+        self.idle()
 
     @_DecHelper.asyncRun
     @_DecHelper.notifyLock('sending')

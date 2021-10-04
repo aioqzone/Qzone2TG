@@ -28,7 +28,6 @@ class _DecHelper:
 
 
 class PollingBot(RefreshBot, _DecHelper):
-    reload_on_start = True
     commands = {
         "start": "Force login. Then refresh and resend all feeds.",
         "refresh": "Refresh and send any new feeds.",
@@ -97,8 +96,7 @@ class PollingBot(RefreshBot, _DecHelper):
 
     @_DecHelper.CA
     def onStart(self):
-        self.onRefresh(reload=self.reload_on_start)
-        self.register_period_refresh()
+        self.onRefresh(reload=True)
 
     @_DecHelper.CA
     def onHelp(self):
@@ -111,28 +109,17 @@ class PollingBot(RefreshBot, _DecHelper):
         except NetworkError as e:
             if self.__proxy:
                 logger.fatal(
-                    "Seems you're using `proxy + polling`. "
-                    "This might cause NetworkError for some unknown reason. Try using `webhook mode` :D \n"
-                    "Otherwise maybe wait for a while is enough. See FAQ in Wiki for details."
+                    "Seems you're using proxy. \n"
+                    "This might cause NetworkError for some reasons, such as confusing DNS inside GFW. "
+                    "Try to trace your proxy traffic to lookup if anything goes out of expectancy. "
+                    "Sometimes just waiting for a while works :D\n"
+                    "See Q&A in Wiki for details."
                 )
             else:
                 logger.fatal(e.message, exc_info=True)
             return
         logger.info("start polling")
         self.idle()
-
-    def idle(self):
-        if self.auto_start:
-            logger.info('auto start')
-            self.onStart()
-        else:
-            self.ui.bot.sendMessage(
-                "You've disabled 'auto start'. "
-                "Then you may send /start to force refresh and resend all feeds, "
-                "or send /refresh to present a normal refresh.",
-            )
-        self.register_period_refresh()
-        self.update.idle()
 
     def onButtonClick(self, update: telegram.Update, context):
         if not self.checkAccess(update, context): return

@@ -10,6 +10,7 @@ from omegaconf.listconfig import ListConfig
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
 from middleware.storage import FeedBase, TokenTable
 from qzone import QzoneScraper
+from qzone.cookie import QzLoginCookie
 from qzone.feed import QZCachedScraper
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
@@ -142,7 +143,10 @@ def main(args):
     db = FeedBase(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
     logger.debug('database OK')
 
-    spider = QzoneScraper(token_tbl=TokenTable(db.db), **d.qzone)
+    loginer = QzLoginCookie(TokenTable(db.db), **d.qzone)
+    logger.debug('cookie manager OK')
+
+    spider = QzoneScraper(loginer)
     feedmgr = QZCachedScraper(spider, db)
     logger.debug('crawler OK')
 
@@ -162,7 +166,7 @@ def main(args):
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     logger.debug('bot OK')
 
-    spider.register_ui_hook(bot.ui)
+    loginer.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)
     bot.run()
 
