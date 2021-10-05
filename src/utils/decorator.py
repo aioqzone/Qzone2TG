@@ -5,15 +5,15 @@ from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Type
 
 from utils.iterutils import find_if
 
-Exc = TypeVar('Exc', Exception, type)
+Exc = TypeVar('Exc', BaseException, type)
 ExH = Callable[[Exc], None]
 ExiH = Callable[[Exc, int], bool]
 DE = TypeVar('DE', Callable, callable)
 
 
 def exc_chain(exc: Exc) -> Generator[Optional[Exc], Any, Any]:
-    if exc == Exception:
-        yield Exception
+    if exc == BaseException:
+        yield BaseException
         return
     elif exc == object:
         raise TypeError('Not a exception')
@@ -22,8 +22,9 @@ def exc_chain(exc: Exc) -> Generator[Optional[Exc], Any, Any]:
         yield from exc_chain(exc.__bases__[0])
 
 
-def bomb(e: Exc, i=0):
-    raise e
+def issubclass_(ty: type, *clss: type):
+    if not isinstance(ty, type): return False
+    return issubclass(ty, clss)
 
 
 def skip(e: Exc, i=0):
@@ -38,8 +39,9 @@ def exc_handler(exc: Exc, excc: Dict[Type[Exc], Union[ExH, ExiH]]):
 class noexcept(Generic[DE]):
     def __init__(
         self,
-        excc: Union[Dict[Exc, ExH], List[Exc], Exception] = None,
+        excc: Union[Dict[Exc, ExH], List[Exc], BaseException] = None,
         excd: ExH = None,
+        excr = None,
         exit: Union[bool, int] = False
     ):
         """Pass in exception handlers and skip the exception. Else raise it.
@@ -47,10 +49,11 @@ class noexcept(Generic[DE]):
         Args:
             excc (Union[dict[Exc, ExH], list[Exc], Exception], optional): exception handlers. Defaults to `None`.
             excd (ExH, optional): Call this whenever a exception occured, BEFORE excc is called. Defaults to `None`.
+            excr (optional): return val on exception
             exit (Union[bool, int], optional): whether call `exit` when no handler matched. Defaults to False.
         """
         if isinstance(excc, list): excc = {i: skip for i in excc}
-        if isinstance(excc, Exception): excc = {excc: skip}
+        if issubclass_(excc, BaseException): excc = {excc: skip}
         excc = excc or {}
         assert isinstance(excc, dict)
         self._excc = excc
@@ -62,7 +65,7 @@ class noexcept(Generic[DE]):
         def noexcept_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except BaseException as e:
                 self._excd and self._excd(e)
                 if (f := exc_handler(e, self._excc)): f(e)
                 elif self.exit: exit(int(self.exit))
@@ -74,8 +77,9 @@ class noexcept(Generic[DE]):
 class Retry(Generic[DE]):
     def __init__(
         self,
-        excc: Union[Dict[Exc, ExiH], List[Exc], Exception],
+        excc: Union[Dict[Exc, ExiH], List[Exc], BaseException],
         excd: ExiH = None,
+        excr=None,
         times: int = 1,
         with_self=False,
     ):
@@ -86,16 +90,18 @@ class Retry(Generic[DE]):
                 if the handler return an object that `bool(o) == True`, then the loop will be broken at once, \
                 with the retval as `o`.
             excd (ExiH, optional): Call this whenever a exception occured, BEFORE excc is called. Defaults to None.
+            excr (optional): return val on for-else
             times (int, optional): retry times. Defaults to 1.
             with_self (bool, optional): whether call handler with self in func args. useful for methods.
         """
         assert times >= 0
         if isinstance(excc, list): excc = {i: skip for i in excc}
-        if isinstance(excc, Exception): excc = {excc: skip}
+        if issubclass_(excc, BaseException): excc = {excc: skip}
         excc = excc or {}
         assert isinstance(excc, dict)
         self._excc = excc
         self._excd = excd
+        self._excr = excr
         self._times = times
         self._wself = with_self
 
@@ -105,12 +111,13 @@ class Retry(Generic[DE]):
             for i in range(self._times + 1):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
+                except BaseException as e:
                     self._excd and self._excd(e, i)
                     f = exc_handler(e, self._excc)
                     if f is None: raise e
                     r = f(args[0], e, i) if self._wself else f(e, i)
                     if r: return r
+            return self._excr
 
         return retry_wrapper
 
@@ -198,8 +205,11 @@ class Locked(Generic[FT]):
     def __call__(self, func: FT) -> FT:
         @wraps(func)
         def lockWrapper(*args, **kwargs):
-            with self:
-                return func(*args, **kwargs)
+            try:
+                with self:
+                    return func(*args, **kwargs)
+            except self._ConflictException:
+                return self._on_conflict and self._on_conflict()
 
         return lockWrapper
 
@@ -208,19 +218,14 @@ class Locked(Generic[FT]):
             raise self._ConflictException
         self._lock = True
 
-    def __exit__(self, ty: type, e: Exception, trace):
-        if ty == self._ConflictException:
-            return self._on_conflict and self._on_conflict()
-
+    def __exit__(self, ty: type, e: BaseException, trace):
         self._lock = False
-        if e: raise e
 
 
 class LockedMethod(Locked):
     _that = None
 
     def __init__(self, conflict_callback: Callable[[Any], None] = None) -> None:
-        if conflict_callback: conflict_callback = lambda: conflict_callback(self._that)
         super().__init__(conflict_callback=conflict_callback)
 
     def __call__(self, func: FT) -> FT:
@@ -228,9 +233,11 @@ class LockedMethod(Locked):
 
         @wraps(func)
         def lockWrapper(self, *args, **kwargs):
-            this._that = self
-            with this:
-                return func(self, *args, **kwargs)
+            try:
+                with self:
+                    return func(*args, **kwargs)
+            except this._ConflictException:
+                return this._on_conflict and this._on_conflict(self)
 
         return lockWrapper
 

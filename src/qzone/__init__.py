@@ -10,7 +10,7 @@ import logging
 import re
 import time
 from random import random
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
@@ -23,11 +23,12 @@ from .exceptions import QzoneError
 
 logger = logging.getLogger(__name__)
 
-PROXY_DOMAIN = "https://user.qzone.qq.com/proxy/domain"
-COMPLETE_FEED_URL = PROXY_DOMAIN + "/taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
-DO_LIKE_URL = PROXY_DOMAIN + "/w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
-GET_PAGE_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
-UPDATE_FEED_URL = PROXY_DOMAIN + "/ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
+PROXY_DOMAIN = "https://user.qzone.qq.com/proxy/domain/"
+COMPLETE_FEED_URL = PROXY_DOMAIN + "taotao.qzone.qq.com/cgi-bin/emotion_cgi_ic_getcomments"
+DOLIKE_URL = PROXY_DOMAIN + "w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
+UNLIKE_URL = PROXY_DOMAIN + "w.qzone.qq.com/cgi-bin/likes/internal_unlike_app"
+GET_PAGE_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
+UPDATE_FEED_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
 
 BLOCK_LIST = [
     20050606,      # Qzone Official
@@ -74,14 +75,15 @@ class QzoneScraper:
         r = json.loads(r)
         if r["err"] == 0: return r["newFeedXML"].strip()
 
-    @QzLoginCookie.login_if_expire
-    def doLike(self, likedata: dict) -> bool:
-        """like a post according to likedata
+    @QzLoginCookie.login_if_expire(False)
+    def doLike(self, likedata: dict, like) -> bool:
+        """like or unlike a post according to likedata
 
         - login_if_expire
 
         Args:
             likedata (dict): data contains essential args to like a post
+            like (bool): True is like, False is unlike.
 
         Raises:
             QzoneError: Error from qzone interface
@@ -99,7 +101,11 @@ class QzoneScraper:
         }
         body.update(likedata)
         try:
-            r = self.post(DO_LIKE_URL, params={'g_tk': self.cookie.gtk}, data=body)
+            r = self.post(
+                DOLIKE_URL if like else UNLIKE_URL,
+                params={'g_tk': self.cookie.gtk},
+                data=body
+            )
         except HTTPError:
             return False
         if r is None: return False
@@ -110,12 +116,12 @@ class QzoneScraper:
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
-    @QzLoginCookie.login_if_expire
+    @QzLoginCookie.login_if_expire([])
     def fetchPage(
         self,
         pagenum: int,
         count: int = 10,
-    ) -> Optional[Iterable[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]]:
         """fetch a page of feeds
 
         - login_if_expire
@@ -131,8 +137,7 @@ class QzoneScraper:
             `TimeoutError`: if code -10001 is returned for 12 times.
 
         Returns:
-            `list[Iterable[str, Any]] | None`, each dict reps a feed.
-            None is caused by retry decorator.
+            `list[Iterable[str, Any]]`, each dict reps a feed.
         """
         assert pagenum > 0
 
@@ -171,7 +176,7 @@ class QzoneScraper:
         )
         return list(feeddict)
 
-    @QzLoginCookie.login_if_expire
+    @QzLoginCookie.login_if_expire(0)
     def checkUpdate(self) -> int:
         """return the predict of new feed amount.
 

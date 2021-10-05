@@ -211,8 +211,11 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
         self._gtk = gtk(cookie["p_skey"])
         self.session.cookies.update(cookie)
 
-    login_if_expire = Retry(
-        {QzoneError: _DecHelper.CallBacks._onLoginExpire},
-        times=12,
-        with_self=True,
-    )
+    @staticmethod
+    def login_if_expire(excr=None):
+        return Retry(
+            {QzoneError: _DecHelper.CallBacks._onLoginExpire},
+            excr=excr,
+            times=12,
+            with_self=True,
+        )

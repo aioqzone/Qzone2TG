@@ -122,7 +122,7 @@ class QZCachedScraper:
         Returns:
             bool: if success
         """
-        return self.qzone.doLike(likedata)
+        return self.qzone.doLike(likedata, True)
 
     def likeAFile(self, fid: str):
         """like a post specified by fid

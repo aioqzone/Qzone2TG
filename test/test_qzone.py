@@ -49,7 +49,6 @@ def test_FetchPage():
     if login is None: test_checkUpdate()
     if login == False: pytest.skip('not login', allow_module_level=True)
     global FEEDS
-    FEEDS = None
     feeds = spider.fetchPage(1, 1)
     assert feeds is not None
     assert 0 < len(feeds) <= 10
@@ -71,8 +70,11 @@ def test_doLike():
     if FEEDS is None: pytest.skip('pred test failed.')
     if not FEEDS: pytest.skip('pred test failed')
     for i in FEEDS:
-        if not i.isLike: spider.doLike(i.getLikeId())
-        break
+        if not i.isLike: 
+            d = i.getLikeId()
+            assert spider.doLike(d, True)
+            assert spider.doLike(d, False)
+            break
     else:
         pytest.skip('no sample crawled')
 
