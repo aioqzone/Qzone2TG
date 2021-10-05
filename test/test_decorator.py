@@ -1,14 +1,7 @@
 import time
 from functools import wraps
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from utils.decorator import Locked, noexcept, skip
-
-
-def setup_module():
-    global sched
-    sched = BackgroundScheduler({'max_instances': 4})
-    sched.start()
 
 
 def assert_retval(r):
@@ -25,6 +18,12 @@ def assert_retval(r):
 
 
 class TestLock:
+    @classmethod
+    def setup_class(cls):
+        from apscheduler.schedulers.background import BackgroundScheduler
+        cls.sched = BackgroundScheduler({'max_instances': 4})
+        cls.sched.start()
+
     def test_basic(self):
         i = 0
 
@@ -36,7 +35,7 @@ class TestLock:
             print(i)
 
         for _ in range(3):
-            sched.add_job(slow, 'date')
+            self.sched.add_job(slow, 'date')
 
         time.sleep(4)
         assert i == 1
@@ -53,7 +52,7 @@ class TestLock:
             print(i)
 
         for _ in range(3):
-            sched.add_job(slow, 'date')
+            self.sched.add_job(slow, 'date')
 
         time.sleep(4)
         assert i == 1

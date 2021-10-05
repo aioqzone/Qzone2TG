@@ -26,6 +26,7 @@ setup(
         'keyring',
         "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
         "QzEmoji @ git+https://github.com/JamzumSum/QzEmoji.git",
+        "tzlocal==2.1"                                                       # apscheduler timezone bug
     ],
     extras_require={
         'socks': ['python-telegram-bot[socks]'],
