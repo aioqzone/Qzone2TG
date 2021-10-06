@@ -213,13 +213,19 @@ class Locked(Generic[FT]):
 
         return lockWrapper
 
-    def __enter__(self, *a, **k):
+    def lock(self):
         if self._lock:
             raise self._ConflictException
         self._lock = True
 
-    def __exit__(self, ty: type, e: BaseException, trace):
+    def unlock(self):
         self._lock = False
+
+    def __enter__(self, *a, **k):
+        self.lock()
+
+    def __exit__(self, ty: type, e: BaseException, trace):
+        self.unlock()
 
 
 class LockedMethod(Locked):
@@ -234,8 +240,8 @@ class LockedMethod(Locked):
         @wraps(func)
         def lockWrapper(self, *args, **kwargs):
             try:
-                with self:
-                    return func(*args, **kwargs)
+                with this:
+                    return func(self, *args, **kwargs)
             except this._ConflictException:
                 return this._on_conflict and this._on_conflict(self)
 
