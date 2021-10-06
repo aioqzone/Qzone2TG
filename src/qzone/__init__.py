@@ -11,7 +11,6 @@ import re
 import time
 from random import random
 from typing import Any, Dict, List, Optional
-from typing_extensions import ParamSpec
 from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
