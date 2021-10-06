@@ -114,7 +114,7 @@ class RefreshBot(_DecHelper):
                 i = TgExtracter(i, self.uin)
                 if i.isBlocked: continue
                 send_w_retry = retry_once(
-                    self.ui.contentReady, lambda exc: f"feed {i.feed}: {exc}"
+                    self.ui.contentReady, lambda exc: f"feed {i.feed.fid}: {exc}"
                 )
                 send_w_retry(
                     *i.content(),

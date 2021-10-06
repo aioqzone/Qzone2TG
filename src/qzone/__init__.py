@@ -11,6 +11,7 @@ import re
 import time
 from random import random
 from typing import Any, Dict, List, Optional
+from typing_extensions import ParamSpec
 from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
@@ -29,12 +30,17 @@ DOLIKE_URL = PROXY_DOMAIN + "w.qzone.qq.com/cgi-bin/likes/internal_dolike_app"
 UNLIKE_URL = PROXY_DOMAIN + "w.qzone.qq.com/cgi-bin/likes/internal_unlike_app"
 GET_PAGE_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
 UPDATE_FEED_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
+PHOTO_LIST_URL = PROXY_DOMAIN + "plist.photo.qq.com/fcgi-bin/cgi_floatview_photo_list_v2"
 
 BLOCK_LIST = [
     20050606,      # Qzone Official
 ]
 
 RE_CALLBACK = re.compile(r"callback\((\{.*\})", re.S | re.I)
+
+
+def time_ms():
+    return round(time.time() * 1000)
 
 
 class QzoneScraper:
@@ -148,7 +154,7 @@ class QzoneScraper:
             'g_tk': self.cookie.gtk,
             'begintime': self.parseExternParam(pagenum).get("basetime", "undefined"),
             'count': count,
-            'usertime': round(time.time() * 1000),
+            'usertime': time_ms(),
             'externparam': quote(self.extern[pagenum])
         }
         query.update(Args4GettingFeeds)
@@ -207,3 +213,24 @@ class QzoneScraper:
             'last_heartbeat': self.lastHB,
             'last_login': self.cookie.lastLG,
         }
+
+    def photoList(self, photo: Dict[str, Any], num: int):
+        query = {
+            'g_tk': self.cookie.gtk,
+            'topicId': photo['topicid'],
+            'picKey': photo['pickey'],
+            'hostUin': photo['hostuin'],
+            'number': num,
+            'uin': self.uin,
+            '_': time_ms(),
+        }
+        query.update(Arg4ListPhoto)
+        r = self.get(PHOTO_LIST_URL, params=query)
+        r = RE_CALLBACK.search(r.text)
+        r = json_loads(r)
+
+        if r['code'] != 0: raise QzoneError(r['code'], r['message'])
+        r = r['data']['photos']
+
+        rd = lambda d: {k: d[k] for k in ['pre', 'picId', 'url']}
+        return [rd(i) for i in r]

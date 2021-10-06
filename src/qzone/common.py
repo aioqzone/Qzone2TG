@@ -27,15 +27,32 @@ Args4GettingFeeds = {
 }
 
 Arg4CompleteFeed = {
-    "pos": 0, 
+    "pos": 0,
     "num": 1,
-    "cmtnum": 1, 
-    "t1_source": 1, 
-    "who": 1, 
-    "inCharset": "utf-8", 
-    "outCharset": "utf-8", 
-    "plat": "qzone", 
-    "source": "ic", 
-    "paramstr": 1, 
-    "fullContent": 1, 
+    "cmtnum": 1,
+    "t1_source": 1,
+    "who": 1,
+    "inCharset": "utf-8",
+    "outCharset": "utf-8",
+    "plat": "qzone",
+    "source": "ic",
+    "paramstr": 1,
+    "fullContent": 1,
+}
+
+Arg4ListPhoto = {
+    'callback': 'viewer_Callback',
+    'cmtOrder': 1,
+    'fupdate': 1,
+    'plat': 'qzone',
+    'source': 'qzone',
+    'cmtNum': 0,
+    'likeNum': 0,
+    'inCharset': 'utf-8',
+    'outCharset': 'utf-8',
+    'callbackFun': 'viewer',
+    'offset': 0,
+    'appid': 311,
+    'isFirst': 1,
+    'need_private_comment': 1,
 }

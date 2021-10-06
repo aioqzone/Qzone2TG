@@ -1,4 +1,5 @@
 import os
+from re import A
 import pytest
 
 from frontend.tg.ui import TgExtracter
@@ -71,6 +72,9 @@ def test_Extract():
         msg, media = i.content()
         assert msg
         assert isinstance(media, list)
+        for url in media:
+            assert isinstance(url, str)
+            assert url.startswith('http')
 
 
 def teardown_module():

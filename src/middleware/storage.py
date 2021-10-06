@@ -1,7 +1,6 @@
 import logging
 import sqlite3
 import time
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Union
 

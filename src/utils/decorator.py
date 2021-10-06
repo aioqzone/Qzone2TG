@@ -41,7 +41,7 @@ class noexcept(Generic[DE]):
         self,
         excc: Union[Dict[Exc, ExH], List[Exc], BaseException] = None,
         excd: ExH = None,
-        excr = None,
+        excr=None,
         exit: Union[bool, int] = False
     ):
         """Pass in exception handlers and skip the exception. Else raise it.
@@ -278,3 +278,20 @@ class classwrapper:
 
     def __call__(self, func):
         return self._d(func)
+
+
+class cached(property):
+    def __init__(self, fget: Callable, fset: Callable = None, doc: str = None) -> None:
+        super().__init__(fget, fset=fset, fdel=None, doc=doc)
+
+    def __get__(self, obj: Any, type: type = None) -> Any:
+        if obj is None: return self
+        if not hasattr(self, '_c'):
+            self._c = self.fget(obj)
+        return self._c
+
+    def __delete__(self, obj: Any) -> None:
+        if hasattr(self, '_c'): del self._c
+
+    def __set__(self, obj: Any, value: Any) -> None:
+        return super().__set__(obj, value)

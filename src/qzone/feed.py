@@ -40,7 +40,7 @@ class QZCachedScraper:
             self.ui.loginFailed(e.args[0])
             return 0
         except Exception as e:
-            omit_type = [HTTPError]
+            omit_type = HTTPError,
             logger.error(
                 f"{type(e)} when getting page {pagenum}: " + str(e),
                 exc_info=not isinstance(e, omit_type),
@@ -78,9 +78,9 @@ class QZCachedScraper:
 
         for i in new:
             if not i.isCut(): continue
-            html = self.qzone.getCompleteFeed(i.parseFeedData())
+            html = self.qzone.getCompleteFeed(i.feedData)
             if html:
-                i.updateHTML(html)
+                i.html = html
             else:
                 logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
 

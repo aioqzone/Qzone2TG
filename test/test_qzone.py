@@ -61,7 +61,7 @@ def test_GetFullContent():
     hit = False
     for i in FEEDS:
         if not i.isCut(): continue
-        spider.getCompleteFeed(i.parseFeedData())
+        spider.getCompleteFeed(i.feedData)
         hit = True
     if not hit: pytest.skip('no sample crawled')
 
