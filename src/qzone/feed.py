@@ -2,10 +2,9 @@ import logging
 from itertools import takewhile
 from math import ceil
 
-from middleware.storage import PAGE_LIMIT, FeedBase, day_stamp
+from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
-from utils.decorator import classwrapper
 
 from . import QzoneScraper
 from .exceptions import LoginError, UserBreak
@@ -30,10 +29,9 @@ class QZCachedScraper:
     def cleanFeed(self):
         self.db.cleanFeed()
 
-    @classwrapper
-    def _logexc(self, func, pagenum: int, ignore_exist=False):
+    def getNewFeeds(self, pagenum: int, ignore_exist=False):
         try:
-            return func(self, pagenum, ignore_exist)
+            return self._getNewFeeds(pagenum, ignore_exist)
         except KeyboardInterrupt:
             raise UserBreak
         except LoginError as e:
@@ -47,8 +45,7 @@ class QZCachedScraper:
             )
             return 0
 
-    @_logexc
-    def getNewFeeds(self, pagenum: int, ignore_exist=False):
+    def _getNewFeeds(self, pagenum: int, ignore_exist=False):
         """get compelte feeds from qzone and save them to database
 
         Args:
@@ -106,7 +103,7 @@ class QZCachedScraper:
 
         s = sum(
             takewhile(
-                bool, (self.getNewFeeds(i + 1, ignore_exist) for i in range(page))
+                bool, (self._getNewFeeds(i + 1, ignore_exist) for i in range(page))
             )
         )
         if s < pred_new:

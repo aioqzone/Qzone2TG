@@ -61,7 +61,9 @@
 
 ## 安装
 
-可选择[docker镜像][docker](感谢@TigerCubDen), 源码安装(develop install), 常规pip安装.
+- 可选择[docker镜像][docker](感谢@TigerCubDen) ![](https://img.shields.io/badge/support-verified-green)
+- 源码安装(develop install) ![](https://img.shields.io/badge/support-verified-green)
+- 常规pip安装 ![](https://img.shields.io/badge/support-Maybe-red)
 
 ### 安装依赖
 

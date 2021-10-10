@@ -1,14 +1,13 @@
 import os
-from re import A
-import pytest
 
+import pytest
 from frontend.tg.ui import TgExtracter
 from middleware.storage import FeedBase, TokenTable
 from omegaconf import OmegaConf
 from qzone import QzoneScraper
+from qzone.cookie import QzLoginCookie
 from qzone.exceptions import LoginError
 from qzone.feed import QZCachedScraper
-from qzone.cookie import QzLoginCookie
 
 login = loginer = FEEDS = None
 

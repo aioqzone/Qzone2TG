@@ -99,7 +99,7 @@ class FixUserBot:
         **kw
     ):
         if len(media) == 1:
-            if len(text) < MEDIA_TEXT_LIM:
+            if len(text) <= MEDIA_TEXT_LIM:
                 return [
                     self._send_single(
                         media[0],
