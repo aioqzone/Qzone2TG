@@ -1,4 +1,4 @@
-FROM python:3.9 as build
+FROM python:3.10.0 as build
 
 COPY . /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update -y && apt-get install -y gnome-keyring && \
     pip install -e .\[socks\]
 
-FROM python:3.9-alpine
+FROM python:3.10.0
 
 COPY --from=build /app /app
 COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
