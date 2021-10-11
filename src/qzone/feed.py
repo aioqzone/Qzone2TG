@@ -6,9 +6,9 @@ from middleware.storage import FeedBase, day_stamp
 from middleware.uihook import NullUI
 from requests.exceptions import HTTPError
 
-from . import QzoneScraper
 from .exceptions import LoginError, UserBreak
 from .parser import QZFeedParser as Parser
+from .scraper import QzoneScraper
 
 logger = logging.getLogger(__name__)
 

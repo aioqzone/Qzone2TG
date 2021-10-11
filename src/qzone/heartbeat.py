@@ -1,49 +1,26 @@
 import logging
 import time
-from typing import Dict, Optional
+from random import random
+from typing import Callable, Dict, Optional
 
 import requests
 from middleware.storage import TokenTable
 from middleware.uihook import NullUI
 from requests.exceptions import ConnectionError, HTTPError
+from tencentlogin.base import UA as DefaultUA
 from tencentlogin.constants import QzoneAppid, QzoneProxy
 from tencentlogin.encrypt import gtk
 from tencentlogin.exception import TencentLoginError
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from utils.decorator import Retry, noexcept
+from utils.decorator import Retry, cached, noexcept
 
+from .common import UPDATE_FEED_URL
 from .exceptions import LoginError, QzoneError, UserBreak
 
 logger = logging.getLogger(__name__)
-__all__ = ['QzLoginCookie']
 
-
-class _DecHelper:
-    class CallBacks:
-        @staticmethod
-        def _onHTTPError(e: HTTPError, i):
-            if e.response.status_code != 403: raise e
-            if i >= 1: raise e
-
-        @staticmethod
-        def _onLoginExpire(self, e: QzoneError, i):
-            self = self.cookie
-            if e.code == -10001:
-                if i >= 11: raise TimeoutError('Network is always busy!')
-                logger.info(e.msg)
-                time.sleep(5)
-                return
-
-            if e.code not in [-3000, -4002]: raise e
-            if self.uin in self.db:
-                del self.db[self.uin]
-
-            if i >= 1: raise e
-            logger.info("cookie已过期, 即将重新登陆.")
-            self.updateStatus(force_login=True)
-
-    retry_403 = Retry({HTTPError: CallBacks._onHTTPError})
+__all__ = ['HBMgr']
 
 
 class _LoginHelper:
@@ -128,34 +105,45 @@ class _LoginHelper:
 
 
 class _HTTPHelper:
-    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36 Edg/94.0.992.31"
-
-    def __init__(self, uin, UA=None) -> None:
+    def __init__(self, uin: int, UA: str = DefaultUA) -> None:
         self.header = {
-            'User-Agent': UA or self.UA,
+            'User-Agent': UA,
             "Referer": f"https://user.qzone.qq.com/{uin}",
             "dnt": "1"
         }
         self.session = requests.Session()
 
-    @noexcept({ConnectionError: lambda e: logger.error('ConnectionError when post.')})
-    @_DecHelper.retry_403
+    class _403Handler:
+        def __init__(self, handler: Callable) -> None:
+            self._excc = {HTTPError: handler}
+
+        def register(self, excr=None):
+            return Retry(self._excc, excr=excr)
+
+    @_403Handler
+    @staticmethod
+    def retry_403(e: HTTPError, i):
+        if e.response.status_code != 403: raise e
+        if i >= 1: raise e
+
+    @noexcept({ConnectionError: lambda _: logger.error('ConnectionError when post.')})
+    @retry_403.register()
     def post(self, *args, **kwargs):
         r = self.session.post(*args, **kwargs, headers=self.header)
         r.raise_for_status()
         return r
 
-    @noexcept({ConnectionError: lambda e: logger.error('ConnectionError when get.')})
-    @_DecHelper.retry_403
+    @noexcept({ConnectionError: lambda _: logger.error('ConnectionError when get.')})
+    @retry_403.register()
     def get(self, *args, **kwargs):
         r = self.session.get(*args, **kwargs, headers=self.header)
         r.raise_for_status()
         return r
 
 
-class QzLoginCookie(_LoginHelper, _HTTPHelper):
+class HBMgr(_LoginHelper, _HTTPHelper):
     lastLG: float = None
-    _gtk: int
+    lastHB: float = None
 
     def __init__(
         self,
@@ -172,17 +160,18 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
         self.db = token_tbl
         self._gtk = None
 
-    @property
+    @cached
     def gtk(self):
-        if self._gtk is None:
-            self.updateStatus()
-        return self._gtk
+        return self.updateStatus()
 
-    def updateStatus(self, force_login=False):
+    def updateStatus(self, force_login=False) -> int:
         """update cookie, gtk
 
         Args:
             `force_login` (bool, optional): force to login. Defaults to False.
+
+        Returns:
+            int: gtk
 
         Raises:
             `UserBreak`: SIGINT is sent or `UserBreak` sent by user
@@ -208,14 +197,45 @@ class QzLoginCookie(_LoginHelper, _HTTPHelper):
         else:
             logger.info("使用缓存cookie")
 
-        self._gtk = gtk(cookie["p_skey"])
         self.session.cookies.update(cookie)
+        return gtk(cookie["p_skey"])
 
-    @staticmethod
-    def login_if_expire(excr=None):
-        return Retry(
-            {QzoneError: _DecHelper.CallBacks._onLoginExpire},
-            excr=excr,
-            times=12,
-            with_self=True,
-        )
+    class _LoginExpireHandler:
+        def __init__(self, handler: Callable) -> None:
+            self._excc = {QzoneError: handler}
+
+        def register(self, excr=None):
+            return Retry(self._excc, excr=excr, with_self=True)
+
+    @_LoginExpireHandler
+    def login_if_expire(self, e: QzoneError, i):
+        if e.code == -10001:
+            if i >= 11: raise TimeoutError('Network is always busy!')
+            logger.info(e.msg)
+            time.sleep(5)
+            return
+
+        if e.code not in [-3000, -4002]: raise e
+        if self.uin in self.db:
+            del self.db[self.uin]
+
+        if i >= 1: raise e
+        logger.info("cookie已过期, 即将重新登陆.")
+        self.updateStatus(force_login=True)
+
+    @login_if_expire.register(0)
+    def checkUpdate(self, parse_callback: Callable[[str], int] = None) -> Optional[int]:
+        query = {'uin': self.uin, 'rd': random(), 'g_tk': self.gtk}
+        r = self.get(UPDATE_FEED_URL, params=query)
+        if r is None: return 0
+
+        logger.debug('heartbeat OK')
+        self.lastHB = time.time()
+
+        return parse_callback and parse_callback(r.text)
+
+    def status(self):
+        return {
+            'last_heartbeat': self.lastHB,
+            'last_login': self.lastLG,
+        }

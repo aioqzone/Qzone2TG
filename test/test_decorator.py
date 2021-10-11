@@ -98,24 +98,3 @@ class TestNoexcept:
             raise KeyboardInterrupt
 
         return bomb1()
-
-    @assert_retval(2)
-    def test_excd(self):
-        i = 0
-
-        def assert0(e):
-            nonlocal i
-            assert i == 0
-            i = 1
-
-        def assert1(e):
-            nonlocal i
-            assert i == 1
-            i = 2
-
-        @noexcept({KeyboardInterrupt: assert1}, excd=assert0)
-        def bomb1():
-            raise KeyboardInterrupt
-
-        bomb1()
-        return i

@@ -4,12 +4,12 @@ import pytest
 from frontend.tg.ui import TgExtracter
 from middleware.storage import FeedBase, TokenTable
 from omegaconf import OmegaConf
-from qzone import QzoneScraper
-from qzone.cookie import QzLoginCookie
 from qzone.exceptions import LoginError
 from qzone.feed import QZCachedScraper
+from qzone.heartbeat import HBMgr
+from qzone.scraper import QzoneScraper
 
-login = loginer = FEEDS = None
+db = spider = FEEDS = None
 
 
 def load_conf():
@@ -21,10 +21,9 @@ def load_conf():
 
 
 def setup_module() -> None:
-    global db, spider, loginer
+    global db, spider
     db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-    loginer = QzLoginCookie(TokenTable(db.db), **load_conf().qzone)
-    spider = QZCachedScraper(QzoneScraper(loginer), db)
+    spider = QZCachedScraper(QzoneScraper(TokenTable(db.db), **load_conf().qzone), db)
     spider.cleanFeed()
 
 
@@ -40,19 +39,16 @@ def is_sorted(iterable, key=None):
 
 
 def test_Fetch():
-    global login, loginer
+    global spider
     try:
-        loginer.updateStatus()
-        login = True
+        assert spider.getNewFeeds(1, True)
+        assert spider.getNewFeeds(2, True)
     except LoginError:
-        login = False
         pytest.skip('Account banned.', allow_module_level=True)
-    assert spider.getNewFeeds(1, True)
-    assert spider.getNewFeeds(2, True)
+    
 
 
 def test_New():
-    if not login: pytest.skip('not login', allow_module_level=True)
     global FEEDS
     FEEDS = None
     FEEDS = db.getFeed(

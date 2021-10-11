@@ -1,16 +1,15 @@
 import os
-from pathlib import Path
 import sqlite3
-import pytest
+from pathlib import Path
 
+import pytest
 from middleware.storage import TokenTable
 from omegaconf import OmegaConf
-from qzone import QzoneScraper
-from qzone.cookie import QzLoginCookie
 from qzone.exceptions import LoginError
 from qzone.parser import QZFeedParser
+from qzone.scraper import QzoneScraper
 
-login = loginer = FEEDS = None
+db = spider = FEEDS = None
 
 
 def load_conf():
@@ -22,17 +21,16 @@ def load_conf():
 
 
 def setup_module():
-    global db, spider, loginer
+    global db, spider
     Path('data').mkdir(exist_ok=True)
     db = sqlite3.connect('data/test.db', check_same_thread=False)
-    loginer = QzLoginCookie(TokenTable(db), **load_conf().qzone)
-    spider = QzoneScraper(loginer)
+    spider = QzoneScraper(TokenTable(db), **load_conf().qzone)
 
 
 def test_UpdateStatus():
     global login
     try:
-        loginer.updateStatus(force_login=True)
+        spider.updateStatus(force_login=True)
         login = True
     except LoginError:
         login = False
@@ -70,14 +68,18 @@ def test_doLike():
     if FEEDS is None: pytest.skip('pred test failed.')
     if not FEEDS: pytest.skip('pred test failed')
     for i in FEEDS:
-        if not i.isLike: 
-            d = i.getLikeId()
+        d = i.getLikeId()
+        if i.isLike:
+            assert spider.doLike(d, False)
+            assert spider.doLike(d, True)
+        else:
             assert spider.doLike(d, True)
             assert spider.doLike(d, False)
-            break
+        return
     else:
         pytest.skip('no sample crawled')
 
 
-def teardown_module(cls) -> None:
-    return cls.db.close()
+def teardown_module() -> None:
+    global db
+    return db.close()
