@@ -6,7 +6,7 @@ import pytest
 from middleware.storage import TokenTable
 from omegaconf import OmegaConf
 from qzone.exceptions import LoginError
-from qzone.parser import QZFeedParser
+from qzone.parser import QzJsonParser
 from qzone.scraper import QzoneScraper
 
 db = spider = FEEDS = None
@@ -24,7 +24,7 @@ def setup_module():
     global db, spider
     Path('data').mkdir(exist_ok=True)
     db = sqlite3.connect('data/test.db', check_same_thread=False)
-    spider = QzoneScraper(TokenTable(db), **load_conf().qzone)
+    spider = QzoneScraper(TokenTable(db.cursor()), **load_conf().qzone)
 
 
 def test_UpdateStatus():
@@ -51,7 +51,7 @@ def test_FetchPage():
     assert feeds is not None
     assert 0 < len(feeds) <= 10
     feeds.extend(spider.fetchPage(2))
-    FEEDS = [QZFeedParser(i) for i in feeds]
+    FEEDS = [QzJsonParser(i) for i in feeds]
 
 
 def test_GetFullContent():

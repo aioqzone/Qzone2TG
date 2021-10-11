@@ -1,51 +1,67 @@
 import logging
 from itertools import takewhile
 from math import ceil
+from typing import Iterable
 
-from middleware.storage import FeedBase, day_stamp
+from middleware.storage import FeedBase
 from middleware.uihook import NullUI
+from middleware.utils import day_stamp
 from requests.exceptions import HTTPError
 
 from .exceptions import LoginError, UserBreak
-from .parser import QZFeedParser as Parser
+from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper
 
 logger = logging.getLogger(__name__)
 
 
+class FeedDB(FeedBase):
+    def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
+        return [
+            Parser(i) for i in
+            super().getFeed(cond_sql=cond_sql, plugin_name=plugin_name, order=order)
+        ]
+
+    def cleanFeed(self):
+        return super().cleanFeed(lambda d: Parser(d).getLikeId())
+
+    def dumpFeed(self, feed: Parser, flush=True):
+        args = {
+            'fid': feed.fid,
+            'abstime': feed.abstime,
+            'appid': feed.appid,
+            'typeid': feed.typeid,
+            'nickname': feed.nickname,
+            'uin': feed.uin,
+            'html': feed.raw['html'],
+        }
+        self.feed[args['fid']] = args
+        if flush: self.db.commit()
+
+    def saveFeeds(self, feeds: Iterable[Parser]):
+        for i in feeds:
+            self.dumpFeed(i, flush=False)
+        self.db.commit()
+
+
 class QZCachedScraper:
     """Scraper + Database
     """
-    ui = NullUI()
+    hook = NullUI()
 
-    def __init__(self, qzone: QzoneScraper, db: FeedBase):
+    def __init__(self, qzone: QzoneScraper, db: FeedDB):
         self.qzone = qzone
         self.db = db
         self.cleanFeed()
 
-    def register_ui_hook(self, ui: NullUI):
-        self.ui = ui
+    def register_ui_hook(self, hook: NullUI):
+        self.hook = hook
+        self.qzone.register_ui_hook(hook)
 
     def cleanFeed(self):
         self.db.cleanFeed()
 
     def getNewFeeds(self, pagenum: int, ignore_exist=False):
-        try:
-            return self._getNewFeeds(pagenum, ignore_exist)
-        except KeyboardInterrupt:
-            raise UserBreak
-        except LoginError as e:
-            self.ui.loginFailed(e.args[0])
-            return 0
-        except Exception as e:
-            omit_type = HTTPError,
-            logger.error(
-                f"{type(e)} when getting page {pagenum}: " + str(e),
-                exc_info=not isinstance(e, omit_type),
-            )
-            return 0
-
-    def _getNewFeeds(self, pagenum: int, ignore_exist=False):
         """get compelte feeds from qzone and save them to database
 
         Args:
@@ -58,6 +74,22 @@ class QZCachedScraper:
         Raises:
             UserBreak: see qzone.updateStatus
         """
+        try:
+            return self._getNewFeeds(pagenum, ignore_exist)
+        except KeyboardInterrupt:
+            raise UserBreak
+        except LoginError as e:
+            self.hook.loginFailed(e.args[0])
+            return 0
+        except Exception as e:
+            omit_type = HTTPError,
+            logger.error(
+                f"{type(e)} when getting page {pagenum}: " + str(e),
+                exc_info=not isinstance(e, omit_type),
+            )
+            return 0
+
+    def _getNewFeeds(self, pagenum: int, ignore_exist=False):
         feeds = self.qzone.fetchPage(pagenum)
 
         if feeds is None: return 0
@@ -69,7 +101,7 @@ class QZCachedScraper:
             if ((p := Parser(i)) and ignore_exist or p.fid not in self.db.feed)
             and day_stamp(p.abstime) > limit
         ]
-        self.ui.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
         if not new: return 0
 
@@ -80,8 +112,8 @@ class QZCachedScraper:
                 i.html = html
             else:
                 logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
-
         self.db.saveFeeds(new)
+
         return len(new)
 
     def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):

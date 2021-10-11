@@ -8,9 +8,9 @@ from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
 
 from frontend.tg import PollingBot, RefreshBot, WebhookBot
-from middleware.storage import FeedBase, TokenTable
+from middleware.storage import TokenTable
+from qzone.feed import FeedDB, QZCachedScraper
 from qzone.scraper import QzoneScraper
-from qzone.feed import QZCachedScraper
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 NO_INTERACT: bool = True
@@ -139,10 +139,10 @@ def main(args):
     logger.info("config loaded")
 
     tg_plugin_def = {'tg': {'is_sent': 'BOOLEAN default 0'}}
-    db = FeedBase(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
+    db = FeedDB(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
     logger.debug('database OK')
 
-    spider = QzoneScraper(TokenTable(db.db), **d.qzone)
+    spider = QzoneScraper(TokenTable(db.cursor), **d.qzone)
     feedmgr = QZCachedScraper(spider, db)
     logger.debug('crawler OK')
 

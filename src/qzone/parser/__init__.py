@@ -1,54 +1,21 @@
 import logging
 import re
 from pathlib import PurePath
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Text, Tuple
 from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
+from middleware.utils import sementicTime
 from utils.decorator import cached
-
 from utils.iterutils import find_if
 
-from .utils import elm2txt, sementicTime
+from .html.imgitem import ImageItem
+from .html.txtbox import Txtbox
 
 logger = logging.getLogger(__name__)
 
 
-class ImageItem:
-    def __init__(self, owneruin: int, img_item: HtmlElement) -> None:
-        need = ['topicid', 'pickey', 'param', 'width', 'height']
-        d = dict(img_item.attrib)
-        self.data = {k: d['data-' + k] for k in need if 'data-' + k in d}
-        self.data['hostuin'] = owneruin
-        self.elm = img_item
-
-    def innerImg(self) -> Optional[HtmlElement]:
-        for i in self.elm:
-            if i.tag == 'img': return i
-
-    def hasAlbum(self):
-        return 'topicid' in self.data and 'pickey' in self.data
-
-    @property
-    def src(self) -> Optional[str]:
-        i = self.innerImg()
-        if i is None: return
-
-        src = i.attrib['src']
-        if src.startswith('http'):
-            return src
-
-        src = re.search(r"trueSrc:'(http.*?)'", i.attrib['onload'])
-        if src:
-            return src.group(1).replace('\\', '')
-
-        if 'onload' in i.attrib:
-            logger.warning('cannot parse @onload: ' + i.attrib['onload'])
-        else:
-            logger.warning('cannot parse @src: ' + i.attrib['src'])
-
-
-class QZHtmlParser:
+class QzHtmlParser:
     class f:
         ct = '//div[starts-with(@class,"f-ct")]'
         single_content = '//div[starts-with(@class,"f-single-content")]'
@@ -85,7 +52,7 @@ class QZHtmlParser:
         elif len(elm) == 2: elm = max(elm, key=len)
         elm = self._x(self.f.single_content,
                       f'//div[@class="{elm.attrib["class"]}"]')[0]
-        return elm2txt(elm)
+        return str(Txtbox(elm))
 
     @property
     def unikey(self):
@@ -186,7 +153,7 @@ class QZHtmlParser:
                 nick = a.text.strip()
                 txtbox[i] = a.tail or ""
 
-        txt = elm2txt(txtbox).strip().lstrip('：')
+        txt = str(Txtbox(txtbox)).strip().lstrip('：')
         return nick, link, txt
 
     def isCut(self):
@@ -194,10 +161,10 @@ class QZHtmlParser:
         return bool(txt)
 
 
-class QZFeedParser(QZHtmlParser):
+class QzJsonParser(QzHtmlParser):
     def __init__(self, feed):
         assert isinstance(feed, dict)
-        feed['html'] = QZHtmlParser.trans(feed['html'])
+        feed['html'] = QzHtmlParser.trans(feed['html'])
         self.raw = feed
         super().__init__(feed['html'])
 

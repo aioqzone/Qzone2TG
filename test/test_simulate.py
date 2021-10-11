@@ -2,10 +2,10 @@ import os
 
 import pytest
 from frontend.tg.ui import TgExtracter
-from middleware.storage import FeedBase, TokenTable
+from middleware.storage import TokenTable
 from omegaconf import OmegaConf
 from qzone.exceptions import LoginError
-from qzone.feed import QZCachedScraper
+from qzone.feed import FeedDB, QZCachedScraper
 from qzone.scraper import QzoneScraper
 
 db = FEEDS = None
@@ -21,7 +21,7 @@ def conf():
 
 def setup_module() -> None:
     global db
-    db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
+    db = FeedDB('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
 
 
 def is_sorted(iterable, key=None):
@@ -39,7 +39,7 @@ class TestSimulate:
     @classmethod
     def setup_class(cls):
         cls.spider = QZCachedScraper(
-            QzoneScraper(TokenTable(db.db),
+            QzoneScraper(TokenTable(db.cursor),
                          **conf().qzone), db
         )
         cls.spider.cleanFeed()
@@ -49,13 +49,14 @@ class TestSimulate:
             self.spider.qzone.updateStatus()
         except LoginError:
             pytest.skip('Account banned.', allow_module_level=True)
-        assert self.spider.getNewFeeds(1, True)
-        assert self.spider.getNewFeeds(2, True)
+        a = self.spider.getNewFeeds(1, True)
+        b = self.spider.getNewFeeds(2, True)
+        assert a + b
 
     def test_New(self):
         global FEEDS
         FEEDS = None
-        FEEDS = db.getFeed(
+        FEEDS = self.spider.db.getFeed(
             cond_sql='is_sent IS NULL OR is_sent=0',
             plugin_name='tg',
             order=True,
