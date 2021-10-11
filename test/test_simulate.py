@@ -6,13 +6,12 @@ from middleware.storage import FeedBase, TokenTable
 from omegaconf import OmegaConf
 from qzone.exceptions import LoginError
 from qzone.feed import QZCachedScraper
-from qzone.heartbeat import HBMgr
 from qzone.scraper import QzoneScraper
 
-db = spider = FEEDS = None
+db = FEEDS = None
 
 
-def load_conf():
+def conf():
     from src.__main__ import dueWithConfig
     d = OmegaConf.load('config/test_conf.yml')
     ca = OmegaConf.from_dotlist([f'qzone.password={os.environ.get("TEST_PASSWORD")}'])
@@ -21,10 +20,8 @@ def load_conf():
 
 
 def setup_module() -> None:
-    global db, spider
+    global db
     db = FeedBase('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
-    spider = QZCachedScraper(QzoneScraper(TokenTable(db.db), **load_conf().qzone), db)
-    spider.cleanFeed()
 
 
 def is_sorted(iterable, key=None):
@@ -38,38 +35,46 @@ def is_sorted(iterable, key=None):
     return True
 
 
-def test_Fetch():
-    global spider
-    try:
-        assert spider.getNewFeeds(1, True)
-        assert spider.getNewFeeds(2, True)
-    except LoginError:
-        pytest.skip('Account banned.', allow_module_level=True)
-    
+class TestSimulate:
+    @classmethod
+    def setup_class(cls):
+        cls.spider = QZCachedScraper(
+            QzoneScraper(TokenTable(db.db),
+                         **conf().qzone), db
+        )
+        cls.spider.cleanFeed()
 
+    def test_Fetch(self):
+        try:
+            self.spider.qzone.updateStatus()
+        except LoginError:
+            pytest.skip('Account banned.', allow_module_level=True)
+        assert self.spider.getNewFeeds(1, True)
+        assert self.spider.getNewFeeds(2, True)
 
-def test_New():
-    global FEEDS
-    FEEDS = None
-    FEEDS = db.getFeed(
-        cond_sql='is_sent IS NULL OR is_sent=0',
-        plugin_name='tg',
-        order=True,
-    )
-    assert isinstance(FEEDS, list)
-    assert is_sorted(FEEDS, lambda f: f.abstime)
+    def test_New(self):
+        global FEEDS
+        FEEDS = None
+        FEEDS = db.getFeed(
+            cond_sql='is_sent IS NULL OR is_sent=0',
+            plugin_name='tg',
+            order=True,
+        )
+        assert isinstance(FEEDS, list)
+        if FEEDS:
+            assert is_sorted(FEEDS, lambda f: f.abstime)
 
-
-def test_Extract():
-    if FEEDS is None: pytest.skip('pred test failed.')
-    for i in FEEDS:
-        i = TgExtracter(i, spider.qzone.uin)
-        msg, media = i.content()
-        assert msg
-        assert isinstance(media, list)
-        for url in media:
-            assert isinstance(url, str)
-            assert url.startswith('http')
+    def test_Extract(self):
+        global FEEDS
+        if not FEEDS: pytest.skip('pred test failed.')
+        for i in FEEDS:
+            i = TgExtracter(i, self.spider.qzone.uin)
+            msg, media = i.content()
+            assert msg
+            assert isinstance(media, list)
+            for url in media:
+                assert isinstance(url, str)
+                assert url.startswith('http')
 
 
 def teardown_module():
