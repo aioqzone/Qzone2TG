@@ -162,7 +162,6 @@ def main(args):
     bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
     logger.debug('bot OK')
 
-    loginer.register_ui_hook(bot.ui)
     feedmgr.register_ui_hook(bot.ui)
     bot.run()
 
