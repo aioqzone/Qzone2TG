@@ -184,6 +184,7 @@ class QzHtmlParser(QzCssHelper):
         return nick, link, txt
 
     def isCut(self):
+        if self.finfo is None: return False
         txt: list = self.finfo.cssselect('a[data-cmd="qz_toggle"]')
         return bool(txt)
 
