@@ -22,7 +22,7 @@ setup(
     install_requires=[
         'python-telegram-bot',
         'lxml',
-        'cssselect'
+        'cssselect',
         'omegaconf',
         'keyring',
         "TencentLogin[captcha] @ git+https://github.com/JamzumSum/QQQR.git",
