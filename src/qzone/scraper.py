@@ -184,19 +184,20 @@ class QzoneScraper(HBMgr):
 
         return super().checkUpdate(predNewAmount)
 
-    def photoList(self, photo: Dict[str, Any], num: int):
+    @HBMgr.login_if_expire.register([])
+    def photoList(self, photo: Dict[str, Any], hostuin: int, num: int):
         query = {
             'g_tk': self.gtk,
             'topicId': photo['topicid'],
             'picKey': photo['pickey'],
-            'hostUin': photo['hostuin'],
+            'hostUin': hostuin,
             'number': num,
             'uin': self.uin,
             '_': time_ms(),
         }
         query.update(Arg4ListPhoto)
         r = self.get(PHOTO_LIST_URL, params=query)
-        r = RE_CALLBACK.search(r.text)
+        r = RE_CALLBACK.search(r.text).group(1)
         r = json_loads(r)
 
         if r['code'] != 0: raise QzoneError(r['code'], r['message'])

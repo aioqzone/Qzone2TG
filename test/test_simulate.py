@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 from frontend.tg.ui import TgExtracter
@@ -21,6 +22,7 @@ def conf():
 
 def setup_module() -> None:
     global db
+    Path('data').mkdir(exist_ok=True)
     db = FeedDB('data/test.db', plugins={'tg': {'is_sent': 'BOOLEAN default 0'}})
 
 
@@ -33,6 +35,29 @@ def is_sorted(iterable, key=None):
         if cur > i: return False
         cur = i
     return True
+
+
+class TestHtml:
+    @classmethod
+    def setup_class(cls):
+        p = Path('tmp/html')
+        if not p.exists():
+            cls.html = []
+            return
+        cls.html = [i for i in p.iterdir() if i.suffix == '.html']
+
+    def testAll(self):
+        from qzone.parser import QzHtmlParser
+        from qzemoji import DBMgr
+        DBMgr.enable_auto_update = False
+        for i in self.html:
+            with open(i, encoding='utf8') as f:
+                p = QzHtmlParser(f.read())
+                p.parseBio()
+                p.parseForward()
+                p.parseText()
+                p.parseImage()
+                p.parseVideo()
 
 
 class TestSimulate:

@@ -28,9 +28,8 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [v2.1][latest] availible now!<br>
-> We achieved persistence login in v2.1 (Maybe for one day?) 
-> Era of hourly refreshing ends. We are checking for new feeds every 5 minutes now!
+> [v2.2][latest] availible now!<br>
+> New photo list API is added. We'll fetch photos with the same quality as those in album mode.
 > For other announcements, see [Discussion][notice]
 
 ## 功能
@@ -151,6 +150,7 @@ keyring del qzone2tg <your-qq>
 ### Third-Party
 
 - lxml: [BSD-3](https://github.com/lxml/lxml/blob/master/LICENSE.txt)
+- cssselect [BSD](https://github.com/scrapy/cssselect/blob/master/LICENSE)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
 - keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
@@ -164,7 +164,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.1.0 "2.1.0"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.0 "2.2.0"
 [docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"

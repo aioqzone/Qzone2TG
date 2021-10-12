@@ -106,15 +106,29 @@ class QZCachedScraper:
         if not new: return 0
 
         for i in new:
-            if not i.isCut(): continue
+            self.postProcess(i)
+            self.db.dumpFeed(i, flush=False)
+
+        self.db.db.commit()
+
+        return len(new)
+
+    def postProcess(self, feed: Parser):
+        def complete(i: Parser):
+            if not i.isCut(): return
             html = self.qzone.getCompleteFeed(i.feedData)
             if html:
                 i.html = html
             else:
                 logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
-        self.db.saveFeeds(new)
 
-        return len(new)
+        def album(i: Parser):
+            if i.hasAlbum():
+                i.parseImage(lambda d, n: self.qzone.photoList(d, i.uin, n))
+
+        for process in [complete, album]:
+            process(feed)
+        return feed
 
     def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):
         """fetch all new feeds.

@@ -291,8 +291,8 @@ class classwrapper:
 
 
 class cached(property):
-    def __init__(self, fget: Callable, fset: Callable = None, doc: str = None) -> None:
-        super().__init__(fget, fset=fset, fdel=None, doc=doc)
+    def __init__(self, fget: Callable, fset: Callable = None) -> None:
+        super().__init__(fget, fset=fset, fdel=None)
 
     def __get__(self, obj: Any, type: type = None) -> Any:
         if obj is None: return self
@@ -304,4 +304,8 @@ class cached(property):
         if hasattr(self, '_c'): del self._c
 
     def __set__(self, obj: Any, value: Any) -> None:
+        self._c = value
         return super().__set__(obj, value)
+
+    def setter(self, fset: Callable[[Any, Any], None]) -> property:
+        return cached(fget=self.fget, fset=fset)
