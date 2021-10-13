@@ -1,6 +1,7 @@
 import time
 from collections import deque
 from functools import wraps
+from threading import Lock
 from typing import (
     Any, Callable, Dict, Generator, List, Optional, Type, TypeVar, Union
 )
@@ -196,6 +197,20 @@ class FloodControl:
             self._ts.append((time.time(), N))
 
 
+def atomic(func):
+    lock = Lock()
+
+    @wraps(func)
+    def atomic(*a, **k):
+        try:
+            lock.acquire(True)
+            return func(*a, **k)
+        finally:
+            lock.release()
+
+    return atomic
+
+
 class Locked():
     """NOTE: Not designed for concurency!!!"""
     _lock = False
@@ -203,8 +218,15 @@ class Locked():
     class _ConflictException(RuntimeError):
         pass
 
-    def __init__(self, conflict_callback: Callable[[], None] = None) -> None:
+    def __init__(
+        self,
+        conflict_callback: Union[Callable[[], None], Callable[[object], None]] = None,
+        *,
+        with_self: bool = False
+    ) -> None:
         self._on_conflict = conflict_callback
+        self._wself = with_self
+        self._lock = Lock()
 
     def __call__(self, func):
         @wraps(func)
@@ -213,81 +235,24 @@ class Locked():
                 with self:
                     return func(*args, **kwargs)
             except self._ConflictException:
-                return self._on_conflict and self._on_conflict()
+                a = (kwargs.get('self', None) or args[0], ) if self._wself else ()
+                return self._on_conflict and self._on_conflict(*a)
 
         return lockWrapper
 
-    def lock(self):
-        if self._lock:
+    def lock(self, blocking=True):
+        if self._lock.locked():
             raise self._ConflictException
-        self._lock = True
+        self._lock.acquire(blocking=blocking)
 
     def unlock(self):
-        self._lock = False
+        self._lock.release()
 
     def __enter__(self, *a, **k):
         self.lock()
 
-    def __exit__(self, ty: type, e: BaseException, trace):
+    def __exit__(self, *exc):
         self.unlock()
-
-
-class LockedMethod(Locked):
-    _that = None
-
-    def __init__(self, conflict_callback: Callable[[Any], None] = None) -> None:
-        super().__init__(conflict_callback=conflict_callback)
-
-    def __call__(self, func):
-        this = self
-
-        @wraps(func)
-        def lockWrapper(self, *args, **kwargs):
-            try:
-                with this:
-                    return func(self, *args, **kwargs)
-            except this._ConflictException:
-                return this._on_conflict and this._on_conflict(self)
-
-        return lockWrapper
-
-
-class classwrapper:
-    def __init__(self, wrapper: Callable[[object, Callable, Any], Any]) -> None:
-        """With wrapper decorated by this decorator, you can decorate methods with the wrapper 
-        defined in the same class as the methods.
-
-        Args:
-            wrapper (`Callable[[object, Callable, Any], Any]`): (self, func, *a, **k) -> Any
-        
-        Example:
-
-        ~~~ 
-        class A:
-            def __init__(self, token) -> None:
-                self.token = token
-
-            @classdecorator
-            def desc(self, func, *a, **k):
-                print(self.token)
-                return func(self, *a, **k)
-
-            @desc
-            def cc(self):
-                print('cc call')
-        ~~~
-        """
-        def decorator(func):
-            @wraps(func)
-            def fwrap(self, *a, **k):
-                return wrapper(self, func, *a, **k)
-
-            return fwrap
-
-        self._d = decorator
-
-    def __call__(self, func):
-        return self._d(func)
 
 
 class cached(property):

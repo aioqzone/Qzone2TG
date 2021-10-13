@@ -27,7 +27,7 @@ class QzCssHelper:
         if finfo:
             self.finfo: HtmlElement = max(finfo, key=len)
         else:
-            self.finfo = None
+            self.finfo = HtmlElement()
 
 
 class QzHtmlParser(QzCssHelper):
@@ -184,7 +184,6 @@ class QzHtmlParser(QzCssHelper):
         return nick, link, txt
 
     def isCut(self):
-        if self.finfo is None: return False
         txt: list = self.finfo.cssselect('a[data-cmd="qz_toggle"]')
         return bool(txt)
 
@@ -199,7 +198,7 @@ class QzHtmlParser(QzCssHelper):
 
 
 class QzJsonParser(QzHtmlParser):
-    def __init__(self, feed):
+    def __init__(self, feed: dict):
         assert isinstance(feed, dict)
         self.raw = feed
         self.html = QzHtmlParser.trans(feed['html'])

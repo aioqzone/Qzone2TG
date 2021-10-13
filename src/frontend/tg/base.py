@@ -9,7 +9,7 @@ from qzone.feed import QZCachedScraper
 from requests.exceptions import HTTPError
 from telegram.ext import Updater
 
-from utils.decorator import LockedMethod
+from utils.decorator import Locked
 
 from .ui import TgExtracter, TgUI, retry_once
 
@@ -32,9 +32,10 @@ class _DecHelper:
     def notifyLock(name=None):
         def lockDecorator(func: Callable):
             noti_name = name or func.__name__
-            return LockedMethod(
+            return Locked(
                 lambda self: logger.info(f"{func.__name__}: new {noti_name} excluded.") or \
-                self.ui.bot.sendMessage(f"Sorry. But the bot is {noti_name} already.")
+                self.ui.bot.sendMessage(f"Sorry. But the bot is {noti_name} already."),
+                with_self=True
             )(func)
 
         return lockDecorator

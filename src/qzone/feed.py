@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from itertools import takewhile
 from math import ceil
 from typing import Iterable
@@ -16,6 +17,21 @@ logger = logging.getLogger(__name__)
 
 
 class FeedDB(FeedBase):
+    def __init__(
+        self,
+        db,
+        keepdays: int = 3,
+        archivedays: int = 180,
+        plugins: dict = None
+    ) -> None:
+        super().__init__(
+            db,
+            keepdays=keepdays,
+            archivedays=archivedays,
+            plugins=plugins,
+            thread_safe=True
+        )
+
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         return [
             Parser(i) for i in
@@ -37,6 +53,7 @@ class FeedDB(FeedBase):
         }
         self.feed[args['fid']] = args
         if flush: self.db.commit()
+        return feed
 
     def saveFeeds(self, feeds: Iterable[Parser]):
         for i in feeds:
@@ -49,10 +66,11 @@ class QZCachedScraper:
     """
     hook = NullUI()
 
-    def __init__(self, qzone: QzoneScraper, db: FeedDB):
+    def __init__(self, qzone: QzoneScraper, db: FeedDB, max_worker=None):
         self.qzone = qzone
         self.db = db
         self.cleanFeed()
+        self.executor = ThreadPoolExecutor(max_worker, thread_name_prefix='qzdb')
 
     def register_ui_hook(self, hook: NullUI):
         self.hook = hook
@@ -91,26 +109,23 @@ class QZCachedScraper:
 
     def _getNewFeeds(self, pagenum: int, ignore_exist=False):
         feeds = self.qzone.fetchPage(pagenum)
-
         if feeds is None: return 0
-        feeds = list(feeds)
 
         limit = day_stamp() - self.db.keepdays
-        new = [
-            p for i in feeds
-            if ((p := Parser(i)) and ignore_exist or p.fid not in self.db.feed)
-            and day_stamp(p.abstime) > limit
-        ]
-        self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
-        logger.info(msg)
-        if not new: return 0
 
-        for i in new:
-            self.postProcess(i)
-            self.db.dumpFeed(i, flush=False)
+        def concurrent(i: dict):
+            # a coarse concurrency. need further optimization.
+            feed = Parser(i)
+            if day_stamp(feed.abstime) < limit: return
+            if not ignore_exist and feed.fid in self.db.feed: return
+            return self.db.dumpFeed(self.postProcess(feed), flush=False)
 
+        new = self.executor.map(concurrent, feeds)
         self.db.db.commit()
 
+        new = list(filter(None, new))
+        self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        logger.info(msg)
         return len(new)
 
     def postProcess(self, feed: Parser):

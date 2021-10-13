@@ -2,8 +2,9 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
+from utils.decorator import atomic
 from utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,15 @@ class Table:
 
 
 class _DBBase:
-    def __init__(self, db: Union[str, sqlite3.Connection]) -> None:
+    class AtomicCursor(sqlite3.Cursor):
+        def __init__(self, cursor: sqlite3.Cursor) -> None:
+            super().__init__(cursor.connection)
+
+        @atomic
+        def execute(self, __sql: str):
+            return super().execute(__sql)
+
+    def __init__(self, db: Union[str, sqlite3.Connection], thread_safe=False) -> None:
         if isinstance(db, sqlite3.Connection):
             self.db = db
         else:
@@ -109,6 +118,9 @@ class _DBBase:
             self.db = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.db.cursor()
 
+        if thread_safe:
+            self.cursor = self.AtomicCursor(self.cursor)
+
 
 class FeedBase(_DBBase):
     def __init__(
@@ -116,10 +128,11 @@ class FeedBase(_DBBase):
         db: Union[str, sqlite3.Connection],
         keepdays: int = 3,
         archivedays: int = 180,
-        plugins: dict = None
+        plugins: dict = None,
+        thread_safe=False,
     ) -> None:
 
-        super().__init__(db)
+        super().__init__(db, thread_safe)
         self.keepdays = keepdays
         self.archivedays = archivedays
 
