@@ -118,11 +118,10 @@ class _HTTPHelper:
             self._excc = {HTTPError: handler}
 
         def register(self, excr=None):
-            return Retry(self._excc, excr=excr)
+            return Retry(self._excc, excr=excr, with_self=True)
 
     @_403Handler
-    @staticmethod
-    def retry_403(e: HTTPError, i):
+    def retry_403(self, e: HTTPError, i):
         if e.response.status_code != 403: raise e
         if i >= 1: raise e
 
