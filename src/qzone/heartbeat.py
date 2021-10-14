@@ -24,7 +24,7 @@ __all__ = ['HBMgr']
 
 
 class _LoginHelper:
-    ui = NullUI()
+    hook = NullUI()
 
     def __init__(
         self, uin: int, *, pwd: str = None, qr_strategy: str = 'prefer'
@@ -38,9 +38,9 @@ class _LoginHelper:
         if qr_strategy != 'forbid':
             self._qr = QRLogin(QzoneAppid, QzoneProxy)
 
-    def register_ui_hook(self, ui: NullUI):
-        self.ui = ui
-        self.ui.register_resend_callback(self._qr.show)
+    def register_ui_hook(self, hook: NullUI):
+        self.hook = hook
+        self.hook.register_resend_callback(self._qr.show)
 
     def _upLogin(self) -> Optional[dict]:
         """login use uin and pwd
@@ -67,16 +67,16 @@ class _LoginHelper:
             refresh_callback=lambda b: sendmethod()(b),
             return_callback=lambda b: r.__setitem__(0, b),
         )
-        sendmethod = lambda: self.ui.QrExpired if sched.cnt else self.ui.QrFetched
-        self.ui.register_cancel_callback(lambda: sched.stop(exception=True))
+        sendmethod = lambda: self.hook.QrExpired if sched.cnt else self.hook.QrFetched
+        self.hook.register_cancel_callback(lambda: sched.stop(exception=True))
         try:
             sched.start()
             r = r[0]
-            if r: self.ui.QrScanSucceessed()
-            else: self.ui.QrFailed()
+            if r: self.hook.QrScanSucceessed()
+            else: self.hook.QrFailed()
             return r
         except TimeoutError:
-            self.ui.QrFailed()
+            self.hook.QrFailed()
             return
         except KeyboardInterrupt:
             raise UserBreak
@@ -190,7 +190,7 @@ class HBMgr(_LoginHelper, _HTTPHelper):
 
             logger.info('取得cookie')
             self.lastLG = time.time()
-            self.ui.loginSuccessed()
+            self.hook.loginSuccessed()
 
             self.db[self.uin] = cookie
         else:
@@ -204,14 +204,14 @@ class HBMgr(_LoginHelper, _HTTPHelper):
             self._excc = {QzoneError: handler}
 
         def register(self, excr=None):
-            return Retry(self._excc, excr=excr, with_self=True)
+            return Retry(self._excc, 12, excr=excr, with_self=True)
 
     @_LoginExpireHandler
     def login_if_expire(self, e: QzoneError, i):
         if e.code == -10001:
-            if i >= 11: raise TimeoutError('Network is always busy!')
+            if i >= 11: raise TimeoutError('Qzone interface busy')
             logger.info(e.msg)
-            time.sleep(5)
+            time.sleep(i + 1)
             return
 
         if e.code not in [-3000, -4002]: raise e

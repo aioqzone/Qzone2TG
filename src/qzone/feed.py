@@ -49,7 +49,7 @@ class FeedDB(FeedBase):
             'typeid': feed.typeid,
             'nickname': feed.nickname,
             'uin': feed.uin,
-            'html': feed.raw['html'],
+            'html': feed.html,
         }
         self.feed[args['fid']] = args
         if flush: self.db.commit()

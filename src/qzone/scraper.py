@@ -9,7 +9,7 @@ import json
 import logging
 import re
 import time
-from random import random
+from random import randint, random
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote
 
@@ -31,8 +31,6 @@ def time_ms():
 
 
 class QzoneScraper(HBMgr):
-    lastHB: float = None
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.extern = {1: "undefined"}
@@ -185,15 +183,33 @@ class QzoneScraper(HBMgr):
         return super().checkUpdate(predNewAmount)
 
     @HBMgr.login_if_expire.register([])
-    def photoList(self, photo: Dict[str, Any], hostuin: int, num: int):
+    def photoList(self, album: Dict[str, Any], hostuin: int, num: int):
+        """get photolist of an album
+
+        - login_if_expire
+
+        Args:
+            album (Dict[str, Any]): album attrib. needs `topicid` & `pickey`
+            hostuin (int): album owner uin
+            num (int): num limit
+
+        Raises:
+            QzoneError: if qzone returns an error code
+            RuntimeError: if the request or response is modified(hooked) in transport
+
+        Returns:
+            list[dict[str, str]]: photolist, each `photo` is a dict[str, str]: key->url
+        """
         query = {
             'g_tk': self.gtk,
-            'topicId': photo['topicid'],
-            'picKey': photo['pickey'],
+            'topicId': album['topicid'],
+            'picKey': album['pickey'],
             'hostUin': hostuin,
             'number': num,
             'uin': self.uin,
             '_': time_ms(),
+            't': randint(1e8, 1e9 - 1)         # The distribution is not consistent
+                                               # with photo.js; but the format is.
         }
         query.update(Arg4ListPhoto)
         r = self.get(PHOTO_LIST_URL, params=query)
@@ -201,7 +217,10 @@ class QzoneScraper(HBMgr):
         r = json_loads(r)
 
         if r['code'] != 0: raise QzoneError(r['code'], r['message'])
-        r = r['data']['photos']
+        r = r['data']
+        if query['t'] != int(r['t']):
+            raise RuntimeError('Something unexpected occured in transport.')
+        r = r['photos']
 
         rd = lambda d: {k: d[k] for k in ['pre', 'picId', 'url']}
         return [rd(i) for i in r]
