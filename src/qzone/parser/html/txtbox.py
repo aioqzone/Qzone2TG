@@ -48,7 +48,10 @@ class Txtbox:
     def l2u(src: str):
         try:
             m = query(resolve(src))
-            return f"[/{m or '表情'}]"
+            if m is None or re.match(r"[\u0000-\uFFFF]+", m):
+                return f"[/{m or '表情'}]"
+            else:
+                return m
         except ValueError:
             logger.warning('cannot resolve emoji: ' + src)
             return ""

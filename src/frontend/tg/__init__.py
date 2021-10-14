@@ -3,6 +3,7 @@ import re
 from functools import wraps
 
 import telegram
+from middleware.utils import sementicTime
 from qzone.exceptions import UserBreak
 from qzone.feed import QZCachedScraper
 from telegram.error import NetworkError, TelegramError
@@ -32,7 +33,9 @@ class PollingBot(RefreshBot, _DecHelper):
         "start": "Force login. Then refresh and resend all feeds.",
         "refresh": "Refresh and send any new feeds.",
         "resend": "Resend any unsent feeds.",
-        "help": "Send help message."
+        'status': 'Get some runtime status.',
+        "relogin": "Force relogin.",
+        "help": "Send help message.",
     }
 
     def __init__(
@@ -66,6 +69,8 @@ class PollingBot(RefreshBot, _DecHelper):
         dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
         dispatcher.add_handler(CommandHandler("resend", self.onSend))
         dispatcher.add_handler(CommandHandler('help', self.onHelp))
+        dispatcher.add_handler(CommandHandler('status', self.onStatus))
+        dispatcher.add_handler(CommandHandler('relogin', self.onRelogin))
         dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
 
         try:
@@ -102,6 +107,23 @@ class PollingBot(RefreshBot, _DecHelper):
     def onHelp(self):
         helpm = '\n'.join(f"/{k} - {v}" for k, v in self.commands.items())
         self.ui.bot.sendMessage(helpm)
+
+    @_DecHelper.CA
+    def onStatus(self):
+        stat = self.feedmgr.qzone.status()
+        fh = lambda key: sementicTime(v) if (v := stat.get(key, None)) else '还是在上次'
+        status = f"上次登录: {fh('last_login')}\n" \
+                 f"上次心跳: {fh('last_heartbeat')}"
+        self.ui.bot.sendMessage(status)
+
+    @_DecHelper.CA
+    def onRelogin(self):
+        self.feedmgr.qzone.updateStatus(force_login=True)
+        stat = self.feedmgr.qzone.status()
+        if (v := stat['last_login']) is None:
+            return
+        msg = "重新登录: " + sementicTime(v)
+        self.ui.bot.sendMessage(msg)
 
     def run(self):
         try:
