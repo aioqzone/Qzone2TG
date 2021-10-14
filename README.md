@@ -33,6 +33,8 @@
 > We introduce a little bit concurrency in 2.2.1a1. Hopes this will accelerate our pipeline.
 > For other announcements, see [Discussion][notice]
 
+---
+
 ## 功能
 
 * 自动登录空间, ~~cv过验证~~(broken)
@@ -44,7 +46,8 @@
 
 ## 截图
 
-> 咕咕咕
+> See my [blog](blog) for screenshots, demo vedio, tutorials in detail and other resources. 
+> (咕咕咕
 
 ## 需求
 
@@ -61,9 +64,11 @@
 
 ## 安装
 
-- 可选择[docker镜像][docker](感谢@TigerCubDen) ![](https://img.shields.io/badge/support-verified-green)
-- 源码安装(develop install) ![](https://img.shields.io/badge/support-verified-green)
-- 常规pip安装 ![](https://img.shields.io/badge/support-Maybe-red)
+|安装方式                              |建议    |
+|:-----------------------------------|:------:|
+|[docker镜像][docker](感谢@TigerCubDen)|✔️     |
+|源码安装(develop install)             |✔️     |
+|常规pip安装                           |❌     |
 
 ### 安装依赖
 
@@ -121,6 +126,8 @@ vim config/config.yaml
 - pip develop install: `python src/__main__.py`
 - pip安装: `python -m qzone2tg`
 
+---
+
 ## 卸载
 
 |data directory |description  |
@@ -141,12 +148,17 @@ keyring del qzone2tg <your-qq>
 
     ``` shell
     # python依赖
-    pip uninstall python-telegram-bot lxml omegaconf keyring tencentlogin qzemoji
+    pip uninstall python-telegram-bot lxml cssselect omegaconf keyring tencentlogin qzemoji
     ```
 
 ## Credits
 
 > Versions before [v1.3.0](https://github.com/JamzumSum/Qzone2TG/releases/tag/v1.3.0) draw lessons of [qzone](https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py), @bufuchangfeng, no licence.
+
+## License
+
+- [AGPL-3.0](LICENSE)
+- __不鼓励、不支持一切商业使用__
 
 ### Third-Party
 
@@ -158,14 +170,11 @@ keyring del qzone2tg <your-qq>
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 - qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
-## License
-
-- [AGPL-3.0](https://github.com/JamzumSum/Qzone2TG/blob/master/LICENSE)
-- __不鼓励、不支持一切商业使用__
 
 
 [conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a1 "2.2.0"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a2 "2.2.0"
 [docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
+[blog]: doc "咕咕咕"

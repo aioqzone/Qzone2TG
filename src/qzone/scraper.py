@@ -222,5 +222,14 @@ class QzoneScraper(HBMgr):
             raise RuntimeError('Something unexpected occured in transport.')
         r = r['photos']
 
-        rd = lambda d: {k: d[k] for k in ['pre', 'picId', 'url']}
+        def rd(d: dict):
+            if d.get('is_video', 0) and 'video_info' in d:
+                return {
+                    'pre': d['url'],
+                    'picId': d['picId'],
+                    'url': d['video_info']['video_url']
+                }
+            else:
+                return {k: d[k] for k in ['pre', 'picId', 'url']}
+
         return [rd(i) for i in r]
