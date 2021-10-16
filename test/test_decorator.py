@@ -1,7 +1,9 @@
 import time
 from functools import wraps
 
-from utils.decorator import Locked, noexcept, skip
+from concurrent.futures import ThreadPoolExecutor
+
+from utils.decorator import Lock_RunOnce, Locked, noexcept, skip
 
 
 def assert_retval(r):
@@ -57,6 +59,25 @@ class TestLock:
         time.sleep(4)
         assert i == 1
         assert c[0] == 2
+
+
+class TestLockOnce:
+    @classmethod
+    def setup_class(cls):
+        cls.executor = ThreadPoolExecutor(2)
+
+    def test_basic(self):
+        i = 0
+
+        @Lock_RunOnce()
+        def once(_):
+            time.sleep(1)
+            nonlocal i
+            i += 1
+            return i
+
+        a, b = self.executor.map(once, [0] * 2)
+        assert a == b == 1
 
 
 class TestNoexcept:

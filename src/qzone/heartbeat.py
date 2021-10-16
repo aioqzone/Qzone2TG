@@ -13,7 +13,7 @@ from tencentlogin.encrypt import gtk
 from tencentlogin.exception import TencentLoginError
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from utils.decorator import Retry, cached, noexcept
+from utils.decorator import Lock_RunOnce, Retry, cached, noexcept
 
 from .common import UPDATE_FEED_URL
 from .exceptions import LoginError, QzoneError, UserBreak
@@ -81,6 +81,7 @@ class _LoginHelper:
         except KeyboardInterrupt:
             raise UserBreak
 
+    @Lock_RunOnce()
     def login(self) -> Dict[str, str]:
         """login and return cookie according to qr_strategy
 
@@ -209,7 +210,6 @@ class HBMgr(_LoginHelper, _HTTPHelper):
     @_LoginExpireHandler
     def login_if_expire(self, e: QzoneError, i):
         if e.code == -10001:
-            if i >= 11: raise TimeoutError('Qzone interface busy')
             logger.info(e.msg)
             time.sleep(i + 1)
             return

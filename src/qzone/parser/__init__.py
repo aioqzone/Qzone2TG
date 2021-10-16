@@ -100,7 +100,12 @@ class QzHtmlParser(QzCssHelper):
 
         first = img[0]
         if not first.hasAlbum(): return default
-        r = get_raw_cb(first.data, len(img))
+
+        try:
+            r = get_raw_cb(first.data, len(img))
+        except:
+            logger.warning("Error when getting raw images.", exc_info=True)
+            return default
 
         if len(r) < len(img):
             logging.error('Getting origin photo error')
@@ -200,33 +205,33 @@ class QzHtmlParser(QzCssHelper):
 class QzJsonParser(QzHtmlParser):
     def __init__(self, feed: dict):
         assert isinstance(feed, dict)
-        self.raw = feed
+        self._raw = feed
         self.html = QzHtmlParser.trans(feed['html'])
 
     @property
     def html(self):
         if self.dirty:
-            self.raw['html'] = tostring(self.root, encoding='utf-8').decode('utf-8')
+            self._raw['html'] = tostring(self.root, encoding='utf-8').decode('utf-8')
             self.dirty = False
-        return self.raw['html']
+        return self._raw['html']
 
     @html.setter
     def html(self, html: str):
-        self.raw['html'] = html
+        self._raw['html'] = html
         super().__init__(html)
 
     @property
     def uin(self) -> int:
-        return int(self.raw['uin'])
+        return int(self._raw['uin'])
 
     @property
     def hash(self) -> int:
-        if 'hash' not in self.raw: self.raw['hash'] = self.__hash__()
-        return self.raw['hash']
+        if 'hash' not in self._raw: self._raw['hash'] = self.__hash__()
+        return self._raw['hash']
 
     @property
     def nickname(self) -> str:
-        return self.raw['nickname']
+        return self._raw['nickname']
 
     @property
     def feedstime(self) -> str:
@@ -234,15 +239,15 @@ class QzJsonParser(QzHtmlParser):
 
     @property
     def appid(self) -> int:
-        return int(self.raw['appid'])
+        return int(self._raw['appid'])
 
     @property
     def typeid(self) -> int:
-        return int(self.raw['typeid'])
+        return int(self._raw['typeid'])
 
     @property
     def fid(self) -> str:
-        return self.raw['key'] if 'key' in self.raw else self.raw['fid']
+        return self._raw['key'] if 'key' in self._raw else self._raw['fid']
 
     @property
     def feedkey(self) -> str:
@@ -250,7 +255,7 @@ class QzJsonParser(QzHtmlParser):
 
     @property
     def abstime(self) -> int:
-        return int(self.raw['abstime'])
+        return int(self._raw['abstime'])
 
     def getLikeId(self):
         return {

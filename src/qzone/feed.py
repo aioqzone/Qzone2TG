@@ -8,6 +8,7 @@ from middleware.storage import FeedBase
 from middleware.uihook import NullUI
 from middleware.utils import day_stamp
 from requests.exceptions import HTTPError
+from utils.decorator import noexcept
 
 from .exceptions import LoginError, UserBreak
 from .parser import QzJsonParser as Parser
@@ -90,7 +91,7 @@ class QZCachedScraper:
             int: new feeds amount
 
         Raises:
-            UserBreak: see qzone.updateStatus
+            UserBreak: see `qzone.heartbeat.HBMgr.updateStatus`
         """
         try:
             return self._getNewFeeds(pagenum, ignore_exist)
@@ -113,6 +114,10 @@ class QZCachedScraper:
 
         limit = day_stamp() - self.db.keepdays
 
+        @noexcept({
+            BaseException: lambda _: logger.
+            error('Expt in concurrent context.', exc_info=True)
+        })
         def concurrent(i: dict):
             # a coarse concurrency. need further optimization.
             feed = Parser(i)
@@ -120,6 +125,7 @@ class QZCachedScraper:
             if not ignore_exist and feed.fid in self.db.feed: return
             return self.db.dumpFeed(self.postProcess(feed), flush=False)
 
+        # To avoid any unexpected behavior, `concurrent` should be noexcept.
         new = self.executor.map(concurrent, feeds)
         self.db.db.commit()
 
@@ -129,6 +135,12 @@ class QZCachedScraper:
         return len(new)
 
     def postProcess(self, feed: Parser):
+        ned = noexcept({
+            BaseException: lambda _: logger.
+            warning(f'Expt in {process.__name__}.', exc_info=True)
+        })
+
+        @ned
         def complete(i: Parser):
             if not i.isCut(): return
             html = self.qzone.getCompleteFeed(i.feedData)
@@ -137,6 +149,7 @@ class QZCachedScraper:
             else:
                 logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
 
+        @ned
         def album(i: Parser):
             if i.hasAlbum():
                 i.parseImage(lambda d, n: self.qzone.photoList(d, i.uin, n))
@@ -162,11 +175,15 @@ class QZCachedScraper:
             if pred_new == 0: return 0
             page = 1 + ceil((pred_new - 5) / 10)
 
-        s = sum(
-            takewhile(
-                bool, (self._getNewFeeds(i + 1, ignore_exist) for i in range(page))
+        if page <= self.executor._max_workers:
+            new_iter = self.executor.map(
+                lambda i: self.getNewFeeds(i + 1, ignore_exist), range(page)
             )
-        )
+        else:
+            new_iter = takewhile(
+                bool, (self.getNewFeeds(i + 1, ignore_exist) for i in range(page))
+            )
+        s = sum(new_iter)
         if s < pred_new:
             logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')
         return s

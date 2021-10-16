@@ -1,9 +1,9 @@
 import time
 from collections import deque
 from functools import wraps
-from threading import Lock
+from threading import Condition, Lock
 from typing import (
-    Any, Callable, Dict, Generator, List, Optional, Type, TypeVar, Union
+    Any, Callable, Dict, Generator, List, Optional, Type, TypeVar, Union, final
 )
 
 from utils.iterutils import find_if
@@ -240,10 +240,9 @@ class Locked():
 
         return lockWrapper
 
-    def lock(self, blocking=True):
-        if self._lock.locked():
+    def lock(self):
+        if not self._lock.acquire(False):
             raise self._ConflictException
-        self._lock.acquire(blocking=blocking)
 
     def unlock(self):
         self._lock.release()
@@ -253,6 +252,56 @@ class Locked():
 
     def __exit__(self, *exc):
         self.unlock()
+
+
+class Lock_RunOnce:
+    """
+    Run only once when racing. 
+    
+    Result is shared among threads. 
+    Exception will be raised in every thread.
+    """    
+    _result: Any
+
+    def __init__(self) -> None:
+        self._lock = Condition()
+        self._ref = 0
+        self._exc = None
+
+    def __call__(self, func):
+        @wraps(func)
+        def lockWrapper(*args, **kwargs):
+            with self as ref:
+                if ref == 1:
+                    assert not hasattr(self, '_result')
+                    try:
+                        self._result = func(*args, **kwargs)
+                        return self._result
+                    except BaseException as e:
+                        self._result = e
+                        self._exc = e
+                        raise e
+                    finally:
+                        with self._lock:
+                            self._lock.notify_all()
+                else:
+                    with self._lock:
+                        self._lock.wait()
+                    if self._exc: raise self._exc
+                    return self._result
+
+        return lockWrapper
+
+    def __enter__(self):
+        with self._lock:
+            self._ref += 1
+            return self._ref
+
+    def __exit__(self, *exc):
+        with self._lock:
+            self._ref -= 1
+            if self._ref == 0:
+                del self._result
 
 
 class cached(property):

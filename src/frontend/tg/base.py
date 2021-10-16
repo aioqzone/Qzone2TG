@@ -148,8 +148,8 @@ class RefreshBot(_DecHelper):
         except UserBreak:
             self.ui.QrCanceled()
             return
-        except Exception as e:
-            logger.error(str(e), exc_info=True)
+        except Exception:
+            logger.error("Uncaught error when fetch", exc_info=True)
             self.ui.fetchError()
             return
 
