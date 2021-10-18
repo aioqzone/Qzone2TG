@@ -74,9 +74,7 @@ class TestSimulate:
             self.spider.qzone.updateStatus()
         except LoginError:
             pytest.skip('Account banned.', allow_module_level=True)
-        a = self.spider.getNewFeeds(1, True)
-        b = self.spider.getNewFeeds(2, True)
-        assert a + b
+        assert self.spider.fetchNewFeeds(no_pred=1, ignore_exist=True)
 
     def test_New(self):
         global FEEDS

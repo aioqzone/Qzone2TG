@@ -1,7 +1,7 @@
 import logging
 import time
 from random import random
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 import requests
 from middleware.storage import TokenTable
@@ -202,23 +202,23 @@ class HBMgr(_LoginHelper, _HTTPHelper):
 
     class _LoginExpireHandler:
         def __init__(self, handler: Callable) -> None:
-            self._excc = {QzoneError: handler}
+            self._excc = {QzoneError: handler, HTTPError: handler}
 
         def register(self, excr=None):
-            return Retry(self._excc, 12, excr=excr, with_self=True)
+            return Retry(self._excc, excr=excr, with_self=True)
 
     @_LoginExpireHandler
-    def login_if_expire(self, e: QzoneError, i):
-        if e.code == -10001:
-            logger.info(e.msg)
-            time.sleep(i + 1)
-            return
+    def login_if_expire(self, e: Union[QzoneError, HTTPError], i):
+        """This handler handles Qzone relogin code and HTTP 403.
+        """        
+        if isinstance(e, QzoneError):
+            if e.code not in [-3000, -4002]: raise e
+        elif isinstance(e, HTTPError):
+            if e.response.status_code != 403: raise e
 
-        if e.code not in [-3000, -4002]: raise e
         if self.uin in self.db:
             del self.db[self.uin]
-
-        if i >= 1: raise e
+        del self.gtk
         logger.info("cookie已过期, 即将重新登陆.")
         self.updateStatus(force_login=True)
 

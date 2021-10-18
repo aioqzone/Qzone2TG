@@ -10,11 +10,12 @@ import logging
 import re
 import time
 from random import randint, random
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
+from utils.decorator import Retry
 
 from qzone.heartbeat import HBMgr
 
@@ -70,6 +71,7 @@ class QzoneScraper(HBMgr):
             like (bool): True is like, False is unlike.
 
         Raises:
+            HTTPError: as it is
             QzoneError: Error from qzone interface
 
         Returns:
@@ -117,6 +119,7 @@ class QzoneScraper(HBMgr):
         Raises:
             `UserBreak`: see `updateStatus`
             `LoginError`: see `updateStatus`
+            `HTTPError`: as it is
             `QzoneError`: exceptions that are raised by Qzone
             `TimeoutError`: if code -10001 is returned for 12 times.
 
@@ -164,10 +167,11 @@ class QzoneScraper(HBMgr):
         """return the predict of new feed amount.
 
         Raises:
-            QzoneError: if unkown qzone code returned
+            `HTTPError`: as it is
+            `QzoneError`: if unkown qzone code returned
 
         Returns:
-            int: super of new feed amount
+            `int`: super of new feed amount
         """
         SUM_ITEM = 'friendFeeds_new_cnt', 'friendFeeds_newblog_cnt', 'friendFeeds_newphoto_cnt', 'myFeeds_new_cnt'
 
@@ -182,6 +186,22 @@ class QzoneScraper(HBMgr):
 
         return super().checkUpdate(predNewAmount)
 
+    class _BusyHandler:
+        def __init__(self, handler: Callable) -> None:
+            self._excc = {QzoneError: handler, HTTPError: handler}
+
+        def register(self, excr=None):
+            return Retry(self._excc, 12, excr=excr, with_self=True)
+
+    @_BusyHandler
+    def _onbusy(self, e: QzoneError, i: int):
+        if e.code == -10001:
+            logger.info(e.msg)
+            time.sleep(i + 1)
+            return
+        raise e
+
+    @_onbusy.register([])
     @HBMgr.login_if_expire.register([])
     def photoList(self, album: Dict[str, Any], hostuin: int, num: int):
         """get photolist of an album
@@ -194,6 +214,7 @@ class QzoneScraper(HBMgr):
             num (int): num limit
 
         Raises:
+            HTTPError: as it is
             QzoneError: if qzone returns an error code
             RuntimeError: if the request or response is modified(hooked) in transport
 

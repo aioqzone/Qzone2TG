@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from itertools import takewhile
 from math import ceil
-from typing import Iterable
+from typing import Iterable, Union
 
 from middleware.storage import FeedBase
 from middleware.uihook import NullUI
@@ -10,7 +10,7 @@ from middleware.utils import day_stamp
 from requests.exceptions import HTTPError
 from utils.decorator import noexcept
 
-from .exceptions import LoginError, UserBreak
+from .exceptions import LoginError, QzoneError, UserBreak
 from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper
 
@@ -91,24 +91,14 @@ class QZCachedScraper:
             int: new feeds amount
 
         Raises:
-            UserBreak: see `qzone.heartbeat.HBMgr.updateStatus`
-        """
-        try:
-            return self._getNewFeeds(pagenum, ignore_exist)
-        except KeyboardInterrupt:
-            raise UserBreak
-        except LoginError as e:
-            self.hook.loginFailed(e.args[0])
-            return 0
-        except Exception as e:
-            omit_type = HTTPError,
-            logger.error(
-                f"{type(e)} when getting page {pagenum}: " + str(e),
-                exc_info=not isinstance(e, omit_type),
-            )
-            return 0
+            All exceptions qzone.scraper.fetchPage have:
 
-    def _getNewFeeds(self, pagenum: int, ignore_exist=False):
+            `UserBreak`: see `updateStatus`
+            `LoginError`: see `updateStatus`
+            `HTTPError`: as it is
+            `QzoneError`: exceptions that are raised by Qzone
+            `TimeoutError`: if code -10001 is returned for 12 times.
+        """
         feeds = self.qzone.fetchPage(pagenum)
         if feeds is None: return 0
 
@@ -158,19 +148,16 @@ class QZCachedScraper:
             process(feed)
         return feed
 
-    def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):
-        """fetch all new feeds.
+    def _fetchNewFeeds(self, *, no_pred: int = False, ignore_exist=False):
+        """inner fetch new feeds
 
-        Args:
-            `no_pred`: do not predict new feeds amount
-            `ignore_exist` (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
-
-        Returns:
-            int: new feeds amount
+        Raises:
+            `HTTPError`: as it is
+            `QzoneError`: if unkown qzone code returned
         """
         pred_new = self.qzone.checkUpdate()
         if no_pred or ignore_exist:
-            page = 1000
+            page = no_pred if isinstance(no_pred, int) and no_pred > 0 else 1000
         else:
             if pred_new == 0: return 0
             page = 1 + ceil((pred_new - 5) / 10)
@@ -187,6 +174,37 @@ class QZCachedScraper:
         if s < pred_new:
             logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')
         return s
+
+    def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):
+        """fetch all new feeds.
+
+        Args:
+            `no_pred`: do not predict new feeds amount
+            `ignore_exist` (bool, optional): Force reload to ignore any feed already in storage. Defaults to False.
+
+        Raises:
+            `UserBreak`
+
+        Returns:
+            `int`: new feeds amount
+        """
+        try:
+            return self._fetchNewFeeds(no_pred=no_pred, ignore_exist=ignore_exist)
+        except KeyboardInterrupt:
+            raise UserBreak
+        except LoginError as e:
+            self.hook.loginFailed(e.args[0])
+            return 0
+        except (HTTPError, QzoneError) as e:
+            exc_info = False
+        except Exception as e:
+            exc_info = True
+
+        logger.error(
+            f"{type(e)} when fetching pages: " + str(e),
+            exc_info=exc_info,
+        )
+        return 0
 
     def like(self, likedata: dict):
         """like a post specified by likedata
