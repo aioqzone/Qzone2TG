@@ -108,7 +108,7 @@ class QzHtmlParser(QzCssHelper):
             return default
 
         if len(r) < len(img):
-            logging.error('Getting origin photo error')
+            logger.error('Getting origin photo error')
             return default
 
         raw = [i['url'] for i in r]

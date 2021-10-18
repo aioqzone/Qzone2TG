@@ -168,12 +168,12 @@ class QzoneScraper(HBMgr):
 
         Raises:
             `HTTPError`: as it is
-            `QzoneError`: if unkown qzone code returned
+            `QzoneError`: if unknown qzone code returned
 
         Returns:
             `int`: super of new feed amount
         """
-        SUM_ITEM = 'friendFeeds_new_cnt', 'friendFeeds_newblog_cnt', 'friendFeeds_newphoto_cnt', 'myFeeds_new_cnt'
+        SUM_ITEM = 'friendFeeds_new_cnt', 'friendFeeds_newblog_cnt'
 
         def predNewAmount(r: str):
             r = RE_CALLBACK.search(r).group(1)

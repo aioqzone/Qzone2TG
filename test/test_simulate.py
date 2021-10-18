@@ -6,7 +6,7 @@ from frontend.tg.ui import TgExtracter
 from middleware.storage import TokenTable
 from omegaconf import OmegaConf
 from qzone.exceptions import LoginError
-from qzone.feed import FeedDB, QZCachedScraper
+from qzone.feed import FeedDB, QzCachedScraper
 from qzone.scraper import QzoneScraper
 
 db = FEEDS = None
@@ -47,8 +47,8 @@ class TestHtml:
         cls.html = [i for i in p.iterdir() if i.suffix == '.html']
 
     def testAll(self):
-        from qzone.parser import QzHtmlParser
         from qzemoji import DBMgr
+        from qzone.parser import QzHtmlParser
         DBMgr.enable_auto_update = False
         for i in self.html:
             with open(i, encoding='utf8') as f:
@@ -63,7 +63,7 @@ class TestHtml:
 class TestSimulate:
     @classmethod
     def setup_class(cls):
-        cls.spider = QZCachedScraper(
+        cls.spider = QzCachedScraper(
             QzoneScraper(TokenTable(db.cursor),
                          **conf().qzone), db
         )

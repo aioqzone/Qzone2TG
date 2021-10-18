@@ -1,8 +1,9 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from itertools import takewhile
 from math import ceil
-from typing import Iterable, Union
+from typing import Callable, Iterable, Union
 
 from middleware.storage import FeedBase
 from middleware.uihook import NullUI
@@ -15,6 +16,7 @@ from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper
 
 logger = logging.getLogger(__name__)
+FeedProcess = Callable[[Parser], None]
 
 
 class FeedDB(FeedBase):
@@ -62,47 +64,53 @@ class FeedDB(FeedBase):
         self.db.commit()
 
 
-class QZCachedScraper:
-    """Scraper + Database
-    """
+class PostProcess:
+    def __init__(self, max_worker=None) -> None:
+        self.executor = ThreadPoolExecutor(max_worker, thread_name_prefix='qzdb')
+        self.post = []
+
+    def register_postprocess(self, proc: FeedProcess):
+        ned = noexcept({
+            BaseException: lambda _: logger.
+            warning(f'Expt in {proc.__name__}:', exc_info=True)
+        })
+        self.post.append(ned(proc))
+
+    def postProcess(self, i: Parser):
+        for f in self.post:
+            f(i)
+        return i
+
+
+class QzFeedScraper(PostProcess):
+    """Top feed API"""
+
     hook = NullUI()
 
-    def __init__(self, qzone: QzoneScraper, db: FeedDB, max_worker=None):
+    def _post_complete(self, i: Parser):
+        if not i.isCut(): return
+        if (html := self.qzone.getCompleteFeed(i.feedData)):
+            i.html = html
+        else:
+            logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
+
+    def _post_album(self, i: Parser):
+        if i.hasAlbum():
+            i.parseImage(lambda d, n: self.qzone.photoList(d, i.uin, n))
+
+    def __init__(self, qzone: QzoneScraper, max_worker=None):
+        super().__init__(max_worker)
         self.qzone = qzone
-        self.db = db
-        self.cleanFeed()
-        self.executor = ThreadPoolExecutor(max_worker, thread_name_prefix='qzdb')
+        self.register_postprocess(self._post_complete)
+        self.register_postprocess(self._post_album)
 
     def register_ui_hook(self, hook: NullUI):
         self.hook = hook
         self.qzone.register_ui_hook(hook)
 
-    def cleanFeed(self):
-        self.db.cleanFeed()
-
-    def getNewFeeds(self, pagenum: int, ignore_exist=False):
-        """get compelte feeds from qzone and save them to database
-
-        Args:
-            `pagenum` (int): page #
-            `ignore_exist` (bool, optional): whether to ignore existing feed. Defaults to False.
-
-        Return:
-            int: new feeds amount
-
-        Raises:
-            All exceptions qzone.scraper.fetchPage have:
-
-            `UserBreak`: see `updateStatus`
-            `LoginError`: see `updateStatus`
-            `HTTPError`: as it is
-            `QzoneError`: exceptions that are raised by Qzone
-            `TimeoutError`: if code -10001 is returned for 12 times.
-        """
+    def getNewFeeds(self, pagenum: int, limit: int):
         feeds = self.qzone.fetchPage(pagenum)
         if feeds is None: return 0
-
-        limit = day_stamp() - self.db.keepdays
 
         @noexcept({
             BaseException: lambda _: logger.
@@ -112,41 +120,16 @@ class QZCachedScraper:
             # a coarse concurrency. need further optimization.
             feed = Parser(i)
             if day_stamp(feed.abstime) < limit: return
-            if not ignore_exist and feed.fid in self.db.feed: return
-            return self.db.dumpFeed(self.postProcess(feed), flush=False)
+            return self.postProcess(feed)
 
         # To avoid any unexpected behavior, `concurrent` should be noexcept.
+        logger.debug('multi-thread map for post processing')
         new = self.executor.map(concurrent, feeds)
-        self.db.db.commit()
-
         new = list(filter(None, new))
+
         self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
         return len(new)
-
-    def postProcess(self, feed: Parser):
-        ned = noexcept({
-            BaseException: lambda _: logger.
-            warning(f'Expt in {process.__name__}.', exc_info=True)
-        })
-
-        @ned
-        def complete(i: Parser):
-            if not i.isCut(): return
-            html = self.qzone.getCompleteFeed(i.feedData)
-            if html:
-                i.html = html
-            else:
-                logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
-
-        @ned
-        def album(i: Parser):
-            if i.hasAlbum():
-                i.parseImage(lambda d, n: self.qzone.photoList(d, i.uin, n))
-
-        for process in [complete, album]:
-            process(feed)
-        return feed
 
     def _fetchNewFeeds(self, *, no_pred: int = False, ignore_exist=False):
         """inner fetch new feeds
@@ -163,6 +146,7 @@ class QZCachedScraper:
             page = 1 + ceil((pred_new - 5) / 10)
 
         if page <= self.executor._max_workers:
+            logger.debug('multi-thread map for get multiple pages')
             new_iter = self.executor.map(
                 lambda i: self.getNewFeeds(i + 1, ignore_exist), range(page)
             )
@@ -216,6 +200,67 @@ class QZCachedScraper:
             bool: if success
         """
         return self.qzone.doLike(likedata, True)
+
+
+class QzCachedScraper(QzFeedScraper):
+    """Easy API for scraper + Database
+    """
+    def __init__(self, qzone: QzoneScraper, db: FeedDB, max_worker=None):
+        super().__init__(qzone, max_worker)
+        self.db = db
+        self.cleanFeed = self.db.cleanFeed
+        self.cleanFeed()
+
+        self.register_postprocess(partial(self.db.dumpFeed, flush=False))
+
+    def getNewFeeds(
+        self,
+        pagenum: int,
+        ignore_exist=False,
+    ):
+        """get compelte feeds from qzone and save them to database
+
+        Args:
+            `pagenum` (int): page #
+            `ignore_exist` (bool, optional): whether to ignore existing feed. Defaults to False.
+
+        Return:
+            int: new feeds amount
+
+        Raises:
+            All exceptions qzone.scraper.fetchPage have:
+
+            `UserBreak`: see `updateStatus`
+            `LoginError`: see `updateStatus`
+            `HTTPError`: as it is
+            `QzoneError`: exceptions that are raised by Qzone
+            `TimeoutError`: if code -10001 is returned for 12 times.
+        """
+        feeds = self.qzone.fetchPage(pagenum)
+        if feeds is None: return 0
+
+        limit = day_stamp() - self.db.keepdays
+
+        @noexcept({
+            BaseException: lambda _: logger.
+            error('Expt in concurrent context.', exc_info=True)
+        })
+        def concurrent(i: dict):
+            # a coarse concurrency. need further optimization.
+            feed = Parser(i)
+            if day_stamp(feed.abstime) < limit: return
+            if not ignore_exist and feed.fid in self.db.feed: return
+            return self.postProcess(feed)
+
+        # To avoid any unexpected behavior, `concurrent` should be noexcept.
+        logger.debug('multi-thread map for post processing')
+        new = self.executor.map(concurrent, feeds)
+        new = list(filter(None, new))
+
+        self.db.db.commit()
+        self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
+        logger.info(msg)
+        return len(new)
 
     def likeAFile(self, fid: str):
         """like a post specified by fid

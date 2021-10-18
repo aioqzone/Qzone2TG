@@ -1,11 +1,11 @@
 import logging
 from datetime import time as Time
 from functools import wraps
-from typing import Any, Callable
+from typing import Callable
 
 from pytz import timezone
 from qzone.exceptions import UserBreak
-from qzone.feed import QZCachedScraper
+from qzone.feed import QzCachedScraper
 from requests.exceptions import HTTPError
 from telegram.ext import Updater
 
@@ -46,7 +46,7 @@ class RefreshBot(_DecHelper):
 
     def __init__(
         self,
-        feedmgr: QZCachedScraper,
+        feedmgr: QzCachedScraper,
         token: str,
         accept_id: int,
         uin: int,
