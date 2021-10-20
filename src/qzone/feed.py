@@ -179,16 +179,12 @@ class QzFeedScraper(PostProcess):
         except LoginError as e:
             self.hook.loginFailed(e.args[0])
             return 0
-        except (HTTPError, QzoneError) as e:
-            exc_info = False
         except Exception as e:
-            exc_info = True
-
-        logger.error(
-            f"{type(e)} when fetching pages: " + str(e),
-            exc_info=exc_info,
-        )
-        return 0
+            logger.error(
+                f"{type(e)} when fetching pages: " + str(e),
+                exc_info=True,
+            )
+            return 0
 
     def like(self, likedata: dict):
         """like a post specified by likedata

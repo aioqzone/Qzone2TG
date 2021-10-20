@@ -30,7 +30,7 @@
 
 > [v2.2][latest] availible now!<br>
 > New photo list API is added. We'll fetch photos with the same quality as those in album mode. <br>
-> We introduce a little bit concurrency in 2.2.1a1. Hopes this will accelerate our pipeline.
+> We introduce a little bit concurrency in 2.2.1a1. Hopes this will accelerate our pipeline. <br>
 > For other announcements, see [Discussion][notice]
 
 ---
@@ -173,7 +173,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a2 "2.2.0"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a4 "2.2.0"
 [docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
