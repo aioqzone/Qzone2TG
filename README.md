@@ -29,8 +29,7 @@
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
 > [v2.2][latest] availible now!<br>
-> New photo list API is added. We'll fetch photos with the same quality as those in album mode. <br>
-> We introduce a little bit concurrency in 2.2.1a1. Hopes this will accelerate our pipeline. <br>
+> Update your python: [#37](https://github.com/JamzumSum/Qzone2TG/discussions/37)<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---
