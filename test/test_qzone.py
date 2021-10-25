@@ -3,17 +3,17 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from middleware.storage import TokenTable
 from omegaconf import OmegaConf
-from qzone.exceptions import LoginError
-from qzone.parser import QzJsonParser
-from qzone.scraper import QzoneScraper
+from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.exceptions import LoginError
+from qzone2tg.qzone.parser import QzJsonParser
+from qzone2tg.qzone.scraper import QzoneScraper
 
 login = db = FEEDS = None
 
 
 def load_conf():
-    from src.__main__ import dueWithConfig
+    from qzone2tg.__main__ import dueWithConfig
     d = OmegaConf.load('config/test_conf.yml')
     ca = OmegaConf.from_dotlist([f'qzone.password={os.environ.get("TEST_PASSWORD")}'])
     d = OmegaConf.merge(d, ca)

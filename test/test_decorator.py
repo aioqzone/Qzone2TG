@@ -1,9 +1,8 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 
-from concurrent.futures import ThreadPoolExecutor
-
-from utils.decorator import Lock_RunOnce, Locked, noexcept, skip
+from qzone2tg.utils.decorator import Lock_RunOnce, Locked, noexcept, skip
 
 
 def assert_retval(r):

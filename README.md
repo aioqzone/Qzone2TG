@@ -31,7 +31,7 @@
 > [v2.2][latest] availible now!<br>
 > New photo list API is added. We'll fetch photos with the same quality as those in album mode. <br>
 > We introduce a little bit concurrency in 2.2.1a1. Hopes this will accelerate our pipeline. <br>
-> For other announcements, see [Discussion][notice]
+> For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---
 
@@ -46,7 +46,7 @@
 
 ## 截图
 
-> See my [blog](blog) for screenshots, demo vedio, tutorials in detail and other resources. 
+> See my [blog][blog] for screenshots, demo vedio, tutorials in detail and other resources. 
 > (咕咕咕
 
 ## 需求
@@ -123,8 +123,8 @@ vim config/config.yaml
 
 ### 启动
 
-- pip develop install: `python src/__main__.py`
-- pip安装: `python -m qzone2tg`
+- pip develop install: `python src/qzone2tg`
+- pip安装: `python -m Qzone2TG`
 
 ---
 
@@ -177,4 +177,4 @@ keyring del qzone2tg <your-qq>
 [docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
-[blog]: doc "咕咕咕"
+[blog]: https://github.com/JamzumSum/Qzone2TG "咕咕咕"

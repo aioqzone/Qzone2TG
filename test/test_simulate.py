@@ -2,18 +2,18 @@ import os
 from pathlib import Path
 
 import pytest
-from frontend.tg.ui import TgExtracter
-from middleware.storage import TokenTable
 from omegaconf import OmegaConf
-from qzone.exceptions import LoginError
-from qzone.feed import FeedDB, QzCachedScraper
-from qzone.scraper import QzoneScraper
+from qzone2tg.frontend.tg.ui import TgExtracter
+from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.exceptions import LoginError
+from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
+from qzone2tg.qzone.scraper import QzoneScraper
 
 db = FEEDS = None
 
 
 def conf():
-    from src.__main__ import dueWithConfig
+    from qzone2tg.__main__ import dueWithConfig
     d = OmegaConf.load('config/test_conf.yml')
     ca = OmegaConf.from_dotlist([f'qzone.password={os.environ.get("TEST_PASSWORD")}'])
     d = OmegaConf.merge(d, ca)
@@ -48,7 +48,7 @@ class TestHtml:
 
     def testAll(self):
         from qzemoji import DBMgr
-        from qzone.parser import QzHtmlParser
+        from qzone2tg.qzone.parser import QzHtmlParser
         DBMgr.enable_auto_update = False
         for i in self.html:
             with open(i, encoding='utf8') as f:

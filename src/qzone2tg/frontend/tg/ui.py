@@ -2,14 +2,13 @@ import logging
 from time import sleep
 
 import telegram
-from frontend.tg.utils import FixUserBot
-from middleware import ContentExtracter
-from middleware.uihook import NullUI
+from qzone2tg.middleware import ContentExtracter
+from qzone2tg.middleware.uihook import NullUI
+from qzone2tg.utils.decorator import Retry
 from telegram.error import BadRequest, TimedOut
 
-from utils.decorator import Retry
-
 from .compress import LikeId
+from .utils import FixUserBot
 
 SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 11, 202, 311)

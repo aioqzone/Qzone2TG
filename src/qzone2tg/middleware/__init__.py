@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod, abstractproperty
 
-from qzone.parser import QzJsonParser as Feed
+from qzone2tg.qzone.parser import QzJsonParser as Feed
 
 
 class ContentExtracter(ABC):

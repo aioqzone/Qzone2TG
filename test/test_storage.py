@@ -1,5 +1,5 @@
 import pytest
-from middleware.storage import FeedBase
+from qzone2tg.middleware.storage import FeedBase
 
 
 class TestSql:
@@ -38,7 +38,7 @@ class TestSql:
 
     def test_Clean(self):
         assert len(self.s.getFeed())
-        from qzone.parser import QzJsonParser
+        from qzone2tg.qzone.parser import QzJsonParser
         self.s.cleanFeed(lambda d: QzJsonParser(d).getLikeId())
         assert len(self.s.getFeed()) == 0
         self.s.cursor.execute('select * from tg')

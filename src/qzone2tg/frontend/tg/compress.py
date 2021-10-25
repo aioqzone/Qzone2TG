@@ -1,7 +1,9 @@
+import base64
+import re
+import sys
+import zlib
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-import re, base64, zlib
-import sys
 
 encoding = 'utf-8'
 
@@ -21,8 +23,8 @@ class IDs(Compress):
     typeid: int
 
     def __init__(self, appid, typeid):
-        assert 0 <= appid < 4096
-        assert 0 <= typeid < 16
+        assert 0 <= appid < 4096, appid
+        assert 0 <= typeid < 16, typeid
         self.appid = appid
         self.typeid = typeid
 
@@ -40,7 +42,7 @@ class Key(Compress):
     key: str
 
     def __init__(self, key: str):
-        assert len(key) <= 24
+        assert len(key) <= 24, key
         self.key = key
 
     def tobytes(self):
@@ -68,7 +70,7 @@ class MoodUrl(Compress):
 
     @staticmethod
     def frombytes(b: bytes):
-        assert len(b) == 17
+        assert len(b) == 17, len(b)
         return MoodUrl(
             str(int.from_bytes(b[:5], byteorder=sys.byteorder, signed=False)),
             Key.frombytes(b[5:]).key
@@ -97,10 +99,10 @@ class LikeId(Compress):
     def tobytes(self):
         p = re.compile(r"http://.*/(\d+)/mood/(\w+)")
         t = p.search(self.unikey).groups()
-        assert len(t) == 2
+        assert len(t) == 2, len(t)
         uni = MoodUrl(*t)
         t = p.search(self.curkey).groups()
-        assert len(t) == 2
+        assert len(t) == 2, len(t)
         cur = MoodUrl(*t)
         key = Key(self.key)
         ids = IDs(self.appid, self.typeid)
@@ -109,7 +111,7 @@ class LikeId(Compress):
     def tostr(self):
         "decoding in ascii(128 chars)"
         b = zlib.compress(self.tobytes(), 9)
-        assert len(b) <= 48
+        assert len(b) <= 48, str(self.todict())
         return base64.b64encode(b, b'!-').decode(encoding)
 
     def todict(self):
@@ -123,7 +125,7 @@ class LikeId(Compress):
 
     @staticmethod
     def frombytes(b: bytes):
-        assert len(b) == 48
+        assert len(b) == 48, len(b)
         ids = IDs.frombytes(b[:2])
         uni = MoodUrl.frombytes(b[14:31])
         cur = MoodUrl.frombytes(b[31:48])
@@ -137,5 +139,5 @@ class LikeId(Compress):
     @staticmethod
     def fromstr(s: str):
         b = base64.b64decode(bytes(s, encoding=encoding), b'!-')
-        assert len(b) <= 48
+        assert len(b) <= 48, s
         return LikeId.frombytes(zlib.decompress(b))

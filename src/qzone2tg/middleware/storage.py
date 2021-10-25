@@ -2,10 +2,10 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Union
 
-from utils.decorator import atomic
-from utils.iterutils import find_if
+from ..utils.decorator import atomic
+from ..utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
 

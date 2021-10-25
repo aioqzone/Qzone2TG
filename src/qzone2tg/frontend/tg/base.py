@@ -4,12 +4,11 @@ from functools import wraps
 from typing import Callable
 
 from pytz import timezone
-from qzone.exceptions import UserBreak
-from qzone.feed import QzCachedScraper
+from qzone2tg.qzone.exceptions import UserBreak
+from qzone2tg.qzone.feed import QzCachedScraper
+from qzone2tg.utils.decorator import Locked
 from requests.exceptions import HTTPError
 from telegram.ext import Updater
-
-from utils.decorator import Locked
 
 from .ui import TgExtracter, TgUI, retry_once
 

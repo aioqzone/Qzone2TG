@@ -4,9 +4,8 @@ from typing import Callable, Optional
 from urllib.parse import urlparse
 
 import telegram
+from qzone2tg.utils.decorator import FloodControl
 from telegram.bot import Bot
-
-from utils.decorator import FloodControl
 
 TEXT_LIM = 4096
 MEDIA_TEXT_LIM = 1024

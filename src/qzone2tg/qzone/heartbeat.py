@@ -4,8 +4,6 @@ from random import random
 from typing import Callable, Dict, Optional, Union
 
 import requests
-from middleware.storage import TokenTable
-from middleware.uihook import NullUI
 from requests.exceptions import ConnectionError, HTTPError
 from tencentlogin.base import UA as DefaultUA
 from tencentlogin.constants import QzoneAppid, QzoneProxy
@@ -13,8 +11,10 @@ from tencentlogin.encrypt import gtk
 from tencentlogin.exception import TencentLoginError
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
-from utils.decorator import Lock_RunOnce, Retry, cached, noexcept
 
+from ..middleware.storage import TokenTable
+from ..middleware.uihook import NullUI
+from ..utils.decorator import Lock_RunOnce, Retry, cached, noexcept
 from .common import UPDATE_FEED_URL
 from .exceptions import LoginError, QzoneError, UserBreak
 

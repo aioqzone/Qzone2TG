@@ -7,10 +7,10 @@ from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
 
-from frontend.tg import PollingBot, RefreshBot, WebhookBot
-from middleware.storage import TokenTable
-from qzone.feed import FeedDB, QzCachedScraper
-from qzone.scraper import QzoneScraper
+from qzone2tg.frontend.tg import PollingBot, RefreshBot, WebhookBot
+from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
+from qzone2tg.qzone.scraper import QzoneScraper
 
 DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 NO_INTERACT: bool = True

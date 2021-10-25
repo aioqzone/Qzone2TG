@@ -3,9 +3,9 @@ import re
 from functools import wraps
 
 import telegram
-from middleware.utils import sementicTime
-from qzone.exceptions import UserBreak
-from qzone.feed import QzCachedScraper
+from qzone2tg.middleware.utils import sementicTime
+from qzone2tg.qzone.exceptions import UserBreak
+from qzone2tg.qzone.feed import QzCachedScraper
 from telegram.error import NetworkError, TelegramError
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler
 

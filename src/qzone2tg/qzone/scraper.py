@@ -15,10 +15,9 @@ from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
-from utils.decorator import Retry
 
-from qzone.heartbeat import HBMgr
-
+from ..qzone.heartbeat import HBMgr
+from ..utils.decorator import Retry
 from .common import *
 from .exceptions import QzoneError
 

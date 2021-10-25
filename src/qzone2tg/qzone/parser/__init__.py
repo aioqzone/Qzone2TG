@@ -1,13 +1,13 @@
 import logging
 import re
 from pathlib import PurePath
-from typing import Callable, Dict, List, Optional, Text, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
-from middleware.utils import sementicTime
-from utils.decorator import cached
-from utils.iterutils import find_if
+from qzone2tg.middleware.utils import sementicTime
+from qzone2tg.utils.decorator import cached
+from qzone2tg.utils.iterutils import find_if
 
 from .html.imgitem import ImageItem
 from .html.txtbox import Txtbox

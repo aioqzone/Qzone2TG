@@ -3,14 +3,14 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from itertools import takewhile
 from math import ceil
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable
 
-from middleware.storage import FeedBase
-from middleware.uihook import NullUI
-from middleware.utils import day_stamp
 from requests.exceptions import HTTPError
-from utils.decorator import noexcept
 
+from ..middleware.storage import FeedBase
+from ..middleware.uihook import NullUI
+from ..middleware.utils import day_stamp
+from ..utils.decorator import noexcept
 from .exceptions import LoginError, QzoneError, UserBreak
 from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper

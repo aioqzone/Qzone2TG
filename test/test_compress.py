@@ -1,4 +1,4 @@
-from frontend.tg.compress import LikeId as lid
+from qzone2tg.frontend.tg.compress import LikeId as lid
 import pytest
 
 

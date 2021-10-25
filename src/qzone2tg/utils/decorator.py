@@ -2,11 +2,10 @@ import time
 from collections import deque
 from functools import wraps
 from threading import Condition, Lock
-from typing import (
-    Any, Callable, Dict, Generator, List, Optional, Type, TypeVar, Union, final
-)
+from typing import (Any, Callable, Dict, Generator, List, Optional, Type,
+                    TypeVar, Union)
 
-from utils.iterutils import find_if
+from .iterutils import find_if
 
 Exc = TypeVar('Exc', BaseException, type)
 ExH = Callable[[Exc], None]
