@@ -98,19 +98,24 @@ class LikeId(Compress):
 
     def tobytes(self):
         p = re.compile(r"http://.*/(\d+)/mood/(\w+)")
-        t = p.search(self.unikey).groups()
-        assert len(t) == 2, len(t)
-        uni = MoodUrl(*t)
-        t = p.search(self.curkey).groups()
-        assert len(t) == 2, len(t)
-        cur = MoodUrl(*t)
+
+        t = p.search(self.unikey)
+        if t is None: return
+        uni = MoodUrl(*t.groups())
+
+        t = p.search(self.curkey)
+        if t is None: return
+        cur = MoodUrl(*t.groups())
+
         key = Key(self.key)
         ids = IDs(self.appid, self.typeid)
         return ids.tobytes() + key.tobytes() + uni.tobytes() + cur.tobytes()
 
     def tostr(self):
         "decoding in ascii(128 chars)"
-        b = zlib.compress(self.tobytes(), 9)
+        b = self.tobytes()
+        if b is None: return
+        b = zlib.compress(b, 9)
         assert len(b) <= 48, str(self.todict())
         return base64.b64encode(b, b'!-').decode(encoding)
 

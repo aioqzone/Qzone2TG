@@ -94,6 +94,8 @@ pip install -e .
 cp misc/example.yaml config/config.yaml
 ```
 
+最后, 将`src`添加到`PYTHONPATH`中. [wiki](doc/Q&A#PYTHONPATH)
+
 </details>
 
 
@@ -165,15 +167,14 @@ keyring del qzone2tg <your-qq>
 - cssselect [BSD](https://github.com/scrapy/cssselect/blob/master/LICENSE)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
-- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 - qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
 
 
-[conf]: https://github.com/JamzumSum/Qzone2TG/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E6%A1%A3 "配置文件"
+[conf]: doc/配置文档 "配置文件"
 [latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a4 "2.2.0"
-[docker]: https://github.com/JamzumSum/Qzone2TG/wiki/Docker%E9%83%A8%E7%BD%B2 "Docker部署"
+[docker]: doc/Docker部署 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
 [blog]: https://github.com/JamzumSum/Qzone2TG "咕咕咕"
