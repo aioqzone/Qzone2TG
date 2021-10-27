@@ -16,13 +16,22 @@ class ContentExtracter(ABC):
         return self.feed.parseForward()[-1]
 
     def img(self):
-        return self.feed.parseImage()
+        i, f = self.feed.parseImage()
+        try:
+            if f.done(): return f.result()
+        except:
+            pass
+        return i
 
     def video(self):
         return self.feed.parseVideo()
 
     def content(self):
         return self.img(), self.forward(), self.img()
+
+    @property
+    def imageFuture(self):
+        return self.feed.img_future
 
     @abstractproperty
     def isBlocked(self):

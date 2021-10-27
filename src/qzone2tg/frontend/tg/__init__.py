@@ -16,19 +16,7 @@ from .ui import br
 logger = logging.getLogger(__name__)
 
 
-class _DecHelper:
-    @staticmethod
-    def CA(func):
-        @wraps(func)
-        def CAWrapper(self, *a, **tk):
-            if len(a) == 2:
-                if not self.checkAccess(*a): return
-            return func(self, **tk)
-
-        return CAWrapper
-
-
-class PollingBot(RefreshBot, _DecHelper):
+class PollingBot(RefreshBot):
     commands = {
         "start": "Force login. Then refresh and resend all feeds.",
         "refresh": "Refresh and send any new feeds.",
@@ -81,6 +69,23 @@ class PollingBot(RefreshBot, _DecHelper):
         except TelegramError as e:
             logger.warning(e.message)
 
+    def _register_decorators(self):
+        for i in [self.like]:
+            setattr(self, i.__name__, self._runAsync(i))
+        for i in [self.onHelp, self.onRefresh, self.onRelogin, self.onStart,
+                  self.onStatus, self.onSend]:
+            setattr(self, i.__name__, self._CA(i))
+        return super()._register_decorators()
+
+    def _CA(self, func):
+        @wraps(func)
+        def CAWrapper(*a, **tk):
+            if len(a) == 2:
+                if not self.checkAccess(*a): return
+            return func(**tk)
+
+        return CAWrapper
+
     def checkAccess(self, update: telegram.Update, context: CallbackContext):
         if update.effective_chat.id != self.accept_id:
             logger.warning(f"illegal access: {update.effective_chat.id}")
@@ -91,32 +96,31 @@ class PollingBot(RefreshBot, _DecHelper):
             return False
         return True
 
-    @_DecHelper.CA
     def onSend(self, *, reload=False, period=False):
         return super().onSend(reload=reload, period=period)
 
-    @_DecHelper.CA
     def onRefresh(self, *, reload=False):
         self.onFetch(reload=reload)
 
-    @_DecHelper.CA
     def onStart(self):
         self.onRefresh(reload=True)
 
-    @_DecHelper.CA
     def onHelp(self):
         helpm = '\n'.join(f"/{k} - {v}" for k, v in self.commands.items())
         self.ui.bot.sendMessage(helpm)
 
-    @_DecHelper.CA
     def onStatus(self):
+        def fh(key: str):
+            if (v := stat.get(key, None)):
+                return sementicTime(v)
+            else:
+                return '还是在上次'
+
         stat = self.feedmgr.qzone.status()
-        fh = lambda key: sementicTime(v) if (v := stat.get(key, None)) else '还是在上次'
         status = f"上次登录: {fh('last_login')}\n" \
                  f"上次心跳: {fh('last_heartbeat')}"
         self.ui.bot.sendMessage(status)
 
-    @_DecHelper.CA
     def onRelogin(self):
         self.feedmgr.qzone.updateStatus(force_login=True)
         stat = self.feedmgr.qzone.status()
@@ -155,7 +159,6 @@ class PollingBot(RefreshBot, _DecHelper):
         else:
             self.like(query)
 
-    @RefreshBot.asyncRun
     def like(self, query: telegram.CallbackQuery):
         logger.info("like post start")
         data: str = query.data

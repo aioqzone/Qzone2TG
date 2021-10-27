@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Union
 
-from ..utils.decorator import atomic
 from ..utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
@@ -101,25 +100,14 @@ class Table:
 
 
 class _DBBase:
-    class AtomicCursor(sqlite3.Cursor):
-        def __init__(self, cursor: sqlite3.Cursor) -> None:
-            super().__init__(cursor.connection)
-
-        @atomic
-        def execute(self, __sql: str):
-            return super().execute(__sql)
-
     def __init__(self, db: Union[str, sqlite3.Connection], thread_safe=False) -> None:
         if isinstance(db, sqlite3.Connection):
             self.db = db
         else:
             Path(db).parent.mkdir(parents=True, exist_ok=True)
             self.db_path = db
-            self.db = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.db = sqlite3.connect(self.db_path, check_same_thread=thread_safe)
         self.cursor = self.db.cursor()
-
-        if thread_safe:
-            self.cursor = self.AtomicCursor(self.cursor)
 
 
 class FeedBase(_DBBase):
@@ -129,10 +117,9 @@ class FeedBase(_DBBase):
         keepdays: int = 3,
         archivedays: int = 180,
         plugins: dict = None,
-        thread_safe=False,
     ) -> None:
 
-        super().__init__(db, thread_safe)
+        super().__init__(db)
         self.keepdays = keepdays
         self.archivedays = archivedays
 

@@ -1,16 +1,13 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 from itertools import takewhile
 from math import ceil
 from typing import Callable, Iterable
 
-from requests.exceptions import HTTPError
-
+from ..middleware.hook import NullUI
 from ..middleware.storage import FeedBase
-from ..middleware.uihook import NullUI
 from ..middleware.utils import day_stamp
-from ..utils.decorator import noexcept
+from ..utils.decorator import atomic, noexcept
 from .exceptions import LoginError, QzoneError, UserBreak
 from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper
@@ -20,21 +17,6 @@ FeedProcess = Callable[[Parser], None]
 
 
 class FeedDB(FeedBase):
-    def __init__(
-        self,
-        db,
-        keepdays: int = 3,
-        archivedays: int = 180,
-        plugins: dict = None
-    ) -> None:
-        super().__init__(
-            db,
-            keepdays=keepdays,
-            archivedays=archivedays,
-            plugins=plugins,
-            thread_safe=True
-        )
-
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         return [
             Parser(i) for i in
@@ -65,8 +47,8 @@ class FeedDB(FeedBase):
 
 
 class PostProcess:
-    def __init__(self, max_worker=None) -> None:
-        self.executor = ThreadPoolExecutor(max_worker, thread_name_prefix='qzdb')
+    def __init__(self, max_worker=2) -> None:
+        self.executor = ThreadPoolExecutor(max_worker, thread_name_prefix='feedprocess')
         self.post = []
 
     def register_postprocess(self, proc: FeedProcess):
@@ -95,8 +77,7 @@ class QzFeedScraper(PostProcess):
             logger.warning(f'feed {i.feedkey}: 获取完整说说失败')
 
     def _post_album(self, i: Parser):
-        if i.hasAlbum():
-            i.parseImage(lambda d, n: self.qzone.photoList(d, i.uin, n))
+        i.setAlbumFuture(lambda d, n: self.qzone.photoList(d, i.uin, n))
 
     def __init__(self, qzone: QzoneScraper, max_worker=None):
         super().__init__(max_worker)
@@ -108,9 +89,12 @@ class QzFeedScraper(PostProcess):
         self.hook = hook
         self.qzone.register_ui_hook(hook)
 
-    def getNewFeeds(self, pagenum: int, limit: int):
+    def check_exist(self, fid: str):
+        return False
+
+    def getNewFeeds(self, pagenum: int, day_limit: int, ignore_exist=False):
         feeds = self.qzone.fetchPage(pagenum)
-        if feeds is None: return 0
+        if feeds is None: return []
 
         @noexcept({
             BaseException: lambda _: logger.
@@ -119,8 +103,10 @@ class QzFeedScraper(PostProcess):
         def concurrent(i: dict):
             # a coarse concurrency. need further optimization.
             feed = Parser(i)
-            if day_stamp(feed.abstime) < limit: return
-            return self.postProcess(feed)
+            if day_stamp(feed.abstime) < day_limit: return
+            if not ignore_exist and self.check_exist(feed.fid): return
+            self.hook.feedFetched(self.postProcess(feed))
+            return feed
 
         # To avoid any unexpected behavior, `concurrent` should be noexcept.
         logger.debug('multi-thread map for post processing')
@@ -129,7 +115,7 @@ class QzFeedScraper(PostProcess):
 
         self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
         logger.info(msg)
-        return len(new)
+        return new
 
     def _fetchNewFeeds(self, *, no_pred: int = False, ignore_exist=False):
         """inner fetch new feeds
@@ -154,7 +140,7 @@ class QzFeedScraper(PostProcess):
             new_iter = takewhile(
                 bool, (self.getNewFeeds(i + 1, ignore_exist) for i in range(page))
             )
-        s = sum(new_iter)
+        s = sum(len(i) for i in new_iter)
         if s < pred_new:
             logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')
         return s
@@ -207,7 +193,9 @@ class QzCachedScraper(QzFeedScraper):
         self.cleanFeed = self.db.cleanFeed
         self.cleanFeed()
 
-        self.register_postprocess(partial(self.db.dumpFeed, flush=False))
+    @atomic
+    def check_exist(self, fid: str):
+        return fid in self.db.feed
 
     def getNewFeeds(
         self,
@@ -232,31 +220,14 @@ class QzCachedScraper(QzFeedScraper):
             `QzoneError`: exceptions that are raised by Qzone
             `TimeoutError`: if code -10001 is returned for 12 times.
         """
-        feeds = self.qzone.fetchPage(pagenum)
-        if feeds is None: return 0
 
-        limit = day_stamp() - self.db.keepdays
-
-        @noexcept({
-            BaseException: lambda _: logger.
-            error('Expt in concurrent context.', exc_info=True)
-        })
-        def concurrent(i: dict):
-            # a coarse concurrency. need further optimization.
-            feed = Parser(i)
-            if day_stamp(feed.abstime) < limit: return
-            if not ignore_exist and feed.fid in self.db.feed: return
-            return self.postProcess(feed)
-
-        # To avoid any unexpected behavior, `concurrent` should be noexcept.
-        logger.debug('multi-thread map for post processing')
-        new = self.executor.map(concurrent, feeds)
-        new = list(filter(None, new))
-
-        self.db.db.commit()
-        self.hook.pageFetched(msg := f"获取了{len(feeds)}条说说, {len(new)}条最新")
-        logger.info(msg)
-        return len(new)
+        new = super().getNewFeeds(
+            pagenum=pagenum,
+            day_limit=day_stamp() - self.db.keepdays,
+            ignore_exist=ignore_exist
+        )
+        self.db.saveFeeds(new)
+        return new
 
     def likeAFile(self, fid: str):
         """like a post specified by fid

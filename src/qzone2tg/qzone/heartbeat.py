@@ -12,8 +12,8 @@ from tencentlogin.exception import TencentLoginError
 from tencentlogin.qr import QRLogin
 from tencentlogin.up import UPLogin, User
 
+from ..middleware.hook import NullUI
 from ..middleware.storage import TokenTable
-from ..middleware.uihook import NullUI
 from ..utils.decorator import Lock_RunOnce, Retry, cached, noexcept
 from .common import UPDATE_FEED_URL
 from .exceptions import LoginError, QzoneError, UserBreak
@@ -113,28 +113,23 @@ class _HTTPHelper:
             "dnt": "1"
         }
         self.session = requests.Session()
+        self._register_error_handler()
 
-    class _403Handler:
-        def __init__(self, handler: Callable) -> None:
-            self._excc = {HTTPError: handler}
+    def _register_error_handler(self):
+        for f in [self.post, self.get]:
+            setattr(self, f.__name__, Retry({HTTPError: self._retry_403})(f))
 
-        def register(self, excr=None):
-            return Retry(self._excc, excr=excr, with_self=True)
-
-    @_403Handler
-    def retry_403(self, e: HTTPError, i):
+    def _retry_403(self, e: HTTPError, i):
         if e.response.status_code != 403: raise e
         if i >= 1: raise e
 
     @noexcept({ConnectionError: lambda _: logger.error('ConnectionError when post.')})
-    @retry_403.register()
     def post(self, *args, **kwargs):
         r = self.session.post(*args, **kwargs, headers=self.header)
         r.raise_for_status()
         return r
 
     @noexcept({ConnectionError: lambda _: logger.error('ConnectionError when get.')})
-    @retry_403.register()
     def get(self, *args, **kwargs):
         r = self.session.get(*args, **kwargs, headers=self.header)
         r.raise_for_status()
@@ -158,7 +153,17 @@ class HBMgr(_LoginHelper, _HTTPHelper):
         _LoginHelper.__init__(self, qq, pwd=password, qr_strategy=qr_strategy)
         _HTTPHelper.__init__(self, qq, UA=UA)
         self.db = token_tbl
-        self._gtk = None
+
+    def _register_error_handler(self):
+        super()._register_error_handler()
+        setattr(
+            self, self.checkUpdate.__name__,
+            Retry({
+                QzoneError: self._login_if_expire,
+                HTTPError: self._login_if_expire
+            },
+                  excr=0)(self.checkUpdate)
+        )
 
     @cached
     def gtk(self):
@@ -200,17 +205,9 @@ class HBMgr(_LoginHelper, _HTTPHelper):
         self.session.cookies.update(cookie)
         return gtk(cookie["p_skey"])
 
-    class _LoginExpireHandler:
-        def __init__(self, handler: Callable) -> None:
-            self._excc = {QzoneError: handler, HTTPError: handler}
-
-        def register(self, excr=None):
-            return Retry(self._excc, excr=excr, with_self=True)
-
-    @_LoginExpireHandler
-    def login_if_expire(self, e: Union[QzoneError, HTTPError], i):
+    def _login_if_expire(self, e: Union[QzoneError, HTTPError], i):
         """This handler handles Qzone relogin code and HTTP 403.
-        """        
+        """
         if isinstance(e, QzoneError):
             if e.code not in [-3000, -4002]: raise e
         elif isinstance(e, HTTPError):
@@ -222,7 +219,6 @@ class HBMgr(_LoginHelper, _HTTPHelper):
         logger.info("cookie已过期, 即将重新登陆.")
         self.updateStatus(force_login=True)
 
-    @login_if_expire.register(0)
     def checkUpdate(self, parse_callback: Callable[[str], int] = None) -> Optional[int]:
         query = {'uin': self.uin, 'rd': random(), 'g_tk': self.gtk}
         r = self.get(UPDATE_FEED_URL, params=query)

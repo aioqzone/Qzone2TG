@@ -1,5 +1,7 @@
+from concurrent import futures
 import logging
 import re
+from concurrent.futures import Future
 from pathlib import PurePath
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -31,6 +33,8 @@ class QzCssHelper:
 
 
 class QzHtmlParser(QzCssHelper):
+    img_future = None
+
     def __init__(self, html: str) -> None:
         self.src = fromstring(html)
         self.dirty = False
@@ -89,33 +93,43 @@ class QzHtmlParser(QzCssHelper):
         img = self.fct.cssselect('a.img-item')
         return [ImageItem(i) for i in img]
 
-    def parseImage(
-        self, get_raw_cb: Callable[[dict, int], List[Dict[str, str]]] = None
+    def setAlbumFuture(
+        self, get_raw_cb: Callable[[dict, int], Future[List[Dict[str, str]]]] = None
     ):
         img = self._imageItems()
-        if not img: return []
+        if not img or not (first := img[0]).hasAlbum():
+            return
+
+        def cb(future: Future[List[Dict[str, str]]]):
+            try:
+                r = future.result()
+            except BaseException as e:
+                logger.warning("Error when getting raw images.", exc_info=True)
+                self.img_future.set_exception(e)
+                return
+
+            if len(r) < len(img):
+                e = RuntimeError("Album result # mismatches html src #")
+                logger.error(str(e))
+                self.img_future.set_exception(e)
+                return
+
+            raw = [i['url'] for i in r]
+            for i, s in zip(img, raw):
+                i.src = s
+                self.dirty = True
+            self.img_future.set_result(raw)
+
+        self.img_future = Future()
+        future = get_raw_cb(first.data, len(img))
+        future.add_done_callback(cb)
+
+    def parseImage(self) -> Tuple[List[str], Optional[Future[List[str]]]]:
+        img = self._imageItems()
+        if not img: return [], None
 
         default = list(filter(None, (i.src for i in img)))
-        if not get_raw_cb: return default
-
-        first = img[0]
-        if not first.hasAlbum(): return default
-
-        try:
-            r = get_raw_cb(first.data, len(img))
-        except:
-            logger.warning("Error when getting raw images.", exc_info=True)
-            return default
-
-        if len(r) < len(img):
-            logger.error('Getting origin photo error')
-            return default
-
-        raw = [i['url'] for i in r]
-        for i, s in zip(img, raw):
-            i.src = s
-            self.dirty = True
-        return raw
+        return default, self.img_future
 
     def parseVideo(self) -> List[str]:
         CANNOT = ['.swf']
@@ -213,6 +227,7 @@ class QzJsonParser(QzHtmlParser):
         if self.dirty:
             self._raw['html'] = tostring(self.root, encoding='utf-8').decode('utf-8')
             self.dirty = False
+            logger.debug('dirty html flushed')
         return self._raw['html']
 
     @html.setter
@@ -270,4 +285,4 @@ class QzJsonParser(QzHtmlParser):
         return int(self.feedkey, 16)
 
     def __repr__(self) -> str:
-        return f"{self.nickname}, {self.feedstime}"
+        return f"<{self.fid}> {self.nickname}, {self.feedstime}"

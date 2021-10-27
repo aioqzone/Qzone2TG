@@ -42,7 +42,7 @@ class Key(Compress):
     key: str
 
     def __init__(self, key: str):
-        assert len(key) <= 24, key
+        assert len(key) <= 24, key  # BUG <=31
         self.key = key
 
     def tobytes(self):
@@ -77,7 +77,7 @@ class MoodUrl(Compress):
         )
 
 
-@dataclass(frozen=True)
+@dataclass(eq=True)
 class LikeId(Compress):
     '''
     compress do_like args to 52 bytes, 
@@ -85,12 +85,16 @@ class LikeId(Compress):
 
     support "appid = 311" now.
     '''
-    __slots__ = ('appid', 'typeid', 'key', 'unikey', 'curkey')
     appid: int
     typeid: int
     key: str
     unikey: str
     curkey: str
+
+    def __post_init__(self):
+        # TODO: py39
+        self.unikey = self.unikey.replace(' ', '') #.removesuffix('/')
+        self.curkey = self.curkey.replace(' ', '') #.removesuffix('/')
 
     @property
     def fid(self):
@@ -115,8 +119,11 @@ class LikeId(Compress):
         "decoding in ascii(128 chars)"
         b = self.tobytes()
         if b is None: return
-        b = zlib.compress(b, 9)
+
+        zb = zlib.compress(b, 9)               # b# = 48
+        if len(zb) < len(b): b = zb            # zb# < 48
         assert len(b) <= 48, str(self.todict())
+
         return base64.b64encode(b, b'!-').decode(encoding)
 
     def todict(self):
@@ -145,4 +152,5 @@ class LikeId(Compress):
     def fromstr(s: str):
         b = base64.b64decode(bytes(s, encoding=encoding), b'!-')
         assert len(b) <= 48, s
+        if len(b) == 48: return LikeId.frombytes(b) # zb# < 48 |= zb#==48 => not zb
         return LikeId.frombytes(zlib.decompress(b))

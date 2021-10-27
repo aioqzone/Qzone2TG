@@ -12,16 +12,17 @@ MEDIA_TEXT_LIM = 1024
 MEDIA_GROUP_LIM = 10
 
 
-class _FCHelper:
-    _fc = FloodControl(30)
+class _FloodCtrl:
+    def __init__(self, tps: int = 30) -> None:
+        self._fc = FloodControl(tps)
 
     @staticmethod
-    def sendMessage(self, text: str, reply_markup=None, **kw):
+    def sendMessage(text: str, reply_markup=None, **kw):
         if text: return ceil(len(text) / TEXT_LIM)
         return 0
 
     @staticmethod
-    def sendMedia(self, text: Optional[str], media: list, reply_markup=None, **kw):
+    def sendMedia(text: Optional[str], media: list, reply_markup=None, **kw):
         if not media:
             return ceil(len(text) / TEXT_LIM)
         if len(media) == 1:
@@ -32,9 +33,8 @@ class _FCHelper:
 
         return len(media)
 
-    @classmethod
-    def needfc(cls, func: Callable):
-        return cls._fc(getattr(cls, func.__name__))(func)
+    def needfc(self, func: Callable):
+        return self._fc(getattr(self, func.__name__))(func)
 
 
 class FixUserBot:
@@ -49,10 +49,14 @@ class FixUserBot:
         self.to = chat_id
         self._bot = bot
         self.parse_mode = parse_mode
-        _FCHelper._fc.tps = times_per_second or 30
         self.dnn = disable_notification
+        self._register_flood_control(times_per_second or 30)
 
-    @_FCHelper.needfc
+    def _register_flood_control(self, tps: int):
+        fc = _FloodCtrl(tps or 30)
+        for i in [self.sendMessage, self.sendMedia]:
+            setattr(self, i.__name__, fc.needfc(i))
+
     def sendMessage(self, text: str, reply_markup=None, *, reply: int = None, **kw):
         assert text
         if len(text) < TEXT_LIM:
@@ -82,13 +86,12 @@ class FixUserBot:
             return self._bot.send_photo(photo=media, **kwargs)
 
     @classmethod
-    def _single_media(cls, media: str, **kwargs):
+    def single_media(cls, media: str, **kwargs):
         if cls.getExt(media) == '.mp4':
             return telegram.InputMediaVideo(media=media, **kwargs)
         else:
             return telegram.InputMediaPhoto(media=media, **kwargs)
 
-    @_FCHelper.needfc
     def sendMedia(
         self,
         text: Optional[str],
@@ -129,8 +132,8 @@ class FixUserBot:
 
         return self._bot.send_media_group(
             chat_id=self.to,
-            media=[self._single_media(media[0], caption=text, parse_mode=self.parse_mode)] + \
-                    [self._single_media(i) for i in media[1:]],
+            media=[self.single_media(media[0], caption=text, parse_mode=self.parse_mode)] + \
+                    [self.single_media(i) for i in media[1:]],
             reply_to_message_id=reply,
             disable_notification=True
         )

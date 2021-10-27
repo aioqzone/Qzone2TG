@@ -10,16 +10,17 @@ import logging
 import re
 import time
 from random import randint, random
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote
 
 from jssupport.jsjson import json_loads
 from requests.exceptions import HTTPError
 
-from ..qzone.heartbeat import HBMgr
-from ..utils.decorator import Retry
-from .common import *
-from .exceptions import QzoneError
+from ...qzone.heartbeat import HBMgr
+from ...utils.decorator import Retry
+from ..common import *
+from ..exceptions import QzoneError
+from .album import AlbumQue
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,23 @@ class QzoneScraper(HBMgr):
         super().__init__(*args, **kwargs)
         self.extern = {1: "undefined"}
         self.new_pred = None
+
+        q: AlbumQue = getattr(self, 'photoList')
+        q.start()
+
+    def _register_error_handler(self):
+        super()._register_error_handler()
+        excc = {QzoneError: self._login_if_expire, HTTPError: self._login_if_expire}
+        for f, er in {
+                self.fetchPage: [],
+                self.doLike: False,
+        }.items():
+            setattr(self, f.__name__, Retry(excc.copy(), excr=er)(f))
+
+        setattr(
+            self, self.photoList.__name__,
+            AlbumQue(Retry(excc.copy(), excr=[])(self.photoList))
+        )
 
     def parseExternParam(self, page: int):
         unquoted = self.extern[page]
@@ -59,7 +77,6 @@ class QzoneScraper(HBMgr):
         r = json.loads(r)
         if r["err"] == 0: return r["newFeedXML"].strip()
 
-    @HBMgr.login_if_expire.register(False)
     def doLike(self, likedata: dict, like) -> bool:
         """like or unlike a post according to likedata
 
@@ -101,7 +118,6 @@ class QzoneScraper(HBMgr):
         if r["code"] == 0: return True
         else: raise QzoneError(r["code"], r["message"])
 
-    @HBMgr.login_if_expire.register([])
     def fetchPage(
         self,
         pagenum: int,
@@ -185,23 +201,6 @@ class QzoneScraper(HBMgr):
 
         return super().checkUpdate(predNewAmount)
 
-    class _BusyHandler:
-        def __init__(self, handler: Callable) -> None:
-            self._excc = {QzoneError: handler, HTTPError: handler}
-
-        def register(self, excr=None):
-            return Retry(self._excc, 12, excr=excr, with_self=True)
-
-    @_BusyHandler
-    def _onbusy(self, e: QzoneError, i: int):
-        if e.code == -10001:
-            logger.info(e.msg)
-            time.sleep(i + 1)
-            return
-        raise e
-
-    @_onbusy.register([])
-    @HBMgr.login_if_expire.register([])
     def photoList(self, album: Dict[str, Any], hostuin: int, num: int):
         """get photolist of an album
 

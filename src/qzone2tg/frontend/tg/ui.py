@@ -1,9 +1,9 @@
 import logging
-from time import sleep
+from typing import Callable, List
 
 import telegram
 from qzone2tg.middleware import ContentExtracter
-from qzone2tg.middleware.uihook import NullUI
+from qzone2tg.middleware.hook import NullUI
 from qzone2tg.utils.decorator import Retry
 from telegram.error import BadRequest, TimedOut
 
@@ -14,24 +14,41 @@ SUPPORT_TYPEID = (0, 2, 5)
 SUPPORT_APPID = (4, 11, 202, 311)
 APP_NAME = {4: 'QQ相册', 202: '分享', 311: 'QQ空间'}
 
-br = '\n'
+br = '\n'          # tg donot support <br>, instead \n is used
 hr = '=========================='
 
 logger = logging.getLogger(__name__)
-badreq_retry = Retry({BadRequest: lambda e, i: sleep(1 + i)})
 
 
-def retry_once(func, msg_callback=None):
-    msg_callback = msg_callback or (lambda exc: str(exc))
-    last_fail = lambda e: logger.error(msg_callback(exc=e) + " (retry failed)")
-    excc = {
-        TimedOut: lambda e, i: logger.warning(e.message) if i < 1 else last_fail(e),
-        BadRequest: lambda e, i: logger.warning(msg_callback(exc=e), exc_info=True)
-        if i < 1 else last_fail(e),
-        Exception: lambda e, i: logger.error(msg_callback(exc=e), exc_info=True)
-        if i < 1 else last_fail(e)
-    }
-    return Retry(excc)(func)
+class retry_once(Retry):
+    def __init__(self, msg_callback=None, **kw):
+        self.msg_callback = msg_callback or (lambda exc: str(exc))
+        super().__init__({
+            TimedOut: self.__TimedOut__,
+            BadRequest: self.__BadRequest__,
+            BaseException: self.__BaseException__
+        }, **kw)
+
+    def _last_fail(self, e: BaseException):
+        logger.error(self.msg_callback(exc=e) + " (retry failed)")
+
+    def __TimedOut__(self, e: TimedOut, i: int):
+        if i < 1:
+            logger.warning(e.message)
+        else:
+            self._last_fail(e)
+
+    def __BadRequest__(self, e: BadRequest, i: int):
+        if i < 1:
+            logger.warning(self.msg_callback(exc=e), exc_info=True)
+        else:
+            self._last_fail(e)
+
+    def __BaseException__(self, e: BaseException, i: int):
+        if i < 1:
+            logger.error(self.msg_callback(exc=e), exc_info=True)
+        else:
+            self._last_fail(e)
 
 
 class TgUI(NullUI):
@@ -50,6 +67,9 @@ class TgUI(NullUI):
             times_per_second=times_per_second,
             disable_notification=disable_notification
         )
+
+    def register_sendfeed_callback(self, send_cb: Callable):
+        self.sendfeed_callback = send_cb
 
     def _defaultButton(self):
         return telegram.InlineKeyboardMarkup([[
@@ -132,11 +152,25 @@ class TgUI(NullUI):
         else:
             self.bot.sendMessage('❌ ' + msg)
 
-    def contentReady(self, msg: str, media: list, reply_markup=None):
+    def contentReady(self, msg: str, media: List[str], reply_markup=None):
         if media:
             return self.bot.sendMedia(msg, media, reply_markup)
         else:
             return self.bot.sendMessage(msg, reply_markup)
+
+    def mediaUpdate(self, msg_objs: List[telegram.Message], media: List[str]):
+        msg_objs = [i for i in msg_objs if i.photo or i.video]
+
+        assert len(msg_objs) == len(media)
+        logger.info(f'updating {len(msg_objs)} images')
+
+        return [
+            m.edit_media(media=self.bot.single_media(u))
+            for m, u in zip(msg_objs, media)
+        ]
+
+    def feedFetched(self, feed):
+        return self.sendfeed_callback(feed)
 
 
 class TgExtracter(ContentExtracter):

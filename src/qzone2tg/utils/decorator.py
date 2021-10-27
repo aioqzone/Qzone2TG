@@ -2,8 +2,9 @@ import time
 from collections import deque
 from functools import wraps
 from threading import Condition, Lock
-from typing import (Any, Callable, Dict, Generator, List, Optional, Type,
-                    TypeVar, Union)
+from typing import (
+    Any, Callable, Dict, Generator, List, Optional, Type, TypeVar, Union
+)
 
 from .iterutils import find_if
 
@@ -259,7 +260,7 @@ class Lock_RunOnce:
     
     Result is shared among threads. 
     Exception will be raised in every thread.
-    """    
+    """
     _result: Any
 
     def __init__(self) -> None:
