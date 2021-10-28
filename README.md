@@ -6,7 +6,7 @@
 
 <!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
 
-<img src="https://img.shields.io/badge/python-3.8%2F3.9-blue">
+<img src="https://img.shields.io/badge/python-3.9-blue">
 
 <a href="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml">
 <img src="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml/badge.svg">
@@ -29,7 +29,7 @@
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
 > [v2.2][latest] availible now!<br>
-> Update your python: [#37](https://github.com/JamzumSum/Qzone2TG/discussions/37)<br>
+> Support for py38 ceased. Code will not pass type checking on py38 from `2.2.1a7`. <br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---

@@ -56,7 +56,7 @@ class TestHtml:
                 p.parseBio()
                 p.parseForward()
                 p.parseText()
-                p.parseImage()
+                p.parseImage()[0]
                 p.parseVideo()
 
 
@@ -99,6 +99,9 @@ class TestSimulate:
             for url in media:
                 assert isinstance(url, str)
                 assert url.startswith('http')
+
+    def test_stopAlbum(self):
+        self.spider.qzone.photoList.stop()
 
 
 def teardown_module():

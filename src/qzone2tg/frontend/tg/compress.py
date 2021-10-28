@@ -42,10 +42,10 @@ class Key(Compress):
     key: str
 
     def __init__(self, key: str):
-        assert len(key) <= 24, key  # BUG <=31
         self.key = key
 
     def tobytes(self):
+        assert len(self.key) <= 24
         return int(self.key, base=16).to_bytes(12, sys.byteorder, signed=False)
 
     @staticmethod
@@ -110,6 +110,8 @@ class LikeId(Compress):
         t = p.search(self.curkey)
         if t is None: return
         cur = MoodUrl(*t.groups())
+
+        if any(len(i) > 24 for i in [uni.key, cur.key, self.key]): return
 
         key = Key(self.key)
         ids = IDs(self.appid, self.typeid)
