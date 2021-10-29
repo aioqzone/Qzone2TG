@@ -30,7 +30,7 @@ class AlbumQue(threading.Thread, Generic[T]):
     Since Qzone album service is always slow to response, this module 
     is to manage a queue to arrange album requests.
 
-    The requests will be sent within an AIMD pattern, 
+    The requests will be sent within an AIMD manner, 
     and the result will be passed through future and callback.
     """
     def __init__(self, request: Callable[[T], list], max_retry: int = 12) -> None:
@@ -101,6 +101,10 @@ class AlbumQue(threading.Thread, Generic[T]):
     def stop(self):
         """thread will stop before next awaken (next calling func)"""
         self._stop = True
+
+    def start(self) -> None:
+        logger.info('Album queue starting')
+        return super().start()
 
 
 __doc__ = AlbumQue.__doc__

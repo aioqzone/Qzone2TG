@@ -31,7 +31,6 @@ class PollingBot(RefreshBot):
         feedmgr: QzCachedScraper,
         token: str,
         accept_id: int,
-        uin: int,
         *,
         times_per_second: int = None,
         disable_notification: bool = False,
@@ -43,7 +42,6 @@ class PollingBot(RefreshBot):
             feedmgr,
             token,
             accept_id,
-            uin,
             times_per_second=times_per_second,
             disable_notification=disable_notification,
             proxy=proxy
@@ -198,12 +196,11 @@ class WebhookBot(PollingBot):
         feedmgr: QzCachedScraper,
         token: str,
         accept_id: int,
-        uin: int,
         *,
         webhook: dict = None,
         **kwargs
     ):
-        super().__init__(feedmgr, token, accept_id, uin, polling=webhook, **kwargs)
+        super().__init__(feedmgr, token, accept_id, polling=webhook, **kwargs)
 
     def run(self):
         server = re.search(r'(?:https?://)?([^/]*)/?',

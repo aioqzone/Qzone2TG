@@ -1,6 +1,6 @@
 from math import ceil
 from pathlib import PurePath
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 from urllib.parse import urlparse
 
 import telegram
@@ -76,23 +76,28 @@ class FixUserBot:
         return i + self.sendMessage(text[TEXT_LIM:], reply=i[-1].message_id, **kw)
 
     @staticmethod
-    def getExt(url):
+    def getExt(url: str):
+        assert isinstance(url, str)
         return PurePath(urlparse(url).path).suffix
 
-    def _send_single(self, media: str, **kwargs):
+    def _send_single(self, media: Union[str, bytes], **kwargs):
+        if isinstance(media, bytes):
+            return self._bot.send_photo(photo=media, **kwargs)
         if self.getExt(media) == '.mp4':
             return self._bot.send_video(video=media, **kwargs)
         else:
             return self._bot.send_photo(photo=media, **kwargs)
 
     @classmethod
-    def single_media(cls, media: str, **kwargs):
+    def single_media(cls, media: Union[str, bytes], **kwargs):
+        if isinstance(media, bytes):
+            return telegram.InputMediaPhoto(media=media, **kwargs)
         if cls.getExt(media) == '.mp4':
             return telegram.InputMediaVideo(media=media, **kwargs)
         else:
             return telegram.InputMediaPhoto(media=media, **kwargs)
 
-    def editMedia(self, msg: telegram.Message, media: str):
+    def editMedia(self, msg: telegram.Message, media: Union[str, bytes]):
         media = self.single_media(
             media=media, caption=msg.caption, parse_mode=self.parse_mode
         )
@@ -101,7 +106,7 @@ class FixUserBot:
     def sendMedia(
         self,
         text: Optional[str],
-        media: list,
+        media: list[Union[str, bytes]],
         reply_markup=None,
         reply: int = None,
         **kw

@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from itertools import takewhile
 from math import ceil
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union
 
 from ..middleware.hook import NullUI
 from ..middleware.storage import FeedBase
@@ -124,7 +124,7 @@ class QzFeedScraper(PostProcess):
         logger.info(msg)
         return new
 
-    def _fetchNewFeeds(self, *, no_pred: int = False, ignore_exist=False):
+    def _fetchNewFeeds(self, *, no_pred: Union[bool, int] = False, ignore_exist=False):
         """inner fetch new feeds
 
         Raises:
@@ -133,7 +133,7 @@ class QzFeedScraper(PostProcess):
         """
         pred_new = self.qzone.checkUpdate()
         if no_pred or ignore_exist:
-            page = no_pred if isinstance(no_pred, int) and no_pred > 0 else 1000
+            page = 1000 if isinstance(no_pred, bool) or no_pred <= 0 else no_pred
         else:
             if pred_new == 0: return 0
             page = 1 + ceil((pred_new - 5) / 10)
@@ -150,6 +150,8 @@ class QzFeedScraper(PostProcess):
         s = sum(len(i) for i in new_iter)
         if s < pred_new:
             logger.warning(f'Expect to get {pred_new} new feeds, but actually {s}')
+
+        self.hook.allFetchEnd(s)
         return s
 
     def fetchNewFeeds(self, *, no_pred=False, ignore_exist=False):

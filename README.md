@@ -6,22 +6,36 @@
 
 <!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
 
-<img src="https://img.shields.io/badge/python-3.9-blue">
+<a href="https://github.com/JamzumSum/Qzone2TG/discussions/37">
+<img src="https://img.shields.io/badge/python-3.9-blue?logo=python">
+</a>
 
 <a href="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml">
 <img src="https://github.com/JamzumSum/QQQR/actions/workflows/interface.yml/badge.svg">
 </a>
 
-<a href="https://github.com/JamzumSum/Qzone2TG/releases">
-<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?include_prereleases&logo=github">
-</a> 
-
 <a href="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml">
 <img src="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml/badge.svg">
 </a>
 
+<a href="https://github.com/JamzumSum/Qzone2TG/tree/2.2d">
+<img src="https://img.shields.io/badge/dynamic/xml?color=blue&label=dev&query=%2F&url=https%3A%2F%2Fraw.githubusercontent.com%2FJamzumSum%2FQzone2TG%2F2.2d%2Fsrc%2Fqzone2tg%2FVERSION&logo=github&prefix=v">
+</a>
+
+<a href="https://github.com/JamzumSum/Qzone2TG/releases">
+<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?label=beta&include_prereleases&logo=github">
+</a> 
+
+<a href="https://github.com/JamzumSum/Qzone2TG/releases/latest">
+<img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github">
+</a> 
+
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
 <img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+</a>
+
+<a href="https://t.me/qzone2tg">
+<img src="https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram">
 </a>
 
 </div>
@@ -29,7 +43,7 @@
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
 > [v2.2][latest] availible now!<br>
-> Support for py38 ceased. Code will not pass type checking on py38 from `2.2.1a7`. <br>
+> We've create official TG channel! Click the badge to join us.
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---

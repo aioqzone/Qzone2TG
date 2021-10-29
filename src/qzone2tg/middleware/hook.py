@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from concurrent.futures import Future
 from typing import Callable
 
 
@@ -48,21 +47,20 @@ class QzoneEvent(ABC):
         pass
 
     @abstractmethod
-    def fetchEnd(self):
-        pass
-
-    @abstractmethod
     def fetchError(self):
         pass
 
 
 class FeedEvent(ABC):
-    def feedFetched(self, feed) -> Future:
+    @abstractmethod
+    def feedFetched(self, feed):
         pass
 
-    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+    @abstractmethod
+    def allFetchEnd(self, sum: int):
         pass
 
+    @abstractmethod
     def mediaUpdate(self, media: list):
         pass
 
@@ -92,17 +90,14 @@ class NullUI(QREvent, QzoneEvent, FeedEvent):
     def pageFetched(self, *args, **kwargs):
         pass
 
-    def fetchEnd(self, *args, **kwargs):
-        pass
-
     def fetchError(self, msg, *args, **kwargs):
-        pass
-
-    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
         pass
 
     def mediaUpdate(self, msg_ref: list, media: list):
         pass
 
     def feedFetched(self, feed):
+        pass
+
+    def allFetchEnd(self, sum: int):
         pass

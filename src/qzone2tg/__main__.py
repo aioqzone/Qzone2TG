@@ -159,7 +159,8 @@ def main(args):
         'webhook': WebhookBot,
         "refresh": RefreshBot
     }[method]
-    bot: RefreshBot = BotCls(feedmgr=feedmgr, uin=d.qzone.qq, **d.bot)
+    bot: RefreshBot = BotCls(feedmgr=feedmgr, **d.bot)
+    bot.addBlockUin(d.qzone.qq)
     logger.debug('bot OK')
 
     feedmgr.register_ui_hook(bot.ui)
