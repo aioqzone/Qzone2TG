@@ -9,6 +9,7 @@ UNLIKE_URL = PROXY_DOMAIN + "w.qzone.qq.com/cgi-bin/likes/internal_unlike_app"
 GET_PAGE_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/feeds3_html_more"
 UPDATE_FEED_URL = PROXY_DOMAIN + "ic2.qzone.qq.com/cgi-bin/feeds/cgi_get_feeds_count.cgi"
 PHOTO_LIST_URL = PROXY_DOMAIN + "plist.photo.qq.com/fcgi-bin/cgi_floatview_photo_list_v2"
+MSG_DETAIL_URL = PROXY_DOMAIN + "taotao.qq.com/cgi-bin/emotion_cgi_msgdetail_v6"
 
 BLOCK_LIST = [
     20050606,      # Qzone Official

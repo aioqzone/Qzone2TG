@@ -55,6 +55,10 @@ class TestQzone:
         feeds.extend(self.spider.fetchPage(2))
         FEEDS = [QzJsonParser(i) for i in feeds]
 
+    # def test_msgDetail(self):
+    #     for i in FEEDS:
+    #         self.spider.getFeedDetail(i.uin, i.fid)
+
     def test_GetFullContent(self):
         if FEEDS is None: pytest.skip('pred test failed.')
         hit = False
@@ -78,6 +82,9 @@ class TestQzone:
             return
         else:
             pytest.skip('no sample crawled')
+
+    def test_stop(self):
+        self.spider.photoList.stop()
 
 
 def teardown_module() -> None:

@@ -34,7 +34,7 @@ class _FloodCtrl:
         return len(media)
 
     def needfc(self, func: Callable):
-        return self._fc(getattr(self, func.__name__))(func)
+        return self._fc(getattr(self, func.__name__, None))(func)
 
 
 class FixUserBot:
@@ -54,7 +54,7 @@ class FixUserBot:
 
     def _register_flood_control(self, tps: int):
         fc = _FloodCtrl(tps or 30)
-        for i in [self.sendMessage, self.sendMedia]:
+        for i in [self.sendMessage, self.sendMedia, self.editMedia]:
             setattr(self, i.__name__, fc.needfc(i))
 
     def sendMessage(self, text: str, reply_markup=None, *, reply: int = None, **kw):
@@ -91,6 +91,12 @@ class FixUserBot:
             return telegram.InputMediaVideo(media=media, **kwargs)
         else:
             return telegram.InputMediaPhoto(media=media, **kwargs)
+
+    def editMedia(self, msg: telegram.Message, media: str):
+        media = self.single_media(
+            media=media, caption=msg.caption, parse_mode=self.parse_mode
+        )
+        return msg.edit_media(media=media)
 
     def sendMedia(
         self,

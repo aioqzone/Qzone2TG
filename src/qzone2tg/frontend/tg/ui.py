@@ -164,10 +164,7 @@ class TgUI(NullUI):
         assert len(msg_objs) == len(media)
         logger.info(f'updating {len(msg_objs)} images')
 
-        return [
-            m.edit_media(media=self.bot.single_media(u))
-            for m, u in zip(msg_objs, media)
-        ]
+        return [self.bot.editMedia(m, u) for m, u in zip(msg_objs, media)]
 
     def feedFetched(self, feed):
         return self.sendfeed_callback(feed)

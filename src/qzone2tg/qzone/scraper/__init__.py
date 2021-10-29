@@ -36,9 +36,7 @@ class QzoneScraper(HBMgr):
         super().__init__(*args, **kwargs)
         self.extern = {1: "undefined"}
         self.new_pred = None
-
-        q: AlbumQue = getattr(self, 'photoList')
-        q.start()
+        self.photoList.start()
 
     def _register_error_handler(self):
         super()._register_error_handler()
@@ -252,3 +250,31 @@ class QzoneScraper(HBMgr):
                 return {k: d[k] for k in ['pre', 'picId', 'url']}
 
         return [rd(i) for i in r]
+
+    def getFeedDetail(self, uin: int, fid: str) -> dict[str, Any]:
+        """get feed detail
+
+        Args:
+            uin (int): owner uin
+            fid (str): feed id. only feeds, not share.
+
+        Returns:
+            dict[str, Any]: [description]
+        """        
+        data = {
+            'uin': uin,
+            'tid': fid,
+            't1_source': 1,
+            'ftype': 0,
+            'sort': 0,
+            'pos': 0,
+            'num': 20,
+            'g_tk': self.gtk,
+            'callback': 'callback',
+            'code_version': 1,
+            'format': 'jsonp',
+            'need_private_comment': 1,
+        }
+        r = self.get(MSG_DETAIL_URL, params=data)
+        r = RE_CALLBACK.search(r.text).group(1)
+        return json_loads(r)
