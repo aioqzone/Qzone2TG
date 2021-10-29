@@ -13,6 +13,18 @@ __all__ = ['AlbumQue', 'asqueue']
 logger = logging.getLogger(__name__)
 
 
+class AlbumTask:
+    __slots__ = ('func', 'args', 'kwds', 'run_times', 'future')
+
+    def __init__(self, func: Callable, *args, **kwds) -> None:
+        self.func = func
+        self.args = args
+        self.kwds = kwds
+
+        self.run_times: int = 0
+        self.future = Future()
+
+
 class AlbumQue(threading.Thread, Generic[T]):
     """
     Since Qzone album service is always slow to response, this module 
@@ -21,33 +33,43 @@ class AlbumQue(threading.Thread, Generic[T]):
     The requests will be sent within an AIMD pattern, 
     and the result will be passed through future and callback.
     """
-    def __init__(self, request: Callable[[T], list]) -> None:
+    def __init__(self, request: Callable[[T], list], max_retry: int = 12) -> None:
+        assert callable(request)
+        assert max_retry > 0
         super().__init__(name=request.__name__)
         self.que = queue.Queue(-1)
         self._stop = False
         self.func = request
+        self.max_retry = max_retry
 
     def run(self) -> None:
         lps: int = 0
         while not self._stop:
-            future, a = self.que.get(block=True)
+            task: AlbumTask = self.que.get(block=True)
             try:
-                r = self.func(*a)
+                r = self.func(*task.args)
                 lps = int(lps // 2)
-                future.set_result(r)
                 logger.debug(
-                    f"Album queue finished a request. Lapse={lps}, pending={self.pending}"
+                    "Album queue finished a request. "
+                    f"Lapse={lps}, pending={self.pending}"
                 )
+                task.future.set_result(r)
             except QzoneError as e:
-                if e.code != -10001: future.set_exception(e)
+                if e.code != -10001: task.future.set_exception(e)
+                task.run_times += 1
                 lps += 1
-                self.que.put((future, a))
                 logger.debug(
-                    f"Album queue roll back a request. Lapse={lps}, pending={self.pending}"
+                    f"Album queue roll back a request. {e}"
+                    f"Lapse={lps}, pending={self.pending}"
                 )
                 sleep(lps)
+                if task.run_times > self.max_retry:
+                    task.future.set_exception(e)
+                    logger.warning('Album queue give up a request.')
+                else:
+                    self.que.put(task)
             except BaseException as e:
-                future.set_exception(e)
+                task.future.set_exception(e)
             finally:
                 self.que.task_done()
 
@@ -68,13 +90,13 @@ class AlbumQue(threading.Thread, Generic[T]):
         Returns:
             Future[list]: future. get result with `future.result()`.
         """
-        future = Future()
-        if cb: future.add_done_callback(cb)
-        self.que.put((future, args), block=True)
-        return future
+        task = AlbumTask(self.func, *args)
+        if cb: task.future.add_done_callback(cb)
+        self.que.put(task, block=True)
+        return task.future
 
     def __call__(self, *args):
-        return self.add(args)
+        return self.add(args=args)
 
     def stop(self):
         """thread will stop before next awaken (next calling func)"""
