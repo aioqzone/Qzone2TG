@@ -101,7 +101,7 @@ class TestSimulate:
                 assert url.startswith('http')
 
     def test_stopAlbum(self):
-        self.spider.qzone.photoList.stop()
+        self.spider.stop()
 
 
 def teardown_module():

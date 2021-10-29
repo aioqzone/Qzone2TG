@@ -84,7 +84,7 @@ class TestQzone:
             pytest.skip('no sample crawled')
 
     def test_stop(self):
-        self.spider.photoList.stop()
+        self.spider.stop()
 
 
 def teardown_module() -> None:

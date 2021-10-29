@@ -63,6 +63,9 @@ class PostProcess:
             f(i)
         return i
 
+    def stop(self):
+        self.executor.shutdown(False)
+
 
 class QzFeedScraper(PostProcess):
     """Top feed API"""
@@ -84,6 +87,10 @@ class QzFeedScraper(PostProcess):
         self.qzone = qzone
         self.register_postprocess(self._post_complete)
         self.register_postprocess(self._post_album)
+
+    def stop(self):
+        super().stop()
+        self.qzone.stop()
 
     def register_ui_hook(self, hook: NullUI):
         self.hook = hook

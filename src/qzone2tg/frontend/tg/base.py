@@ -6,7 +6,7 @@ from typing import Callable
 from pytz import timezone
 from qzone2tg.qzone.exceptions import UserBreak
 from qzone2tg.qzone.feed import QzCachedScraper
-from qzone2tg.utils.decorator import Locked, atomic
+from qzone2tg.utils.decorator import Locked, atomic, noexcept
 from requests.exceptions import HTTPError
 from telegram.ext import Updater
 
@@ -58,6 +58,11 @@ class RefreshBot:
             setattr(self, i.__name__, self._runAsync(i))
         for i, n in {self.onSend: 'sending', self.onFetch: 'fetching'}.items():
             setattr(self, i.__name__, self._notifyLock(n)(i))
+        for i in [self.run]:
+            setattr(
+                self, i.__name__,
+                noexcept({KeyboardInterrupt: lambda e: self.feedmgr.stop()})(i)
+            )
 
     def _runAsync(self, func: Callable):
         @wraps(func)
@@ -89,13 +94,10 @@ class RefreshBot:
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
-    def idle(self):
+    def run(self):
         self.onFetch(reload=self.reload_on_start)
         self.register_period_refresh()
         self.update.idle()
-
-    def run(self):
-        self.idle()
 
     def onSend(self, reload=False, period=False):
         err = 0

@@ -145,7 +145,7 @@ class PollingBot(RefreshBot):
                 logger.fatal(e.message, exc_info=True)
             return
         logger.info("start polling")
-        self.idle()
+        super().run()
 
     def onButtonClick(self, update: telegram.Update, context):
         if not self.checkAccess(update, context): return
@@ -225,4 +225,4 @@ class WebhookBot(PollingBot):
         logger.debug(
             f"registerd webhook at {webhook_url}, listening at 127.0.0.1/{self._token}"
         )
-        self.idle()
+        RefreshBot.run(self)

@@ -36,21 +36,17 @@ class QzoneScraper(HBMgr):
         super().__init__(*args, **kwargs)
         self.extern = {1: "undefined"}
         self.new_pred = None
-        self.photoList.start()
+        self.photoList = AlbumQue(self._photoList)
+
+    def stop(self):
+        self.photoList.stop()
 
     def _register_error_handler(self):
         super()._register_error_handler()
         excc = {QzoneError: self._login_if_expire, HTTPError: self._login_if_expire}
-        for f, er in {
-                self.fetchPage: [],
-                self.doLike: False,
-        }.items():
+        for f, er in {self.fetchPage: [], self.doLike: False,
+                      self._photoList: []}.items():
             setattr(self, f.__name__, Retry(excc.copy(), excr=er)(f))
-
-        setattr(
-            self, self.photoList.__name__,
-            AlbumQue(Retry(excc.copy(), excr=[])(self.photoList))
-        )
 
     def parseExternParam(self, page: int):
         unquoted = self.extern[page]
@@ -199,7 +195,7 @@ class QzoneScraper(HBMgr):
 
         return super().checkUpdate(predNewAmount)
 
-    def photoList(self, album: Dict[str, Any], hostuin: int, num: int):
+    def _photoList(self, album: Dict[str, Any], hostuin: int, num: int):
         """get photolist of an album
 
         - login_if_expire
@@ -260,7 +256,7 @@ class QzoneScraper(HBMgr):
 
         Returns:
             dict[str, Any]: [description]
-        """        
+        """
         data = {
             'uin': uin,
             'tid': fid,
