@@ -22,9 +22,8 @@ class QREvent(ABC):
     def QrExpired(self, new_png: bytes):
         pass
 
-    @abstractmethod
     def QrCanceled(self):
-        pass
+        self._cancel and self._cancel()
 
     def register_resend_callback(self, resend_callback: Callable[[], bytes]):
         self._resend = resend_callback
@@ -76,9 +75,6 @@ class NullUI(QREvent, QzoneEvent, FeedEvent):
         pass
 
     def QrExpired(self, new_png: bytes, *args, **kwargs):
-        pass
-
-    def QrCanceled(self):
         pass
 
     def loginSuccessed(self, *args, **kwargs):

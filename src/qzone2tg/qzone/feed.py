@@ -4,11 +4,13 @@ from itertools import takewhile
 from math import ceil
 from typing import Callable, Iterable, Union
 
+from qqqr.exception import UserBreak
+
 from ..middleware.hook import NullUI
 from ..middleware.storage import FeedBase
 from ..middleware.utils import day_stamp
 from ..utils.decorator import atomic, noexcept
-from .exceptions import LoginError, QzoneError, UserBreak
+from .exceptions import LoginError
 from .parser import QzJsonParser as Parser
 from .scraper import QzoneScraper
 

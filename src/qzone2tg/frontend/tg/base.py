@@ -1,11 +1,11 @@
 import logging
+from bisect import bisect_left
 from datetime import time as Time
 from functools import wraps
 from typing import Callable
 
-from bisect import bisect_left
 from pytz import timezone
-from qzone2tg.qzone.exceptions import UserBreak
+from qqqr.exception import UserBreak
 from qzone2tg.qzone.feed import QzCachedScraper
 from qzone2tg.utils.decorator import Locked, atomic, noexcept
 from requests.exceptions import HTTPError
@@ -186,7 +186,6 @@ class RefreshBot:
             self.ui.fetchError('爬取出错, 刷新或许可以)')
             return
         except UserBreak:
-            self.ui.QrCanceled()
             return
         except Exception:
             logger.error("Uncaught error when fetch", exc_info=True)

@@ -122,6 +122,12 @@ def dueWithConfig(conf: DictConfig, NO_INTERACT=False):
     return conf
 
 
+def checkUpdate():
+    from qzemoji import DBMgr
+    DBMgr.autoUpdate('data/emoji.db')
+    logger.debug('emoji db upgraded')
+
+
 def main(args):
     ca = OmegaConf.from_cli(args)
     cd = OmegaConf.load(CONF_PATH)
@@ -145,6 +151,8 @@ def main(args):
     spider = QzoneScraper(TokenTable(db.cursor), **d.qzone)
     feedmgr = QzCachedScraper(spider, db)
     logger.debug('crawler OK')
+
+    checkUpdate()
 
     method = d.bot.pop('method', None)
     if 'webhook' in d.bot:

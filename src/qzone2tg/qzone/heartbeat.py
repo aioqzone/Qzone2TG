@@ -4,19 +4,19 @@ from random import random
 from typing import Callable, Dict, Optional, Union
 
 import requests
+from qqqr.base import UA as DefaultUA
+from qqqr.constants import QzoneAppid, QzoneProxy
+from qqqr.encrypt import gtk
+from qqqr.exception import TencentLoginError, UserBreak
+from qqqr.qr import QRLogin
+from qqqr.up import UPLogin, User
 from requests.exceptions import ConnectionError, HTTPError
-from tencentlogin.base import UA as DefaultUA
-from tencentlogin.constants import QzoneAppid, QzoneProxy
-from tencentlogin.encrypt import gtk
-from tencentlogin.exception import TencentLoginError
-from tencentlogin.qr import QRLogin
-from tencentlogin.up import UPLogin, User
 
 from ..middleware.hook import NullUI
 from ..middleware.storage import TokenTable
 from ..utils.decorator import Lock_RunOnce, Retry, cached, noexcept
 from .common import UPDATE_FEED_URL
-from .exceptions import LoginError, QzoneError, UserBreak
+from .exceptions import LoginError, QzoneError
 
 logger = logging.getLogger(__name__)
 
@@ -34,26 +34,26 @@ class _LoginHelper:
         self.qr_strategy = qr_strategy
         if qr_strategy != 'force':
             assert self.pwd
-            self._up = UPLogin(QzoneAppid, QzoneProxy, User(self.uin, self.pwd))
+            self.user = User(self.uin, self.pwd)
         if qr_strategy != 'forbid':
             self._qr = QRLogin(QzoneAppid, QzoneProxy)
 
     def register_ui_hook(self, hook: NullUI):
         self.hook = hook
-        self.hook.register_resend_callback(self._qr.show)
 
-    def _upLogin(self) -> Optional[dict]:
+    def _upLogin(self):
         """login use uin and pwd
 
         Returns:
             Optional[dict]: cookie dict if success, else None
         """
         try:
-            return self._up.login(self._up.check(), all_cookie=True)
+            login = UPLogin(QzoneAppid, QzoneProxy, self.user)
+            return login.login(login.check())
         except TencentLoginError as e:
             logger.warning(str(e))
 
-    def _qrLogin(self, refresh_time=6) -> Optional[dict]:
+    def _qrLogin(self, refresh_time=6):
         """Login with QR. BLOCK until user interact or timeout.
 
         Raises:
@@ -62,24 +62,23 @@ class _LoginHelper:
         Returns:
             Optional[dict]: cookie dict if success, else None
         """
-        r = [None]
-        sched = self._qr.loop(refresh_time=refresh_time, all_cookie=True)(  # yapf: disable
-            refresh_callback=lambda b: sendmethod()(b),
-            return_callback=lambda b: r.__setitem__(0, b),
+        login = QRLogin(QzoneAppid, QzoneProxy)
+        thread = login.loop(
+            send_callback=self.hook.QrFetched,
+            expire_callback=self.hook.QrExpired,
+            refresh_time=refresh_time
         )
-        sendmethod = lambda: self.hook.QrExpired if sched.cnt else self.hook.QrFetched
-        self.hook.register_cancel_callback(lambda: sched.stop(exception=True))
+        self.hook.register_cancel_callback(thread.stop)
+        self.hook.register_resend_callback(login.show)
+
         try:
-            sched.start()
-            r = r[0]
-            if r: self.hook.QrScanSucceessed()
-            else: self.hook.QrFailed()
-            return r
+            return thread.result()
         except TimeoutError:
             self.hook.QrFailed()
-            return
         except KeyboardInterrupt:
             raise UserBreak
+        except:
+            logger.error('Error in QR Login.', exc_info=True)
 
     @Lock_RunOnce()
     def login(self) -> Dict[str, str]:
@@ -92,10 +91,10 @@ class _LoginHelper:
             UserBreak
         """
         for f in {
-                'force': (self._qrLogin, ),
-                'prefer': (self._qrLogin, self._upLogin),
-                'allow': (self._upLogin, self._qrLogin),
-                'forbid': (self._upLogin, ),
+                'force': [self._qrLogin],
+                'prefer': [self._qrLogin, self._upLogin],
+                'allow': [self._upLogin, self._qrLogin],
+                'forbid': [self._upLogin],
         }[self.qr_strategy]:
             if (r := f()): return r
 

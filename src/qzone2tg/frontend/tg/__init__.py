@@ -3,8 +3,8 @@ import re
 from functools import wraps
 
 import telegram
+from qqqr.exception import UserBreak
 from qzone2tg.middleware.utils import sementicTime
-from qzone2tg.qzone.exceptions import UserBreak
 from qzone2tg.qzone.feed import QzCachedScraper
 from telegram.error import NetworkError, TelegramError
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler
@@ -151,7 +151,7 @@ class PollingBot(RefreshBot):
         data: str = query.data
         if data in (d := {
                 'qr_refresh': self.ui.QrResend,
-                'qr_cancel': self.ui._cancel,
+                'qr_cancel': self.ui.QrCanceled,
         }):
             d[data]()
         else:
@@ -180,7 +180,7 @@ class PollingBot(RefreshBot):
                 query.answer(text="该应用消息已超过服务器保留时限或保留上限, 超过时限的应用消息无法点赞.")
                 remove_button()
             except UserBreak:
-                self.ui.QrCanceled()
+                return
         else:
             if not self.feedmgr.like(LikeId.fromstr(data).todict()):
                 query.answer(text='点赞失败.')

@@ -18,10 +18,6 @@
 <img src="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml/badge.svg">
 </a>
 
-<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
-<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
-</a>
-
 <a href="https://t.me/qzone2tg">
 <img src="https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram">
 </a>
@@ -39,6 +35,10 @@
 <img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github">
 </a> 
 </div>
+
+<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
+<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+</a>
 
 </div>
 

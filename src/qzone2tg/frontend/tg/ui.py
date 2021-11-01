@@ -160,6 +160,7 @@ class TgUI(NullUI):
         )
 
     def QrCanceled(self):
+        super().QrCanceled()
         if self.qr_msg.delete():
             del self.qr_msg
         self.bot.sendMessage('二维码登录已取消, 当前任务终止.')
