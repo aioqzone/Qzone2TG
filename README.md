@@ -2,7 +2,7 @@
 
 爬取QQ空间说说并转发到telegram
 
-<div style="text-align:left">
+<div name="badge" style="text-align:left">
 
 <!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
 
@@ -18,6 +18,15 @@
 <img src="https://github.com/JamzumSum/Qzone2TG/actions/workflows/python-app.yml/badge.svg">
 </a>
 
+<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
+<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+</a>
+
+<a href="https://t.me/qzone2tg">
+<img src="https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram">
+</a>
+
+<div name="version">
 <a href="https://github.com/JamzumSum/Qzone2TG/tree/2.2d">
 <img src="https://img.shields.io/badge/dynamic/xml?color=blue&label=dev&query=%2F&url=https%3A%2F%2Fraw.githubusercontent.com%2FJamzumSum%2FQzone2TG%2F2.2d%2Fsrc%2Fqzone2tg%2FVERSION&logo=github&prefix=v">
 </a>
@@ -29,21 +38,14 @@
 <a href="https://github.com/JamzumSum/Qzone2TG/releases/latest">
 <img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github">
 </a> 
-
-<a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
-<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
-</a>
-
-<a href="https://t.me/qzone2tg">
-<img src="https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram">
-</a>
+</div>
 
 </div>
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
 > [v2.2][latest] availible now!<br>
-> We've create official TG channel! Click the badge to join us.
+> We've create official TG channel! Click the badge to join us.<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---
