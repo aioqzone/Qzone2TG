@@ -44,8 +44,8 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [v2.2][latest] availible now!<br>
-> We've create official TG channel! Click the badge to join us.<br>
+> [v2.2.1][latest] beta availible now!<br>
+> We've create official TG channel! Click the badge above to join us.<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---
@@ -189,7 +189,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: doc/配置文档 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1a4 "2.2.0"
+[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1b1 "2.2.1"
 [docker]: doc/Docker部署 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
