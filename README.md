@@ -34,11 +34,11 @@
 <a href="https://github.com/JamzumSum/Qzone2TG/releases/latest">
 <img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github">
 </a> 
-</div>
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
-<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker">
+<img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker&label=docker">
 </a>
+</div>
 
 </div>
 
