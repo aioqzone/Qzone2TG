@@ -3,15 +3,12 @@
 
 name: Test
 
-on:
-  push:
-  release:
-    types: [created]
+on: push
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' }}
+    # if: ${{ github.event_name == 'push' }}
     strategy:
       matrix:
         python-version: [3.9]
@@ -41,14 +38,3 @@ jobs:
         run: |
           export PYTHONPATH=$(pwd)/src
           python -m pytest test
-
-  trigger:
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' }}
-    needs: build
-    steps:
-      - name: trigger docker build
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: "[docker] CI for releases"
-          token: ${{ secrets.PERSONAL_TOKEN }}

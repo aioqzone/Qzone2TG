@@ -7,15 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
       - name: Extract Version
         id: version_step
         run: |
-          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:$(cat ./src/VERSION)
+          echo ::set-output name=version_tag::$GITHUB_REPOSITORY:$(cat ./src/qzone2tg/VERSION)
           echo ::set-output name=latest_tag::$GITHUB_REPOSITORY:latest
 
       - name: Set up QEMU
