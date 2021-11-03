@@ -37,10 +37,16 @@ class TgHook(TgUI):
 
     def allFetchEnd(self, sum: int):
         logger.info(f'Fetched {sum}, sending {len(self.stack)}')
+        err = 0
         for i in self.stack:
-            self._sendExtracter(i)
+            try:
+                self._sendExtracter(i)
+            except BaseException as e:
+                logger.error(f"{i.feed}: {e}", exc_info=True)
+                err += 1
         self.stack.clear()
         logger.info('TgHook stack cleared')
+        super()._fetchEnd(sum - err, err)
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
@@ -59,15 +65,12 @@ class TgHook(TgUI):
             return self.bot.sendMessage(msg, reply_markup)
 
     def _sendExtracter(self, feed: TgExtracter):
-        try:
-            msgs = self._contentReady(feed)
-            # self.feedmgr.db.setPluginData('tg', feed.feed.fid, is_sent=1)
-            self.sent_callback(feed.feed)
-            feed.imageFuture and feed.imageFuture.add_done_callback(
-                lambda f: super().updateMedia(msgs, f.result())
-            )
-        except BaseException as e:
-            logger.error(f"{feed.feed}: {e}", exc_info=True)
+        msgs = self._contentReady(feed)
+        # self.feedmgr.db.setPluginData('tg', feed.feed.fid, is_sent=1)
+        self.sent_callback(feed.feed)
+        feed.imageFuture and feed.imageFuture.add_done_callback(
+            lambda f: super().updateMedia(msgs, f.result())
+        )
 
 
 class RefreshBot:

@@ -198,15 +198,16 @@ class TgUI(NullUI):
         else:
             self.ui_msg = self.bot.sendMessage(text='✔ ' + msg)[0]
 
-    def _fetchEnd(self, succ_num: int, err_num: int, silent=False):
+    def _fetchEnd(self, sum: int, err: int, silent=False):
+        assert sum >= err
         if hasattr(self, 'ui_msg') and self.ui_msg.delete():
             del self.ui_msg
-        if succ_num == 0 and err_num == 0 and not silent:
+        if sum == 0 and not silent:
             cmd = "您已经跟上了时代✔"
         else:
-            cmd = f"成功发送{succ_num}条说说."
-            if err_num > 0:
-                cmd += f" 发送失败{err_num}条, 重试也没有用( 请检查服务端日志."
+            cmd = f"成功发送{sum - err}条说说."
+            if err > 0:
+                cmd += f" 发送失败{err}条, 重试也没有用( 请检查服务端日志."
         if not silent:
             self.bot.sendMessage(cmd)
 

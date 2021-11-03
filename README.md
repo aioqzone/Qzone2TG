@@ -24,15 +24,15 @@
 
 <div name="version">
 <a href="https://github.com/JamzumSum/Qzone2TG/tree/2.2d">
-<img src="https://img.shields.io/badge/dynamic/xml?color=blue&label=dev&query=%2F&url=https%3A%2F%2Fraw.githubusercontent.com%2FJamzumSum%2FQzone2TG%2F2.2d%2Fsrc%2Fqzone2tg%2FVERSION&logo=github&prefix=v">
+<img src="https://img.shields.io/badge/dynamic/xml?color=yellow&label=dev&query=%2F&url=https%3A%2F%2Fraw.githubusercontent.com%2FJamzumSum%2FQzone2TG%2F2.2d%2Fsrc%2Fqzone2tg%2FVERSION&logo=github&prefix=v">
 </a>
 
 <a href="https://github.com/JamzumSum/Qzone2TG/releases">
-<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?label=beta&include_prereleases&logo=github">
+<img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?label=beta&include_prereleases&logo=github&color=green">
 </a> 
 
 <a href="https://github.com/JamzumSum/Qzone2TG/releases/latest">
-<img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github">
+<img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github&color=success">
 </a> 
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
@@ -44,7 +44,7 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [v2.2.1][latest] beta availible now!<br>
+> [v2.2.1][latest] beta availible now! <br>
 > We've create official TG channel! Click the badge above to join us.<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
@@ -52,12 +52,13 @@
 
 ## 功能
 
-* 自动登录空间, ~~cv过验证~~(broken)
-* 二维码登录
-* 爬取说说文本、图片、视频以及常见转发格式
-* 点赞(应用消息的点赞有时间限制)
-* 过滤广告
-* 简单的tg机器人, 支持webhook
+- [x] 自动登录空间
+- [ ] ~~cv过验证(broken now)~~
+- [x] 二维码登录
+- [x] 爬取说说文本、图片、视频以及常见转发格式
+- [x] 点赞(应用消息的点赞有时间限制)
+- [x] 过滤广告
+- [x] 简单的tg机器人, 支持webhook
 
 ## 截图
 
@@ -88,7 +89,7 @@
 ### 安装依赖
 
 1. 安装`nodejs` (若不使用账密登录可跳过此项)
-2. 请确保安装了`git`, `python3.8+`和对应的`pip`及`setuptools`.
+2. 请确保安装了`git`, `python3.9`和对应的`pip`及`setuptools`.
 3. linux环境请确保安装`gnome-keyring`:
   ~~~ shell
   apt install gnome-keyring
@@ -97,7 +98,7 @@
 ### 安装Qzone2TG
 
 <details>
-<summary> 源码安装(develop install) </summary>
+<summary> 源码安装(dev) </summary>
 
 ``` shell
 # clone本项目
@@ -116,7 +117,7 @@ cp misc/example.yaml config/config.yaml
 
 
 <details>
-<summary> pip安装 </summary>
+<summary> pip安装(dev) </summary>
 
 ~~~ shell
 # 安装到site-package
@@ -141,7 +142,7 @@ vim config/config.yaml
 ### 启动
 
 - pip develop install: `python src/qzone2tg`
-- pip安装: `python -m Qzone2TG`
+- pip安装: `python -m qzone2tg`
 
 ---
 
@@ -188,9 +189,9 @@ keyring del qzone2tg <your-qq>
 
 
 
-[conf]: doc/配置文档 "配置文件"
+[conf]: ../../wiki/配置文档 "配置文件"
 [latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1b1 "2.2.1"
-[docker]: doc/Docker部署 "Docker部署"
+[docker]: ../../wiki/Docker部署 "Docker部署"
 [notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
 [qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
 [blog]: https://github.com/JamzumSum/Qzone2TG "咕咕咕"
