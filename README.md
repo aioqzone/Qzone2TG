@@ -4,8 +4,6 @@
 
 <div name="badge" style="text-align:left">
 
-<!-- <img src="https://img.shields.io/github/stars/JamzumSum/Qzone2TG?style=social"> -->
-
 <a href="https://github.com/JamzumSum/Qzone2TG/discussions/37">
 <img src="https://img.shields.io/badge/python-3.9-blue?logo=python">
 </a>
@@ -190,8 +188,8 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: ../../wiki/配置文档 "配置文件"
-[latest]: https://github.com/JamzumSum/Qzone2TG/releases/tag/2.2.1b1 "2.2.1"
+[latest]: ../../releases/tag/2.2.1b1 "2.2.1"
 [docker]: ../../wiki/Docker部署 "Docker部署"
-[notice]: https://github.com/JamzumSum/Qzone2TG/discussions/categories/announcements "Announcement📣"
-[qzemoji]: https://github.com/JamzumSum/QzEmoji "Translate Qzone Emoji to Text"
+[notice]: ../../discussions/categories/announcements "Announcement📣"
+[qzemoji]: ../../../QzEmoji "Translate Qzone Emoji to Text"
 [blog]: https://github.com/JamzumSum/Qzone2TG "咕咕咕"

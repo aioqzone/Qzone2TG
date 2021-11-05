@@ -94,8 +94,8 @@ class PollingBot(RefreshBot):
             return False
         return True
 
-    def onSend(self, *, reload=False, period=False):
-        return super().onSend(reload=reload, period=period)
+    def onSend(self, *, reload=False):
+        return super().onSend(reload=reload)
 
     def onRefresh(self, *, reload=False):
         self.onFetch(reload=reload)

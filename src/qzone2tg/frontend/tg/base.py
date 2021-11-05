@@ -17,11 +17,33 @@ TIME_ZONE = timezone('Asia/Shanghai')
 logger = logging.getLogger(__name__)
 
 
-class TgHook(TgUI):
-    stack: list[TgExtracter]
+class SendTransaction():
+    def __init__(self) -> None:
+        self.q = []
+        self.__iter__ = self.q.__iter__
+        self.__len__ = self.q.__len__
+        self.clear()
 
+    def insert(self, feed: TgExtracter):
+        if self.q[-1].feed.abstime < feed.feed.abstime:
+            # since q is always sorted, bisect will fall in the worst O(n) situation.
+            # check the last and quick skip bisect will cover most cases.
+            x = len(self.q)
+            self.q.append(feed)
+        else:
+            x = bisect_left([i.feed.abstime for i in self.q], feed.feed.abstime)
+            self.q.insert(x, feed)
+        return x
+
+    def clear(self):
+        self.is_period = False
+        self.skip = 0
+        self.q.clear()
+
+
+class TgHook(TgUI):
     def __init__(self, bot, chat_id: int, like: bool, **kwds) -> None:
-        self.stack = []
+        self.stack = SendTransaction()
         self.like = like
         super().__init__(bot, chat_id, **kwds)
         self._register_decorator()
@@ -37,6 +59,8 @@ class TgHook(TgUI):
 
     def allFetchEnd(self, sum: int):
         logger.info(f'Fetched {sum}, sending {len(self.stack)}')
+        if len(self.stack) + self.stack.skip != sum:
+            logger.warning('Some feeds may be omitted.')
         err = 0
         for i in self.stack:
             try:
@@ -45,14 +69,15 @@ class TgHook(TgUI):
                 logger.error(f"{i.feed}: {e}", exc_info=True)
                 err += 1
         self.stack.clear()
-        logger.info('TgHook stack cleared')
-        super()._fetchEnd(sum - err, err)
+        logger.debug('TgHook stack cleared')
+        super()._fetchEnd(sum - err, err, silent=self.stack.is_period)
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
-        if feed.isBlocked: return
-        x = bisect_left([i.feed.abstime for i in self.stack], feed.feed.abstime)
-        self.stack.insert(x, feed)
+        if feed.isBlocked:
+            self.stack.skip += 1
+            return
+        self.stack.insert(feed)
         feed.prepare()
 
     def __contentReady(self, feed: TgExtracter):
@@ -163,7 +188,7 @@ class RefreshBot:
         self.register_period_refresh()
         self.update.idle()
 
-    def onSend(self, reload=False, period=False):
+    def onSend(self, reload=False):
         new = self.feedmgr.db.getFeed(
             cond_sql='' if reload else 'is_sent IS NULL OR is_sent=0',
             plugin_name='tg',
@@ -171,6 +196,7 @@ class RefreshBot:
         )
         for i in new:
             self.ui.feedFetched(i)
+        self.ui.stack.is_period = False
         self.ui.allFetchEnd(len(new))
 
     def onFetch(self, reload: bool, period=False):
@@ -180,6 +206,7 @@ class RefreshBot:
         else:
             logger.info(f"{self.accept_id}: start {cmd}")
 
+        self.ui.stack.is_period = period
         try:
             self.feedmgr.fetchNewFeeds(no_pred=not period, ignore_exist=reload)
         except TimeoutError:
@@ -190,7 +217,7 @@ class RefreshBot:
             return
         except UserBreak:
             return
-        except Exception:
+        except BaseException:
             logger.error("Uncaught error when fetch", exc_info=True)
             self.ui.fetchError()
             return
