@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 class SendTransaction():
     def __init__(self) -> None:
         self.q = []
-        self.__iter__ = self.q.__iter__
-        self.__len__ = self.q.__len__
         self.clear()
 
     def insert(self, feed: TgExtracter):
@@ -39,6 +37,12 @@ class SendTransaction():
         self.is_period = False
         self.skip = 0
         self.q.clear()
+
+    def __iter__(self):
+        return iter(self.q)
+
+    def __len__(self):
+        return len(self.q)
 
 
 class TgHook(TgUI):
