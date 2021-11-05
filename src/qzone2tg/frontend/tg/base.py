@@ -23,7 +23,7 @@ class SendTransaction():
         self.clear()
 
     def insert(self, feed: TgExtracter):
-        if self.q[-1].feed.abstime < feed.feed.abstime:
+        if not self.q or self.q[-1].feed.abstime < feed.feed.abstime:
             # since q is always sorted, bisect will fall in the worst O(n) situation.
             # check the last and quick skip bisect will cover most cases.
             x = len(self.q)
