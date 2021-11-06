@@ -72,9 +72,11 @@ class TgHook(TgUI):
             except BaseException as e:
                 logger.error(f"{i.feed}: {e}", exc_info=True)
                 err += 1
+
+        silent = self.stack.is_period
         self.stack.clear()
         logger.debug('TgHook stack cleared')
-        super()._fetchEnd(sum - err, err, silent=self.stack.is_period)
+        super()._fetchEnd(sum - err, err, silent=silent)
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
@@ -95,7 +97,6 @@ class TgHook(TgUI):
 
     def _sendExtracter(self, feed: TgExtracter):
         msgs = self._contentReady(feed)
-        # self.feedmgr.db.setPluginData('tg', feed.feed.fid, is_sent=1)
         self.sent_callback(feed.feed)
         feed.imageFuture and feed.imageFuture.add_done_callback(
             lambda f: super().updateMedia(msgs, f.result())

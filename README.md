@@ -42,8 +42,8 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [v2.2.1][latest] beta availible now! <br>
-> We've create official TG channel! Click the badge above to join us.<br>
+> v[2.2.1rc][latest] availible now! <br>
+> We've create official TG channel. Click the badge above to join us.<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
 ---
@@ -74,15 +74,15 @@
 * QQ号和tg用户ID
 * tg机器人的`bot token`
 
-> *运行环境: **U**in-**P**wd登录和验证码解析需要`nodejs`. 如果您的二维码策略总保持`force`, 甚至不需要安装`nodejs`. 非windows或linux系统可能会遇到keyring的配置问题, 但这可以通过交互模式或命令行传参的方式解决. 或者保持二维码策略为`force`可以避免UP登录带来的一切问题(
+> *运行环境: **U**in-**P**wd登录和验证码解析需要`nodejs`. 如果您只使用二维码登录, 甚至不需要安装`nodejs`. 非windows或linux系统可能会遇到keyring的配置问题, 但这可以通过交互模式或命令行传参的方式解决. 或者保持二维码策略为`force`可以避免UP登录带来的一切问题(
 
 ## 安装
 
-|安装方式                              |建议    |
-|:-----------------------------------|:------:|
-|[docker镜像][docker](感谢@TigerCubDen)|✔️     |
-|源码安装(develop install)             |✔️     |
-|常规pip安装                           |❌     |
+|安装方式                              |版本    |建议    |
+|:-----------------------------------|:-----:|:------:|
+|[docker镜像][docker](感谢@TigerCubDen)|w/o dev|✔️     |
+|源码安装(develop install)             |all    |❌     |
+|常规pip安装                           |all    |❌     |
 
 ### 安装依赖
 
@@ -97,6 +97,8 @@
 
 <details>
 <summary> 源码安装(dev) </summary>
+
+> 注: Qzone2TG的依赖渐趋复杂, 为避免扰乱您的python包环境/避免依赖冲突, 推荐使用虚拟环境, 如`venv`.
 
 ``` shell
 # clone本项目
