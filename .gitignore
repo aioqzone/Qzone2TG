@@ -17,12 +17,13 @@ test.*
 *.xml
 *.log
 
-dockerfile
-
 # build
 /build
 /dist
 *.egg-info
+
+# bin
+/venv
 
 # archive
 archive

@@ -78,55 +78,12 @@
 
 ## 安装
 
-|安装方式                              |版本    |建议    |
-|:-----------------------------------|:-----:|:------:|
-|[docker镜像][docker](感谢@TigerCubDen)|w/o dev|✔️     |
-|源码安装(develop install)             |all    |❌     |
-|常规pip安装                           |all    |❌     |
+|安装方式                                 |版本    |建议  |
+|:---------------------------------------|:-----:|:---:|
+|[docker镜像][docker](感谢@TigerCubDen)   |w/o dev|✔️   |
+|[pip安装](../../wiki/pip部署#安装Qzone2TG)|all    |❌   |
 
-### 安装依赖
-
-1. 安装`nodejs` (若不使用账密登录可跳过此项)
-2. 请确保安装了`git`, `python3.9`和对应的`pip`及`setuptools`.
-3. linux环境请确保安装`gnome-keyring`:
-  ~~~ shell
-  apt install gnome-keyring
-  ~~~
-
-### 安装Qzone2TG
-
-<details>
-<summary> 源码安装(dev) </summary>
-
-> 注: Qzone2TG的依赖渐趋复杂, 为避免扰乱您的python包环境/避免依赖冲突, 推荐使用虚拟环境, 如`venv`.
-
-``` shell
-# clone本项目
-git clone https://github.com/JamzumSum/Qzone2TG.git
-cd Qzone2TG
-
-# 安装依赖
-pip install -e .
-# 复制示例配置. 也可以参考wiki写配置
-cp misc/example.yaml config/config.yaml
-```
-
-最后, 将`src`添加到`PYTHONPATH`中. [wiki](doc/Q&A#PYTHONPATH)
-
-</details>
-
-
-<details>
-<summary> pip安装(dev) </summary>
-
-~~~ shell
-# 安装到site-package
-pip install git+https://github.com/JamzumSum/Qzone2TG.git
-# 构建工作区
-mkdir Qzone2TG && cd Qzone2TG && mkdir config
-~~~
-
-</details>
+> 点击链接转到对应的wiki :D
 
 ## 运行
 
@@ -134,10 +91,10 @@ mkdir Qzone2TG && cd Qzone2TG && mkdir config
 
 请参考[wiki][conf]
 
-~~~ shell
+``` shell
 vim config/config.yaml
 # 填写qq, bot token, acceptId以及可选的代理
-~~~
+```
 
 ### 启动
 
@@ -160,14 +117,9 @@ keyring del qzone2tg <your-qq>
 ~~~
 
 如果您需要完全卸载:
-1. - develop install: 删除`Qzone2TG`文件夹
-   - pip安装: `pip uninstall qzone2tg`
-2. _可选的_  删除安装的依赖:
+- develop install: 删除`Qzone2TG`文件夹
+- pip安装: `pip uninstall qzone2tg`
 
-    ``` shell
-    # python依赖
-    pip uninstall python-telegram-bot lxml cssselect omegaconf keyring tencentlogin qzemoji
-    ```
 
 ## Credits
 
