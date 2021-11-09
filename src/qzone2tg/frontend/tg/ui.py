@@ -225,7 +225,11 @@ class TgUI(NullUI):
     def updateMedia(self, msg_objs: List[telegram.Message], media: List[str]):
         msg_objs = [i for i in msg_objs if i.photo or i.video]
 
-        assert len(msg_objs) == len(media)
-        logger.info(f'updating {len(msg_objs)} images')
+        if len(msg_objs) < len(media):
+            logger.warning(f'media more than message: {len(media)} > {len(msg_objs)}')
+        elif len(msg_objs) > len(media):
+            logger.error(f'media less than message: {len(media)} < {len(msg_objs)}')
+
+        logger.info(f'updating {min(len(media), len(msg_objs))} images')
 
         return [self.bot.editMedia(m, u) for m, u in zip(msg_objs, media)]

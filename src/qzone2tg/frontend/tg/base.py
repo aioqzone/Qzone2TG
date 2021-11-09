@@ -36,6 +36,7 @@ class SendTransaction():
     def clear(self):
         self.is_period = False
         self.skip = 0
+        self.err = 0
         self.q.clear()
 
     def __iter__(self):
@@ -65,26 +66,27 @@ class TgHook(TgUI):
         logger.info(f'Fetched {sum}, sending {len(self.stack)}')
         if len(self.stack) + self.stack.skip != sum:
             logger.warning('Some feeds may be omitted.')
-        err = 0
-        for i in self.stack:
-            try:
-                self._sendExtracter(i)
-            except BaseException as e:
-                logger.error(f"{i.feed}: {e}", exc_info=True)
-                err += 1
+
+        for i, feed in enumerate(self.stack):
+            self._sendExtracter(feed)
+            logger.debug(f'message sent {i}/{len(self.stack)}')
 
         silent = self.stack.is_period
         self.stack.clear()
         logger.debug('TgHook stack cleared')
-        super()._fetchEnd(sum - err, err, silent=silent)
+        self._fetchEnd(sum - self.stack.err, self.stack.err, silent=silent)
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
         if feed.isBlocked:
             self.stack.skip += 1
             return
-        self.stack.insert(feed)
-        feed.prepare()
+        try:
+            feed.prepare()
+        except:
+            self.stack.err += 1
+        else:
+            self.stack.insert(feed)
 
     def __contentReady(self, feed: TgExtracter):
         msg, media = feed.content()
@@ -98,9 +100,16 @@ class TgHook(TgUI):
     def _sendExtracter(self, feed: TgExtracter):
         msgs = self._contentReady(feed)
         self.sent_callback(feed.feed)
-        feed.imageFuture and feed.imageFuture.add_done_callback(
-            lambda f: super().updateMedia(msgs, f.result())
-        )
+        if feed.imageFuture:
+
+            def update_media_callback(future):
+                try:       # TODO: tg.TimeOut; QzoneError; TimeoutError
+                    self.updateMedia(msgs, future.result())
+                except BaseException as e:
+                    logger.warning(f"{feed.feed}: {e}", exc_info=True)
+                    return
+
+            feed.imageFuture.add_done_callback(update_media_callback)
 
 
 class RefreshBot:

@@ -64,7 +64,7 @@ class AlbumQue(threading.Thread, Generic[T]):
                 )
                 sleep(lps)
                 if task.run_times > self.max_retry:
-                    task.future.set_exception(e)
+                    task.future.set_exception(TimeoutError)
                     logger.warning('Album queue give up a request.')
                 else:
                     self.que.put(task)
