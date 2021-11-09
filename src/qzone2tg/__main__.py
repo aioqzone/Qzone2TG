@@ -1,5 +1,6 @@
 import argparse
 import logging
+import logging.config
 import sys
 from getpass import getpass
 

@@ -10,6 +10,7 @@ from qzone2tg.qzone.feed import QzCachedScraper
 from qzone2tg.utils.decorator import Locked, atomic, noexcept
 from requests.exceptions import HTTPError
 from telegram.ext import Updater
+from telegram.error import TimedOut
 
 from .ui import TgExtracter, TgUI, retry_once
 
@@ -64,17 +65,20 @@ class TgHook(TgUI):
 
     def allFetchEnd(self, sum: int):
         logger.info(f'Fetched {sum}, sending {len(self.stack)}')
-        if len(self.stack) + self.stack.skip != sum:
+        if len(self.stack) + self.stack.skip + self.stack.err != sum:
             logger.warning('Some feeds may be omitted.')
 
         for i, feed in enumerate(self.stack):
             self._sendExtracter(feed)
-            logger.debug(f'message sent {i}/{len(self.stack)}')
+            logger.debug(f'message sent {i + 1}/{len(self.stack)}')
 
-        silent = self.stack.is_period
-        self.stack.clear()
-        logger.debug('TgHook stack cleared')
-        self._fetchEnd(sum - self.stack.err, self.stack.err, silent=silent)
+        try:
+            self._fetchEnd(
+                sum - self.stack.err, self.stack.err, silent=self.stack.is_period
+            )
+        finally:
+            self.stack.clear()
+            logger.debug('TgHook stack cleared')
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
@@ -103,10 +107,19 @@ class TgHook(TgUI):
         if feed.imageFuture:
 
             def update_media_callback(future):
-                try:       # TODO: tg.TimeOut; QzoneError; TimeoutError
-                    self.updateMedia(msgs, future.result())
-                except BaseException as e:
-                    logger.warning(f"{feed.feed}: {e}", exc_info=True)
+                try:
+                    media = future.result()
+                except:    # TODO: QzoneError; TimeoutError
+                    return
+                try:
+                    self.updateMedia(msgs, media)
+                except TimedOut:
+                    # TODO
+                    return
+                except:
+                    logger.error(
+                        f"{feed.feed}: error when editing media", exc_info=True
+                    )
                     return
 
             feed.imageFuture.add_done_callback(update_media_callback)

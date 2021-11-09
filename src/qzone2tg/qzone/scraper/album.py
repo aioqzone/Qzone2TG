@@ -9,7 +9,7 @@ from ..exceptions import QzoneError
 
 T = TypeVar('T')
 
-__all__ = ['AlbumQue', 'asqueue']
+__all__ = ['AlbumQue']
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +62,9 @@ class AlbumQue(threading.Thread, Generic[T]):
                     f"Album queue roll back a request. {e}"
                     f"Lapse={lps}, pending={self.pending}"
                 )
-                sleep(lps)
+                for _ in range(lps):
+                    sleep(1)
+                    if self._stop: return
                 if task.run_times > self.max_retry:
                     task.future.set_exception(TimeoutError)
                     logger.warning('Album queue give up a request.')
@@ -105,7 +107,3 @@ class AlbumQue(threading.Thread, Generic[T]):
     def start(self) -> None:
         logger.info('Album queue starting')
         return super().start()
-
-
-__doc__ = AlbumQue.__doc__
-asqueue = AlbumQue

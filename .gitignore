@@ -8,7 +8,8 @@ yapf_style.cfg
 /data
 .env
 test/test_bot.py
-config/config.yaml
+/config
+!/config/test_conf.yml
 
 # temporary files
 tmp

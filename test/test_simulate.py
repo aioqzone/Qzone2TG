@@ -92,7 +92,7 @@ class TestSimulate:
         global FEEDS
         if not FEEDS: pytest.skip('pred test failed.')
         for i in FEEDS:
-            i = TgExtracter(i, self.spider.qzone.uin)
+            i = TgExtracter(i)
             msg, media = i.content()
             assert msg
             assert isinstance(media, list)
