@@ -37,9 +37,13 @@ class QzoneScraper(HBMgr):
         self.extern = {1: "undefined"}
         self.new_pred = None
         self.photoList = AlbumQue(self._photoList)
+        self.photoList.start()
 
     def stop(self):
         self.photoList.stop()
+
+    def status(self):
+        return super().status() | {'albumQueue_pending': self.photoList.pending}
 
     def _register_error_handler(self):
         super()._register_error_handler()
