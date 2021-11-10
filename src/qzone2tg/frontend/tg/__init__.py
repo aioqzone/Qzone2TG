@@ -49,7 +49,7 @@ class PollingBot(RefreshBot):
         )
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
-        self.__proxy = 'proxy_url' in network
+        self.__proxy = 'proxy_url' in network if network else False
 
         dispatcher = self.update.dispatcher
         CA = Filters.chat(accept_id)

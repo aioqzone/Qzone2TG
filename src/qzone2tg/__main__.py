@@ -102,6 +102,12 @@ def configVersionControl(conf: DictConfig):
             "Cron refreshing is an outdated technique now."
         )
         conf.bot.pop('daily')
+    if 'proxy' in conf.bot:
+        fw(
+            "From 2.2.1b4, `bot.proxy` is renamed to `bot.network`. The network section allows more "
+            "settings including proxy. Lookup wiki for more info."
+        )
+        conf.bot['network'] = conf.bot.pop('proxy')
 
     return conf
 

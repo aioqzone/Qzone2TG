@@ -36,7 +36,7 @@ class AlbumQue(threading.Thread, Generic[T]):
     def __init__(self, request: Callable[[T], list], max_retry: int = 12) -> None:
         assert callable(request)
         assert max_retry > 0
-        super().__init__(name=request.__name__)
+        super().__init__(name=request.__name__, daemon=True)
         self.que = queue.Queue(-1)
         self._stop = False
         self.func = request
