@@ -127,15 +127,12 @@ class TgUI(NullUI):
         bot,
         chat_id: int,
         times_per_second: int = None,
-        disable_notification: bool = False
     ) -> None:
         super().__init__()
         self.bot = FixUserBot(
             bot,
             chat_id,
-            telegram.ParseMode.HTML,
             times_per_second=times_per_second,
-            disable_notification=disable_notification
         )
         self.queue = {}
 

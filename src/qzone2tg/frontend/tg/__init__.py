@@ -8,6 +8,7 @@ from qzone2tg.middleware.utils import sementicTime
 from qzone2tg.qzone.feed import QzCachedScraper
 from telegram.error import NetworkError, TelegramError
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler
+from telegram.ext.filters import Filters
 
 from .base import RefreshBot
 from .compress import LikeId
@@ -34,7 +35,7 @@ class PollingBot(RefreshBot):
         *,
         times_per_second: int = None,
         disable_notification: bool = False,
-        proxy: dict = None,
+        network: dict = None,
         polling: dict = None,
         auto_start=False,
     ):
@@ -44,20 +45,21 @@ class PollingBot(RefreshBot):
             accept_id,
             times_per_second=times_per_second,
             disable_notification=disable_notification,
-            proxy=proxy
+            network=network
         )
         self.run_kwargs = {} if polling is None else polling
         self.auto_start = auto_start
-        self.__proxy = proxy
+        self.__proxy = 'proxy_url' in network
 
         dispatcher = self.update.dispatcher
-        dispatcher.add_handler(CommandHandler("start", self.onStart))
-        dispatcher.add_handler(CommandHandler("refresh", self.onRefresh))
-        dispatcher.add_handler(CommandHandler("resend", self.onSend))
-        dispatcher.add_handler(CommandHandler('help', self.onHelp))
-        dispatcher.add_handler(CommandHandler('status', self.onStatus))
-        dispatcher.add_handler(CommandHandler('relogin', self.onRelogin))
-        dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick))
+        CA = Filters.chat(accept_id)
+        dispatcher.add_handler(CommandHandler("start", self.onStart, filters=CA))
+        dispatcher.add_handler(CommandHandler("refresh", self.onRefresh, filters=CA))
+        dispatcher.add_handler(CommandHandler("resend", self.onSend, filters=CA))
+        dispatcher.add_handler(CommandHandler('help', self.onHelp, filters=CA))
+        dispatcher.add_handler(CommandHandler('status', self.onStatus, filters=CA))
+        dispatcher.add_handler(CommandHandler('relogin', self.onRelogin, filters=CA))
+        dispatcher.add_handler(CallbackQueryHandler(self.onButtonClick, run_async=True))
 
         try:
             self.update.bot.set_my_commands([
@@ -66,23 +68,6 @@ class PollingBot(RefreshBot):
             ])
         except TelegramError as e:
             logger.warning(e.message)
-
-    def _register_decorators(self):
-        for i in [self.like]:
-            setattr(self, i.__name__, self._runAsync(i))
-        for i in [self.onHelp, self.onRefresh, self.onRelogin, self.onStart,
-                  self.onStatus, self.onSend]:
-            setattr(self, i.__name__, self._CA(i))
-        return super()._register_decorators()
-
-    def _CA(self, func):
-        @wraps(func)
-        def CAWrapper(*a, **tk):
-            if len(a) == 2:
-                if not self.checkAccess(*a): return
-            return func(**tk)
-
-        return CAWrapper
 
     def checkAccess(self, update: telegram.Update, context: CallbackContext):
         if update.effective_chat.id != self.accept_id:

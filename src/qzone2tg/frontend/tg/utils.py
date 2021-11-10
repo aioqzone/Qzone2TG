@@ -42,14 +42,10 @@ class FixUserBot:
         self,
         bot: Bot,
         chat_id: int,
-        parse_mode: telegram.ParseMode = None,
         times_per_second: int = None,
-        disable_notification: bool = False
     ) -> None:
         self.to = chat_id
         self._bot = bot
-        self.parse_mode = parse_mode
-        self.dnn = disable_notification
         self._register_flood_control(times_per_second or 30)
 
     def _register_flood_control(self, tps: int):
@@ -64,10 +60,8 @@ class FixUserBot:
                 self._bot.send_message(
                     text=text,
                     chat_id=self.to,
-                    parse_mode=self.parse_mode,
                     reply_markup=reply_markup,
                     reply_to_message_id=reply,
-                    disable_notification=self.dnn,
                     **kw
                 )
             ]
@@ -98,10 +92,11 @@ class FixUserBot:
             return telegram.InputMediaPhoto(media=media, **kwargs)
 
     def editMedia(self, msg: telegram.Message, media: Union[str, bytes]):
-        media = self.single_media(
-            media=media, caption=msg.caption, parse_mode=self.parse_mode
-        )
-        return msg.edit_media(media=media)
+        media = self.single_media(media=media, caption=msg.caption)
+        try:
+            return msg.edit_media(media=media)
+        except telegram.error.TimedOut:
+            return msg.edit_media(media=media, timeout=10)
 
     def sendMedia(
         self,
@@ -118,10 +113,8 @@ class FixUserBot:
                         media[0],
                         chat_id=self.to,
                         caption=text,
-                        parse_mode=self.parse_mode,
                         reply_markup=reply_markup,
                         reply_to_message_id=reply,
-                        disable_notification=self.dnn,
                         **kw
                     )
                 ]
@@ -143,7 +136,7 @@ class FixUserBot:
 
         return self._bot.send_media_group(
             chat_id=self.to,
-            media=[self.single_media(media[0], caption=text, parse_mode=self.parse_mode)] + \
+            media=[self.single_media(media[0], caption=text)] + \
                     [self.single_media(i) for i in media[1:]],
             reply_to_message_id=reply,
             disable_notification=True

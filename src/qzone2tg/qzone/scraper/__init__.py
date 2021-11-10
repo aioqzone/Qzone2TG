@@ -166,11 +166,11 @@ class QzoneScraper(HBMgr):
         self.extern[pagenum + 1] = unquote(data['main']["externparam"])
         feeddict = filter(
             lambda i: not (
-                not i or                                    # `undefined` in feed datas or empty feed dict
-                i['key'].startswith('advertisement_app') or # ad feed
-                int(i['appid']) >= 4096 or                  # not supported (cannot encode)
-                int(i['uin']) in BLOCK_LIST or              # in blocklist
-                int(i['uin']) == self.uin                   # is mine
+                not i or    # `undefined` in feed datas or empty feed dict
+                i['key'].startswith('advertisement_app') or    # ad feed
+                int(i['appid']) >= 4096 or    # not supported (cannot encode)
+                int(i['uin']) in BLOCK_LIST or    # in blocklist
+                int(i['uin']) == self.uin    # is mine
             ),
             data['data']
         )
@@ -199,7 +199,7 @@ class QzoneScraper(HBMgr):
 
         return super().checkUpdate(predNewAmount)
 
-    def _photoList(self, album: Dict[str, Any], hostuin: int, num: int):
+    def _photoList(self, album: Dict[str, Any], hostuin: int, num: int = 10):
         """get photolist of an album
 
         - login_if_expire
@@ -225,8 +225,8 @@ class QzoneScraper(HBMgr):
             'number': num,
             'uin': self.uin,
             '_': time_ms(),
-            't': randint(1e8, 1e9 - 1)         # The distribution is not consistent
-                                               # with photo.js; but the format is.
+            't': randint(1e8, 1e9 - 1)    # The distribution is not consistent
+        # with photo.js; but the format is.
         }
         query.update(Arg4ListPhoto)
         r = self.get(PHOTO_LIST_URL, params=query)

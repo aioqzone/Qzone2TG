@@ -4,13 +4,14 @@ from datetime import time as Time
 from functools import wraps
 from typing import Callable
 
+import telegram
 from pytz import timezone
 from qqqr.exception import UserBreak
 from qzone2tg.qzone.feed import QzCachedScraper
 from qzone2tg.utils.decorator import Locked, atomic, noexcept
 from requests.exceptions import HTTPError
-from telegram.ext import Updater
 from telegram.error import TimedOut
+from telegram.ext import Defaults, Updater
 
 from .ui import TgExtracter, TgUI, retry_once
 
@@ -114,7 +115,7 @@ class TgHook(TgUI):
                 try:
                     self.updateMedia(msgs, media)
                 except TimedOut:
-                    # TODO
+                    logger.warning('Edit media timeout repeatedly. Skipped.')
                     return
                 except:
                     logger.error(
@@ -136,19 +137,25 @@ class RefreshBot:
         *,
         times_per_second: int = None,
         disable_notification: bool = False,
-        proxy: dict = None,
+        network: dict = None,
     ):
         self.accept_id = int(accept_id)
         self.feedmgr = feedmgr
         self._token = token
 
-        self.update = Updater(token, use_context=True, request_kwargs=proxy)
+        defaults = Defaults(
+            parse_mode=telegram.ParseMode.HTML,
+            disable_notification=disable_notification,
+            tzinfo=TIME_ZONE
+        )
+        self.update = Updater(
+            token, use_context=True, request_kwargs=network, defaults=defaults
+        )
         self.ui = TgHook(
             self.update.bot,
             accept_id,
             like=hasattr(self, 'like'),
             times_per_second=times_per_second,
-            disable_notification=disable_notification,
         )
         self.silentApscheduler()
         self._register_decorators()
@@ -206,7 +213,7 @@ class RefreshBot:
         logger.info('periodically refresh registered.')
 
     def silentApscheduler(self):
-        if logger.level >= logging.WARN: return
+        if logger.level >= logging.WARN or logger.level == logging.DEBUG: return
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
