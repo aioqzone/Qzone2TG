@@ -37,7 +37,6 @@ class PollingBot(RefreshBot):
         disable_notification: bool = False,
         network: dict = None,
         polling: dict = None,
-        auto_start=False,
     ):
         super().__init__(
             feedmgr,
@@ -48,7 +47,6 @@ class PollingBot(RefreshBot):
             network=network
         )
         self.run_kwargs = {} if polling is None else polling
-        self.auto_start = auto_start
         self.__proxy = 'proxy_url' in network if network else False
 
         dispatcher = self.update.dispatcher

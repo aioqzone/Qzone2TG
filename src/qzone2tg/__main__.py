@@ -85,29 +85,15 @@ def configVersionControl(conf: DictConfig):
             "The first value of list is used now."
         )
         conf.bot.accept_id = conf.bot.accept_id[0]
-    if 'interval' in conf.bot:
-        fw(
-            "In future versions, `bot.interval` will be replaced by `bot.daily`. "
-            "Please lookup wiki for details. Current timer is set to daily (interval=86400)"
-        )
-        conf.bot.pop('interval')
-    if 'savepwd' in conf.qzone:
-        fw(
-            "From 2.0.0b5, `qzone.savepwd` is deprecated. Password saving will be powered by `keyring`. "
-            "Just remove this config item. "
-        )
-    if 'daily' in conf.bot:
-        fw(
-            "From 2.1.0, `bot.daily` will not be used. Please lookup wiki for details. "
-            "Cron refreshing is an outdated technique now."
-        )
-        conf.bot.pop('daily')
     if 'proxy' in conf.bot:
         fw(
             "From 2.2.1b4, `bot.proxy` is renamed to `bot.network`. The network section allows more "
             "settings including proxy. Lookup wiki for more info."
         )
         conf.bot['network'] = conf.bot.pop('proxy')
+    if 'auto_start' in conf.bot:
+        fw("`auto_start` has not been used for a few versions. This config is removed from `2.2.1b4`.")
+        conf.bot.pop('auto_start')
 
     return conf
 
