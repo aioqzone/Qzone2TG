@@ -13,7 +13,6 @@ from qzone2tg.middleware.storage import TokenTable
 from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
 from qzone2tg.qzone.scraper import QzoneScraper
 
-DEFAULT_LOGGER_FMT = '[%(levelname)s] %(asctime)s %(name)s: %(message)s'
 NO_INTERACT: bool = True
 NAME_LOWER = 'qzone2tg'
 
@@ -52,16 +51,17 @@ def getPassword(qzone: DictConfig):
 def configLogger(log_conf: DictConfig):
     if 'conf' in log_conf:
         try:
-            logging.config.fileConfig(log_conf.conf)
+            logging.config.fileConfig(log_conf.conf, disable_existing_loggers=False)
         except FileNotFoundError as e:
             print(str(e))
     else:
-        logging.basicConfig(
-            format=log_conf.get('format', DEFAULT_LOGGER_FMT),
-            datefmt='%Y %b %d %H:%M:%S',
-            level=dict(CRITICAL=50, FATAL=50, ERROR=40, WARNING=30, INFO=20, DEBUG=10,
-                       NOTSET=0)[log_conf.get('level', 'INFO').upper()]
-        )
+        default = {
+            'format': '[%(levelname)s] %(asctime)s %(name)s: %(message)s',
+            'datefmt': '%Y %b %d %H:%M:%S',
+            'level': 'INFO',
+        }
+        default.update(log_conf)
+        logging.basicConfig(**default)
     global logger
     logger = logging.getLogger("Main")
 
@@ -89,9 +89,10 @@ def dueWithConfig(conf: DictConfig, NO_INTERACT=False):
     conf = configVersionControl(conf)
 
     if 'qq' in conf.qzone:
-        print('Login as:', conf.qzone.qq)
+        print('QQ:', conf.qzone.qq)
     elif NO_INTERACT:
-        raise ValueError('config: No QQ specified.')
+        logger.fatal('无交互模式: QQ未指定')
+        exit(1)
     else:
         conf.qzone.qq = input('QQ: ')
     getPassword(conf.qzone)

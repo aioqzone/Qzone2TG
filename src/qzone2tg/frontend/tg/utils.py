@@ -94,9 +94,9 @@ class FixUserBot:
     def editMedia(self, msg: telegram.Message, media: Union[str, bytes]):
         media = self.single_media(media=media, caption=msg.caption)
         try:
-            return msg.edit_media(media=media)
+            return msg.edit_media(media=media, reply_markup=msg.reply_markup)
         except telegram.error.TimedOut:
-            return msg.edit_media(media=media, timeout=10)
+            return msg.edit_media(media=media, reply_markup=msg.reply_markup, timeout=10)
 
     def sendMedia(
         self,
@@ -120,9 +120,7 @@ class FixUserBot:
                 ]
 
             i = self.sendMedia(text[:MEDIA_TEXT_LIM], media, reply_markup, **kw)
-            return i + self.sendMessage(
-                text[MEDIA_TEXT_LIM:], reply=i[-1].message_id, **kw
-            )
+            return i + self.sendMessage(text[MEDIA_TEXT_LIM:], reply=i[-1].message_id, **kw)
 
         if reply_markup:
             i = self.sendMessage(text, reply_markup, **kw)
@@ -130,9 +128,7 @@ class FixUserBot:
 
         if len(media) > MEDIA_GROUP_LIM:
             i = self.sendMedia(text, media[:MEDIA_GROUP_LIM], **kw)
-            return self.sendMedia(
-                None, media[MEDIA_GROUP_LIM:], reply=i[-1].message_id, **kw
-            )
+            return self.sendMedia(None, media[MEDIA_GROUP_LIM:], reply=i[-1].message_id, **kw)
 
         return self._bot.send_media_group(
             chat_id=self.to,

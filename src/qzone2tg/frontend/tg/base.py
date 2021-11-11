@@ -205,8 +205,8 @@ class RefreshBot:
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
     def run(self):
-        RefreshBot.onFetch(self, reload=self.reload_on_start)
         self.register_period_refresh()
+        RefreshBot.onFetch(self, reload=self.reload_on_start)
         self.update.user_sig_handler = lambda signum, frame: self.feedmgr.stop()
         self.update.idle()
 
