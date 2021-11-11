@@ -1,6 +1,5 @@
 import logging
 import re
-from functools import wraps
 
 import telegram
 from qqqr.exception import UserBreak
@@ -18,14 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 class PollingBot(RefreshBot):
+    # yapf: disable
     commands = {
         "start": "Force login. Then refresh and resend all feeds.",
         "refresh": "Refresh and send any new feeds.",
-        "resend": "Resend any unsent feeds.",
+        # "resend": "Resend any unsent feeds.",
         'status': 'Get some runtime status.',
         "relogin": "Force relogin.",
         "help": "Send help message.",
     }
+    #yapf: enable
 
     def __init__(
         self,
@@ -61,36 +62,25 @@ class PollingBot(RefreshBot):
 
         try:
             self.update.bot.set_my_commands([
-                telegram.BotCommand(command=k, description=v)
-                for k, v in self.commands.items()
+                telegram.BotCommand(command=k, description=v) for k, v in self.commands.items()
             ])
         except TelegramError as e:
             logger.warning(e.message)
 
-    def checkAccess(self, update: telegram.Update, context: CallbackContext):
-        if update.effective_chat.id != self.accept_id:
-            logger.warning(f"illegal access: {update.effective_chat.id}")
-            context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="Sorry. But bot won't answer unknown chat."
-            )
-            return False
-        return True
-
-    def onSend(self, *, reload=False):
+    def onSend(self, update: telegram.Update, context: CallbackContext, *, reload=False):
         return super().onSend(reload=reload)
 
-    def onRefresh(self, *, reload=False):
-        self.onFetch(reload=reload)
+    def onRefresh(self, update: telegram.Update, context: CallbackContext, *, reload=False):
+        super().onFetch(reload=reload)
 
-    def onStart(self):
-        self.onRefresh(reload=True)
+    def onStart(self, update: telegram.Update, context: CallbackContext):
+        self.onRefresh(update, context, reload=True)
 
-    def onHelp(self):
+    def onHelp(self, update: telegram.Update, context: CallbackContext):
         helpm = '\n'.join(f"/{k} - {v}" for k, v in self.commands.items())
         self.ui.bot.sendMessage(helpm)
 
-    def onStatus(self):
+    def onStatus(self, update: telegram.Update, context: CallbackContext):
         def fh(key: str):
             if (v := stat.get(key, None)):
                 return sementicTime(v)
@@ -102,7 +92,7 @@ class PollingBot(RefreshBot):
                  f"上次心跳: {fh('last_heartbeat')}"
         self.ui.bot.sendMessage(status)
 
-    def onRelogin(self):
+    def onRelogin(self, update: telegram.Update, context: CallbackContext):
         self.feedmgr.qzone.updateStatus(force_login=True)
         stat = self.feedmgr.qzone.status()
         if (v := stat['last_login']) is None:
@@ -116,11 +106,10 @@ class PollingBot(RefreshBot):
         except NetworkError as e:
             if self.__proxy:
                 logger.fatal(
-                    "Seems you're using proxy. \n"
-                    "This might cause NetworkError for some reasons, such as confusing DNS inside GFW. "
-                    "Try to trace your proxy traffic to lookup if anything goes out of expectancy. "
-                    "Sometimes just waiting for a while works :D\n"
-                    "See Q&A in Wiki for details."
+                    "只有在使用代理时才能看到此消息. \n"
+                    "网络错误可能由很多原因引发, 比如GFW内部独具特色的DNS解析. 请试着观察代理流量转发情况, "
+                    "检查是否有超出预期的行为. 有些时候等一会也是不错的选择 :D\n"
+                    "前往wiki查看更多: https://github.com/JamzumSum/Qzone2TG/wiki/Q&A#远程主机强迫关闭了一个现有的连接"
                 )
             else:
                 logger.fatal(e.message, exc_info=True)
@@ -128,8 +117,7 @@ class PollingBot(RefreshBot):
         logger.info("start polling")
         super().run()
 
-    def onButtonClick(self, update: telegram.Update, context):
-        if not self.checkAccess(update, context): return
+    def onButtonClick(self, update: telegram.Update, context: CallbackContext):
         query: telegram.CallbackQuery = update.callback_query
         data: str = query.data
         if data in (d := {
@@ -186,8 +174,7 @@ class WebhookBot(PollingBot):
         super().__init__(feedmgr, token, accept_id, polling=webhook, **kwargs)
 
     def run(self):
-        server = re.search(r'(?:https?://)?([^/]*)/?',
-                           self.run_kwargs.pop('server')).group(1)
+        server = re.search(r'(?:https?://)?([^/]*)/?', self.run_kwargs.pop('server')).group(1)
         prefex = self.run_kwargs.pop('prefex', "")
         if prefex: prefex += '/'
         webhook_url = f"https://{server}/{prefex}{self._token}"
@@ -202,7 +189,5 @@ class WebhookBot(PollingBot):
             logger.error(e.message, exc_info=True)
             return
         logger.info("start webhook")
-        logger.debug(
-            f"registerd webhook at {webhook_url}, listening at 127.0.0.1/{self._token}"
-        )
+        logger.debug(f"registerd webhook at {webhook_url}, listening at 127.0.0.1/{self._token}")
         RefreshBot.run(self)

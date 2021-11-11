@@ -74,9 +74,7 @@ class TgHook(TgUI):
             logger.debug(f'message sent {i + 1}/{len(self.stack)}')
 
         try:
-            self._fetchEnd(
-                sum - self.stack.err, self.stack.err, silent=self.stack.is_period
-            )
+            self._fetchEnd(sum - self.stack.err, self.stack.err, silent=self.stack.is_period)
         finally:
             self.stack.clear()
             logger.debug('TgHook stack cleared')
@@ -118,9 +116,7 @@ class TgHook(TgUI):
                     logger.warning('Edit media timeout repeatedly. Skipped.')
                     return
                 except:
-                    logger.error(
-                        f"{feed.feed}: error when editing media", exc_info=True
-                    )
+                    logger.error(f"{feed.feed}: error when editing media", exc_info=True)
                     return
 
             feed.imageFuture.add_done_callback(update_media_callback)
@@ -148,9 +144,7 @@ class RefreshBot:
             disable_notification=disable_notification,
             tzinfo=TIME_ZONE
         )
-        self.update = Updater(
-            token, use_context=True, request_kwargs=network, defaults=defaults
-        )
+        self.update = Updater(token, use_context=True, request_kwargs=network, defaults=defaults)
         self.ui = TgHook(
             self.update.bot,
             accept_id,
@@ -164,9 +158,7 @@ class RefreshBot:
         )
 
         self.update.job_queue.run_daily(
-            lambda c: self.feedmgr.cleanFeed(),
-            Time(tzinfo=TIME_ZONE),
-            name='clean feed'
+            lambda c: self.feedmgr.cleanFeed(), Time(tzinfo=TIME_ZONE), name='clean feed'
         )
 
     @staticmethod
@@ -181,11 +173,6 @@ class RefreshBot:
             setattr(self.ui, i.__name__, self._runAsync(i))
         for i, n in {self.onSend: 'sending', self.onFetch: 'fetching'}.items():
             setattr(self, i.__name__, self._notifyLock(n)(i))
-        for i in [self.run]:
-            setattr(
-                self, i.__name__,
-                noexcept({KeyboardInterrupt: lambda e: self.feedmgr.stop()})(i)
-            )
 
     def _runAsync(self, func: Callable):
         @wraps(func)
@@ -206,7 +193,7 @@ class RefreshBot:
 
     def register_period_refresh(self):
         self._refresh_job = self.update.job_queue.run_repeating(
-            lambda c: self.onFetch(reload=False, period=True),
+            lambda c: RefreshBot.onFetch(self, reload=False, period=True),
             300,
             name='period_refresh'
         )
@@ -218,8 +205,9 @@ class RefreshBot:
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
     def run(self):
-        self.onFetch(reload=self.reload_on_start)
+        RefreshBot.onFetch(self, reload=self.reload_on_start)
         self.register_period_refresh()
+        self.update.user_sig_handler = lambda signum, frame: self.feedmgr.stop()
         self.update.idle()
 
     def onSend(self, reload=False):

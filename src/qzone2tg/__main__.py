@@ -34,19 +34,15 @@ def getPassword(qzone: DictConfig):
         pwd = None
 
     if not pwd and not NO_INTERACT:
-        pwd = getpass(
-            f'Password{"" if strategy == "forbid" else " (press Enter to skip)"}:'
-        )
+        pwd = getpass(f'输入密码{"" if strategy == "forbid" else " (按回车跳过)"}:')
         if (pwd := pwd.strip()): keyring.set_password(NAME_LOWER, str(qzone.qq), pwd)
     if not (pwd and pwd.strip()):
         d = {
             'forbid': lambda: ValueError('config: No password specified.'),
-            'prefer': lambda: logging.info(
-                'Password not given. qr_strategy changed from `prefer` to `force`.'
-            ) or qzone.__setitem__('qr_strategy', 'force'),
-            'allow': lambda: logging.warning(
-                'Password not given. qr_strategy changed from `allow` to `force`.'
-            ) or qzone.__setitem__('qr_strategy', 'force')
+            'prefer': lambda: logging.info('密码未指定. qr_strategy 从 `prefer` 改为 `force`.'
+                                           ) or qzone.__setitem__('qr_strategy', 'force'),
+            'allow': lambda: logging.warning('密码未指定. qr_strategy 从 `allow` 改为 `force`.') or qzone.
+            __setitem__('qr_strategy', 'force')
         }
         if (e := d[strategy]()): raise e
     qzone[PWD_KEY] = pwd
@@ -63,15 +59,8 @@ def configLogger(log_conf: DictConfig):
         logging.basicConfig(
             format=log_conf.get('format', DEFAULT_LOGGER_FMT),
             datefmt='%Y %b %d %H:%M:%S',
-            level=dict(
-                CRITICAL=50,
-                FATAL=50,
-                ERROR=40,
-                WARNING=30,
-                INFO=20,
-                DEBUG=10,
-                NOTSET=0
-            )[log_conf.get('level', 'INFO').upper()]
+            level=dict(CRITICAL=50, FATAL=50, ERROR=40, WARNING=30, INFO=20, DEBUG=10,
+                       NOTSET=0)[log_conf.get('level', 'INFO').upper()]
         )
     global logger
     logger = logging.getLogger("Main")
@@ -80,19 +69,13 @@ def configLogger(log_conf: DictConfig):
 def configVersionControl(conf: DictConfig):
     fw = lambda msg: logger.warning("FutureWarning: " + msg)
     if isinstance(conf.bot.accept_id, ListConfig):
-        fw(
-            "In future versions, `bot.accept_id` is expected to be `int`. "
-            "The first value of list is used now."
-        )
+        fw("在未来的版本中, `bot.accept_id`被视为 `int`. 只有列表中的第一个值生效.")
         conf.bot.accept_id = conf.bot.accept_id[0]
     if 'proxy' in conf.bot:
-        fw(
-            "From 2.2.1b4, `bot.proxy` is renamed to `bot.network`. The network section allows more "
-            "settings including proxy. Lookup wiki for more info."
-        )
+        fw("从`2.2.1b4`起, `bot.proxy`重命名为`bot.network`. `network`配置段支持包括代理在内的更多设置. 查看wiki获取更多信息. ")
         conf.bot['network'] = conf.bot.pop('proxy')
     if 'auto_start' in conf.bot:
-        fw("`auto_start` has not been used for a few versions. This config is removed from `2.2.1b4`.")
+        fw("`auto_start`已在多个版本中弃用. 此条目在`2.2.1b4`中移除 .")
         conf.bot.pop('auto_start')
 
     return conf
@@ -125,17 +108,19 @@ def main(args):
     ca = OmegaConf.from_cli(args)
     cd = OmegaConf.load(CONF_PATH)
     d = OmegaConf.merge(cd, ca)
-
-    assert 'password' not in cd.get('qzone', {}), \
-    'SecurityWarning: From current version, Qzone2TG use `keyring` as password storage backend, '
-    "which has been installed already. For safety reasons, please run the following command on your own:\n\n"
-    "`keyring set qzone2tg {qq} {password}`\n\n"
-    "Then remove `qzone.password` and `qzone.savepwd` from config file and try again.\n"
-    "PS: passing password from cli is allowed."
-
     configLogger(d.get('log', {}))
+
+    if 'password' in cd.get('qzone', {}):
+        logger.fatal(
+            'Qzone2TG 使用系统keyring存储密码. 使用以下命令设置密码: \n\n'
+            f"`keyring set qzone2tg {d.qzone.qq} 密码`\n\n"
+            "然后从配置文件中移除`qzone.password` 和 `qzone.savepwd` 并重启程序.\n"
+            "PS: passing password from cli is allowed."
+        )
+        exit(1)
+
     d = dueWithConfig(d, NO_INTERACT)
-    logger.info("config loaded")
+    logger.debug("config loaded")
 
     tg_plugin_def = {'tg': {'is_sent': 'BOOLEAN default 0'}}
     db = FeedDB(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
@@ -155,11 +140,7 @@ def main(args):
                 "Webhook is used in this case."
             )
         method = 'webhook'
-    BotCls = {
-        'polling': PollingBot,
-        'webhook': WebhookBot,
-        "refresh": RefreshBot
-    }[method]
+    BotCls = {'polling': PollingBot, 'webhook': WebhookBot, "refresh": RefreshBot}[method]
     bot: RefreshBot = BotCls(feedmgr=feedmgr, **d.bot)
     bot.addBlockUin(d.qzone.qq)
     logger.debug('bot OK')
@@ -171,20 +152,10 @@ def main(args):
 if __name__ == '__main__':
     psr = argparse.ArgumentParser()
     psr.add_argument(
-        '-c',
-        '--config',
-        default="config/config.yaml",
-        help='config path (*.yml;*.yaml)'
+        '-c', '--config', default="config/config.yaml", help='config path (*.yml;*.yaml)'
     )
-    psr.add_argument(
-        '--no-interaction',
-        action='store_true',
-        help=
-        'Enter no-interaction mode: exit if any essential argument is missing instead of asking for input.'
-    )
-    psr.add_argument(
-        '-v', '--version', action='store_true', help='print version and exit.'
-    )
+    psr.add_argument('--no-interaction', action='store_true', help='无交互模式: 关键配置缺失时不请求输入, 直接停止运行.')
+    psr.add_argument('-v', '--version', action='store_true', help='输出版本并退出.')
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
     if arg.version:
