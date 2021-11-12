@@ -13,7 +13,7 @@ services:
     # privileged: true
     # enable privilege mode only if using root
 
-  # remove the following service if you needn't reverse proxy. 
+  # remove the following service if you needn't reverse proxy.
   # nginx:
   #   container_name: qz_reverse_proxy
   #   image: nginx
