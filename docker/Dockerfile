@@ -19,4 +19,5 @@ RUN apk add nodejs
 VOLUME ["/app/config", "/app/data"]
 EXPOSE 80 88 443 8443
 
+ENV PYTHONPATH src
 ENTRYPOINT python src/qzone2tg --no-interaction
