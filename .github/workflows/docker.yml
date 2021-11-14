@@ -36,6 +36,7 @@ jobs:
         uses: docker/build-push-action@v2.7.0
         with:
           push: true
+          file: ./docker/Dockerfile
           tags: |
             ${{env.VERSION_TAG}}
             ${{env.LASTEST_TAG}}
