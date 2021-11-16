@@ -5,13 +5,12 @@ services:
     image: jamzumsum/qzone2tg:latest
     restart: always
     environment:
-      DBUS_SESSION_BUS_ADDRESS: ${DBUS_SESSION_BUS_ADDRESS}
+      DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/0/bus
     volumes:
-      - ${DBUS_SESSION_BUS_PATH}:${DBUS_SESSION_BUS_PATH}:ro
+      - ${DBUS_SESSION_BUS_PATH}:unix:path=/run/user/0/bus:ro
       - $PWD/config/config.yaml:/app/config/config.yaml:ro
       - $PWD/data:/app/data
-    # privileged: true
-    # enable privilege mode only if using root
+    privileged: true
 
   # remove the following service if you needn't reverse proxy.
   # nginx:

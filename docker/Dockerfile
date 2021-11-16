@@ -4,7 +4,7 @@ COPY . /app
 
 WORKDIR /app
 
-RUN apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo && \
+RUN apk add git gcc musl-dev python3-dev libffi-dev openssl-dev cargo && \
     pip install -U pip && pip install .\[socks\]
 
 # ==============================================
