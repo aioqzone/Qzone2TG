@@ -1,75 +1,86 @@
 log:
   # 日志等级
   level: info
-  
+
   # 日志格式, 可选
   # format: "[%(levelname)s] %(asctime)s %(name)s: %(message)s"
-  
-  # 日志配置文件. 可选. 若该文件不存在, 务必移除此条目.
+
+  # 时间格式, 可选
+  # datefmt: '%Y %b %d %H:%M:%S'
+
+  # 日志配置文件. 可选. 优先于其他配置; 文件不存在时使用其他配置
   # conf: misc/config.ini
 
 qzone:
   # UA
   # UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62
-  
+
   # qq
   qq: 123456789
-  
+
   # 二维码登录偏好. force/prefer/allow/forbid, 倾向逐次降低.
   qr_strategy: allow
 
 feed:
   # 说说在本地缓存的天数
   keepdays: 3
-  # 归档存储时间. 说说的内容会被舍弃, 用于点赞的必要参数保留更长时间.
+  # 归档存储时间. 说说的内容会被舍弃, 仅保留用于点赞的必要参数.
   archivedays: 180
 
 bot:
   # polling/webhook/refresh
   method: webhook
-  
+
   # bot token
   token: hereisyourtoken
-  
+
   # admin id
   accept_id: 123456789
 
   # bot每秒钟最多发送多少条消息. 注意: 如果您不清楚为什么会有此限制, 就请不要调高此值!!!
   times_per_second: 30
 
-  # 通知静音. 通常TG客户端会有更丰富的设置. "相册模式"总是静音, 不受此项节制.
+  # 通知静音. 通常TG客户端会有更丰富的设置.
   disable_notification: False
-  
+
   # 运行程序后自动执行/start命令, 默认True
   # auto_start: True
-  
-  # 代理, 可选.
-  # proxy:
-  #   # NOTE: to enable socks5 feature, run `pip install python-telegram-bot[socks]` 
-  #   proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
-  #   # Optional, if you need authentication:
-  #   urllib3_proxy_kwargs:
-  #     username: PROXY_USER
-  #     password: PROXY_PASS
-  
+
+  # 网络设置, 可选.
+  # network:
+    # HTTP代理
+    # proxy_url: http://USERNAME:PASSWORD@PROXY_HOST:PROXY_PORT/
+
+    # 如果要使用 socks5 代理, 运行 `pip install python-telegram-bot[socks]`
+    # proxy_url: socks5 OR socks5h://URL_OF_THE_PROXY_SERVER:PROXY_PORT,
+    # socks 认证:
+    # urllib3_proxy_kwargs:
+    #   username: PROXY_USER
+    #   password: PROXY_PASS
+
+    # 连接 telegram api 超时, 可选
+    # connect_timeout: 6
+    # 连接 qzone 超时, 可选
+    # read_timeout: 7
+
   # 仅当使用webhook时设置此项
   webhook:
     # 服务器地址, 重要
     server: ${oc.env:SERVER_NAME}
-    
-    # prefex: 可选, 默认为空. 
+
+    # prefex: 可选, 默认为空.
     # webhook的地址为 https://{server}/{prefex}/{token}
     # prefex为空时为 https://{server}/{token}
     # prefex可能会为反向代理提供方便.
     # prefex: tg
-    
+
     # 访问环境变量, 或者也可以直接给端口号. 默认80. 仅支持80/88/443/8443.
     port: ${oc.env:WEBHOOK_PORT}
-    
+
     # 证书路径, 重要. 若已配置反代则不需要再设置证书和私钥.
     cert: /etc/letsencrypt/live/${bot.webhook.server}/cert.pem
     # 私钥路径, 重要. 若已配置反代则不需要再设置证书和私钥.
     key: /etc/letsencrypt/live/${bot.webhook.server}/privkey.pem
-    
+
     # 最大连接数. 可选.
     # max_connections: 40
