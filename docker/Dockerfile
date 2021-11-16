@@ -1,11 +1,13 @@
-FROM python:3.9 as build
+FROM python:3.9-alpine as build
 
 COPY . /app
 
 WORKDIR /app
 
-RUN apt-get update -y && apt-get install -y gnome-keyring && \
-    pip install .\[socks\]
+RUN apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo && \
+    pip install -U pip && pip install .\[socks\]
+
+# ==============================================
 
 FROM python:3.9-alpine
 
@@ -14,10 +16,11 @@ COPY --from=build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.
 
 WORKDIR /app
 
-RUN apk add nodejs
+RUN apk add nodejs gnome-keyring
 
-VOLUME ["/app/config", "/app/data"]
 EXPOSE 80 88 443 8443
 
 ENV PYTHONPATH src
+ENV DBUS_SESSION_BUS_ADDRESS unix:path=/run/user/0/bus
+
 ENTRYPOINT python src/qzone2tg --no-interaction
