@@ -23,10 +23,11 @@ def getPassword(qzone: DictConfig):
     strategy = qzone.get('qr_strategy', 'prefer')
     if strategy == 'force': return qzone
 
-    if PWD_KEY in qzone:
+    if PWD_KEY in qzone and qzone[PWD_KEY]:
         if not NO_INTERACT:
             logger.fatal("只有无交互模式下才可以从 CLI 传递密码")
             exit(1)
+        return qzone
 
     try:
         import keyring
