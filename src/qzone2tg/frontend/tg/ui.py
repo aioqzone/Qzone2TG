@@ -144,7 +144,7 @@ class TgUI(NullUI):
 
     def QrFetched(self, png: bytes):
         self.qr_msg = self.bot.sendMedia(
-            '扫码登陆:', [png], self._resend and self._defaultButton()
+            '扫码登陆:', [png], self._resend and self._defaultButton(), disable_notification=False
         )[0]
 
     def QrResend(self):
@@ -160,7 +160,7 @@ class TgUI(NullUI):
         super().QrCanceled()
         if self.qr_msg.delete():
             del self.qr_msg
-        self.bot.sendMessage('二维码登录已取消, 当前任务终止.')
+        self.bot.sendMessage('二维码登录已取消, 当前任务终止.', disable_notification=True)
 
     def QrExpired(self, png: bytes):
         self.qr_msg = self.qr_msg.edit_media(
@@ -174,14 +174,15 @@ class TgUI(NullUI):
     def QrFailed(self, *args, **kwargs):
         if self.qr_msg.delete():
             del self.qr_msg
-        self.bot.sendMessage("😢 扫码无响应")
+        self.bot.sendMessage("😢 扫码无响应", disable_notification=True)
+        # Assuming the user is sleeping... I guess disable notification is better :D
 
     def QrScanSucceessed(self):
         if self.qr_msg.delete():
             del self.qr_msg
 
     def loginSuccessed(self):
-        self.ui_msg = self.bot.sendMessage('✔ 登录成功')[0]
+        self.ui_msg = self.bot.sendMessage('✔ 登录成功', disable_notification=True)[0]
 
     def loginFailed(self, msg: str = "unknown"):
         self.bot.sendMessage(f'❌ 登录失败: <b>{msg}</b>')
@@ -193,7 +194,7 @@ class TgUI(NullUI):
                 parse_mode=telegram.ParseMode.HTML
             )
         else:
-            self.ui_msg = self.bot.sendMessage(text='✔ ' + msg)[0]
+            self.ui_msg = self.bot.sendMessage(text='✔ ' + msg, disable_notification=True)[0]
 
     def _fetchEnd(self, sum: int, err: int, silent=False):
         assert sum >= err
@@ -206,7 +207,7 @@ class TgUI(NullUI):
             if err > 0:
                 cmd += f" 发送失败{err}条, 重试也没有用( 请检查服务端日志."
         if not silent:
-            self.bot.sendMessage(cmd)
+            self.bot.sendMessage(cmd, disable_notification=True)
 
     def fetchError(self, msg=None):
         if msg is None: msg = 'Ooops... 出错了qvq'

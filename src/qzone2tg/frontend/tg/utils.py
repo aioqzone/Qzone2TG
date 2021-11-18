@@ -94,6 +94,7 @@ class FixUserBot:
     def editMedia(self, msg: telegram.Message, media: Union[str, bytes]):
         media = self.single_media(media=media, caption=msg.caption)
         try:
+            # TODO: maintain an estimate of read time?
             return msg.edit_media(media=media, reply_markup=msg.reply_markup)
         except telegram.error.TimedOut:
             return msg.edit_media(media=media, reply_markup=msg.reply_markup, timeout=10)
@@ -134,6 +135,5 @@ class FixUserBot:
             chat_id=self.to,
             media=[self.single_media(media[0], caption=text)] + \
                     [self.single_media(i) for i in media[1:]],
-            reply_to_message_id=reply,
-            disable_notification=True
+            reply_to_message_id=reply
         )
