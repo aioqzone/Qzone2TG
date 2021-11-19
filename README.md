@@ -136,6 +136,7 @@ keyring del qzone2tg <your-qq>
 - cssselect [BSD](https://github.com/scrapy/cssselect/blob/master/LICENSE)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
+- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 - qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
