@@ -27,11 +27,11 @@
 
 <a href="https://github.com/JamzumSum/Qzone2TG/releases">
 <img src="https://img.shields.io/github/v/tag/JamzumSum/Qzone2TG?label=beta&include_prereleases&logo=github&color=green">
-</a> 
+</a>
 
 <a href="https://github.com/JamzumSum/Qzone2TG/releases/latest">
 <img src="https://img.shields.io/github/v/release/JamzumSum/Qzone2TG?display_name=tag&label=stable&logo=github&color=success">
-</a> 
+</a>
 
 <a href="https://hub.docker.com/repository/docker/jamzumsum/qzone2tg">
 <img src="https://img.shields.io/docker/v/jamzumsum/qzone2tg/latest?logo=docker&label=docker">
@@ -42,7 +42,7 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> v[2.2.1rc][latest] availible now! <br>
+> v[2.2.1 stable][latest] availible now! <br>
 > We've create official TG channel. Click the badge above to join us.<br>
 > For other announcements, see [Discussion][notice] and my [blog][blog]
 
@@ -60,7 +60,7 @@
 
 ## 截图
 
-> See my [blog][blog] for screenshots, demo vedio, tutorials in detail and other resources. 
+> See my [blog][blog] for screenshots, demo vedio, tutorials in detail and other resources.
 > (咕咕咕
 
 ## 需求
@@ -109,7 +109,7 @@ vim config/config.yaml
 |:--------------|:------------|
 |data           |保存数据库     |
 
-您的密码保存于系统的keyring中. 除此之外, 脚本没有在Qzone2TG文件夹外存储数据. 
+您的密码保存于系统的keyring中. 除此之外, 脚本没有在Qzone2TG文件夹外存储数据.
 
 删除密码:
 ~~~ shell
@@ -142,7 +142,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: ../../wiki/配置文档 "配置文件"
-[latest]: ../../releases/tag/2.2.1b1 "2.2.1"
+[latest]: ../../releases/tag/2.2.1 "2.2.1"
 [docker]: ../../wiki/Docker部署 "Docker部署"
 [notice]: ../../discussions/categories/announcements "Announcement📣"
 [qzemoji]: ../../../QzEmoji "Translate Qzone Emoji to Text"
