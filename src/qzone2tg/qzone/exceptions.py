@@ -17,8 +17,3 @@ class LoginError(RuntimeError):
         super().__init__(msg, qr_strategy)
         self.msg = msg
         self.qr_strategy = qr_strategy
-
-
-class UserBreak(KeyboardInterrupt):
-    def __init__(self) -> None:
-        super().__init__()

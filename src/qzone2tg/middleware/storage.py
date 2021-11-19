@@ -1,26 +1,12 @@
 import logging
 import sqlite3
 import time
-from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Callable, Dict, Union
 
-from qzone.parser import QZFeedParser as Feed
-from utils.decorator import noexcept
-from utils.iterutils import find_if
+from ..utils.iterutils import find_if
 
 logger = logging.getLogger(__name__)
-PAGE_LIMIT = 1000
-
-
-def day_stamp(timestamp: float = None) -> int:
-    if timestamp is None: timestamp = time.time()
-    return int(timestamp // 86400)
-
-
-sqlnoexcept = noexcept({
-    Exception: lambda e: logger.error('sql error occured', exc_info=True)
-})
 
 
 class Table:
@@ -42,11 +28,10 @@ class Table:
 
     @staticmethod
     def arglike(i):
-        return f"'{i}'" if isinstance(i, str) else \
+        return "'%s'" % i.replace("'", "''") if isinstance(i, str) else \
             str(int(i)) if isinstance(i, bool) else \
             str(i)
 
-    @sqlnoexcept
     def createTable(self, index: list = None):
         args = ','.join(f"{k} {v}" for k, v in self.key.items())
         self.cursor.execute(f"create table if not exists {self.name} ({args});")
@@ -56,7 +41,6 @@ class Table:
                 f"create index if not exists {self.name}_idx on {self.name} ({args});"
             )
 
-    @sqlnoexcept
     def __getitem__(self, i):
         self.cursor.execute(
             f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};'
@@ -64,7 +48,6 @@ class Table:
         if (r := self.cursor.fetchone()) is None: return
         return dict(zip(self.key, r))
 
-    @sqlnoexcept
     def __setitem__(self, k, data: dict):
         assert all(i in self.key for i in data)
         if k in self:
@@ -77,9 +60,7 @@ class Table:
             ndata = data.copy()
             ndata[self.pkey] = k
             cols = ','.join(ndata)
-            vals = ','.join(
-                f"'{i}'" if isinstance(i, str) else str(i) for i in ndata.values()
-            )
+            vals = ','.join(self.arglike(i) for i in ndata.values())
             self.cursor.execute(f'insert into {self.name} ({cols}) VALUES ({vals});')
         return data
 
@@ -91,7 +72,6 @@ class Table:
     def __contains__(self, i):
         return bool(Table.__getitem__(self, i))
 
-    @sqlnoexcept
     def find(self, cond_sql: str = '', order=None):
         if cond_sql: cond_sql = 'WHERE ' + cond_sql
         order = f'ORDER BY {order}' if order else ''
@@ -120,13 +100,13 @@ class Table:
 
 
 class _DBBase:
-    def __init__(self, db: Union[str, sqlite3.Connection]) -> None:
+    def __init__(self, db: Union[str, sqlite3.Connection], thread_safe=False) -> None:
         if isinstance(db, sqlite3.Connection):
             self.db = db
         else:
             Path(db).parent.mkdir(parents=True, exist_ok=True)
             self.db_path = db
-            self.db = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.db = sqlite3.connect(self.db_path, check_same_thread=thread_safe)
         self.cursor = self.db.cursor()
 
 
@@ -136,7 +116,7 @@ class FeedBase(_DBBase):
         db: Union[str, sqlite3.Connection],
         keepdays: int = 3,
         archivedays: int = 180,
-        plugins: dict = None
+        plugins: dict = None,
     ) -> None:
 
         super().__init__(db)
@@ -185,54 +165,36 @@ class FeedBase(_DBBase):
             i.createTable()
         self.db.commit()
 
-    def cleanFeed(self):
+    def cleanFeed(self, getLikeId: Callable[[dict], dict]):
         del_limit = int(time.time() - self.archivedays * 86400)
         self.cursor.execute(f'delete from archive WHERE abstime <= {del_limit};')
         self.db.commit()
 
         arch_limit = int(time.time() - self.keepdays * 86400)
-        to_move = self.getFeed(f'abstime <= {arch_limit}')
+        to_move = FeedBase.getFeed(self, f'abstime <= {arch_limit}')
         assert isinstance(to_move, list)
         for i in to_move:
             # move to archive
-            d = i.getLikeId()
-            d.update(fid=d.pop('key'), abstime=i.abstime)
-            self.archive[i.fid] = d
+            d = getLikeId(i)
+            fid = d.pop('key')
+            d['abstime'] = i['abstime']
+            self.archive[fid] = d
             # remove from feed
             for v in self.plugin.values():
-                del v[i.fid]
-            del self.feed[i.fid]
+                del v[fid]
+            del self.feed[fid]
             self.db.commit()
-
-    def dumpFeed(self, feed: Feed, flush=True):
-        args = {
-            'fid': feed.fid,
-            'abstime': feed.abstime,
-            'appid': feed.appid,
-            'typeid': feed.typeid,
-            'nickname': feed.nickname,
-            'uin': feed.uin,
-            'html': feed.raw['html'].replace("'", "''"),
-        }
-        self.feed[feed.fid] = args
-        if flush: self.db.commit()
 
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         table = self.feed * self.plugin[plugin_name] if plugin_name else self.feed
-        r = table.find(
+        return table.find(
             cond_sql=cond_sql,
             order='abstime' if order else None,
         )
-        return r is not None and [Feed(i) for i in r]
 
     def setPluginData(self, plugin: str, fid: str, flush=True, **data):
         self.plugin[plugin][fid] = data
         if flush: self.db.commit()
-
-    def saveFeeds(self, feeds):
-        for i in feeds:
-            self.dumpFeed(i, flush=False)
-        self.db.commit()
 
     def close(self):
         if not self.db: return
@@ -245,10 +207,10 @@ class FeedBase(_DBBase):
 
 
 class TokenTable(Table):
-    def __init__(self, db: sqlite3.Connection) -> None:
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
         super().__init__(
             'token',
-            db.cursor(),
+            cursor,
             key={
                 'uin': 'INT PRIMARY KEY',
                 'p_skey': 'VARCHAR NOT NULL',
@@ -258,7 +220,6 @@ class TokenTable(Table):
             },
             pkey='uin'
         )
-        self.db = db
         self.createTable()
 
     def __getitem__(self, uin: int):
@@ -268,8 +229,8 @@ class TokenTable(Table):
 
     def __setitem__(self, k, data: dict):
         super().__setitem__(k, data)
-        self.db.commit()
+        self.cursor.connection.commit()
 
     def __delitem__(self, i):
         super().__delitem__(i)
-        self.db.commit()
+        self.cursor.connection.commit()

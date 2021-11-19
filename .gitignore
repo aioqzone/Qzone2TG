@@ -1,28 +1,31 @@
-# config and cache
-__pycache__
+# config
 .vscode
 yapf_style.cfg
 .pylintrc
 
+# cache
+__pycache__
+
 # my private data
 /data
+/config
+!/config/test_conf.yml
 .env
-test/test_bot.py
-config/config.yaml
+/test/test_bot.py
 
 # temporary files
+/log
 tmp
+archive
 test.*
 *.html
 *.xml
 *.log
 
-dockerfile
-
-# build
+# build and build meta
 /build
 /dist
 *.egg-info
 
-# archive
-archive
+# bin
+/venv

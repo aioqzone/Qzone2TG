@@ -22,9 +22,8 @@ class QREvent(ABC):
     def QrExpired(self, new_png: bytes):
         pass
 
-    @abstractmethod
     def QrCanceled(self):
-        pass
+        self._cancel and self._cancel()
 
     def register_resend_callback(self, resend_callback: Callable[[], bytes]):
         self._resend = resend_callback
@@ -47,16 +46,21 @@ class QzoneEvent(ABC):
         pass
 
     @abstractmethod
-    def fetchEnd(self):
-        pass
-
-    @abstractmethod
     def fetchError(self):
         pass
 
 
 class FeedEvent(ABC):
-    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
+    @abstractmethod
+    def feedFetched(self, feed):
+        pass
+
+    @abstractmethod
+    def allFetchEnd(self, sum: int):
+        pass
+
+    @abstractmethod
+    def mediaUpdate(self, media: list):
         pass
 
 
@@ -73,9 +77,6 @@ class NullUI(QREvent, QzoneEvent, FeedEvent):
     def QrExpired(self, new_png: bytes, *args, **kwargs):
         pass
 
-    def QrCanceled(self):
-        pass
-
     def loginSuccessed(self, *args, **kwargs):
         pass
 
@@ -85,11 +86,14 @@ class NullUI(QREvent, QzoneEvent, FeedEvent):
     def pageFetched(self, *args, **kwargs):
         pass
 
-    def fetchEnd(self, *args, **kwargs):
-        pass
-
     def fetchError(self, msg, *args, **kwargs):
         pass
 
-    def contentReady(self, msg: str, forward: str, img: list, *args, **kwargs):
-        return super().contentReady(msg, forward, img, *args, **kwargs)
+    def mediaUpdate(self, msg_ref: list, media: list):
+        pass
+
+    def feedFetched(self, feed):
+        pass
+
+    def allFetchEnd(self, sum: int):
+        pass

@@ -1,5 +1,6 @@
 import time
-from utils.decorator import FloodControl
+
+from qzone2tg.utils.decorator import FloodControl
 
 verbose = False
 
