@@ -8,12 +8,12 @@ import telegram
 from pytz import timezone
 from qqqr.exception import UserBreak
 from qzone2tg.qzone.feed import QzCachedScraper
-from qzone2tg.utils.decorator import Locked, atomic, noexcept
+from qzone2tg.utils.decorator import Locked, atomic
 from requests.exceptions import HTTPError
-from telegram.error import TimedOut
+from telegram.error import BadRequest, TimedOut
 from telegram.ext import Defaults, Updater
 
-from .ui import TgExtracter, TgUI, retry_once
+from .ui import TgExtracter, TgUI
 
 TIME_ZONE = timezone('Asia/Shanghai')
 logger = logging.getLogger(__name__)
@@ -53,13 +53,6 @@ class TgHook(TgUI):
         self.stack = SendTransaction()
         self.like = like
         super().__init__(bot, chat_id, **kwds)
-        self._register_decorator()
-
-    def _register_decorator(self):
-        # the first arg after self is feed, so with_self will pass feed as self.
-        self._contentReady = retry_once(
-            lambda feed, exc: f"feed {feed.feed}: {exc}", with_self=True
-        )(self.__contentReady)
 
     def register_sent_callback(self, cb: Callable):
         self.sent_callback = cb
@@ -100,8 +93,27 @@ class TgHook(TgUI):
         else:
             return self.bot.sendMessage(msg, reply_markup)
 
+    def _contentReady(self, feed: TgExtracter):
+        for i in range(2):
+            if i < 1:
+                try:
+                    return self.__contentReady(feed)
+                except TimedOut as e:
+                    logger.warning(e.message)
+                except BadRequest as e:
+                    logger.error(f'BadRequest. Args: {feed.content()}')
+                except BaseException as e:
+                    logger.error(f"feed {feed.feed}: {e}", exc_info=True)
+            else:
+                try:
+                    return self.__contentReady(feed)
+                except:
+                    logger.error("Max retry exceed.", exc_info=True)
+        return []
+
     def _sendExtracter(self, feed: TgExtracter):
         msgs = self._contentReady(feed)
+        if not msgs: return
         self.sent_callback(feed.feed)
         if feed.imageFuture:
 

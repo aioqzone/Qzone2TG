@@ -4,8 +4,6 @@ from typing import Callable, List
 import telegram
 from qzone2tg.middleware import ContentExtracter
 from qzone2tg.middleware.hook import NullUI
-from qzone2tg.utils.decorator import Retry
-from telegram.error import BadRequest, TimedOut
 
 from .compress import LikeId
 from .utils import FixUserBot
@@ -14,41 +12,10 @@ SUPPORT_TYPEID = (0, 2, 5, 11)
 SUPPORT_APPID = (4, 11, 202, 311)
 APP_NAME = {4: 'QQ相册', 202: '分享', 311: 'QQ空间'}
 
-br = '\n'          # tg donot support <br>, instead \n is used
+br = '\n'    # tg donot support <br>, instead \n is used
 hr = '=========================='
 
 logger = logging.getLogger(__name__)
-
-
-class retry_once(Retry):
-    def __init__(self, msg_callback=None, **kw):
-        self.msg_callback = msg_callback or (lambda exc: str(exc))
-        super().__init__({
-            TimedOut: self.__TimedOut__,
-            BadRequest: self.__BadRequest__,
-            BaseException: self.__BaseException__
-        }, **kw)
-
-    def _last_fail(self, e: BaseException):
-        logger.error(self.msg_callback(exc=e) + " (retry failed)")
-
-    def __TimedOut__(self, e: TimedOut, i: int):
-        if i < 1:
-            logger.warning(e.message)
-        else:
-            self._last_fail(e)
-
-    def __BadRequest__(self, e: BadRequest, i: int):
-        if i < 1:
-            logger.warning(self.msg_callback(exc=e), exc_info=True)
-        else:
-            self._last_fail(e)
-
-    def __BaseException__(self, e: BaseException, i: int):
-        if i < 1:
-            logger.error(self.msg_callback(exc=e), exc_info=True)
-        else:
-            self._last_fail(e)
 
 
 class TgExtracter(ContentExtracter):
@@ -190,8 +157,7 @@ class TgUI(NullUI):
     def pageFetched(self, msg):
         if hasattr(self, 'ui_msg'):
             self.ui_msg = self.ui_msg.edit_text(
-                self.ui_msg.text_html + br + '✔ ' + msg,
-                parse_mode=telegram.ParseMode.HTML
+                self.ui_msg.text_html + br + '✔ ' + msg, parse_mode=telegram.ParseMode.HTML
             )
         else:
             self.ui_msg = self.bot.sendMessage(text='✔ ' + msg, disable_notification=True)[0]
@@ -213,8 +179,7 @@ class TgUI(NullUI):
         if msg is None: msg = 'Ooops... 出错了qvq'
         if hasattr(self, 'ui_msg'):
             self.ui_msg = self.ui_msg.edit_text(
-                self.ui_msg.text_html + '\n❌ ' + msg,
-                parse_mode=telegram.ParseMode.HTML
+                self.ui_msg.text_html + '\n❌ ' + msg, parse_mode=telegram.ParseMode.HTML
             )
             del self.ui_msg
         else:
