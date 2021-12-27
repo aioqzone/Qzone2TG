@@ -8,11 +8,11 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
+from qzone2tg import __version__ as QZ_VER
 from qzone2tg.frontend.tg import PollingBot, RefreshBot, WebhookBot
 from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.api import QzoneApi
 from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
-from qzone2tg.qzone.scraper import QzoneScraper
-from qzone2tg import __version__ as QZ_VER
 
 NO_INTERACT: bool = True
 NAME_LOWER = 'qzone2tg'
@@ -113,7 +113,7 @@ def checkUpdate(proxy: str = None):
     DBMgr.autoUpdate('data/emoji.db')
     logger.debug('emoji db upgraded')
 
-    from updater.github import Repo, GhUpdater, register_proxy
+    from updater.github import GhUpdater, Repo, register_proxy
     from updater.utils import version_filter
     if proxy: register_proxy({'http': proxy, 'https': proxy})
     up = GhUpdater(Repo('JamzumSum', 'Qzone2TG'))
@@ -144,7 +144,7 @@ def main(args):
     db = FeedDB(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
     logger.debug('database OK')
 
-    spider = QzoneScraper(TokenTable(db.cursor), **d.qzone)
+    spider = QzoneApi(TokenTable(db.cursor), **d.qzone)
     feedmgr = QzCachedScraper(spider, db)
     logger.debug('crawler OK')
 

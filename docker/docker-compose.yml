@@ -7,7 +7,7 @@ services:
     environment:
       DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/0/bus
     volumes:
-      - ${DBUS_SESSION_BUS_PATH}:unix:path=/run/user/0/bus:ro
+      - /tmp/proxybus:/run/user/0/bus:ro
       - $PWD/config/config.yaml:/app/config/config.yaml:ro
       - $PWD/data:/app/data
     privileged: true

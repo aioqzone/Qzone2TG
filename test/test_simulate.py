@@ -5,9 +5,9 @@ import pytest
 from omegaconf import OmegaConf
 from qzone2tg.frontend.tg.ui import TgExtracter
 from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.api import QzoneApi
 from qzone2tg.qzone.exceptions import LoginError
 from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
-from qzone2tg.qzone.scraper import QzoneScraper
 
 db = FEEDS = None
 
@@ -64,7 +64,7 @@ class TestSimulate:
     @classmethod
     def setup_class(cls):
         cls.spider = QzCachedScraper(
-            QzoneScraper(TokenTable(db.cursor),
+            QzoneApi(TokenTable(db.cursor),
                          **conf().qzone), db
         )
         cls.spider.cleanFeed()

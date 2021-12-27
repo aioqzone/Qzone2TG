@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.api import QzoneApi
 from qzone2tg.qzone.exceptions import LoginError
 from qzone2tg.qzone.parser import QzJsonParser
-from qzone2tg.qzone.scraper import QzoneScraper
 
 login = db = FEEDS = None
 
@@ -29,7 +29,7 @@ def setup_module():
 class TestQzone:
     @classmethod
     def setup_class(cls):
-        cls.spider = QzoneScraper(TokenTable(db.cursor()), **load_conf().qzone)
+        cls.spider = QzoneApi(TokenTable(db.cursor()), **load_conf().qzone)
 
     def test_UpdateStatus(self, force_login=True):
         global login

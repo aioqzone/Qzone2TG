@@ -12,7 +12,7 @@ from ..middleware.utils import day_stamp
 from ..utils.decorator import atomic, noexcept
 from .exceptions import LoginError
 from .parser import QzJsonParser as Parser
-from .scraper import QzoneScraper
+from .api import QzoneApi
 
 logger = logging.getLogger(__name__)
 FeedProcess = Callable[[Parser], None]
@@ -21,8 +21,8 @@ FeedProcess = Callable[[Parser], None]
 class FeedDB(FeedBase):
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):
         return [
-            Parser(i) for i in
-            super().getFeed(cond_sql=cond_sql, plugin_name=plugin_name, order=order)
+            Parser(i)
+            for i in super().getFeed(cond_sql=cond_sql, plugin_name=plugin_name, order=order)
         ]
 
     def cleanFeed(self):
@@ -55,8 +55,7 @@ class PostProcess:
 
     def register_postprocess(self, proc: FeedProcess):
         ned = noexcept({
-            BaseException: lambda _: logger.
-            warning(f'Expt in {proc.__name__}:', exc_info=True)
+            BaseException: lambda _: logger.warning(f'Expt in {proc.__name__}:', exc_info=True)
         })
         self.post.append(ned(proc))
 
@@ -84,7 +83,7 @@ class QzFeedScraper(PostProcess):
     def _post_album(self, i: Parser):
         i.setAlbumFuture(lambda d, n: self.qzone.photoList(d, i.uin, n))
 
-    def __init__(self, qzone: QzoneScraper, max_worker=None):
+    def __init__(self, qzone: QzoneApi, max_worker=None):
         super().__init__(max_worker)
         self.qzone = qzone
         self.register_postprocess(self._post_complete)
@@ -106,8 +105,7 @@ class QzFeedScraper(PostProcess):
         if feeds is None: return []
 
         @noexcept({
-            BaseException: lambda _: logger.
-            error('Expt in concurrent context.', exc_info=True)
+            BaseException: lambda _: logger.error('Expt in concurrent context.', exc_info=True)
         })
         def concurrent(i: dict):
             # a coarse concurrency. need further optimization.
@@ -198,7 +196,7 @@ class QzFeedScraper(PostProcess):
 class QzCachedScraper(QzFeedScraper):
     """Easy API for scraper + Database
     """
-    def __init__(self, qzone: QzoneScraper, db: FeedDB, max_worker=None):
+    def __init__(self, qzone: QzoneApi, db: FeedDB, max_worker=None):
         super().__init__(qzone, max_worker)
         self.db = db
         self.cleanFeed = self.db.cleanFeed
@@ -233,9 +231,7 @@ class QzCachedScraper(QzFeedScraper):
         """
 
         new = super().getNewFeeds(
-            pagenum=pagenum,
-            day_limit=day_stamp() - self.db.keepdays,
-            ignore_exist=ignore_exist
+            pagenum=pagenum, day_limit=day_stamp() - self.db.keepdays, ignore_exist=ignore_exist
         )
         self.db.saveFeeds(new)
         return new
