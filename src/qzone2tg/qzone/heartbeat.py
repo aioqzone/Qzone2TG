@@ -1,7 +1,7 @@
 import logging
 import time
 from random import random
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Optional, Union
 
 import requests
 from qqqr.base import UA as DefaultUA
@@ -81,7 +81,7 @@ class _LoginHelper:
             logger.error('Error in QR Login.', exc_info=True)
 
     @Lock_RunOnce()
-    def login(self) -> Dict[str, str]:
+    def login(self) -> dict[str, str]:
         """login and return cookie according to qr_strategy
 
         Returns:

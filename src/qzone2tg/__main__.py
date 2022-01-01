@@ -8,11 +8,11 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
+from qzone2tg import __version__ as QZ_VER
 from qzone2tg.frontend.tg import PollingBot, RefreshBot, WebhookBot
 from qzone2tg.middleware.storage import TokenTable
+from qzone2tg.qzone.api import QzoneApi
 from qzone2tg.qzone.feed import FeedDB, QzCachedScraper
-from qzone2tg.qzone.scraper import QzoneScraper
-from qzone2tg import __version__ as QZ_VER
 
 NO_INTERACT: bool = True
 NAME_LOWER = 'qzone2tg'
@@ -107,15 +107,15 @@ def dueWithConfig(conf: DictConfig, NO_INTERACT=False):
     return conf
 
 
-def checkUpdate(proxy: str = None):
+def checkUpdate(proxy: str = None, auth: dict = None):
     from qzemoji import DBMgr
-    if proxy: DBMgr.proxy = proxy
+    from updater.github import GhUpdater, Repo
+    from updater.utils import version_filter
+
+    if proxy: DBMgr.register_proxy(proxy, auth)
     DBMgr.autoUpdate('data/emoji.db')
     logger.debug('emoji db upgraded')
 
-    from updater.github import Repo, GhUpdater, register_proxy
-    from updater.utils import version_filter
-    if proxy: register_proxy({'http': proxy, 'https': proxy})
     up = GhUpdater(Repo('JamzumSum', 'Qzone2TG'))
     vf = version_filter(up, f'>{QZ_VER}', 1, pre=True)
     vf = list(vf)
@@ -144,11 +144,19 @@ def main(args):
     db = FeedDB(f"data/{d.qzone.qq}.db", **d.feed, plugins=tg_plugin_def)
     logger.debug('database OK')
 
-    spider = QzoneScraper(TokenTable(db.cursor), **d.qzone)
+    spider = QzoneApi(TokenTable(db.cursor), **d.qzone)
     feedmgr = QzCachedScraper(spider, db)
     logger.debug('crawler OK')
 
-    checkUpdate(d.bot.get('network', {}).get('proxy_url', None))
+    try:
+        checkUpdate(
+            d.bot.get('network', {}).get('proxy_url', None),
+            d.bot.get('network', {}).get('urllib3_proxy_kwargs', None)
+        )
+    except:
+        logger.error("Error when checking update.", exc_info=True)
+    else:
+        logger.info('更新检查结束')
 
     method = d.bot.pop('method', None)
     if 'webhook' in d.bot:
@@ -178,9 +186,12 @@ if __name__ == '__main__':
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
     if arg.version:
-        from . import __version__
-        print(__version__)
+        from pathlib import Path
+        versionfile = Path(__file__).parent / 'VERSION'
+        with open(versionfile) as f:
+            print(f.read(), end='')
         exit(0)
+
     global CONF_PATH
     CONF_PATH = arg.config
     NO_INTERACT = arg.no_interaction

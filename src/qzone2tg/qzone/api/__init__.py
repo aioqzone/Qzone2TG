@@ -1,7 +1,7 @@
 """
-qzone: 
+qzone:
     Fetch feeds from qzone, Along with qzone login and cookie management.
-    
+
     credits: https://github.com/bufuchangfeng/qzone/blob/master/qzone_with_code.py
 """
 
@@ -31,7 +31,7 @@ def time_ms():
     return round(time.time() * 1000)
 
 
-class QzoneScraper(HBMgr):
+class QzoneApi(HBMgr):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.extern = {1: "undefined"}
@@ -124,7 +124,7 @@ class QzoneScraper(HBMgr):
         """fetch a page of feeds
 
         - login_if_expire
-        
+
         Args:
             pagenum (int): page #, starts from 1.
             count (int, optional): Max feeds num. Defaults to 10.

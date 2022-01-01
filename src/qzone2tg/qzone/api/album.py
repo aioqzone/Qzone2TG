@@ -27,10 +27,10 @@ class AlbumTask:
 
 class AlbumQue(threading.Thread, Generic[T]):
     """
-    Since Qzone album service is always slow to response, this module 
+    Since Qzone album service is always slow to response, this module
     is to manage a queue to arrange album requests.
 
-    The requests will be sent within an AIMD manner, 
+    The requests will be sent within an AIMD manner,
     and the result will be passed through future and callback.
     """
     def __init__(self, request: Callable[[T], list], max_retry: int = 12) -> None:
@@ -80,9 +80,7 @@ class AlbumQue(threading.Thread, Generic[T]):
         """get unfinished_tasks"""
         return self.que.unfinished_tasks
 
-    def add(self,
-            args: Tuple[T],
-            cb: Callable[[Future[list]], Any] = None) -> Future[list]:
+    def add(self, args: Tuple[T], cb: Callable[[Future[list]], Any] = None) -> Future[list]:
         """add a task
 
         Args:
