@@ -107,15 +107,15 @@ def dueWithConfig(conf: DictConfig, NO_INTERACT=False):
     return conf
 
 
-def checkUpdate(proxy: str = None):
+def checkUpdate(proxy: str = None, auth: dict = None):
     from qzemoji import DBMgr
-    if proxy: DBMgr.proxy = proxy
+    from updater.github import GhUpdater, Repo
+    from updater.utils import version_filter
+
+    if proxy: DBMgr.register_proxy(proxy, auth)
     DBMgr.autoUpdate('data/emoji.db')
     logger.debug('emoji db upgraded')
 
-    from updater.github import GhUpdater, Repo, register_proxy
-    from updater.utils import version_filter
-    if proxy: register_proxy({'http': proxy, 'https': proxy})
     up = GhUpdater(Repo('JamzumSum', 'Qzone2TG'))
     vf = version_filter(up, f'>{QZ_VER}', 1, pre=True)
     vf = list(vf)
@@ -148,7 +148,15 @@ def main(args):
     feedmgr = QzCachedScraper(spider, db)
     logger.debug('crawler OK')
 
-    checkUpdate(d.bot.get('network', {}).get('proxy_url', None))
+    try:
+        checkUpdate(
+            d.bot.get('network', {}).get('proxy_url', None),
+            d.bot.get('network', {}).get('urllib3_proxy_kwargs', None)
+        )
+    except:
+        logger.error("Error when checking update.", exc_info=True)
+    else:
+        logger.info('更新检查结束')
 
     method = d.bot.pop('method', None)
     if 'webhook' in d.bot:
