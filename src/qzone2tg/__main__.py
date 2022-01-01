@@ -186,9 +186,12 @@ if __name__ == '__main__':
 
     arg = psr.parse_args(i for i in sys.argv if i.startswith('-'))
     if arg.version:
-        from . import __version__
-        print(__version__)
+        from pathlib import Path
+        versionfile = Path(__file__).parent / 'VERSION'
+        with open(versionfile) as f:
+            print(f.read(), end='')
         exit(0)
+
     global CONF_PATH
     CONF_PATH = arg.config
     NO_INTERACT = arg.no_interaction
