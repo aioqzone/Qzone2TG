@@ -24,5 +24,5 @@ EXPOSE 80 88 443 8443
 ENV PYTHONPATH src
 ENV DBUS_SESSION_BUS_ADDRESS unix:path=/run/user/0/bus
 
-ENTRYPOINT python src/qzone2tg
+ENTRYPOINT ["python", "src/qzone2tg"]
 CMD ["--no-interaction"]
