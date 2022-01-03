@@ -1,5 +1,6 @@
 import logging
 from bisect import bisect_left
+from concurrent.futures import Future
 from datetime import time as Time
 from functools import wraps
 from typing import Callable
@@ -63,14 +64,17 @@ class TgHook(TgUI):
             logger.warning('Some feeds may be omitted.')
 
         for i, feed in enumerate(self.stack):
-            self._sendExtracter(feed)
-            logger.debug(f'message sent {i + 1}/{len(self.stack)}')
+            try:
+                self._sendExtracter(feed)
+                logger.debug(f'message sent {i + 1}/{len(self.stack)}')
+            except:
+                logger.error('FATAL: exception out of catch!!!')
+                self.stack.err += 1
 
-        try:
-            self._fetchEnd(sum - self.stack.err, self.stack.err, silent=self.stack.is_period)
-        finally:
-            self.stack.clear()
-            logger.debug('TgHook stack cleared')
+        err, silent = self.stack.err, self.stack.is_period
+        self.stack.clear()
+        logger.debug('TgHook stack cleared')
+        self._fetchEnd(sum - err, err, silent=silent)
 
     def feedFetched(self, feed):
         feed = TgExtracter(feed)
@@ -117,7 +121,7 @@ class TgHook(TgUI):
         self.sent_callback(feed.feed)
         if feed.imageFuture:
 
-            def update_media_callback(future):
+            def update_media_callback(future: Future):
                 try:
                     media = future.result()
                 except:    # TODO: QzoneError; TimeoutError
