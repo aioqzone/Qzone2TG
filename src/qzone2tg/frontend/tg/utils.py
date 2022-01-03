@@ -92,12 +92,17 @@ class FixUserBot:
             return telegram.InputMediaPhoto(media=media, **kwargs)
 
     def editMedia(self, msg: telegram.Message, media: Union[str, bytes]):
-        media = self.single_media(media=media, caption=msg.caption)
+        m_obj = self.single_media(media=media, caption=msg.caption)
         try:
             # TODO: maintain an estimate of read time?
-            return msg.edit_media(media=media, reply_markup=msg.reply_markup)
-        except telegram.error.TimedOut:
-            return msg.edit_media(media=media, reply_markup=msg.reply_markup, timeout=10)
+            return msg.edit_media(media=m_obj, reply_markup=msg.reply_markup)
+        except telegram.error.TelegramError:
+            pass
+        try:
+            telegram.Bot.edit_message_media
+            return msg.edit_media(media=m_obj, reply_markup=msg.reply_markup, timeout=20)
+        except telegram.error.TelegramError:
+            return msg
 
     def sendMedia(
         self,
