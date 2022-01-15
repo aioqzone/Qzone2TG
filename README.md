@@ -42,9 +42,9 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> v[2.2.1 stable][latest] availible now! <br>
-> We've create official TG channel. Click the badge above to join us.<br>
-> For other announcements, see [Discussion][notice] and my [blog][blog]
+> [2.2.2][latest] 已更新! <br>
+> 点击上方徽章, 加入我们的TG频道和讨论组.<br>
+> 在 [Github Discussion][notice] 查看更多信息.
 
 ---
 
@@ -143,7 +143,7 @@ keyring del qzone2tg <your-qq>
 
 
 [conf]: ../../wiki/配置文档 "配置文件"
-[latest]: ../../releases/tag/2.2.1 "2.2.1"
+[latest]: ../../releases/tag/2.2.2.post1 "2.2.2.post1"
 [docker]: ../../wiki/Docker部署 "Docker部署"
 [notice]: ../../discussions/categories/announcements "Announcement📣"
 [qzemoji]: ../../../QzEmoji "Translate Qzone Emoji to Text"
