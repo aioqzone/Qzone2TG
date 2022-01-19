@@ -43,8 +43,8 @@
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
 > [2.2.2][latest] 已更新! <br>
-> 点击上方徽章, 加入我们的TG频道和讨论组.<br>
-> 在 [Github Discussion][notice] 查看更多信息.
+> 点击上方徽章, 加入我们的TG频道和讨论组, 在 [Github Discussion][notice] 查看更多信息.<br>
+> 关于3.0: 3.0版本是一个重写版本. 考虑到目前的进度和作者的时间安排, 3.0的到来：_遥遥无期_
 
 ---
 
@@ -57,11 +57,6 @@
 - [x] 点赞(应用消息的点赞有时间限制)
 - [x] 过滤广告
 - [x] 简单的tg机器人, 支持webhook
-
-## 截图
-
-> See my [blog][blog] for screenshots, demo vedio, tutorials in detail and other resources.
-> (咕咕咕
 
 ## 需求
 

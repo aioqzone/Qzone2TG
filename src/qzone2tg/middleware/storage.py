@@ -13,11 +13,7 @@ class Table:
     order_on = None
 
     def __init__(
-        self,
-        name: str,
-        cursor: sqlite3.Cursor,
-        key: Dict[str, Any],
-        pkey: str = None
+        self, name: str, cursor: sqlite3.Cursor, key: Dict[str, Any], pkey: str = None
     ) -> None:
         pkey = pkey or find_if(key.items(), lambda t: 'PRIMARY KEY' in t[1])[0]
         assert pkey and pkey in key
@@ -42,9 +38,7 @@ class Table:
             )
 
     def __getitem__(self, i):
-        self.cursor.execute(
-            f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};'
-        )
+        self.cursor.execute(f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};')
         if (r := self.cursor.fetchone()) is None: return
         return dict(zip(self.key, r))
 
@@ -65,9 +59,7 @@ class Table:
         return data
 
     def __delitem__(self, i):
-        self.cursor.execute(
-            f'delete from {self.name} WHERE {self.pkey}={self.arglike(i)};'
-        )
+        self.cursor.execute(f'delete from {self.name} WHERE {self.pkey}={self.arglike(i)};')
 
     def __contains__(self, i):
         return bool(Table.__getitem__(self, i))
@@ -89,8 +81,8 @@ class Table:
         key = self.key.copy()
         key.update(tbl.key)
         r = Table(
-            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor,
-            key, self.pkey
+            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor, key,
+            self.pkey
         )
         r.parent = self, tbl
         return r
@@ -175,14 +167,18 @@ class FeedBase(_DBBase):
         assert isinstance(to_move, list)
         for i in to_move:
             # move to archive
-            d = getLikeId(i)
-            fid = d.pop('key')
-            d['abstime'] = i['abstime']
-            self.archive[fid] = d
+            try:
+                d = getLikeId(i)
+            except ValueError:
+                logger.error('Html corrupted: \n%s', i['html'])
+            else:
+                fid = d.pop('key')
+                d['abstime'] = i['abstime']
+                self.archive[fid] = d
             # remove from feed
             for v in self.plugin.values():
-                del v[fid]
-            del self.feed[fid]
+                del v[i['fid']]
+            del self.feed[i['fid']]
             self.db.commit()
 
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):

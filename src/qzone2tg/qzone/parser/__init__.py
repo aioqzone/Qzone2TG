@@ -2,7 +2,7 @@ import logging
 import re
 from concurrent.futures import Future
 from pathlib import PurePath
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Tuple
 from urllib.parse import urlparse
 
 from lxml.html import HtmlElement, fromstring, tostring
@@ -59,12 +59,10 @@ class QzHtmlParser(QzCssHelper):
 
     @staticmethod
     def trans(html: str):
-        return re.sub(
-            r"\\{1,2}x([\dA-F]{2})", lambda m: chr(int(m.group(1), 16)), html.strip()
-        )
+        return re.sub(r"\\{1,2}x([\dA-F]{2})", lambda m: chr(int(m.group(1), 16)), html.strip())
 
     @cached
-    def src(self) -> HtmlElement:
+    def src(self) -> HtmlElement:    # type: ignore
         pass
 
     @src.setter
@@ -92,14 +90,13 @@ class QzHtmlParser(QzCssHelper):
         img = self.fct.cssselect('a.img-item')
         return [ImageItem(i) for i in img]
 
-    def setAlbumFuture(
-        self, get_raw_cb: Callable[[dict, int], Future[List[Dict[str, str]]]] = None
-    ):
+    def setAlbumFuture(self, get_raw_cb: Callable[[dict, int], Future[List[Dict[str, str]]]]):
         img = self._imageItems()
         if not img or not (first := img[0]).hasAlbum():
             return
 
         def cb(future: Future[List[Dict[str, str]]]):
+            assert self.img_future
             try:
                 r = future.result()
             except BaseException as e:
@@ -149,8 +146,8 @@ class QzHtmlParser(QzCssHelper):
 
     @cached
     def feedData(self) -> Dict[str, str]:
-        elm = self.fsc.cssselect('i[name="feed_data"]')
-        elm = elm[0].attrib
+        fd: list[HtmlElement] = self.fsc.cssselect('i[name="feed_data"]')
+        elm: Mapping[str, str] = fd[0].attrib
         if elm:
             return {k[5:]: v for k, v in elm.items() if k.startswith("data-")}
         else:
@@ -161,12 +158,14 @@ class QzHtmlParser(QzCssHelper):
     def likeData(self):
         """
         dict contains (islike, likecnt, showcount, unikey, curkey, ...)
-        """
 
-        att: Dict[str, str] = (
-            self.ffoot.cssselect('a.qz_like_prase') +
-            self.ffoot.cssselect('a.qz_like_btn_v3')
-        )[0].attrib
+        Raises:
+            ValueError if no like button in html.
+        """
+        likebtn: list[HtmlElement] = self.ffoot.cssselect(
+            'a.qz_like_prase'
+        ) + self.ffoot.cssselect('a.qz_like_btn_v3')
+        att: Mapping[str, str] = likebtn[0].attrib
         assert att
         return {k[5:]: v for k, v in att.items() if k.startswith('data-')}
 
@@ -188,8 +187,7 @@ class QzHtmlParser(QzCssHelper):
             if not isinstance(a, HtmlElement): continue
 
             if a.tag == 'div' and safe_cls(a).startswith('brand-name'):
-                if (ia := find_if(
-                        a, lambda i: safe_cls(i).startswith('nickname'))) is not None:
+                if (ia := find_if(a, lambda i: safe_cls(i).startswith('nickname'))) is not None:
                     link = ia.get('href')
                     nick = ia.text.strip()
                     txtbox[i] = a.tail or ""
