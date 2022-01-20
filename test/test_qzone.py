@@ -73,6 +73,7 @@ class TestQzone:
         if not FEEDS: pytest.skip('pred test failed')
         for i in FEEDS:
             d = i.getLikeId()
+            if not d: continue
             if i.isLike:
                 assert self.spider.doLike(d, False)
                 assert self.spider.doLike(d, True)

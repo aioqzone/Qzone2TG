@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 from ..utils.iterutils import find_if
 
@@ -157,7 +157,7 @@ class FeedBase(_DBBase):
             i.createTable()
         self.db.commit()
 
-    def cleanFeed(self, getLikeId: Callable[[dict], dict]):
+    def cleanFeed(self, getLikeId: Callable[[dict], Optional[dict]]):
         del_limit = int(time.time() - self.archivedays * 86400)
         self.cursor.execute(f'delete from archive WHERE abstime <= {del_limit};')
         self.db.commit()
@@ -167,11 +167,8 @@ class FeedBase(_DBBase):
         assert isinstance(to_move, list)
         for i in to_move:
             # move to archive
-            try:
-                d = getLikeId(i)
-            except ValueError:
-                logger.error('Html corrupted: \n%s', i['html'])
-            else:
+            d = getLikeId(i)
+            if d:
                 fid = d.pop('key')
                 d['abstime'] = i['abstime']
                 self.archive[fid] = d

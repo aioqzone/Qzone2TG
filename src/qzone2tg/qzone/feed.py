@@ -250,4 +250,6 @@ class QzCachedScraper(QzFeedScraper):
         """
         r = self.db.feed[fid] or self.db.archive[fid]
         if not r: raise FileNotFoundError
-        return self.like(Parser(r).getLikeId())
+        lid = Parser(r).getLikeId()
+        if not lid: return False
+        return self.like(lid)

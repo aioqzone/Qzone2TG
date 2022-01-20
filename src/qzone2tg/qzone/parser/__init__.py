@@ -165,6 +165,7 @@ class QzHtmlParser(QzCssHelper):
         likebtn: list[HtmlElement] = self.ffoot.cssselect(
             'a.qz_like_prase'
         ) + self.ffoot.cssselect('a.qz_like_btn_v3')
+        if not likebtn: return
         att: Mapping[str, str] = likebtn[0].attrib
         assert att
         return {k[5:]: v for k, v in att.items() if k.startswith('data-')}
@@ -270,6 +271,7 @@ class QzJsonParser(QzHtmlParser):
         return int(self._raw['abstime'])
 
     def getLikeId(self):
+        if not self.likeData: return
         return {
             'unikey': self.unikey,
             'curkey': self.curkey,
