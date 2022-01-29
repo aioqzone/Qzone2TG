@@ -1,0 +1,10 @@
+.vscode
+.env
+
+*.pyc
+*.egg-info
+tmp
+archive
+
+/dist
+/config
