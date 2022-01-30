@@ -18,6 +18,8 @@ from telegram import Message
 from telegram import TelegramError
 from telegram.ext import Dispatcher
 
+from .queue import ForwardEvent
+from .queue import MsgScheduler
 from .queue import RelaxSemaphore
 
 TEXT_LIM = 4096
@@ -57,7 +59,7 @@ class BotHelper:
             return self.bot.send_media_group(**kwds, **kw)
 
 
-class UnifiedHook(LoginEvent, QREvent, FeedEvent):
+class UnifiedHook(LoginEvent, QREvent, FeedEvent, ForwardEvent):
     def __init__(self, bot: Bot, admin: Union[str, int]) -> None:
         super().__init__()
         self.bot = BotHelper(bot)
@@ -65,6 +67,7 @@ class UnifiedHook(LoginEvent, QREvent, FeedEvent):
         self.qr_times: int = 0
         self.qr_msg: Optional[Message] = None
         self.lg_msg: Optional[Message] = None
+        self.msg_scd: Optional[MsgScheduler] = None
 
     async def LoginFailed(self, msg: str = None):
         await self.bot.send_message(self.admin, text=msg or '登录失败')
@@ -91,7 +94,14 @@ class UnifiedHook(LoginEvent, QREvent, FeedEvent):
         self.qr_msg = None
 
     async def FeedProcEnd(self, bid: int, feed: FeedContent):
-        return await super().FeedProcEnd(bid, feed)
+        assert self.msg_scd
+        await self.msg_scd.add(bid, feed)
 
     async def FeedMediaUpdate(self, feed: FeedContent):
         return await super().FeedMediaUpdate(feed)
+
+    async def SendNow(self, feed: FeedContent):
+        await self.bot.send_message(feed)
+
+    async def FeedDroped(self, feed: FeedContent, *exc):
+        pass
