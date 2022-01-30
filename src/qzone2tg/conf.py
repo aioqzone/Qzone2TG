@@ -2,8 +2,14 @@
 
 from typing import Optional, Union
 
-from pydantic import (AnyUrl, BaseModel, BaseSettings, DirectoryPath, FilePath,
-                      HttpUrl, SecretStr, validator)
+from pydantic import AnyUrl
+from pydantic import BaseModel
+from pydantic import BaseSettings
+from pydantic import DirectoryPath
+from pydantic import FilePath
+from pydantic import HttpUrl
+from pydantic import SecretStr
+from pydantic import validator
 
 __all__ = ['Settings']
 

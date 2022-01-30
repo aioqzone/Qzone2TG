@@ -1,6 +1,7 @@
 from pathlib import Path
 
-import yaml, pytest
+import pytest
+
 from qzone2tg.conf import Settings
 
 pytestmark = pytest.mark.skipif(
@@ -9,6 +10,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_load():
+    import yaml
     with open('config/test.yml') as f:
         d = yaml.safe_load(f)
     assert Settings(**d).load_secrets(Path('./config/secrets'))

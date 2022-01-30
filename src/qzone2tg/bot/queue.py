@@ -1,7 +1,6 @@
 """A message queue for sending feeds."""
 
 import asyncio
-from collections import defaultdict
 import time
 
 
