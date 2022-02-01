@@ -1,0 +1,20 @@
+from typing import AsyncGenerator, TypeVar
+
+It = TypeVar('It', str, list, tuple)
+T = TypeVar('T')
+
+
+def split_by_len(it: It, lens: int) -> list[It]:
+    return [it[i:i + lens] for i in range(0, len(it), lens)]
+
+
+async def anext(it: AsyncGenerator[T, None], default=None) -> T:
+    async for i in it:
+        return i
+    return default
+
+
+async def anext_(it: AsyncGenerator[T, None]) -> T:
+    async for i in it:
+        return i
+    raise StopAsyncIteration

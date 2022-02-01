@@ -8,3 +8,5 @@ archive
 
 /dist
 /config
+/doc/*
+!/doc/source

@@ -1,83 +1,45 @@
 """Inherits all hooks from aioqzone and implements hook behavior."""
 
 from collections import defaultdict
-from functools import partial
-from functools import wraps
-from pathlib import PurePath
 from typing import Optional, Union
 
+from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import LoginEvent
 from aioqzone.interface.hook import QREvent
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
-from pydantic import HttpUrl
 from telegram import Bot
-from telegram import InputMediaPhoto
-from telegram import InputMediaVideo
 from telegram import Message
-from telegram import TelegramError
-from telegram.ext import Dispatcher
 
+from ..utils.iter import anext_
+from .limitbot import LimitedBot
 from .queue import ForwardEvent
 from .queue import MsgScheduler
-from .queue import RelaxSemaphore
-
-TEXT_LIM = 4096
-MEDIA_TEXT_LIM = 1024
-MEDIA_GROUP_LIM = 10
 
 
-class BotHelper:
-    def __init__(self, bot: Bot, freq_limit: int = 30) -> None:
-        self.bot = bot
-        self.sem = RelaxSemaphore(freq_limit)
-
-    async def send_message(self, to: Union[int, str], text: str, **kw):
-        assert len(text) < TEXT_LIM
-        kwds = dict(chat_id=to, text=text)
-        async with self.sem.num():
-            return self.bot.send_message(**kwds, **kw)
-
-    async def send_photo(self, to: Union[int, str], text: str, media: Union[HttpUrl, bytes], **kw):
-        assert len(text) < MEDIA_TEXT_LIM
-        kwds = dict(
-            chat_id=to, caption=text, photo=str(media) if isinstance(media, HttpUrl) else media
-        )
-        async with self.sem.num():
-            return self.bot.send_photo(**kwds, **kw)
-
-    async def send_video(self, to: Union[int, str], text: str, media: str, **kw):
-        assert len(text) < TEXT_LIM
-        kwds = dict(chat_id=to, caption=text, video=media)
-        async with self.sem.num():
-            return self.bot.send_video(**kwds, **kw)
-
-    async def send_media_group(self, to: Union[int, str], media: list, **kw):
-        assert len(media) < MEDIA_GROUP_LIM
-        kwds = dict(chat_id=to, media=media)
-        async with self.sem.num(len(media)):
-            return self.bot.send_media_group(**kwds, **kw)
-
-
-class UnifiedHook(LoginEvent, QREvent, FeedEvent, ForwardEvent):
+class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
     def __init__(self, bot: Bot, admin: Union[str, int]) -> None:
         super().__init__()
-        self.bot = BotHelper(bot)
+        self.bot = LimitedBot(bot)
         self.admin = admin
         self.qr_times: int = 0
         self.qr_msg: Optional[Message] = None
         self.lg_msg: Optional[Message] = None
         self.msg_scd: Optional[MsgScheduler] = None
+        self.forward_map = defaultdict(lambda: admin)
 
     async def LoginFailed(self, msg: str = None):
-        await self.bot.send_message(self.admin, text=msg or '登录失败')
+        async for i in self.bot.send_message(self.admin, text=msg or '登录失败'):
+            pass
 
     async def LoginSuccess(self):
-        self.lg_msg = await self.bot.send_message(self.admin, '登录成功')
+        self.lg_msg = await anext_(self.bot.send_message(self.admin, '登录成功'))
 
     async def QrFetched(self, png: bytes, renew: bool = False):
         text = '二维码已刷新:' if renew else f'二维码已过期, 请重新扫描[{self.qr_times}]' if self.qr_times else '扫码登陆:'
-        self.qr_msg = await self.bot.send_photo(self.admin, text, png, disable_notification=False)
+        self.qr_msg = await anext_(
+            self.bot.send_photo(self.admin, text, png, disable_notification=False)
+        )
         self.qr_times += 1
 
     async def QrFailed(self, msg: str = None):
@@ -85,7 +47,7 @@ class UnifiedHook(LoginEvent, QREvent, FeedEvent, ForwardEvent):
         assert self.qr_msg
         self.qr_msg.delete()
         self.qr_msg = None
-        await self.bot.send_message(self.admin, '二维码登录失败' + (f': {msg}' if msg else ''))
+        await anext_(self.bot.send_message(self.admin, '二维码登录失败' + (f': {msg}' if msg else '')))
 
     async def QrSucceess(self):
         self.qr_times = 0
@@ -100,8 +62,15 @@ class UnifiedHook(LoginEvent, QREvent, FeedEvent, ForwardEvent):
     async def FeedMediaUpdate(self, feed: FeedContent):
         return await super().FeedMediaUpdate(feed)
 
+    def new_batch(self, val: int = 0, max_retry: int = 2):
+        self.msg_scd = MsgScheduler(val, max_retry)
+        self.msg_scd.register_hook(self)
+
     async def SendNow(self, feed: FeedContent):
-        await self.bot.send_message(feed)
+        media = [i.raw for i in feed.media] if feed.media else []
+        agen = self.bot.unify_send(self.forward_map[feed.uin], feed.content, media)
+        async for i in agen:
+            pass    # TODO: storage
 
     async def FeedDroped(self, feed: FeedContent, *exc):
         pass
