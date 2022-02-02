@@ -18,3 +18,7 @@ async def anext_(it: AsyncGenerator[T, None]) -> T:
     async for i in it:
         return i
     raise StopAsyncIteration
+
+
+async def alist(it: AsyncGenerator[T, None]) -> list[T]:
+    return [i async for i in it]

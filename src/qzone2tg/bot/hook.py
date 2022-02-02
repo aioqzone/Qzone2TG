@@ -1,23 +1,36 @@
 """Inherits all hooks from aioqzone and implements hook behavior."""
 
+from abc import abstractmethod
+import asyncio
 from collections import defaultdict
 from typing import Optional, Union
 
 from aioqzone.interface.hook import Emittable
+from aioqzone.interface.hook import Event
 from aioqzone.interface.hook import LoginEvent
 from aioqzone.interface.hook import QREvent
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
+from aioqzone_feed.type import FeedModel
 from telegram import Bot
 from telegram import Message
 
+from ..utils.iter import anext
 from ..utils.iter import anext_
 from .limitbot import LimitedBot
 from .queue import ForwardEvent
 from .queue import MsgScheduler
 
 
+class StorageEvent(Event):
+    @abstractmethod
+    async def SaveFeed(self, feed: FeedModel, msgs_id: list[int]):
+        pass
+
+
 class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
+    hook: StorageEvent
+
     def __init__(self, bot: Bot, admin: Union[str, int]) -> None:
         super().__init__()
         self.bot = LimitedBot(bot)
@@ -27,10 +40,10 @@ class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
         self.lg_msg: Optional[Message] = None
         self.msg_scd: Optional[MsgScheduler] = None
         self.forward_map = defaultdict(lambda: admin)
+        self._tasks = defaultdict(set)
 
     async def LoginFailed(self, msg: str = None):
-        async for i in self.bot.send_message(self.admin, text=msg or '登录失败'):
-            pass
+        await anext(self.bot.send_message(self.admin, text=msg or '登录失败'))
 
     async def LoginSuccess(self):
         self.lg_msg = await anext_(self.bot.send_message(self.admin, '登录成功'))
@@ -47,7 +60,7 @@ class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
         assert self.qr_msg
         self.qr_msg.delete()
         self.qr_msg = None
-        await anext_(self.bot.send_message(self.admin, '二维码登录失败' + (f': {msg}' if msg else '')))
+        await anext(self.bot.send_message(self.admin, '二维码登录失败' + (f': {msg}' if msg else '')))
 
     async def QrSucceess(self):
         self.qr_times = 0
@@ -69,8 +82,9 @@ class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
     async def SendNow(self, feed: FeedContent):
         media = [i.raw for i in feed.media] if feed.media else []
         agen = self.bot.unify_send(self.forward_map[feed.uin], feed.content, media)
-        async for i in agen:
-            pass    # TODO: storage
+        task = asyncio.create_task(self.hook.SaveFeed(feed, [i.message_id async for i in agen]))
+        self._tasks['storage'].add(task)
+        task.add_done_callback(lambda t: self._tasks['storage'].remove(t))
 
     async def FeedDroped(self, feed: FeedContent, *exc):
         pass
