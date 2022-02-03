@@ -1,11 +1,10 @@
-import imp
 from os import environ as env
 from pathlib import Path
 
 import pytest
 
-from qzone2tg.conf import Settings
-from qzone2tg.conf import UserSecrets
+from qzone2tg.settings import Settings
+from qzone2tg.settings import UserSecrets
 
 
 @pytest.mark.skipif(not Path('config/test.yml').exists(), reason='test config not exist')

@@ -19,12 +19,8 @@ class StorageConfig(BaseModel):
     """Bot 存储配置。Bot 将保留说说的一部分必要参数，用于验证说说是否已爬取、已发送，以及用于点赞、取消赞等.
     存储的信息不包括说说内容, 但通常能够通过存储的参数复原说说内容."""
 
-    database: str
-    """数据库地址. 同 SQLAlchemy. See: https://docs.sqlalchemy.org/en/14/core/engines.html
-
-    Example:
-
-    - `sqlite:///data/me.db`"""
+    database: Optional[FilePath] = None
+    """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库."""
 
     keepdays: int = 180
     """一条记录要保存多少天."""
@@ -106,7 +102,7 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置。包括代理和等待时间自定义优化。"""
 
-    proxy: Optional[AnyUrl] = None    # support http(s); socks(5(h)).
+    proxy: Optional[AnyUrl] = Field(None, env='HTTPS_PROXY')    # support http(s); socks(5(h)).
     """代理设置，支持 http 和 socks 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
 
     Example:
@@ -128,11 +124,12 @@ class BotConf(BaseModel):
     """管理员用户ID，唯一指明管理员. bot 只响应管理员的指令. """
 
     token: Optional[SecretStr] = None
-    network: NetworkConf = NetworkConf()
+    network: NetworkConf = NetworkConf()    # type: ignore
     """网络配置。包括代理和等待时间自定义优化。:class:`qzone2tg.settings.NetworkConf`"""
 
     storage: Optional[StorageConfig] = None
-    """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容."""
+    """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容.
+    `None` 表示在只在内存中建立 sqlite3 数据库。"""
 
     default: BotDefaultConf = BotDefaultConf()
     """Bot 的默认行为配置。包括禁止通知、禁止链接预览等."""
@@ -141,6 +138,10 @@ class BotConf(BaseModel):
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
     两种类型：:class:`qzone2tg.settings.PollingConf`, :class:`qzone2tg.settings.WebhookConf`
     分别对应 polling 模式和 webhook 模式。"""
+
+    reload_on_start: bool = False
+    """/start 命令是否忽略已转发的内容. 即，此开关为 True 时，
+    Bot 不会检查说说是否曾经转发过，而是将 :meth:`qzone2tg.settings.QzoneConf.dayspac` 天内的所有说说重新转发。"""
 
 
 class QzoneConf(BaseModel):
@@ -157,6 +158,9 @@ class QzoneConf(BaseModel):
     - `prefer`：二维码优先于密码登录. 当二维码登陆失败（包括未得到用户响应时）尝试密码登录.
     - `allow`：密码优先于二维码登录. 当密码登陆失败（通常是在新设备上登录触发了保护）时使用二维码登录. **推荐普通用户使用**.
     - `forbid`：禁止二维码登录. 通常用于自动测试."""
+
+    dayspac: int = 3
+    """最多爬取从现在起几天内的说说. 默认为三天."""
     @validator('qr_strategy')
     def must_be_enum(cls, v):
         """确保输入的 `qr_strategy` 是四个枚举值之一."""

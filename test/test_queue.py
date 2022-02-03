@@ -9,12 +9,12 @@ from qzone2tg.bot.queue import MsgScheduler
 pytestmark = pytest.mark.asyncio
 
 
-class TestFeed(FeedContent):
+class Feed4Test(FeedContent):
     pass
 
 
 def fake_feed(i):
-    o = TestFeed.__new__(TestFeed)
+    o = Feed4Test.__new__(Feed4Test)
     object.__setattr__(o, 'content', i)
     return o
 
