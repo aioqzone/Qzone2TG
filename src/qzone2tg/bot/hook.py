@@ -3,6 +3,7 @@
 from abc import abstractmethod
 import asyncio
 from collections import defaultdict
+import logging
 from typing import Optional, Union
 
 from aioqzone.interface.hook import Emittable
@@ -11,7 +12,7 @@ from aioqzone.interface.hook import LoginEvent
 from aioqzone.interface.hook import QREvent
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
-from aioqzone_feed.type import FeedModel
+from aioqzone_feed.type import BaseFeed
 from telegram import Bot
 from telegram import Message
 
@@ -21,10 +22,12 @@ from .limitbot import LimitedBot
 from .queue import ForwardEvent
 from .queue import MsgScheduler
 
+logger = logging.getLogger(__name__)
+
 
 class StorageEvent(Event):
     @abstractmethod
-    async def SaveFeed(self, feed: FeedModel, msgs_id: list[int]):
+    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
         pass
 
 
@@ -70,10 +73,12 @@ class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
 
     async def FeedProcEnd(self, bid: int, feed: FeedContent):
         assert self.msg_scd
+        logger.debug(f"bid={bid}: {feed}")
         await self.msg_scd.add(bid, feed)
 
     async def FeedMediaUpdate(self, feed: FeedContent):
-        return await super().FeedMediaUpdate(feed)
+        logger.debug(f"feed update received: media={feed.media}")
+        # TODO
 
     def new_batch(self, val: int = 0, max_retry: int = 2):
         self.msg_scd = MsgScheduler(val, max_retry)
@@ -87,4 +92,4 @@ class ForwardHook(LoginEvent, QREvent, FeedEvent, ForwardEvent, Emittable):
         task.add_done_callback(lambda t: self._tasks['storage'].remove(t))
 
     async def FeedDroped(self, feed: FeedContent, *exc):
-        pass
+        logger.debug(f"feed={feed}, exc={exc}")

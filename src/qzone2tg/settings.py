@@ -1,5 +1,6 @@
 """This module read user config as a global object."""
 
+from pathlib import Path
 from typing import Optional, Union
 
 from pydantic import AnyUrl
@@ -19,8 +20,8 @@ class StorageConfig(BaseModel):
     """Bot 存储配置。Bot 将保留说说的一部分必要参数，用于验证说说是否已爬取、已发送，以及用于点赞、取消赞等.
     存储的信息不包括说说内容, 但通常能够通过存储的参数复原说说内容."""
 
-    database: Optional[FilePath] = None
-    """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库."""
+    database: Optional[Path] = None
+    """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录."""
 
     keepdays: int = 180
     """一条记录要保存多少天."""
@@ -125,23 +126,22 @@ class BotConf(BaseModel):
 
     token: Optional[SecretStr] = None
     network: NetworkConf = NetworkConf()    # type: ignore
-    """网络配置。包括代理和等待时间自定义优化。:class:`qzone2tg.settings.NetworkConf`"""
+    """网络配置。包括代理和等待时间自定义优化。:class:`.NetworkConf`"""
 
-    storage: Optional[StorageConfig] = None
+    storage: StorageConfig = StorageConfig()
     """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容.
-    `None` 表示在只在内存中建立 sqlite3 数据库。"""
+    默认只在内存中建立 sqlite3 数据库。"""
 
     default: BotDefaultConf = BotDefaultConf()
     """Bot 的默认行为配置。包括禁止通知、禁止链接预览等."""
 
     init_args: Union[PollingConf, WebhookConf] = PollingConf()
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
-    两种类型：:class:`qzone2tg.settings.PollingConf`, :class:`qzone2tg.settings.WebhookConf`
-    分别对应 polling 模式和 webhook 模式。"""
+    两种类型 :class:`.PollingConf`, :class:`.WebhookConf` 分别对应 polling 模式和 webhook 模式。"""
 
     reload_on_start: bool = False
     """/start 命令是否忽略已转发的内容. 即，此开关为 True 时，
-    Bot 不会检查说说是否曾经转发过，而是将 :meth:`qzone2tg.settings.QzoneConf.dayspac` 天内的所有说说重新转发。"""
+    Bot 不会检查说说是否曾经转发过，而是将 :meth:`.QzoneConf.dayspac` 天内的所有说说重新转发。"""
 
 
 class QzoneConf(BaseModel):
@@ -194,13 +194,13 @@ class Settings(BaseSettings):
     """`Qzone3TG` 的配置文件。分为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项.
     """
     log: LogConf = LogConf()
-    """日志配置: :class:`qzone2tg.settings.LogConf`"""
+    """日志配置: :class:`.LogConf`"""
 
     qzone: QzoneConf
-    """爬虫配置: :class:`qzone2tg.settings.QzoneConf`"""
+    """爬虫配置: :class:`.QzoneConf`"""
 
     bot: BotConf
-    """bot配置: :class:`qzone2tg.settings.BotConf`"""
+    """bot配置: :class:`.BotConf`"""
     def load_secrets(self, secrets_dir: DirectoryPath):
         secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())    # type: ignore
         self.qzone.password = secrets.password

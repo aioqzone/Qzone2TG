@@ -1,8 +1,8 @@
 import asyncio
-from typing import Any, Callable, Optional
+from pathlib import Path
+from typing import Callable, Optional
 
 from aioqzone_feed.type import BaseFeed
-from pydantic import FilePath
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -58,10 +58,12 @@ class FeedStore:
 
     # sess: sessionmaker[AsyncSession]
 
-    def __init__(self, database: FilePath = None, db_kwds: dict = None) -> None:
+    def __init__(self, database: Path = None, db_kwds: dict = None) -> None:
         db_kwds = db_kwds or {}
         if database is None: url = "sqlite+aiosqlite://"
         else: url = "sqlite+aiosqlite:///" + database.as_posix()
+        # make dir if parent not exist
+        if database: database.parent.mkdir(parents=True, exist_ok=True)
         self.engine = create_async_engine(url, **db_kwds)
         self.sess = sessionmaker(self.engine, class_=AsyncSession)
 

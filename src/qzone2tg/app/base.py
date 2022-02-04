@@ -3,6 +3,7 @@ import asyncio
 import logging
 import logging.config
 from pathlib import Path
+from typing import Union
 
 from aiohttp import ClientSession as Session
 from aioqzone.api.loginman import MixedLoginMan
@@ -13,11 +14,10 @@ from telegram.ext import Defaults
 from telegram.ext import Updater
 
 from ..bot.hook import ForwardHook
-from ..settings import BotConf
 from ..settings import LogConf
 from ..settings import NetworkConf
-from ..settings import QzoneConf
 from ..settings import Settings
+from .storage import FeedStore
 
 
 class BaseApp:
@@ -28,7 +28,7 @@ class BaseApp:
         self._get_logger(conf.log)
         self.fetch_lock = asyncio.Lock()
 
-        # TODO
+        self.store = FeedStore(conf.bot.storage.database)
         self.log.info('数据库已连接')
 
         loginman = MixedLoginMan(
@@ -121,13 +121,14 @@ class BaseApp:
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
     async def run(self):
-        """Run the app. The thread will be blocked until SIGINT or stop is called."""
+        """Run the app. Current thread will be blocked until `SIGINT`, `SIGTERM`, `SIGABRT`
+        or `stop` is called."""
 
         self.qzone.add_heartbeat()
-        await self.fetch(reload=self.conf.bot.reload_on_start)
+        await self.fetch(self.conf.bot.admin, reload=self.conf.bot.reload_on_start)
         self.updater.idle()
 
-    async def fetch(self, *, reload: bool, is_period: bool = False):
+    async def fetch(self, to: Union[int, str], *, reload: bool, is_period: bool = False):
         """fetch feeds.
 
         :param reload: dismiss existing records in database
@@ -135,12 +136,26 @@ class BaseApp:
         """
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
-        self.log.info(f"Start with reload={reload}, period={is_period}")
+        # NOTE: subclass must handle async/threading lock here
+        self.log.info(f"Start fetch with reload={reload}, period={is_period}")
+
+        # start a new batch
         self.forward.new_batch()
-        check_exceed = None if reload else x
-        got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400, check_exceed)
+        # fetch feed
+        check_exceed = None if reload else lambda f: self.store.exists(f.fid)
+        got = await self.qzone.get_feeds_by_second(
+            self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
+        )
+        # forward
         assert self.forward.msg_scd
         self.forward.msg_scd.set_upper_bound(got)
         await self.forward.msg_scd.send_all()
+
+        # Since ForwardHook doesn't handle errs respectively, a summary of errs is sent here.
         errs = len(self.forward.msg_scd.excs)
-        self.bot.send_message()
+        if errs:
+            log_level_helper = f"当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''
+            self.bot.send_message(
+                to, f"发送期间有{errs}条说说抛出异常。查看服务端日志，"
+                "在我们的讨论群 @qzone2tg_discuss 寻求帮助。" + log_level_helper
+            )
