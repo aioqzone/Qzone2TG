@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, TypeVar
+from typing import AsyncGenerator, Iterator, TypeVar
 
 It = TypeVar('It', str, list, tuple)
 T = TypeVar('T')
@@ -22,3 +22,7 @@ async def anext_(it: AsyncGenerator[T, None]) -> T:
 
 async def alist(it: AsyncGenerator[T, None]) -> list[T]:
     return [i async for i in it]
+
+
+def empty(it: Iterator) -> bool:
+    return next(it, None) is None

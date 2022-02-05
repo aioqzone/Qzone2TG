@@ -13,7 +13,7 @@ from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
 
-from ..bot.hook import ForwardHook
+from ..bot.hook import AppHook
 from ..settings import LogConf
 from ..settings import NetworkConf
 from ..settings import Settings
@@ -47,7 +47,7 @@ class BaseApp:
             user_sig_handler=lambda signum, frame: self.qzone.stop(),
         )
         self.silent_apscheduler()
-        self.forward = ForwardHook(self.updater.bot, conf.bot.admin)
+        self.forward = AppHook(self.updater.bot, conf.bot.admin)
         self.log.info('TG端初始化完成')
 
     @property
@@ -147,9 +147,8 @@ class BaseApp:
             self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
         )
         # forward
-        assert self.forward.msg_scd
         self.forward.msg_scd.set_upper_bound(got)
-        await self.forward.msg_scd.send_all()
+        await self.forward.send_all()
 
         # Since ForwardHook doesn't handle errs respectively, a summary of errs is sent here.
         errs = len(self.forward.msg_scd.excs)

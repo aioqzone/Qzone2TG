@@ -4,11 +4,13 @@ from abc import abstractmethod
 import asyncio
 from collections import defaultdict
 import time
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Union
 
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
 from aioqzone_feed.type import FeedContent
+
+from ..utils.iter import empty
 
 
 class _rsct:
@@ -62,26 +64,53 @@ class RelaxSemaphore(asyncio.Semaphore):
 
 
 class ForwardEvent(Event):
-    force_send_all: Callable[[], Awaitable[None]]
-
-    @abstractmethod
     async def SendNow(self, feed: FeedContent):
         pass
 
-    @abstractmethod
     async def FeedDroped(self, feed: FeedContent, *exc):
         pass
 
 
-class MsgScheduler(Emittable):
+class MsgBarrier(Emittable[ForwardEvent]):
+    buffer: set[FeedContent]
+    excs: dict[FeedContent, list[BaseException]]
+    __slots__ = ('buffer', 'excs', '_retry')
+
+    def __init__(self, max_retry: int = 2) -> None:
+        super().__init__()
+        self.buffer = set()
+        self.excs = defaultdict(list)
+        self._retry = max_retry
+
+    def send_all(self):
+        while self.buffer:
+            feed = self.buffer.pop()
+            task = self.add_hook_ref('send', self.hook.SendNow(feed))
+            self._add_handler(task, feed)
+
+    def _add_handler(self, task: asyncio.Task, feed: FeedContent):
+        def check_succ(t: asyncio.Task):
+            if (exc := t.exception()) is None: return    # task has been removed by add_hook_ref
+            self.excs[feed].append(exc)
+            if len(self.excs[feed]) < self._retry:
+                task = self.add_hook_ref('send', self.hook.SendNow(feed))
+                self._add_handler(task, feed)
+                return
+            self.add_hook_ref('hook', self.hook.FeedDroped(feed, *self.excs[feed]))
+
+        task.add_done_callback(check_succ)
+        return task
+
+
+class MsgScheduler(MsgBarrier):
     """Buf a batch of message and schedule them with hook."""
-    hook: ForwardEvent
-    __slots__ = ('buffer', 'excs', '_max', '_retry', '_point')
+    buffer: dict[int, Optional[FeedContent]]
+    __slots__ = ('_max', '_point')
 
     def __init__(self, val: int = 0, max_retry: int = 2) -> None:
-        assert max_retry > 0
+        assert max_retry >= 0
+        super().__init__(max_retry)
         self.buffer = {}
-        self.excs = defaultdict(list)
         self._max = 0
         self._retry = max_retry
         if val > 0: self.set_upper_bound(val)
@@ -91,63 +120,38 @@ class MsgScheduler(Emittable):
         self._max = val
         self._point = val - 1    # which feed should be sent in advance
 
-    def register_hook(self, hook: ForwardEvent):
-        hook.force_send_all = self.send_all
-        return super().register_hook(hook)
+    def pending_feeds(self, reverse: bool = True):
+        if not reverse: return filter(None, self.buffer.values())
+        it = sorted(self.buffer.items(), key=lambda t: t[0], reverse=True)
+        return filter(None, (i[1] for i in it))
 
-    async def add(self, bid: int, feed: FeedContent):
+    def pending_tasks(self):
+        return self._tasks['send']
+
+    def add(self, bid: int, feed: FeedContent):
         self.buffer[bid] = feed
         if self._max == 0: return    # skip if upper bound unknown
 
         for i in range(self._point, -1, -1):
-            if i == self._point and self.buffer.get(i):    # if this bid should be sent
-                task = self._send_pointer()
-                self.buffer[self._point] = task    # feed -> task
+            if i == self._point and (f := self.buffer.get(i)):    # if this bid should be sent
+                self.buffer[self._point] = None    # feed -> None
+                task = self.add_hook_ref('send', self.hook.SendNow(f))
+                task = self._add_handler(task, f)
                 self._point -= 1    # donot care whether succ or not
                 if self._point < 0: self._point += self._max    # count around
             else:
                 break
 
-    def _send_pointer(self):
-        def check_succ(task: asyncio.Task):
-            assert feed
-            exc = task.exception()
-            if exc:
-                self.excs[pointer].append(exc)    # record exc
-                if len(self.excs[pointer]) < self._retry:    # wait for retry
-                    self.buffer[pointer] = feed    # task -> feed
-                    return
-                # drop feed with collected exceptions
-                task = asyncio.create_task(self.hook.FeedDroped(feed, *self.excs[pointer]))
-                task.add_done_callback(lambda _: self.buffer.__setitem__(pointer, None))
-                self.buffer[pointer] = task
-                return
-
-            self.buffer[pointer] = None    # task -> None
-
-        pointer = self._point    # ref current pointer
-        feed: Optional[FeedContent] = self.buffer.get(self._point)
-        if feed is None: return
-
-        task = asyncio.create_task(self.hook.SendNow(feed))
-        task.add_done_callback(check_succ)
-        return task
-
     async def send_all(self):
         assert len(self.buffer), "Wait until all item arrive"
-        while any(self.buffer.values()):
-            for self._point in range(self._max - 1, -1, -1):
-                o = self.buffer.get(self._point)
-                if o is None: continue
-                if isinstance(o, asyncio.Task):
-                    task = o
-                else:
-                    assert isinstance(o, FeedContent)
-                    task = self._send_pointer()
-
-                assert task
-                try:
-                    await task
-                except (SystemExit, BaseException) as e:
-                    pass    # callback will handle exceptions
+        await self.wait('send')
+        for feed in self.pending_feeds(reverse=True):
+            task = self.add_hook_ref('send', self.hook.SendNow(feed))
+            self._add_handler(task, feed)
+            try:
+                await task
+            except:
+                pass    # callback will handle exceptions
             await asyncio.sleep(0)    # essential for schedule tasks
+        await self.wait('send')
+        await self.wait('hook')
