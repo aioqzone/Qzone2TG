@@ -4,7 +4,7 @@ from abc import abstractmethod
 import asyncio
 from collections import defaultdict
 import logging
-from typing import Callable, Optional, Union
+from typing import Optional
 
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
@@ -12,16 +12,18 @@ from aioqzone.interface.hook import QREvent
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
 from aioqzone_feed.type import BaseFeed
+from pydantic import HttpUrl
 from telegram import Bot
+from telegram import InlineKeyboardMarkup
 from telegram import Message
 
+from ..bot.limitbot import ChatId
+from ..bot.limitbot import LimitedBot
+from ..bot.queue import ForwardEvent
+from ..bot.queue import MsgBarrier
+from ..bot.queue import MsgScheduler
 from ..utils.iter import anext
 from ..utils.iter import anext_
-from .limitbot import ChatId
-from .limitbot import LimitedBot
-from .queue import ForwardEvent
-from .queue import MsgBarrier
-from .queue import MsgScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -42,19 +44,23 @@ class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
     def __init__(self, bot: Bot, admin: ChatId, fwd_map: dict[int, ChatId] = None) -> None:
         super().__init__()
         self.bot = LimitedBot(bot)
+        self.admin = admin
         self.forward_map = defaultdict(lambda: admin, fwd_map or {})
 
     async def SendNow(self, feed: FeedContent):
         media = [i.raw for i in feed.media] if feed.media else []
-        agen = self.bot.unify_send(self.forward_map[feed.uin], feed.content, media)
-        task = asyncio.create_task(self.hook.SaveFeed(feed, [i.message_id async for i in agen]))
-        self.add_hook_ref('storage', task)
+        kw = dict(reply_markup=self.reply_markup(feed))
+        agen = self.bot.unify_send(self.forward_map[feed.uin], feed.content, media, **kw)
+        self.add_hook_ref('storage', self.hook.SaveFeed(feed, [i.message_id async for i in agen]))
 
     async def FeedDroped(self, feed: FeedContent, *exc):
         exc_brf = [str(i) for i in exc]
         logger.error(f"Error in forward: exc={exc_brf}, feed={feed}")
         for i, e in enumerate(exc, start=1):
             logger.debug("Exception in #%d retry:", i, exc_info=e)
+
+    def reply_markup(self, feed: BaseFeed)->Optional[InlineKeyboardMarkup]:
+        return
 
 
 class MediaUpdateHook(DefaultForwardHook):
@@ -131,7 +137,7 @@ class DefaultFeedHook(FeedEvent):
         self.msg_scd = MsgScheduler(val, max_retry)
 
 
-class AppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
+class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
     def __init__(self, bot: Bot, admin: ChatId, fwd_map: dict[int, ChatId] = None) -> None:
         DefaultForwardHook.__init__(self, bot, admin, fwd_map)
         DefaultQrHook.__init__(self)

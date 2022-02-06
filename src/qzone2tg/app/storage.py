@@ -2,6 +2,8 @@ import asyncio
 from pathlib import Path
 from typing import Callable, Optional
 
+from aioqzone.type import LikeData
+from aioqzone.type import PersudoCurkey
 from aioqzone_feed.type import BaseFeed
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +18,9 @@ Base = declarative_base()
 class FeedOrm(Base):    # type: ignore
     __tablename__ = 'feed'
 
-    fid = sa.Column(sa.VARCHAR, primary_key=True, nullable=False)
-    uin = sa.Column(sa.Integer, nullable=False, index=True)
-    abstime = sa.Column(sa.Integer, primary_key=True, nullable=False, index=True)
+    fid = sa.Column(sa.VARCHAR, nullable=False, index=True)
+    uin = sa.Column(sa.Integer, primary_key=True)
+    abstime = sa.Column(sa.Integer, primary_key=True)
     appid = sa.Column(sa.Integer, nullable=False)
     typeid = sa.Column(sa.Integer, nullable=True)
     nickname = sa.Column(sa.VARCHAR, default='Unknown', nullable=False)
@@ -165,3 +167,18 @@ class FeedStore:
                 )
             if flush: await sess.commit()
             return r
+
+    async def query_likedata(self, persudo_curkey: str) -> Optional[LikeData]:
+        p = PersudoCurkey.from_str(persudo_curkey)
+        r = await self.get(FeedOrm.uin == p.uin, FeedOrm.abstime == p.abstime)
+        if r is None: return None
+        feed, _ = r
+        if feed.unikey is None: return
+        return LikeData(
+            unikey=str(feed.unikey),
+            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+            appid=feed.appid,
+            typeid=feed.typeid,
+            fid=feed.fid,
+            abstime=feed.abstime
+        )

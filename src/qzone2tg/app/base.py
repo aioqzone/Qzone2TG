@@ -1,4 +1,5 @@
-"""Base class for all app, including commands callback, etc."""
+"""Base class for all app. Scheduled by heartbeat. No interaction with user."""
+
 import asyncio
 import logging
 import logging.config
@@ -13,14 +14,16 @@ from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
 
-from ..bot.hook import AppHook
 from ..settings import LogConf
 from ..settings import NetworkConf
 from ..settings import Settings
+from .hook import BaseAppHook
 from .storage import FeedStore
 
 
 class BaseApp:
+    hook_cls = BaseAppHook
+
     def __init__(self, sess: Session, conf: Settings) -> None:
         assert conf.bot.token
         # init logger at first
@@ -44,10 +47,9 @@ class BaseApp:
                 parse_mode=ParseMode.HTML, run_async=True, **conf.bot.default.dict()
             ),
             request_kwargs=self._request_args(conf.bot.network),
-            user_sig_handler=lambda signum, frame: self.qzone.stop(),
         )
         self.silent_apscheduler()
-        self.forward = AppHook(self.updater.bot, conf.bot.admin)
+        self.forward = self.hook_cls(self.updater.bot, conf.bot.admin)
         self.log.info('TG端初始化完成')
 
     @property
@@ -121,12 +123,19 @@ class BaseApp:
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
 
     async def run(self):
-        """Run the app. Current thread will be blocked until `SIGINT`, `SIGTERM`, `SIGABRT`
-        or `stop` is called."""
+        """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
+        or `loop.stop()` is called."""
 
+        self.log.info('注册心跳')
         self.qzone.add_heartbeat()
         await self.fetch(self.conf.bot.admin, reload=self.conf.bot.reload_on_start)
-        self.updater.idle()
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            self.qzone.stop()
+        except:
+            self.log.fatal('Uncaught Error! Exit...', exc_info=True)
 
     async def fetch(self, to: Union[int, str], *, reload: bool, is_period: bool = False):
         """fetch feeds.

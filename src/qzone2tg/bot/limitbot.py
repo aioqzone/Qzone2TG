@@ -83,14 +83,16 @@ class LimitedBot(SemaBot):
             for msg in await super().send_media_group(to, media, **kw):
                 yield msg
 
-    async def unify_send(self, to: ChatId, text: str, media: list[HttpUrl], **kw):
+    async def unify_send(self, to: ChatId, text: str, media: list[HttpUrl]=None, **kw):
         if not media:
             async for msg in self.send_message(to, text, **kw): yield msg
+            return
 
         url = media[0]
         meth = self.send_video if self.supported_video(url) else self.send_photo
         if len(media) == 1:
-            yield await anext_(meth(to, text, url, **kw))
+            async for msg in meth(to, text, url, **kw): yield msg
+            return
 
         reply: Optional[int] = None
         if (markup := kw.pop('reply_markup', None)):
