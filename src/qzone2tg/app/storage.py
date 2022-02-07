@@ -12,6 +12,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
+from .hook import StorageEvent
+
 Base = declarative_base()
 
 
@@ -181,4 +183,23 @@ class FeedStore:
             typeid=feed.typeid,
             fid=feed.fid,
             abstime=feed.abstime
+        )
+
+
+class DefaultStorageHook(StorageEvent):
+    def __init__(self, store: FeedStore) -> None:
+        super().__init__()
+        self.store = store
+
+    async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
+        r = await self.store.get(FeedOrm.uin == feed.uin, FeedOrm.abstime == feed.abstime)
+        return r and r[1]
+
+    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
+        return await self.store.save(feed, msgs_id)
+
+    async def update_message_id(self, feed: BaseFeed, mids: list[int]):
+        return await self.store.edit(
+            lambda f: setattr(f, 'mids', ','.join(str(i) for i in mids)), FeedOrm.uin == feed.uin,
+            FeedOrm.abstime == feed.abstime
         )

@@ -24,11 +24,16 @@ from .base import BaseAppHook
 
 
 class InteractAppHook(BaseAppHook):
-    def reply_markup(self, feed: BaseFeed):
+    def like_markup(self, feed: BaseFeed):
         if feed.unikey is None: return
         curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
         likebtn = InlineKeyboardButton('Like', callback_data='like:' + curkey)
         return InlineKeyboardMarkup([[likebtn]])
+
+    def qr_markup(self):
+        btnrefresh = InlineKeyboardButton('刷新', callback_data='qr:refresh')
+        btncancel = InlineKeyboardButton('取消', callback_data='qr:cancel')
+        return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
 
 class InteractApp(BaseApp):
@@ -94,14 +99,12 @@ class InteractApp(BaseApp):
             'command',
             super().fetch(chat.id, reload=self.conf.bot.reload_on_start)
         )
-        self.log.debug(f'Task registered {task}')
 
     def refresh(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         self.log.info('Refresh! chat=%d', chat.id)
         task = self.forward.add_hook_ref('command', super().fetch(chat.id, reload=False))
-        self.log.debug(f'Task registered {task}')
 
     def help(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
@@ -111,7 +114,6 @@ class InteractApp(BaseApp):
         task = self.forward.add_hook_ref(
             'command', anext(self.forward.bot.send_message(chat.id, helpm))
         )
-        self.log.debug(f'Task registered {task}')
 
     def status(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
@@ -120,19 +122,18 @@ class InteractApp(BaseApp):
         task = self.forward.add_hook_ref(
             'command', anext(self.forward.bot.send_message(chat.id, statusm))
         )
-        self.log.debug(f'Task registered {task}')
 
     def relogin(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         task = self.forward.add_hook_ref('command', self.qzone.api.login.new_cookie())
-        self.log.debug(f'Task registered {task}')
 
     def btn_dispatch(self, update: Update, context: CallbackContext):
         query: CallbackQuery = update.callback_query
         data: str = query.data
         prefix, data = data.split(':', maxsplit=1)
-        self.like(query)
+        switch = {'like': self.like, 'qr': self.qr}
+        switch[prefix](query)
 
     def like(self, query: CallbackQuery):
         self.log.info(f'Like! query={query.data}')
@@ -148,7 +149,13 @@ class InteractApp(BaseApp):
                     self.log.error('Failed to change button', exc_info=True)
                 return
 
-            if not self.qzone.like_app(likedata, not unlike):
+            task = self.forward.add_hook_ref('button', self.qzone.like_app(likedata, not unlike))
+            task.add_done_callback(check_succ)
+
+        def check_succ(succ: asyncio.Task[bool]):
+            try:
+                assert succ.result()
+            except:
                 query.answer(text='点赞失败')
                 return
 
@@ -163,4 +170,11 @@ class InteractApp(BaseApp):
 
         task = self.forward.add_hook_ref('storage', self.store.query_likedata(data))
         task.add_done_callback(lambda t: like_trans(t.result()))
-        self.log.debug(f'Task registered {task}')
+
+    def qr(self, query: CallbackQuery):
+        self.log.info(f'QR! query={query.data}')
+        _, command = str.split(query.data, ':', maxsplit=1)
+        switch = {'refresh': self.forward.resend, 'cancel': self.forward.cancel}
+        f = switch[command]
+        assert f
+        task = self.forward.add_hook_ref('button', f())

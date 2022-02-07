@@ -18,6 +18,7 @@ from ..settings import LogConf
 from ..settings import NetworkConf
 from ..settings import Settings
 from .hook import BaseAppHook
+from .storage import DefaultStorageHook
 from .storage import FeedStore
 
 
@@ -50,6 +51,7 @@ class BaseApp:
         )
         self.silent_apscheduler()
         self.forward = self.hook_cls(self.updater.bot, conf.bot.admin)
+        self.forward.register_hook(DefaultStorageHook(self.store))
         self.log.info('TG端初始化完成')
 
     @property
