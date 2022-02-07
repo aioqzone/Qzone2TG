@@ -44,7 +44,7 @@
 
 > [2.2.2][latest] 已更新! <br>
 > 点击上方徽章, 加入我们的TG频道和讨论组, 在 [Github Discussion][notice] 查看更多信息.<br>
-> 关于3.0: 3.0版本是一个重写版本. 考虑到目前的进度和作者的时间安排, 3.0的到来：_遥遥无期_
+> 关于3.0: Qzone3TG 是一个重写版本. 3.0的 Qzone API：[aioqzone](https://github.com/JamzumSum/aioqzone) 已开源.
 
 ---
 
@@ -131,7 +131,6 @@ keyring del qzone2tg <your-qq>
 - cssselect [BSD](https://github.com/scrapy/cssselect/blob/master/LICENSE)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
-- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 - qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
