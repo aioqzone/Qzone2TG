@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 from ..utils.iterutils import find_if
 
@@ -13,11 +13,7 @@ class Table:
     order_on = None
 
     def __init__(
-        self,
-        name: str,
-        cursor: sqlite3.Cursor,
-        key: Dict[str, Any],
-        pkey: str = None
+        self, name: str, cursor: sqlite3.Cursor, key: Dict[str, Any], pkey: str = None
     ) -> None:
         pkey = pkey or find_if(key.items(), lambda t: 'PRIMARY KEY' in t[1])[0]
         assert pkey and pkey in key
@@ -42,9 +38,7 @@ class Table:
             )
 
     def __getitem__(self, i):
-        self.cursor.execute(
-            f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};'
-        )
+        self.cursor.execute(f'select * from {self.name} WHERE {self.pkey}={self.arglike(i)};')
         if (r := self.cursor.fetchone()) is None: return
         return dict(zip(self.key, r))
 
@@ -65,9 +59,7 @@ class Table:
         return data
 
     def __delitem__(self, i):
-        self.cursor.execute(
-            f'delete from {self.name} WHERE {self.pkey}={self.arglike(i)};'
-        )
+        self.cursor.execute(f'delete from {self.name} WHERE {self.pkey}={self.arglike(i)};')
 
     def __contains__(self, i):
         return bool(Table.__getitem__(self, i))
@@ -89,8 +81,8 @@ class Table:
         key = self.key.copy()
         key.update(tbl.key)
         r = Table(
-            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor,
-            key, self.pkey
+            f'{self.name} LEFT OUTER JOIN {tbl.name} USING ({self.pkey})', self.cursor, key,
+            self.pkey
         )
         r.parent = self, tbl
         return r
@@ -165,7 +157,7 @@ class FeedBase(_DBBase):
             i.createTable()
         self.db.commit()
 
-    def cleanFeed(self, getLikeId: Callable[[dict], dict]):
+    def cleanFeed(self, getLikeId: Callable[[dict], Optional[dict]]):
         del_limit = int(time.time() - self.archivedays * 86400)
         self.cursor.execute(f'delete from archive WHERE abstime <= {del_limit};')
         self.db.commit()
@@ -176,13 +168,14 @@ class FeedBase(_DBBase):
         for i in to_move:
             # move to archive
             d = getLikeId(i)
-            fid = d.pop('key')
-            d['abstime'] = i['abstime']
-            self.archive[fid] = d
+            if d:
+                fid = d.pop('key')
+                d['abstime'] = i['abstime']
+                self.archive[fid] = d
             # remove from feed
             for v in self.plugin.values():
-                del v[fid]
-            del self.feed[fid]
+                del v[i['fid']]
+            del self.feed[i['fid']]
             self.db.commit()
 
     def getFeed(self, cond_sql: str = '', plugin_name=None, order=False):

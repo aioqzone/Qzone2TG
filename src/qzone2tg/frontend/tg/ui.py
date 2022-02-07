@@ -74,7 +74,9 @@ class TgExtracter(ContentExtracter):
         if self.feed.isLike: return
         likeid = None
         if self.feed.appid == 311:
-            likeid = LikeId(**self.feed.getLikeId()).tostr()
+            lid = self.feed.getLikeId()
+            if lid is None: return
+            likeid = LikeId(**lid).tostr()
         if likeid is None:
             likeid = '/' + self.feed.fid
         btnLike = telegram.InlineKeyboardButton("Like", callback_data=likeid)

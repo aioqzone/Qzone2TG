@@ -42,9 +42,9 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> v[2.2.1 stable][latest] availible now! <br>
-> We've create official TG channel. Click the badge above to join us.<br>
-> For other announcements, see [Discussion][notice] and my [blog][blog]
+> [2.2.2][latest] 已更新! <br>
+> 点击上方徽章, 加入我们的TG频道和讨论组, 在 [Github Discussion][notice] 查看更多信息.<br>
+> 关于3.0: Qzone3TG 是一个重写版本. 3.0的 Qzone API：[aioqzone](https://github.com/JamzumSum/aioqzone) 已开源.
 
 ---
 
@@ -57,11 +57,6 @@
 - [x] 点赞(应用消息的点赞有时间限制)
 - [x] 过滤广告
 - [x] 简单的tg机器人, 支持webhook
-
-## 截图
-
-> See my [blog][blog] for screenshots, demo vedio, tutorials in detail and other resources.
-> (咕咕咕
 
 ## 需求
 
@@ -136,14 +131,13 @@ keyring del qzone2tg <your-qq>
 - cssselect [BSD](https://github.com/scrapy/cssselect/blob/master/LICENSE)
 - omegaconf: [BSD-3](https://github.com/omry/omegaconf/blob/master/LICENSE)
 - python-telegram-bot: [LGPL-3](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/LICENSE)
-- keyring: [MIT](https://github.com/jaraco/keyring/blob/main/LICENSE)
 - tencentlogin: [AGPL-3](https://github.com/JamzumSum/QQQR/blob/master/LICENCE)
 - qzemoji: [MIT](https://github.com/JamzumSum/QzEmoji/blob/main/LICENSE)
 
 
 
 [conf]: ../../wiki/配置文档 "配置文件"
-[latest]: ../../releases/tag/2.2.1 "2.2.1"
+[latest]: ../../releases/tag/2.2.2.post1 "2.2.2.post1"
 [docker]: ../../wiki/Docker部署 "Docker部署"
 [notice]: ../../discussions/categories/announcements "Announcement📣"
 [qzemoji]: ../../../QzEmoji "Translate Qzone Emoji to Text"
