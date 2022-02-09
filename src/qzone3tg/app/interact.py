@@ -1,6 +1,6 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
-from typing import cast, Optional
+from typing import cast, Optional, Union
 
 from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData
@@ -16,6 +16,7 @@ from telegram.ext import CallbackQueryHandler
 from telegram.ext import CommandHandler
 from telegram.ext import Dispatcher
 from telegram.ext import Filters
+from telegram.ext import MessageFilter
 
 from ..settings import PollingConf
 from ..settings import Settings
@@ -57,6 +58,19 @@ class InteractStorageHook(DefaultStorageHook):
         )
 
 
+class LockFilter(MessageFilter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.locked = False
+
+    def filter(self, message):
+        return not self.locked
+
+    def acquire(self, task: asyncio.Task):
+        self.locked = True
+        task.add_done_callback(lambda _: setattr(self, 'locked', False))
+
+
 class InteractApp(BaseApp):
     hook_cls = InteractAppHook
     store_cls = InteractStorageHook
@@ -71,22 +85,13 @@ class InteractApp(BaseApp):
 
     def __init__(self, sess: Session, store: AsyncEngine, conf: Settings) -> None:
         super().__init__(sess, store, conf)
+        self.fetch_lock = LockFilter()
+
         if conf.bot.reload_on_start:
             self.commands['start'] = f"获取{conf.qzone.dayspac}天内的全部说说，覆盖数据库"
         else:
             self.commands['refresh'] = "还是刷新"
 
-        # build chat filters
-        ca_id = [self.conf.bot.admin]
-        ca_un = []
-        CA = Filters.chat(chat_id=ca_id, username=ca_un)
-
-        dispatcher: Dispatcher = self.updater.dispatcher
-        for command in self.commands:
-            dispatcher.add_handler(
-                CommandHandler(command, getattr(self, command, self.help), filters=CA)
-            )
-        dispatcher.add_handler(CallbackQueryHandler(self.btn_dispatch, run_async=True))
         self.set_commands()
 
     @property
@@ -94,6 +99,23 @@ class InteractApp(BaseApp):
         return cast(InteractStorageHook, super().store)
 
     def set_commands(self):
+        # build chat filters
+        ca_id = [self.conf.bot.admin]
+        ca_un = []
+        CA = Filters.chat(chat_id=ca_id, username=ca_un)
+
+        dispatcher: Dispatcher = self.updater.dispatcher
+        has_fetch = ['start', 'refresh']
+        for command in self.commands:
+            dispatcher.add_handler(
+                CommandHandler(
+                    command,
+                    getattr(self, command, self.help),
+                    filters=(CA | self.fetch_lock) if command in has_fetch else CA
+                )
+            )
+        dispatcher.add_handler(CallbackQueryHandler(self.btn_dispatch, run_async=True))
+
         try:
             self.updater.bot.set_my_commands([
                 BotCommand(command=k, description=v) for k, v in self.commands.items()
@@ -126,12 +148,14 @@ class InteractApp(BaseApp):
             'command',
             super().fetch(chat.id, reload=self.conf.bot.reload_on_start)
         )
+        self.fetch_lock.acquire(task)
 
     def refresh(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         self.log.info('Refresh! chat=%d', chat.id)
         task = self.forward.add_hook_ref('command', super().fetch(chat.id, reload=False))
+        self.fetch_lock.acquire(task)
 
     def help(self, update: Update, context: CallbackContext):
         chat = update.effective_chat

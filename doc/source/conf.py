@@ -21,7 +21,7 @@ copyright = '2022, JamzumSum'
 author = 'JamzumSum'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.2.dev1'
+release = '0.1.4.dev0'
 
 # -- General configuration ---------------------------------------------------
 

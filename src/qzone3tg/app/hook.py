@@ -1,4 +1,5 @@
-"""Inherits all hooks from aioqzone and implements hook behavior."""
+"""Defines all hooks used in Qzone3TG and implements some default hook.
+"""
 
 from collections import defaultdict
 import logging
@@ -7,6 +8,7 @@ from typing import Any, Optional
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
 from aioqzone.interface.hook import QREvent
+from aioqzone.type import FeedRep
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
@@ -27,7 +29,13 @@ logger = logging.getLogger(__name__)
 
 
 class StorageEvent(Event):
+    """Basic hook event for storage function."""
     async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
+        """Add/Update an record by the given feed and messages id.
+
+        :param feed: feed
+        :param msgs_id: messages id list
+        """
         pass
 
     async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
@@ -37,7 +45,19 @@ class StorageEvent(Event):
         pass
 
     async def clean(self, seconds: float):
+        """clean feeds out of date, based on `abstime`.
+
+        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
+        """
         pass
+
+    async def exists(self, feed: FeedRep) -> bool:
+        """check if a feed exists in this database.
+
+        :param feed: feed to check
+        :return: whether exists
+        """
+        return False
 
 
 class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):

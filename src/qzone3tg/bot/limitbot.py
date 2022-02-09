@@ -1,4 +1,6 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import PurePath
 from typing import Optional, Union
 
@@ -20,40 +22,48 @@ ChatId = Union[str, int]
 
 __all__ = ['LimitedBot']
 
+
 class SemaBot:
     def __init__(self, bot: Bot, freq_limit: int = 30) -> None:
         self.bot = bot
         self.sem = RelaxSemaphore(freq_limit)
+        self._loop = asyncio.get_event_loop()
 
     async def send_message(self, to: ChatId, text: str, **kw):
         assert len(text) < TEXT_LIM
         kwds = dict(chat_id=to, text=text)
+        func = partial(self.bot.send_message, **kwds, **kw)
         async with self.sem.num():
-            return self.bot.send_message(**kwds, **kw)
+            return await self._loop.run_in_executor(None, func)
 
     async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
         assert len(text) < MEDIA_TEXT_LIM
         kwds = dict(
             chat_id=to, caption=text, photo=str(media) if isinstance(media, HttpUrl) else media
         )
+        func = partial(self.bot.send_photo, **kwds, **kw)
         async with self.sem.num():
-            return self.bot.send_photo(**kwds, **kw)
+            return await self._loop.run_in_executor(None, func)
 
     async def send_video(self, to: ChatId, text: str, media: HttpUrl, **kw):
         assert len(text) < MEDIA_TEXT_LIM
         kwds = dict(chat_id=to, caption=text, video=str(media))
+        func = partial(self.bot.send_video, **kwds, **kw)
         async with self.sem.num():
-            return self.bot.send_video(**kwds, **kw)
+            return await self._loop.run_in_executor(None, func)
 
     async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw):
         assert len(media) < MEDIA_GROUP_LIM
         kwds = dict(chat_id=to, media=media)
+        func = partial(self.bot.send_media_group, **kwds, **kw)
         async with self.sem.num(len(media)):
-            return self.bot.send_media_group(**kwds, **kw)
+            return await self._loop.run_in_executor(None, func)
 
     async def edit_media(self, to: ChatId, message_id: int, media: InputMedia):
+        kwds = dict(chat_id=to, message_id=message_id, media=media)
+        func = partial(self.bot.edit_message_media, **kwds)
         async with self.sem.num():
-            return self.bot.edit_message_media(chat_id=to, message_id=message_id, media=media)
+            return await self._loop.run_in_executor(None, func)
 
 
 class LimitedBot(SemaBot):
@@ -61,7 +71,9 @@ class LimitedBot(SemaBot):
         reply: Optional[int] = kw.pop('reply_to_message_id', None)
         markup = kw.pop('reply_markup', None)
         for i in split_by_len(text, TEXT_LIM):
-            msg = await super().send_message(to, i, **kw, reply_to_message_id=reply, reply_markup=markup)
+            msg = await super().send_message(
+                to, i, **kw, reply_to_message_id=reply, reply_markup=markup
+            )
             yield msg
             reply = msg.message_id
             markup = None
@@ -69,13 +81,15 @@ class LimitedBot(SemaBot):
     async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
         yield (msg := await super().send_photo(to, text[:MEDIA_TEXT_LIM], media, **kw))
         kw.pop('reply_markup', None)
-        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw, reply_to_message_id=msg.message_id):
+        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
+                                           reply_to_message_id=msg.message_id):
             yield msg
 
     async def send_video(self, to: ChatId, text: str, media: HttpUrl, **kw):
         yield (msg := await super().send_video(to, text[:MEDIA_TEXT_LIM], media, **kw))
         kw.pop('reply_markup', None)
-        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw, reply_to_message_id=msg.message_id):
+        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
+                                           reply_to_message_id=msg.message_id):
             yield msg
 
     async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw):
@@ -83,15 +97,17 @@ class LimitedBot(SemaBot):
             for msg in await super().send_media_group(to, media, **kw):
                 yield msg
 
-    async def unify_send(self, to: ChatId, text: str, media: list[HttpUrl]=None, **kw):
+    async def unify_send(self, to: ChatId, text: str, media: list[HttpUrl] = None, **kw):
         if not media:
-            async for msg in self.send_message(to, text, **kw): yield msg
+            async for msg in self.send_message(to, text, **kw):
+                yield msg
             return
 
         url = media[0]
         meth = self.send_video if self.supported_video(url) else self.send_photo
         if len(media) == 1:
-            async for msg in meth(to, text, url, **kw): yield msg
+            async for msg in meth(to, text, url, **kw):
+                yield msg
             return
 
         reply: Optional[int] = None
@@ -103,11 +119,15 @@ class LimitedBot(SemaBot):
         else:
             medias = [self.wrap_media(url, caption=text, **kw)]
         medias += [self.wrap_media(i, caption=text, **kw) for i in media[1:]]
-        async for msg in self.send_media_group(to, medias, **kw, reply_to_message_id=reply):  # type: ignore
+        async for msg in self.send_media_group(to, medias, **kw,
+                                               reply_to_message_id=reply):    # type: ignore
             yield msg
 
     def edit_media(self, to: ChatId, message_id: list[int], media: list[HttpUrl]):
-        g = (super().edit_media(to, mid, self.wrap_media(url)) for mid, url in zip(message_id, media))
+        g = (
+            super().edit_media(to, mid, self.wrap_media(url))
+            for mid, url in zip(message_id, media)
+        )
         return asyncio.gather(*g)
 
     @staticmethod

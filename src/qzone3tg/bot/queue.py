@@ -1,16 +1,13 @@
 """A message queue for sending feeds."""
 
-from abc import abstractmethod
 import asyncio
 from collections import defaultdict
 import time
-from typing import Awaitable, Callable, Optional, Union
+from typing import Optional, Union
 
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
 from aioqzone_feed.type import FeedContent
-
-from ..utils.iter import empty
 
 
 class _rsct:
