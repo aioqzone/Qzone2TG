@@ -1,9 +1,10 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
-from typing import Optional
+from typing import cast, Optional
 
 from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData
+from aioqzone.type import PersudoCurkey
 from aioqzone_feed.type import BaseFeed
 from telegram import BotCommand
 from telegram import CallbackQuery
@@ -21,6 +22,9 @@ from ..settings import Settings
 from ..utils.iter import anext
 from .base import BaseApp
 from .base import BaseAppHook
+from .storage import AsyncEngine
+from .storage import DefaultStorageHook
+from .storage.orm import FeedOrm
 
 
 class InteractAppHook(BaseAppHook):
@@ -36,8 +40,27 @@ class InteractAppHook(BaseAppHook):
         return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
 
+class InteractStorageHook(DefaultStorageHook):
+    async def query_likedata(self, persudo_curkey: str) -> Optional[LikeData]:
+        p = PersudoCurkey.from_str(persudo_curkey)
+        r = await self.get(FeedOrm.uin == p.uin, FeedOrm.abstime == p.abstime)
+        if r is None: return None
+        feed, _ = r
+        if feed.unikey is None: return
+        return LikeData(
+            unikey=str(feed.unikey),
+            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+            appid=feed.appid,
+            typeid=feed.typeid,
+            fid=feed.fid,
+            abstime=feed.abstime
+        )
+
+
 class InteractApp(BaseApp):
     hook_cls = InteractAppHook
+    store_cls = InteractStorageHook
+
     commands = {
         "start": "刷新",
         "refresh": "刷新",
@@ -46,8 +69,8 @@ class InteractApp(BaseApp):
         "help": "帮助",
     }
 
-    def __init__(self, sess: Session, conf: Settings) -> None:
-        super().__init__(sess, conf)
+    def __init__(self, sess: Session, store: AsyncEngine, conf: Settings) -> None:
+        super().__init__(sess, store, conf)
         if conf.bot.reload_on_start:
             self.commands['start'] = f"获取{conf.qzone.dayspac}天内的全部说说，覆盖数据库"
         else:
@@ -65,6 +88,10 @@ class InteractApp(BaseApp):
             )
         dispatcher.add_handler(CallbackQueryHandler(self.btn_dispatch, run_async=True))
         self.set_commands()
+
+    @property
+    def store(self) -> InteractStorageHook:
+        return cast(InteractStorageHook, super().store)
 
     def set_commands(self):
         try:

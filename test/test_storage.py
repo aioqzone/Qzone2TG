@@ -6,8 +6,9 @@ from aioqzone_feed.type import BaseFeed
 import pytest
 import pytest_asyncio
 
+from qzone2tg.app.interact import InteractStorageHook
+from qzone2tg.app.storage import AsyncEnginew
 from qzone2tg.app.storage import FeedOrm
-from qzone2tg.app.storage import FeedStore
 
 pytestmark = pytest.mark.asyncio
 
@@ -21,15 +22,20 @@ def randint_(a: float, b: float):
     return randint(int(a), int(b))
 
 
-def fake_feed(fid: str = None):
+def fake_feed():
     return BaseFeed(
         appid=randint(200, 400),
         typeid=randint(0, 10000),
-        fid=fid or randhex(randint(4, 5)),
+        fid=randhex(randint(4, 5)),
         abstime=randint_(time() - 86400, time()),
         uin=randint_(1E8, 1E9),
         nickname=str(randint(0, 100))
     )
+
+@pytest.fixture(scope='module')
+def fixed():
+    l = [fake_feed(), fake_feed()]
+    return l
 
 
 @pytest.fixture(scope='module')
@@ -41,36 +47,32 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope='module')
 async def store():
-    async with FeedStore() as s:
-        yield s
+    async with AsyncEnginew.sqlite3(None) as engine:
+        yield InteractStorageHook(engine)
 
 
-async def test_create(store: FeedStore):
+async def test_create(store: InteractStorageHook):
     await store.create()
 
 
-async def test_insert(store: FeedStore):
-    feed = fake_feed('aabaaaba' * 4)
-    await store.save(feed)
+async def test_insert(store: InteractStorageHook, fixed: list):
+    await store.SaveFeed(fixed[0])
 
 
-async def test_exist(store: FeedStore):
-    assert not await store.exists('aabaaaba')
-    assert await store.exists('aabaaaba' * 4)
+async def test_exist(store: InteractStorageHook, fixed: list):
+    assert not await store.exists(fixed[1])
+    assert await store.exists(fixed[0])
 
 
-async def test_update(store: FeedStore):
-    from aioqzone.type import LikeData
-    pred = FeedOrm.fid == 'aabaaaba' * 4
-    feed = await store.get_orm(pred)
-    assert feed
+async def test_update(store: InteractStorageHook, fixed: list):
+    feed = await store.get_orm(FeedOrm.fid == fixed[0].fid)
+    assert feed.mids is None    # type: ignore
 
-    curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)    # type: ignore
-    await store.edit(lambda o: setattr(o, 'curkey', curkey), pred)
-    obj, _ = await store.get(pred)    # type: ignore
-    assert obj.curkey == curkey
+    await store.update_message_id(fixed[0], [0])
+    _, mids = await store.get(FeedOrm.fid == fixed[0].fid)    # type: ignore
+    assert mids == [0]
 
 
-async def test_remove(store: FeedStore):
+async def test_remove(store: InteractStorageHook, fixed: list):
     await store.clean(0)    # clean all
-    assert not await store.exists('aabaaaba' * 4)
+    assert not await store.exists(fixed[0])

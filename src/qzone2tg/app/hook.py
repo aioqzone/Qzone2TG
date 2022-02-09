@@ -1,6 +1,5 @@
 """Inherits all hooks from aioqzone and implements hook behavior."""
 
-from abc import abstractmethod
 from collections import defaultdict
 import logging
 from typing import Any, Optional
@@ -35,6 +34,9 @@ class StorageEvent(Event):
         pass
 
     async def update_message_id(self, feed: BaseFeed, mids: list[int]):
+        pass
+
+    async def clean(self, seconds: float):
         pass
 
 

@@ -67,13 +67,13 @@ class LimitedBot(SemaBot):
             markup = None
 
     async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        yield msg := await super().send_photo(to, text[:MEDIA_TEXT_LIM], media, **kw)
+        yield (msg := await super().send_photo(to, text[:MEDIA_TEXT_LIM], media, **kw))
         kw.pop('reply_markup', None)
         async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw, reply_to_message_id=msg.message_id):
             yield msg
 
     async def send_video(self, to: ChatId, text: str, media: HttpUrl, **kw):
-        yield msg := await super().send_video(to, text[:MEDIA_TEXT_LIM], media, **kw)
+        yield (msg := await super().send_video(to, text[:MEDIA_TEXT_LIM], media, **kw))
         kw.pop('reply_markup', None)
         async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw, reply_to_message_id=msg.message_id):
             yield msg
@@ -97,7 +97,7 @@ class LimitedBot(SemaBot):
         reply: Optional[int] = None
         if (markup := kw.pop('reply_markup', None)):
             agen = meth(to, text, url, **kw, reply_markup=markup)
-            yield msg := await anext_(agen)
+            yield (msg := await anext_(agen))
             reply = msg.message_id
             medias = []
         else:

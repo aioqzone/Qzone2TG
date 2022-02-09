@@ -4,6 +4,7 @@ from pathlib import Path
 
 from aiohttp import ClientSession
 from app.interact import InteractApp
+from app.storage import AsyncEnginew
 from pydantic import DirectoryPath
 from pydantic import FilePath
 from settings import Settings
@@ -14,8 +15,8 @@ DEFAULT_SECRETS = Path('/run/secrets')
 
 
 async def main(conf: Settings):
-    async with ClientSession() as sess:
-        app = InteractApp(sess, conf)
+    async with ClientSession() as sess, AsyncEnginew.sqlite3(conf.bot.storage.database) as engine:
+        app = InteractApp(sess, engine, conf)
         await app.run()
 
 

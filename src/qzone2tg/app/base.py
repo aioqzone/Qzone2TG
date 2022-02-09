@@ -4,10 +4,9 @@ import asyncio
 import logging
 import logging.config
 from pathlib import Path
-from typing import Union
+from typing import cast, Generic, TypeVar, Union
 
 from aiohttp import ClientSession as Session
-from aioqzone.api.loginman import MixedLoginMan
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
 from telegram import ParseMode
@@ -18,25 +17,27 @@ from ..settings import LogConf
 from ..settings import NetworkConf
 from ..settings import Settings
 from .hook import BaseAppHook
+from .storage import AsyncEngine
 from .storage import DefaultStorageHook
-from .storage import FeedStore
+from .storage.loginman import LoginMan
 
 
 class BaseApp:
     hook_cls = BaseAppHook
+    store_cls = DefaultStorageHook
 
-    def __init__(self, sess: Session, conf: Settings) -> None:
+    def __init__(self, sess: Session, engine: AsyncEngine, conf: Settings) -> None:
         assert conf.bot.token
         # init logger at first
         self.conf = conf
         self._get_logger(conf.log)
         self.fetch_lock = asyncio.Lock()
 
-        self.store = FeedStore(conf.bot.storage.database)
+        self.engine = engine
         self.log.info('数据库已连接')
 
-        loginman = MixedLoginMan(
-            sess, conf.qzone.uin, conf.qzone.qr_strategy,
+        loginman = LoginMan(
+            sess, engine, conf.qzone.uin, conf.qzone.qr_strategy,
             conf.qzone.password.get_secret_value() if conf.qzone.password else None
         )
         self.qzone = FeedApi(sess, loginman)
@@ -51,12 +52,16 @@ class BaseApp:
         )
         self.silent_apscheduler()
         self.forward = self.hook_cls(self.updater.bot, conf.bot.admin)
-        self.forward.register_hook(DefaultStorageHook(self.store))
+        self.forward.register_hook(self.store_cls(self.engine))
         self.log.info('TG端初始化完成')
 
     @property
     def bot(self):
         return self.forward.bot
+
+    @property
+    def store(self) -> DefaultStorageHook:
+        return cast(DefaultStorageHook, self.forward.hook)
 
     def _get_logger(self, conf: LogConf):
         """(internal use only) Build a logger from given config.
@@ -153,7 +158,7 @@ class BaseApp:
         # start a new batch
         self.forward.new_batch()
         # fetch feed
-        check_exceed = None if reload else lambda f: self.store.exists(f.fid)
+        check_exceed = None if reload else lambda f: self.store.exists(f)
         got = await self.qzone.get_feeds_by_second(
             self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
         )
