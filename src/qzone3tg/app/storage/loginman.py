@@ -24,11 +24,19 @@ class LoginMan(MixedLoginMan):
     ) -> None:
         super().__init__(sess, uin, strategy, pwd, refresh_time)
         self.engine = engine
-        self.sess = sessionmaker(self.engine, class_=AsyncSession)
+        self.sessmaker = sessionmaker(self.engine, class_=AsyncSession)
+
+    async def load_cached_cookie(self):
+        async with self.sessmaker() as sess:
+            stmt = select(CookieOrm).where(CookieOrm.uin == self.uin)
+            result = await sess.execute(stmt)
+        if (prev := result.scalar()) is None: return
+        self._cookie = prev.cookie
+        self.sess.cookie_jar.update_cookies(self._cookie)
 
     async def _new_cookie(self) -> dict[str, str]:
         r = await super()._new_cookie()
-        async with self.sess() as sess:
+        async with self.sessmaker() as sess:
             async with sess.begin():
                 result = await sess.execute(select(CookieOrm).where(CookieOrm.uin == self.uin))
                 if (prev := result.scalar()):

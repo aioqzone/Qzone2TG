@@ -10,3 +10,5 @@ archive
 /config
 /doc/*
 !/doc/source
+/log
+/data

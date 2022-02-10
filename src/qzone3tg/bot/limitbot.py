@@ -8,9 +8,9 @@ from pydantic import HttpUrl
 from telegram import Bot
 from telegram import InputMediaPhoto
 from telegram import InputMediaVideo
+from utils.iter import anext_
+from utils.iter import split_by_len
 
-from ..utils.iter import anext_
-from ..utils.iter import split_by_len
 from .queue import RelaxSemaphore
 
 TEXT_LIM = 4096

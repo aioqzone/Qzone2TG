@@ -9,21 +9,21 @@ from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
 from aioqzone.interface.hook import QREvent
 from aioqzone.type import FeedRep
+from aioqzone.type import FeedsCount
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
 from aioqzone_feed.type import BaseFeed
+from bot.limitbot import ChatId
+from bot.limitbot import LimitedBot
+from bot.queue import ForwardEvent
+from bot.queue import MsgBarrier
+from bot.queue import MsgScheduler
 from telegram import Bot
 from telegram import InlineKeyboardMarkup
 from telegram import Message
-
-from ..bot.limitbot import ChatId
-from ..bot.limitbot import LimitedBot
-from ..bot.queue import ForwardEvent
-from ..bot.queue import MsgBarrier
-from ..bot.queue import MsgScheduler
-from ..utils.iter import anext
-from ..utils.iter import anext_
+from utils.iter import anext
+from utils.iter import anext_
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +68,19 @@ class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
         self.forward_map = defaultdict(lambda: admin, fwd_map or {})
 
     def header(self, feed: FeedContent):
+        href = lambda t, u: f"<a href='{u}'>{t}</a>"
         semt = sementic_time(feed.abstime)
+        nickname = href(feed.nickname, f"user.qzone.qq.com/{feed.uin}")
+
         if feed.forward is None:
-            return f"{feed.nickname}于{semt}发布了说说：\n\n"
+            return f"{nickname}于{semt}发布了说说：\n\n"
+
         if isinstance(feed.forward, BaseFeed):
-            return f"{feed.nickname}于{semt}转发了" \
-            f"<a href='user.qzone.qq.com/{feed.forward.uin}'>{feed.forward.nickname}</a>的说说：\n\n"
-        return f"{feed.nickname}于{semt}分享了<a href='{feed.forward}'>应用</a>：\n\n"
+            return f"{nickname}于{semt}转发了" \
+            f"{href(feed.forward.nickname, feed.forward.uin)}的说说：\n\n"
+
+        share = str(feed.forward)
+        return f"{nickname}于{semt}分享了{href('应用', share)}：\n\n"
 
     async def SendNow(self, feed: FeedContent) -> list[int]:
         media = [i.raw for i in feed.media] if feed.media else []

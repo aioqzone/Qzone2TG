@@ -12,6 +12,7 @@ from pydantic import FilePath
 from pydantic import HttpUrl
 from pydantic import SecretStr
 from pydantic import validator
+from pydantic.env_settings import SettingsSourceCallable
 
 __all__ = ['Settings']
 
@@ -23,8 +24,8 @@ class StorageConfig(BaseModel):
     database: Optional[Path] = None
     """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录."""
 
-    keepdays: int = 180
-    """一条记录要保存多少天."""
+    keepdays: int = 30
+    """一条记录要保存多少天. 默认为30天."""
 
 
 class BotDefaultConf(BaseModel):
@@ -151,7 +152,7 @@ class QzoneConf(BaseModel):
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    qr_strategy: str = 'prefer'
+    qr_strategy: str = 'allow'
     """二维码策略. 枚举类型，可选值为 `force`, `prefer`, `allow`, `forbid`
 
     - `force`：强制二维码登录，不使用密码登录. 如果您没有安装 NodeJs，则仅此模式可用.
@@ -180,14 +181,22 @@ class LogConf(BaseModel):
 class UserSecrets(BaseSettings):
     """专门管理用户密码/密钥的配置。依赖于 `pydnatic` 对 secrets 的支持。用户可以通过 `docker secrets`
     或通过环境变量来传递密码/密钥。"""
-    password: Optional[SecretStr] = None    # password
+    password: Optional[SecretStr] = Field(default=None, env=['TEST_PASSWORD', 'password'])
     """QQ 密码"""
 
-    token: SecretStr
+    token: SecretStr = Field(env=['TEST_TOKEN', 'token'])
     """TG 机器人的 `bot token`"""
     class Config:
-        env_prefix = "TEST_"
         secrets_dir = '/run/secrets'
+
+        @classmethod
+        def customise_sources(
+            cls,
+            init_settings: SettingsSourceCallable,
+            env_settings: SettingsSourceCallable,
+            file_secret_settings: SettingsSourceCallable,
+        ) -> tuple[SettingsSourceCallable, ...]:
+            return env_settings, file_secret_settings
 
 
 class Settings(BaseSettings):
@@ -202,7 +211,7 @@ class Settings(BaseSettings):
     bot: BotConf
     """bot配置: :class:`.BotConf`"""
     def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())    # type: ignore
+        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self

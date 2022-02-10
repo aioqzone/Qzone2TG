@@ -128,3 +128,15 @@ class DefaultStorageHook(StorageEvent):
             if orm is None: return
             orm.mids = mids
             if flush: await sess.commit()
+
+    def add_clean_task(self, keepdays: int):
+        async def clean_sleep():
+            while True:
+                try:
+                    await self.clean(-keepdays * 86400)
+                    await asyncio.sleep(86400)
+                except asyncio.CancelledError:
+                    return
+
+        self.cl = asyncio.create_task(clean_sleep())
+        return self.cl

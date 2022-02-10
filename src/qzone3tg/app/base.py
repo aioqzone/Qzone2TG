@@ -7,15 +7,17 @@ from pathlib import Path
 from typing import cast, Union
 
 from aiohttp import ClientSession as Session
+from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
+from qqqr.exception import UserBreak
+from settings import LogConf
+from settings import NetworkConf
+from settings import Settings
 from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
 
-from ..settings import LogConf
-from ..settings import NetworkConf
-from ..settings import Settings
 from .hook import BaseAppHook
 from .storage import AsyncEngine
 from .storage import DefaultStorageHook
@@ -36,11 +38,11 @@ class BaseApp:
         self.engine = engine
         self.log.info('数据库已连接')
 
-        loginman = LoginMan(
+        self.loginman = LoginMan(
             sess, engine, conf.qzone.uin, conf.qzone.qr_strategy,
             conf.qzone.password.get_secret_value() if conf.qzone.password else None
         )
-        self.qzone = FeedApi(sess, loginman)
+        self.qzone = FeedApi(sess, self.loginman)
         self.log.info('Qzone端初始化完成')
 
         self.updater = Updater(
@@ -49,10 +51,13 @@ class BaseApp:
                 parse_mode=ParseMode.HTML, run_async=False, **conf.bot.default.dict()
             ),
             request_kwargs=self._request_args(conf.bot.network),
+            workers=0
         )
-        self.silent_apscheduler()
+        self.silent_noisy_logger()
         self.forward = self.hook_cls(self.updater.bot, conf.bot.admin)
         self.forward.register_hook(self.store_cls(self.engine))
+        self.loginman.register_hook(self.forward)
+        self.qzone.register_hook(self.forward)
         self.log.info('TG端初始化完成')
 
     @property
@@ -118,19 +123,26 @@ class BaseApp:
         if proxy: args['proxy_url'] = proxy
         return args
 
-    def silent_apscheduler(self):
-        """Silent the noisy apscheduler logger."""
+    def silent_noisy_logger(self):
+        """Silent some noisy logger in other packages."""
 
         if self.log.level >= logging.WARN or self.log.level == logging.DEBUG: return
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
+        logging.getLogger("charset_normalizer").setLevel(logging.WARN)
 
     async def run(self):
         """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
         or `loop.stop()` is called."""
 
-        self.log.info('注册心跳')
+        self.log.info('注册心跳...')
         self.qzone.add_heartbeat()
+        self.log.info('尝试恢复本地缓存的cookie...')
+        await self.store.create()
+        await self.loginman.load_cached_cookie()
+        self.log.info('注册数据库清理任务...')
+        self.store.add_clean_task(self.conf.bot.storage.keepdays)
+
         await self.fetch(self.conf.bot.admin, reload=self.conf.bot.reload_on_start)
         try:
             while True:
@@ -145,6 +157,8 @@ class BaseApp:
 
         :param reload: dismiss existing records in database
         :param is_period: triggered by heartbeat, defaults to False
+
+        :raises `SystemExist`: unexcpected error
         """
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
@@ -154,13 +168,30 @@ class BaseApp:
         # start a new batch
         self.forward.new_batch()
         # fetch feed
-        check_exceed = None if reload else lambda f: self.store.exists(f)
-        got = await self.qzone.get_feeds_by_second(
-            self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
-        )
+        check_exceed = None if reload else self.store.exists
+        try:
+            got = await self.qzone.get_feeds_by_second(
+                self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
+            )
+        except (UserBreak, LoginError):
+            self.qzone.hb.cancel()
+            try:
+                self.bot.send_message(to, '命令已取消')
+            finally:
+                return
+
+        if got == 0:
+            self.bot.send_message(to, '您已跟上时代')
+
         # forward
         self.forward.msg_scd.set_upper_bound(got)
-        await self.forward.send_all()
+        try:
+            await self.qzone.wait()
+            await self.forward.send_all()
+        except:
+            self.log.fatal('Unexpected exception in forward.send_all', exc_info=True)
+            from sys import exit
+            exit(1)
 
         # Since ForwardHook doesn't handle errs respectively, a summary of errs is sent here.
         errs = len(self.forward.msg_scd.excs)

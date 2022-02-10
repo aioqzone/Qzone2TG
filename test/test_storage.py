@@ -6,9 +6,9 @@ from aioqzone_feed.type import BaseFeed
 import pytest
 import pytest_asyncio
 
-from qzone2tg.app.interact import InteractStorageHook
-from qzone2tg.app.storage import AsyncEnginew
-from qzone2tg.app.storage import FeedOrm
+from qzone3tg.app.interact import InteractStorageHook
+from qzone3tg.app.storage import AsyncEnginew
+from qzone3tg.app.storage import FeedOrm
 
 pytestmark = pytest.mark.asyncio
 

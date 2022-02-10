@@ -17,16 +17,16 @@ DEFAULT_SECRETS = Path('/run/secrets')
 async def main(conf: Settings):
     async with ClientSession() as sess, AsyncEnginew.sqlite3(conf.bot.storage.database) as engine:
         app = InteractApp(sess, engine, conf)
-        await app.run()
+        return await app.run()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--conf', '-c', help='配置文件路径 (*.yml, *.yaml)', type=FilePath, default=DEFAULT_CONF
+        '--conf', '-c', help='配置文件路径 (*.yml, *.yaml)', type=Path, default=DEFAULT_CONF
     )
     parser.add_argument(
-        '--secrets', '-s', help='密钥目录', type=DirectoryPath, default=DEFAULT_SECRETS
+        '--secrets', '-s', help='密钥目录', type=Path, default=DEFAULT_SECRETS
     )
     args = parser.parse_args()
 
@@ -36,4 +36,5 @@ if __name__ == '__main__':
     conf = Settings(**d).load_secrets(args.secrets)
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(conf))
+    code = loop.run_until_complete(main(conf))
+    exit(code)

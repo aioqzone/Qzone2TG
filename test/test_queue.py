@@ -3,8 +3,8 @@ import asyncio
 from aioqzone_feed.type import FeedContent
 import pytest
 
-from qzone2tg.bot.queue import ForwardEvent
-from qzone2tg.bot.queue import MsgScheduler
+from qzone3tg.bot.queue import ForwardEvent
+from qzone3tg.bot.queue import MsgScheduler
 
 pytestmark = pytest.mark.asyncio
 
