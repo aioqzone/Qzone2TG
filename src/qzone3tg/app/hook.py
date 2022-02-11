@@ -73,14 +73,14 @@ class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
         nickname = href(feed.nickname, f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
-            return f"{nickname}于{semt}发布了说说：\n\n"
+            return f"{nickname}{semt}发布了说说：\n\n"
 
         if isinstance(feed.forward, BaseFeed):
-            return f"{nickname}于{semt}转发了" \
+            return f"{nickname}{semt}转发了" \
             f"{href(feed.forward.nickname, feed.forward.uin)}的说说：\n\n"
 
         share = str(feed.forward)
-        return f"{nickname}于{semt}分享了{href('应用', share)}：\n\n"
+        return f"{nickname}{semt}分享了{href('应用', share)}：\n\n"
 
     async def SendNow(self, feed: FeedContent) -> list[int]:
         media = [i.raw for i in feed.media] if feed.media else []
@@ -88,6 +88,7 @@ class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
 
         if isinstance(feed.forward, BaseFeed):
             assert isinstance(feed.forward, FeedContent)
+            await self.wait('storage')  # await for flush before query
             mids = await self.hook.get_message_id(feed.forward) or await self.SendNow(feed.forward)
             kw['reply_to_message_id'] = mids[0] if mids else None
 
@@ -130,14 +131,14 @@ class DefaultQrHook(QREvent):
     admin: ChatId
 
     def __init__(self) -> None:
-        super().__init__()
+        QREvent.__init__(self)
         self.qr_msg: Optional[Message] = None
         self.lg_msg: Optional[Message] = None
         self.qr_times: int = 0
         """qr sent times"""
 
     async def LoginFailed(self, msg: str = None):
-        await anext(self.bot.send_message(self.admin, text=msg or '登录失败'))
+        pass
 
     async def LoginSuccess(self):
         self.lg_msg = await anext_(self.bot.send_message(self.admin, '登录成功'))
@@ -168,14 +169,18 @@ class DefaultQrHook(QREvent):
         self.qr_msg = None
 
 
-class DefaultFeedHook(FeedEvent):
-    def __init__(self) -> None:
+class DefaultFeedHook(FeedEvent, Emittable[StorageEvent]):
+    def __init__(self, block: list[int]) -> None:
         super().__init__()
         self.update_scd = MsgBarrier()
+        self.block = set(block)
         self.new_batch()
 
     async def FeedProcEnd(self, bid: int, feed: FeedContent):
         logger.debug(f"bid={bid}: {feed}")
+        if feed.uin in self.block:
+            logger.info(f'Block hit: {feed.uin}')
+            return
         self.msg_scd.add(bid, feed)
 
     async def FeedMediaUpdate(self, feed: FeedContent):
@@ -187,10 +192,10 @@ class DefaultFeedHook(FeedEvent):
 
 
 class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
-    def __init__(self, bot: Bot, admin: ChatId, fwd_map: dict[int, ChatId] = None) -> None:
+    def __init__(self, bot: Bot, admin: ChatId, block: list[int] = None, fwd_map: dict[int, ChatId] = None) -> None:
         DefaultForwardHook.__init__(self, bot, admin, fwd_map)
         DefaultQrHook.__init__(self)
-        DefaultFeedHook.__init__(self)
+        DefaultFeedHook.__init__(self, block or [])
 
     async def SendNow(self, feed: FeedContent):
         # Remove the feed from media-update pending buffer for it has not been sent.

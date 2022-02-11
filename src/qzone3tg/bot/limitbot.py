@@ -93,8 +93,8 @@ class LimitedBot(SemaBot):
             yield msg
 
     async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw):
-        for _ in split_by_len(media, MEDIA_GROUP_LIM):
-            for msg in await super().send_media_group(to, media, **kw):
+        for i in split_by_len(media, MEDIA_GROUP_LIM):
+            for msg in await super().send_media_group(to, i, **kw):
                 yield msg
 
     async def unify_send(self, to: ChatId, text: str, media: list[HttpUrl] = None, **kw):
@@ -112,15 +112,14 @@ class LimitedBot(SemaBot):
 
         reply: Optional[int] = None
         if (markup := kw.pop('reply_markup', None)):
-            agen = meth(to, text, url, **kw, reply_markup=markup)
-            yield (msg := await anext_(agen))
-            reply = msg.message_id
-            medias = []
-        else:
-            medias = [self.wrap_media(url, caption=text, **kw)]
-        medias += [self.wrap_media(i, caption=text, **kw) for i in media[1:]]
-        async for msg in self.send_media_group(to, medias, **kw,
-                                               reply_to_message_id=reply):    # type: ignore
+            async for msg in self.send_message(to, text, **kw, reply_markup=markup):
+                yield msg
+                if reply is None: reply = msg.message_id
+            text = None    # type: ignore
+
+        medias = [self.wrap_media(url, caption=text, **kw)]
+        medias += [self.wrap_media(i, **kw) for i in media[1:]]
+        async for msg in self.send_media_group(to, medias, **kw, reply_to_message_id=reply):
             yield msg
 
     def edit_media(self, to: ChatId, message_id: list[int], media: list[HttpUrl]):

@@ -2,6 +2,7 @@
 
 import asyncio
 from collections import defaultdict
+import logging
 import time
 from typing import Optional, Union
 
@@ -9,7 +10,7 @@ from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
 from aioqzone_feed.type import FeedContent
 
-
+logger = logging.getLogger(__name__)
 class _rsct:
     """We need this because telegram api limits bot message frequency per senconds.
 
@@ -87,9 +88,12 @@ class MsgBarrier(Emittable[ForwardEvent]):
 
     def _add_handler(self, task: asyncio.Task, feed: FeedContent):
         def check_succ(t: asyncio.Task):
-            if (exc := t.exception()) is None: return    # task has been removed by add_hook_ref
+            if (exc := t.exception()) is None:
+                logger.info('Task success. Removed.')
+                return    # task has been removed by add_hook_ref
             self.excs[feed].append(exc)
             if len(self.excs[feed]) < self._retry:
+                logger.warning(f'Task failed # {len(self.excs[feed])}, retry.')
                 task = self.add_hook_ref('send', self.hook.SendNow(feed))
                 self._add_handler(task, feed)
                 return
@@ -129,15 +133,21 @@ class MsgScheduler(MsgBarrier):
         self.buffer[bid] = feed
         if self._max == 0: return    # skip if upper bound unknown
 
-        for i in range(self._point, -1, -1):
-            if i == self._point and (f := self.buffer.get(i)):    # if this bid should be sent
-                self.buffer[self._point] = None    # feed -> None
-                task = self.add_hook_ref('send', self.hook.SendNow(f))
-                task = self._add_handler(task, f)
-                self._point -= 1    # donot care whether succ or not
-                if self._point < 0: self._point += self._max    # count around
-            else:
-                break
+        if (f := self.buffer.get(self._point)):    # if this bid should be sent
+            logger.debug('bid=%d is ready.', self._point)
+        else: return
+
+        if self.pending_tasks():
+            logger.debug('Waiting for pending task to be done. Skipped.')
+            return
+
+        self.buffer[self._point] = None    # feed -> None
+        task = self.add_hook_ref('send', self.hook.SendNow(f))
+        task = self._add_handler(task, f)
+        logger.info(f'Feed scheduled in add: bid={bid}, task={task}')
+        self._point -= 1    # donot care whether succ or not
+        if self._point < 0: self._point += self._max    # count around
+
 
     async def send_all(self):
         assert len(self.buffer), "Wait until all item arrive"
@@ -146,9 +156,8 @@ class MsgScheduler(MsgBarrier):
             task = self.add_hook_ref('send', self.hook.SendNow(feed))
             self._add_handler(task, feed)
             try:
-                await task
+                await self.wait('send')
             except:
                 pass    # callback will handle exceptions
             await asyncio.sleep(0)    # essential for schedule tasks
-        await self.wait('send')
         await self.wait('hook')

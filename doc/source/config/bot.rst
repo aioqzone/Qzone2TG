@@ -1,20 +1,20 @@
 bot 配置
 ==============
 
-.. autopydantic_settings:: qzone2tg.settings.BotConf
+.. autopydantic_settings:: qzone3tg.settings.BotConf
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.NetworkConf
+.. autopydantic_settings:: qzone3tg.settings.NetworkConf
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.WebhookConf
+.. autopydantic_settings:: qzone3tg.settings.WebhookConf
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.PollingConf
+.. autopydantic_settings:: qzone3tg.settings.PollingConf
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.BotDefaultConf
+.. autopydantic_settings:: qzone3tg.settings.BotDefaultConf
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.StorageConfig
+.. autopydantic_settings:: qzone3tg.settings.StorageConfig
     :members:

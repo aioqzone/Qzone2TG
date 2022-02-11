@@ -27,8 +27,8 @@ class FeedOrm(Base):    # type: ignore
             appid=obj.appid,
             typeid=obj.typeid,
             nickname=obj.nickname,
-            curkey=obj.curkey,
-            unikey=obj.unikey,
+            curkey=obj.curkey and str(obj.curkey),
+            unikey=obj.unikey and str(obj.unikey),
             mids=mids
         )
 
@@ -40,8 +40,8 @@ class FeedOrm(Base):    # type: ignore
         record.appid = obj.appid
         record.typeid = obj.typeid
         record.nickname = obj.nickname
-        record.curkey = obj.curkey
-        record.unikey = obj.unikey
+        record.curkey = obj.curkey and str(obj.curkey)
+        record.unikey = obj.unikey and str(obj.unikey)
         record.mids = mids
 
 

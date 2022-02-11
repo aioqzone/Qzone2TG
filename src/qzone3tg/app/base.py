@@ -17,6 +17,7 @@ from settings import Settings
 from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
+from utils.iter import anext
 
 from .hook import BaseAppHook
 from .storage import AsyncEngine
@@ -33,6 +34,7 @@ class BaseApp:
         # init logger at first
         self.conf = conf
         self._get_logger(conf.log)
+        self.silent_noisy_logger()
         self.fetch_lock = asyncio.Lock()
 
         self.engine = engine
@@ -53,8 +55,12 @@ class BaseApp:
             request_kwargs=self._request_args(conf.bot.network),
             workers=0
         )
-        self.silent_noisy_logger()
-        self.forward = self.hook_cls(self.updater.bot, conf.bot.admin)
+
+        block = conf.qzone.block or []
+        block = block.copy()
+        if conf.qzone.block_self: block.append(conf.qzone.uin)
+
+        self.forward = self.hook_cls(self.updater.bot, conf.bot.admin, block)
         self.forward.register_hook(self.store_cls(self.engine))
         self.loginman.register_hook(self.forward)
         self.qzone.register_hook(self.forward)
@@ -195,9 +201,6 @@ class BaseApp:
 
         # Since ForwardHook doesn't handle errs respectively, a summary of errs is sent here.
         errs = len(self.forward.msg_scd.excs)
-        if errs:
-            log_level_helper = f"当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''
-            self.bot.send_message(
-                to, f"发送期间有{errs}条说说抛出异常。查看服务端日志，"
-                "在我们的讨论群 @qzone2tg_discuss 寻求帮助。" + log_level_helper
-            )
+        log_level_helper = f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''
+        err_msg = "查看服务端日志，在我们的讨论群 @qzone2tg_discuss 寻求帮助。" + log_level_helper if errs else ''
+        await anext(self.bot.send_message(to, f"发送结束，共{got}条，{errs}条出错。" + err_msg))

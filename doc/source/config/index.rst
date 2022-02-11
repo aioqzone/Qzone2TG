@@ -12,8 +12,8 @@ Cha1. 配置文件
 配置文件总览
 ==============
 
-.. autopydantic_settings:: qzone2tg.settings.Settings
+.. autopydantic_settings:: qzone3tg.settings.Settings
     :members:
 
-.. autopydantic_settings:: qzone2tg.settings.UserSecrets
+.. autopydantic_settings:: qzone3tg.settings.UserSecrets
     :members:

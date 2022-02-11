@@ -162,6 +162,11 @@ class QzoneConf(BaseModel):
 
     dayspac: int = 3
     """最多爬取从现在起几天内的说说. 默认为三天."""
+    block: Optional[list[int]] = None
+    """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
+    block_self: bool = True
+    """是否舍弃当前登录账号发布的内容. 等同于在 `.block` 中加入当前 `.uin`"""
+
     @validator('qr_strategy')
     def must_be_enum(cls, v):
         """确保输入的 `qr_strategy` 是四个枚举值之一."""
@@ -211,7 +216,7 @@ class Settings(BaseSettings):
     bot: BotConf
     """bot配置: :class:`.BotConf`"""
     def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())
+        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())  # type: ignore
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self
