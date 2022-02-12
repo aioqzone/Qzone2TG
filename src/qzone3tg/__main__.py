@@ -3,12 +3,13 @@ import asyncio
 from pathlib import Path
 
 from aiohttp import ClientSession
-from app.interact import InteractApp
-from app.storage import AsyncEnginew
 from pydantic import DirectoryPath
 from pydantic import FilePath
-from settings import Settings
 import yaml
+
+from qzone3tg.app.interact import InteractApp
+from qzone3tg.app.storage import AsyncEnginew
+from qzone3tg.settings import Settings
 
 DEFAULT_CONF = Path('config/settings.yml')
 DEFAULT_SECRETS = Path('/run/secrets')

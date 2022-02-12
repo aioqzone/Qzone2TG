@@ -1,16 +1,21 @@
 """A message queue for sending feeds."""
 
+from abc import abstractmethod
 import asyncio
 from collections import defaultdict
 import logging
 import time
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
+from aioqzone.type import FeedRep
+from aioqzone_feed.type import BaseFeed
 from aioqzone_feed.type import FeedContent
 
 logger = logging.getLogger(__name__)
+
+
 class _rsct:
     """We need this because telegram api limits bot message frequency per senconds.
 
@@ -61,9 +66,59 @@ class RelaxSemaphore(asyncio.Semaphore):
         return _rsct(self, num)
 
 
-class ForwardEvent(Event):
-    async def SendNow(self, feed: FeedContent):
-        pass
+class StorageEvent(Event):
+    """Basic hook event for storage function."""
+    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
+        """Add/Update an record by the given feed and messages id.
+
+        :param feed: feed
+        :param msgs_id: messages id list
+        """
+        return
+
+    async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
+        return
+
+    async def update_message_id(self, feed: BaseFeed, mids: list[int]):
+        return
+
+    async def clean(self, seconds: float):
+        """clean feeds out of date, based on `abstime`.
+
+        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
+        """
+        return
+
+    async def exists(self, feed: FeedRep) -> bool:
+        """check if a feed exists in this database.
+
+        :param feed: feed to check
+        :return: whether exists
+        """
+        return False
+
+
+class ForwardEvent(Event, Emittable[StorageEvent]):
+    @abstractmethod
+    async def SendNow(
+        self,
+        feed: FeedContent,
+        dep: asyncio.Task[list[int]] = None,
+        last_exc: BaseException = None,
+    ) -> list[int]:
+        """This feed is scheduled and must be send at once. Subclass need not send
+        `feed.forward` if it is a :external:class:`aioqzone_feed.type.FeedContent` as well.
+        If it does, it will be scheduled before this feed, and the task will be passed through `dep`.
+        Subclass can await for `dep` to ensure the task is done.
+
+        If some error occurs, `last_exc` will be passed, which is the exception in last run.
+
+        :param feed: The feed to be send.
+        :param dep: Task that should be await before current sending, defaults to None
+        :param last_exc: Exception occurs in last schedule, defaults to None
+        :return: message id
+        """
+        if dep: await dep
 
     async def FeedDroped(self, feed: FeedContent, *exc):
         pass
@@ -94,7 +149,7 @@ class MsgBarrier(Emittable[ForwardEvent]):
             self.excs[feed].append(exc)
             if len(self.excs[feed]) < self._retry:
                 logger.warning(f'Task failed # {len(self.excs[feed])}, retry.')
-                task = self.add_hook_ref('send', self.hook.SendNow(feed))
+                task = self.add_hook_ref('send', self.hook.SendNow(feed, last_exc=exc))
                 self._add_handler(task, feed)
                 return
             self.add_hook_ref('hook', self.hook.FeedDroped(feed, *self.excs[feed]))
@@ -119,7 +174,7 @@ class MsgScheduler(MsgBarrier):
     def set_upper_bound(self, val: int):
         assert val > 0
         self._max = val
-        self._point = val - 1    # which feed should be sent in advance
+        self._point = 2 * val - 1    # which feed should be sent in advance
 
     def pending_feeds(self, reverse: bool = True):
         if not reverse: return filter(None, self.buffer.values())
@@ -129,25 +184,32 @@ class MsgScheduler(MsgBarrier):
     def pending_tasks(self):
         return self._tasks['send']
 
-    def add(self, bid: int, feed: FeedContent):
-        self.buffer[bid] = feed
+    async def add(self, bid: int, feed: FeedContent):
+        if isinstance(feed.forward, FeedContent) and \
+            await self.hook.hook.get_message_id(feed.forward) is None:
+            # schedule forwardee before forwarder
+            self.buffer[2 * bid + 1] = feed.forward
+        self.buffer[bid << 1] = feed
         if self._max == 0: return    # skip if upper bound unknown
 
-        if (f := self.buffer.get(self._point)):    # if this bid should be sent
-            logger.debug('bid=%d is ready.', self._point)
-        else: return
+        task = next(iter(self._tasks['send']), None)
 
-        if self.pending_tasks():
-            logger.debug('Waiting for pending task to be done. Skipped.')
-            return
+        while self._point >= 0:
+            assert self._point & 1, 'pointer should point at an odd num'
+            for i in range(2):
+                if (f := self.buffer.get(self._point - i)):    # if this bid should be sent
+                    logger.debug('bid=%d is ready.', self._point)
+                else:
+                    if i == 0: continue
+                    return
 
-        self.buffer[self._point] = None    # feed -> None
-        task = self.add_hook_ref('send', self.hook.SendNow(f))
-        task = self._add_handler(task, f)
-        logger.info(f'Feed scheduled in add: bid={bid}, task={task}')
-        self._point -= 1    # donot care whether succ or not
-        if self._point < 0: self._point += self._max    # count around
-
+                self.buffer[self._point - i] = None    # remove the feed from buffer
+                task = self.add_hook_ref(
+                    'send', self.hook.SendNow(f, task)
+                )    # pass the first task when i=1
+                task = self._add_handler(task, f)
+                logger.info(f'Feed scheduled in add: bid={bid}, task={task}')
+                if i == 1: self._point -= 2    # donot care whether succ or not
 
     async def send_all(self):
         assert len(self.buffer), "Wait until all item arrive"

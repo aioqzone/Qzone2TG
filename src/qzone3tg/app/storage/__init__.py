@@ -1,10 +1,8 @@
 import asyncio
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 from aioqzone.type import FeedRep
-from aioqzone.type import LikeData
-from aioqzone.type import PersudoCurkey
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
-from ..hook import StorageEvent
+from ...bot.queue import StorageEvent
 from .orm import FeedOrm
 
 

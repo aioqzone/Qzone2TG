@@ -11,13 +11,14 @@ from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
 from qqqr.exception import UserBreak
-from settings import LogConf
-from settings import NetworkConf
-from settings import Settings
 from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
-from utils.iter import anext
+
+from qzone3tg.settings import LogConf
+from qzone3tg.settings import NetworkConf
+from qzone3tg.settings import Settings
+from qzone3tg.utils.iter import anext
 
 from .hook import BaseAppHook
 from .storage import AsyncEngine

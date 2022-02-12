@@ -1,6 +1,7 @@
 """Defines all hooks used in Qzone3TG and implements some default hook.
 """
 
+import asyncio
 from collections import defaultdict
 import logging
 from typing import Any, Optional
@@ -14,53 +15,22 @@ from aioqzone.utils.time import sementic_time
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
 from aioqzone_feed.type import BaseFeed
-from bot.limitbot import ChatId
-from bot.limitbot import LimitedBot
-from bot.queue import ForwardEvent
-from bot.queue import MsgBarrier
-from bot.queue import MsgScheduler
 from telegram import Bot
 from telegram import InlineKeyboardMarkup
 from telegram import Message
-from utils.iter import anext
-from utils.iter import anext_
+
+from qzone3tg.bot.limitbot import ChatId
+from qzone3tg.bot.limitbot import LimitedBot
+from qzone3tg.bot.queue import ForwardEvent
+from qzone3tg.bot.queue import MsgBarrier
+from qzone3tg.bot.queue import MsgScheduler
+from qzone3tg.utils.iter import anext
+from qzone3tg.utils.iter import anext_
 
 logger = logging.getLogger(__name__)
 
 
-class StorageEvent(Event):
-    """Basic hook event for storage function."""
-    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
-        """Add/Update an record by the given feed and messages id.
-
-        :param feed: feed
-        :param msgs_id: messages id list
-        """
-        pass
-
-    async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
-        pass
-
-    async def update_message_id(self, feed: BaseFeed, mids: list[int]):
-        pass
-
-    async def clean(self, seconds: float):
-        """clean feeds out of date, based on `abstime`.
-
-        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
-        """
-        pass
-
-    async def exists(self, feed: FeedRep) -> bool:
-        """check if a feed exists in this database.
-
-        :param feed: feed to check
-        :return: whether exists
-        """
-        return False
-
-
-class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
+class DefaultForwardHook(ForwardEvent):
     def __init__(self, bot: Bot, admin: ChatId, fwd_map: dict[int, ChatId] = None) -> None:
         super().__init__()
         self.bot = LimitedBot(bot)
@@ -82,14 +52,25 @@ class DefaultForwardHook(ForwardEvent, Emittable[StorageEvent]):
         share = str(feed.forward)
         return f"{nickname}{semt}分享了{href('应用', share)}：\n\n"
 
-    async def SendNow(self, feed: FeedContent) -> list[int]:
+    async def SendNow(
+        self,
+        feed: FeedContent,
+        dep: asyncio.Task[list[int]] = None,
+        last_exc: BaseException = None,
+    ) -> list[int]:
+        dep_exc = mids = None
+        if dep:
+            try:
+                mids = await dep
+            except BaseException as e:
+                dep_exc = e
+
         media = [i.raw for i in feed.media] if feed.media else []
         kw: dict[str, Any] = dict(reply_markup=self.like_markup(feed))
 
         if isinstance(feed.forward, BaseFeed):
-            assert isinstance(feed.forward, FeedContent)
-            await self.wait('storage')  # await for flush before query
-            mids = await self.hook.get_message_id(feed.forward) or await self.SendNow(feed.forward)
+            if dep_exc: raise dep_exc
+            if dep is None: mids = await self.hook.get_message_id(feed.forward)
             kw['reply_to_message_id'] = mids[0] if mids else None
 
         content = self.header(feed) + feed.content
@@ -169,7 +150,7 @@ class DefaultQrHook(QREvent):
         self.qr_msg = None
 
 
-class DefaultFeedHook(FeedEvent, Emittable[StorageEvent]):
+class DefaultFeedHook(FeedEvent):
     def __init__(self, block: list[int]) -> None:
         super().__init__()
         self.update_scd = MsgBarrier()
@@ -181,7 +162,7 @@ class DefaultFeedHook(FeedEvent, Emittable[StorageEvent]):
         if feed.uin in self.block:
             logger.info(f'Block hit: {feed.uin}')
             return
-        self.msg_scd.add(bid, feed)
+        await self.msg_scd.add(bid, feed)
 
     async def FeedMediaUpdate(self, feed: FeedContent):
         logger.debug(f"feed update received: media={feed.media}")
@@ -192,7 +173,13 @@ class DefaultFeedHook(FeedEvent, Emittable[StorageEvent]):
 
 
 class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
-    def __init__(self, bot: Bot, admin: ChatId, block: list[int] = None, fwd_map: dict[int, ChatId] = None) -> None:
+    def __init__(
+        self,
+        bot: Bot,
+        admin: ChatId,
+        block: list[int] = None,
+        fwd_map: dict[int, ChatId] = None
+    ) -> None:
         DefaultForwardHook.__init__(self, bot, admin, fwd_map)
         DefaultQrHook.__init__(self)
         DefaultFeedHook.__init__(self, block or [])

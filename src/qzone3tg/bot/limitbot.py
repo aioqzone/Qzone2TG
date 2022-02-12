@@ -1,5 +1,4 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import PurePath
 from typing import Optional, Union
@@ -8,8 +7,9 @@ from pydantic import HttpUrl
 from telegram import Bot
 from telegram import InputMediaPhoto
 from telegram import InputMediaVideo
-from utils.iter import anext_
-from utils.iter import split_by_len
+
+from qzone3tg.utils.iter import anext_
+from qzone3tg.utils.iter import split_by_len
 
 from .queue import RelaxSemaphore
 

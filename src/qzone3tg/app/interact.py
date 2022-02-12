@@ -6,8 +6,6 @@ from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData
 from aioqzone.type import PersudoCurkey
 from aioqzone_feed.type import BaseFeed
-from settings import PollingConf
-from settings import Settings
 from telegram import BotCommand
 from telegram import CallbackQuery
 from telegram import InlineKeyboardButton
@@ -19,7 +17,10 @@ from telegram.ext import CommandHandler
 from telegram.ext import Dispatcher
 from telegram.ext import Filters
 from telegram.ext import MessageFilter
-from utils.iter import anext
+
+from qzone3tg.settings import PollingConf
+from qzone3tg.settings import Settings
+from qzone3tg.utils.iter import anext
 
 from .base import BaseApp
 from .base import BaseAppHook
