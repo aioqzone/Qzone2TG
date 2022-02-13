@@ -15,6 +15,7 @@ from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
 
+from qzone3tg import DISCUSS
 from qzone3tg.settings import LogConf
 from qzone3tg.settings import NetworkConf
 from qzone3tg.settings import Settings
@@ -24,6 +25,8 @@ from .hook import BaseAppHook
 from .storage import AsyncEngine
 from .storage import DefaultStorageHook
 from .storage.loginman import LoginMan
+
+DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
 
 
 class BaseApp:
@@ -60,8 +63,9 @@ class BaseApp:
         block = conf.qzone.block or []
         block = block.copy()
         if conf.qzone.block_self: block.append(conf.qzone.uin)
+        kw = conf.bot.dict(include={'admin', 'send_gif_as_anim'})
 
-        self.forward = self.hook_cls(self.updater.bot, conf.bot.admin, block)
+        self.forward = self.hook_cls(sess, self.updater.bot, block=block, **kw)
         self.forward.register_hook(self.store_cls(self.engine))
         self.loginman.register_hook(self.forward)
         self.qzone.register_hook(self.forward)
@@ -200,8 +204,11 @@ class BaseApp:
             from sys import exit
             exit(1)
 
-        # Since ForwardHook doesn't handle errs respectively, a summary of errs is sent here.
-        errs = len(self.forward.msg_scd.excs)
+        # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
+        max_retry_exceed = filter(
+            lambda i: len(i) == self.forward.msg_scd._retry, self.forward.msg_scd.excs.values()
+        )
+        errs = len(list(max_retry_exceed))
         log_level_helper = f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''
-        err_msg = "查看服务端日志，在我们的讨论群 @qzone2tg_discuss 寻求帮助。" + log_level_helper if errs else ''
-        await anext(self.bot.send_message(to, f"发送结束，共{got}条，{errs}条出错。" + err_msg))
+        err_msg = f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。" + log_level_helper if errs else ''
+        await anext(self.bot.send_message(to, f"发送结束，共{got}条，{errs}条错误。" + err_msg))

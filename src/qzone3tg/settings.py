@@ -143,6 +143,12 @@ class BotConf(BaseModel):
     reload_on_start: bool = False
     """/start 命令是否忽略已转发的内容. 即，此开关为 True 时，
     Bot 不会检查说说是否曾经转发过，而是将 :meth:`.QzoneConf.dayspac` 天内的所有说说重新转发。"""
+    send_gif_as_anim: bool = True
+    """当此项为 False 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
+    在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`SendPhoto`) 发送给
+    telegram，最终导致用户收到的 gif 链接“不会动”.
+
+    开启此项会导致额外的服务器流量和额外的连接时间（向Qzone服务器请求图片）. 用户可以根据需要关闭."""
 
 
 class QzoneConf(BaseModel):
@@ -166,7 +172,6 @@ class QzoneConf(BaseModel):
     """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
     block_self: bool = True
     """是否舍弃当前登录账号发布的内容. 等同于在 `.block` 中加入当前 `.uin`"""
-
     @validator('qr_strategy')
     def must_be_enum(cls, v):
         """确保输入的 `qr_strategy` 是四个枚举值之一."""
@@ -216,7 +221,7 @@ class Settings(BaseSettings):
     bot: BotConf
     """bot配置: :class:`.BotConf`"""
     def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())  # type: ignore
+        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())    # type: ignore
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self

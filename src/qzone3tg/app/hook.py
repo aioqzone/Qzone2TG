@@ -6,11 +6,8 @@ from collections import defaultdict
 import logging
 from typing import Any, Optional
 
-from aioqzone.interface.hook import Emittable
-from aioqzone.interface.hook import Event
+from aiohttp import ClientSession
 from aioqzone.interface.hook import QREvent
-from aioqzone.type import FeedRep
-from aioqzone.type import FeedsCount
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.interface.hook import FeedContent
 from aioqzone_feed.interface.hook import FeedEvent
@@ -18,9 +15,11 @@ from aioqzone_feed.type import BaseFeed
 from telegram import Bot
 from telegram import InlineKeyboardMarkup
 from telegram import Message
+from telegram.error import BadRequest
+from telegram.error import TimedOut
 
 from qzone3tg.bot.limitbot import ChatId
-from qzone3tg.bot.limitbot import LimitedBot
+from qzone3tg.bot.limitbot import FetchBot
 from qzone3tg.bot.queue import ForwardEvent
 from qzone3tg.bot.queue import MsgBarrier
 from qzone3tg.bot.queue import MsgScheduler
@@ -31,11 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 class DefaultForwardHook(ForwardEvent):
-    def __init__(self, bot: Bot, admin: ChatId, fwd_map: dict[int, ChatId] = None) -> None:
-        super().__init__()
-        self.bot = LimitedBot(bot)
-        self.admin = admin
-        self.forward_map = defaultdict(lambda: admin, fwd_map or {})
+    def __init__(self, bot: FetchBot, fwd_map: dict[int, ChatId]) -> None:
+        ForwardEvent.__init__(self)
+        self.bot = bot
+        self.forward_map = fwd_map
 
     def header(self, feed: FeedContent):
         href = lambda t, u: f"<a href='{u}'>{t}</a>"
@@ -43,11 +41,12 @@ class DefaultForwardHook(ForwardEvent):
         nickname = href(feed.nickname, f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
-            return f"{nickname}{semt}发布了说说：\n\n"
+            return f"{nickname}{semt}发布了{href('说说', str(feed.unikey))}：\n\n"
 
         if isinstance(feed.forward, BaseFeed):
             return f"{nickname}{semt}转发了" \
-            f"{href(feed.forward.nickname, feed.forward.uin)}的说说：\n\n"
+            f"{href(feed.forward.nickname, f'user.qzone.qq.com/{feed.forward.uin}')}" \
+            f"的{href('说说', str(feed.unikey))}：\n\n"
 
         share = str(feed.forward)
         return f"{nickname}{semt}分享了{href('应用', share)}：\n\n"
@@ -64,17 +63,27 @@ class DefaultForwardHook(ForwardEvent):
                 mids = await dep
             except BaseException as e:
                 dep_exc = e
+        if isinstance(last_exc, TimedOut):
+            self.bot.fetcher.timeout()
 
-        media = [i.raw for i in feed.media] if feed.media else []
-        kw: dict[str, Any] = dict(reply_markup=self.like_markup(feed))
+        kw: dict[str, Any] = dict(
+            text=self.header(feed) + feed.content,
+            medias=feed.media,
+            fetch=isinstance(last_exc, BadRequest)
+        )
+        if feed.media is None or len(feed.media) <= 1:
+            kw['reply_markup'] = self.like_markup(feed)
 
         if isinstance(feed.forward, BaseFeed):
-            if dep_exc: raise dep_exc
-            if dep is None: mids = await self.hook.get_message_id(feed.forward)
+            if dep_exc:
+                logger.warning('Forwardee raise an error. Send forwarder for all.')
+                # raise dep_exc
+            elif dep is None:
+                await self.wait('storage')
+                mids = await self.hook.get_message_id(feed.forward)
             kw['reply_to_message_id'] = mids[0] if mids else None
 
-        content = self.header(feed) + feed.content
-        agen = self.bot.unify_send(self.forward_map[feed.uin], content, media, **kw)
+        agen = await self.bot.unify_send(self.forward_map[feed.uin], **kw)
         mids = [i.message_id async for i in agen]
         self.add_hook_ref('storage', self.hook.SaveFeed(feed, mids))
         return mids
@@ -90,12 +99,23 @@ class DefaultForwardHook(ForwardEvent):
 
 
 class MediaUpdateHook(DefaultForwardHook):
-    async def SendNow(self, feed: FeedContent):
+    async def SendNow(
+        self,
+        feed: FeedContent,
+        dep: asyncio.Task[list[int]] = None,
+        last_exc: BaseException = None,
+    ):
+        if isinstance(last_exc, TimedOut):
+            self.bot.fetcher.timeout()
+
         mids = await self.hook.get_message_id(feed)
         if mids is None: return await super().SendNow(feed)
         assert feed.media
         nmids = await self.bot.edit_media(
-            self.forward_map[feed.uin], mids, [i.raw for i in feed.media]
+            self.forward_map[feed.uin],
+            mids,
+            feed.media,
+            fetch=isinstance(last_exc, BadRequest),
         )
         mids = [n.message_id if isinstance(n, Message) else p for p, n in zip(mids, nmids)]
         self.add_hook_ref('storage', self.hook.update_message_id(feed, mids))
@@ -108,11 +128,10 @@ class MediaUpdateHook(DefaultForwardHook):
 
 
 class DefaultQrHook(QREvent):
-    bot: LimitedBot
-    admin: ChatId
-
-    def __init__(self) -> None:
+    def __init__(self, admin: ChatId, bot: FetchBot) -> None:
         QREvent.__init__(self)
+        self.admin = admin
+        self.bot = bot
         self.qr_msg: Optional[Message] = None
         self.lg_msg: Optional[Message] = None
         self.qr_times: int = 0
@@ -175,29 +194,36 @@ class DefaultFeedHook(FeedEvent):
 class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
     def __init__(
         self,
+        sess: ClientSession,
         bot: Bot,
         admin: ChatId,
         block: list[int] = None,
-        fwd_map: dict[int, ChatId] = None
+        fwd_map: dict[int, ChatId] = None,
+        freq_limit: int = 30,
+        send_gif_as_anim: bool = False,
     ) -> None:
-        DefaultForwardHook.__init__(self, bot, admin, fwd_map)
-        DefaultQrHook.__init__(self)
+        fetchbot = FetchBot(sess, bot, freq_limit, send_gif_as_anim)
+        DefaultForwardHook.__init__(self, fetchbot, defaultdict(lambda: admin, fwd_map or {}))
+        DefaultQrHook.__init__(self, admin, fetchbot)
         DefaultFeedHook.__init__(self, block or [])
+        self.update_scd.register_hook(MediaUpdateHook(fetchbot, self.forward_map))
 
-    async def SendNow(self, feed: FeedContent):
+    async def SendNow(
+        self,
+        feed: FeedContent,
+        dep: asyncio.Task[list[int]] = None,
+        last_exc: BaseException = None,
+    ):
         # Remove the feed from media-update pending buffer for it has not been sent.
         # And just send it as usual is okay since the feed obj is updated at the moment.
         if feed in self.update_scd.buffer:
             self.update_scd.buffer.remove(feed)
-        return await super().SendNow(feed)
+        return await super().SendNow(feed, dep, last_exc)
 
     def new_batch(self, val: int = 0, max_retry: int = 2):
         super().new_batch(val, max_retry)
         self.msg_scd.register_hook(self)
 
     async def send_all(self):
-        try:
-            await self.msg_scd.send_all()
-        finally:
-            self.new_batch()
+        await self.msg_scd.send_all()
         self.update_scd.send_all()
