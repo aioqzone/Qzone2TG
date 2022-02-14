@@ -1,5 +1,6 @@
 from aiohttp import ClientSession
 from aioqzone.api.loginman import MixedLoginMan
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -25,6 +26,13 @@ class LoginMan(MixedLoginMan):
         super().__init__(sess, uin, strategy, pwd, refresh_time)
         self.engine = engine
         self.sessmaker = sessionmaker(self.engine, class_=AsyncSession)
+
+    async def table_exists(self):
+        def sync(conn):
+            return inspect(conn).has_table(CookieOrm.__tablename__)
+
+        async with self.engine.begin() as conn:
+            return await conn.run_sync(sync)
 
     async def load_cached_cookie(self):
         async with self.sessmaker() as sess:

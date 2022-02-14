@@ -1,3 +1,5 @@
+from typing import Optional
+
 from aioqzone_feed.type import BaseFeed
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
@@ -16,7 +18,7 @@ class FeedOrm(Base):    # type: ignore
     nickname = sa.Column(sa.VARCHAR, default='Unknown', nullable=False)
     curkey = sa.Column(sa.VARCHAR, nullable=True)
     unikey = sa.Column(sa.VARCHAR, nullable=True)
-    mids = sa.Column(sa.PickleType(), nullable=True)
+    mids: Optional[list[int]] = sa.Column(sa.PickleType(), nullable=True)    # type: ignore
     """message_id list, as a pickle type"""
     @classmethod
     def from_base(cls, obj: BaseFeed, mids: list[int] = None):
@@ -43,6 +45,10 @@ class FeedOrm(Base):    # type: ignore
         record.curkey = obj.curkey and str(obj.curkey)
         record.unikey = obj.unikey and str(obj.unikey)
         record.mids = mids
+
+    @classmethod
+    def primkey(cls, feed: BaseFeed):
+        return cls.uin == feed.uin, cls.abstime == feed.abstime
 
 
 class CookieOrm(Base):    # type: ignore

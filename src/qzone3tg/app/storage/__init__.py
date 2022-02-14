@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import Optional, Union
+from typing import cast, Optional, Union
 
 from aioqzone.type import FeedRep
 from aioqzone_feed.type import BaseFeed
@@ -54,8 +54,8 @@ class DefaultStorageHook(StorageEvent):
         """
         async with self.sess() as sess:
             async with sess.begin():
-                result = await sess.execute(select(FeedOrm).where(FeedOrm.fid == feed.fid))
-                if (prev := result.scalar()):
+                prev = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
+                if prev:
                     # if exist: update
                     FeedOrm.set_by(prev, feed, msgs_id)
                 else:
@@ -69,20 +69,19 @@ class DefaultStorageHook(StorageEvent):
         :param feed: feed to check
         :return: whether exists
         """
-        return await self.get_orm(
-            FeedOrm.uin == feed.uin, FeedOrm.abstime == feed.abstime
-        ) is not None
+        return await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed))) is not None
 
-    async def get_orm(self, *where) -> Optional[FeedOrm]:
+    async def get_orm(self, *where, sess: AsyncSession = None) -> Optional[FeedOrm]:
         """Get a feed orm from database, with given criteria.
 
         :return: :class:`.FeedOrm`
         """
+        stmt = select(FeedOrm)
+        if where: stmt = stmt.where(*where)
+        if sess:
+            return (await sess.execute(stmt)).scalar()
         async with self.sess() as sess:
-            stmt = select(FeedOrm)
-            if where: stmt = stmt.where(*where)
-            result = await sess.execute(stmt)
-        return result.scalar()
+            return (await sess.execute(stmt)).scalar()
 
     async def get(self, *pred) -> Optional[tuple[BaseFeed, Optional[list[int]]]]:
         """Get a feed from database, with given criteria.
@@ -101,7 +100,7 @@ class DefaultStorageHook(StorageEvent):
         :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
         :param timeout: timeout as that in :external:meth:`asyncio.wait`, defaults to None
         :param flush: commit at once, defaults to True
-        :return: done, pending set as that in :external:meth:`asyncio.wait`
+        :return: pending set is empty
         """
         from time import time
         if seconds <= 0: seconds += time()
@@ -109,25 +108,33 @@ class DefaultStorageHook(StorageEvent):
             async with sess.begin():
                 result = await sess.execute(select(FeedOrm).where(FeedOrm.abstime < seconds))
                 tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
-                r = await asyncio.wait(tasks, timeout=timeout)
+                if not tasks: return False
+                _, pending = await asyncio.wait(tasks, timeout=timeout)
             if flush: await sess.commit()
-            return r
+            return not pending
 
     async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
-        r = await self.get(FeedOrm.uin == feed.uin, FeedOrm.abstime == feed.abstime)
+        r = await self.get(*FeedOrm.primkey(feed))
         return r and r[1]
 
     async def update_message_id(self, feed: BaseFeed, mids: list[int], flush: bool = True):
         async with self.sess() as sess:
-            stmt = select(FeedOrm)
-            stmt = stmt.where(FeedOrm.uin == feed.uin, FeedOrm.abstime == feed.abstime)
-            result = await sess.execute(stmt)
-            orm = result.scalar()
+            orm = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
             if orm is None: return
             orm.mids = mids
             if flush: await sess.commit()
 
     def add_clean_task(self, keepdays: int):
+        """
+        The add_clean_task function adds a task to the bot's event loop that cleans up old records in database.
+        The :meth:`.clean` function is called every 24 hours with `-keepdays * 86400` seconds as an argument.
+        This means that it will call the clean function with -(the number of days you want to keep messages for) * 86400 seconds,
+        which is equivalent to (negative) (the number of days you want to keep messages for).
+
+        :param keepdays: Used to determine how many days worth of messages to keep.
+        :return: the clean Task
+        """
+
         async def clean_sleep():
             while True:
                 try:

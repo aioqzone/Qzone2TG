@@ -21,6 +21,7 @@ from qzone3tg.settings import NetworkConf
 from qzone3tg.settings import Settings
 from qzone3tg.utils.iter import anext
 
+from ..bot.limitbot import ChatId
 from .hook import BaseAppHook
 from .storage import AsyncEngine
 from .storage import DefaultStorageHook
@@ -146,6 +147,7 @@ class BaseApp:
         """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
         or `loop.stop()` is called."""
 
+        first_run = not await self.loginman.table_exists()
         self.log.info('注册心跳...')
         self.qzone.add_heartbeat()
         self.log.info('尝试恢复本地缓存的cookie...')
@@ -154,14 +156,17 @@ class BaseApp:
         self.log.info('注册数据库清理任务...')
         self.store.add_clean_task(self.conf.bot.storage.keepdays)
 
-        await self.fetch(self.conf.bot.admin, reload=self.conf.bot.reload_on_start)
-        try:
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            self.qzone.stop()
-        except:
-            self.log.fatal('Uncaught Error! Exit...', exc_info=True)
+        if first_run:
+            await self.license(self.conf.bot.admin)
+
+        await anext(self.bot.send_message(self.conf.bot.admin, '发送 /start 启动bot'))
+
+        while True:
+            await asyncio.sleep(1)
+
+    def stop(self):
+        self.qzone.stop()
+        self.updater.stop()
 
     async def fetch(self, to: Union[int, str], *, reload: bool, is_period: bool = False):
         """fetch feeds.
@@ -213,3 +218,8 @@ class BaseApp:
         log_level_helper = f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''
         err_msg = f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。" + log_level_helper if errs else ''
         await anext(self.bot.send_message(to, f"发送结束，共{got}条，{errs}条错误。" + err_msg))
+
+    async def license(self, to: ChatId):
+        from telegram.parsemode import ParseMode
+        async for i in self.bot.send_message(to, "用户协议", parse_mode=ParseMode.MARKDOWN_V2):
+            pass

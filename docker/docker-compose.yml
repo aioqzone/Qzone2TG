@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  qzone:
+    container_name: app
+    image: jamzumsum/qzone3tg:latest
+    volumes:
+      - $PWD/config:/app/config:ro
+      - $PWD/data:/app/data
+    privileged: true
+
+  # remove the following service if you needn't reverse proxy.
+  # nginx:
+  #   container_name: reverse
+  #   image: nginx
+  #   ports:
+  #     - 443:443
+  #   links:
+  #     - qzone
+  #   depends_on:
+  #     - qzone
+  #   restart: always
+  #   volumes:
+  #     - $PWD/config/nginx.conf:/etc/nginx/nginx.conf:ro
