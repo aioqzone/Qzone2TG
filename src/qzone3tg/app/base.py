@@ -193,6 +193,7 @@ class BaseApp:
 
         if got == 0:
             self.bot.send_message(to, '您已跟上时代')
+            return
 
         # forward
         self.forward.msg_scd.set_upper_bound(got)
@@ -206,7 +207,7 @@ class BaseApp:
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
         max_retry_exceed = filter(
-            lambda i: len(i) == self.forward.msg_scd._retry, self.forward.msg_scd.excs.values()
+            lambda i: len(i) == self.forward.msg_scd.retry, self.forward.msg_scd.excs.values()
         )
         errs = len(list(max_retry_exceed))
         log_level_helper = f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ''

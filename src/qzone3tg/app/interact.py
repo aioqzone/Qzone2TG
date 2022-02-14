@@ -5,7 +5,7 @@ from typing import cast, Optional, Union
 from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData
 from aioqzone.type import PersudoCurkey
-from aioqzone_feed.type import BaseFeed
+from aioqzone_feed.type import FeedContent
 from telegram import BotCommand
 from telegram import CallbackQuery
 from telegram import InlineKeyboardButton
@@ -30,10 +30,13 @@ from .storage.orm import FeedOrm
 
 
 class InteractAppHook(BaseAppHook):
-    def like_markup(self, feed: BaseFeed):
+    def like_markup(self, feed: FeedContent):
         if feed.unikey is None: return
         curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
-        likebtn = InlineKeyboardButton('Like', callback_data='like:' + curkey)
+        if feed.islike:
+            likebtn = InlineKeyboardButton('Unlike', callback_data='like:-' + curkey)
+        else:
+            likebtn = InlineKeyboardButton('Like', callback_data='like:' + curkey)
         return InlineKeyboardMarkup([[likebtn]])
 
     def qr_markup(self):
@@ -115,7 +118,7 @@ class InteractApp(BaseApp):
                     filters=(CA | self.fetch_lock) if command in has_fetch else CA
                 )
             )
-        dispatcher.add_handler(CallbackQueryHandler(self.btn_dispatch, run_async=True))
+        dispatcher.add_handler(CallbackQueryHandler(self.btn_dispatch))
 
         try:
             self.updater.bot.set_my_commands([
@@ -211,7 +214,7 @@ class InteractApp(BaseApp):
                 query.answer(text='点赞失败')
                 return
 
-            if not unlike:
+            if unlike:
                 btn = InlineKeyboardButton('Like', callback_data="like:" + data)
             else:
                 btn = InlineKeyboardButton('Unlike', callback_data="like:-" + data)

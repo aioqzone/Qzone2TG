@@ -4,7 +4,7 @@
 import asyncio
 from collections import defaultdict
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from aiohttp import ClientSession
 from aioqzone.interface.hook import QREvent
@@ -20,6 +20,7 @@ from telegram.error import TimedOut
 
 from qzone3tg.bot.limitbot import ChatId
 from qzone3tg.bot.limitbot import FetchBot
+from qzone3tg.bot.queue import BUBBLE
 from qzone3tg.bot.queue import ForwardEvent
 from qzone3tg.bot.queue import MsgBarrier
 from qzone3tg.bot.queue import MsgScheduler
@@ -88,7 +89,7 @@ class DefaultForwardHook(ForwardEvent):
         self.add_hook_ref('storage', self.hook.SaveFeed(feed, mids))
         return mids
 
-    async def FeedDroped(self, feed: FeedContent, *exc):
+    async def MaxRetryExceed(self, feed: FeedContent, *exc):
         exc_brf = [str(i) for i in exc]
         logger.error(f"Error in forward: exc={exc_brf}, feed={feed}")
         for i, e in enumerate(exc, start=1):
@@ -120,7 +121,7 @@ class MediaUpdateHook(DefaultForwardHook):
         mids = [n.message_id if isinstance(n, Message) else p for p, n in zip(mids, nmids)]
         self.add_hook_ref('storage', self.hook.update_message_id(feed, mids))
 
-    async def FeedDroped(self, feed: FeedContent, *exc):
+    async def MaxRetryExceed(self, feed: FeedContent, *exc):
         exc_brf = [str(i) for i in exc]
         logger.error(f"Media update error: exc={exc_brf}, media={feed.media}")
         for i, e in enumerate(exc, start=1):
@@ -180,15 +181,20 @@ class DefaultFeedHook(FeedEvent):
         logger.debug(f"bid={bid}: {feed}")
         if feed.uin in self.block:
             logger.info(f'Block hit: {feed.uin}')
-            return
+            return await self.FeedDropped(bid, feed)
         await self.msg_scd.add(bid, feed)
+
+    async def FeedDropped(self, bid: int, feed):
+        await self.msg_scd.add(bid, BUBBLE)
 
     async def FeedMediaUpdate(self, feed: FeedContent):
         logger.debug(f"feed update received: media={feed.media}")
-        self.update_scd.buffer.add(feed)
+        self.update_scd.add(feed)
 
     def new_batch(self, val: int = 0, max_retry: int = 2):
         self.msg_scd = MsgScheduler(val, max_retry)
+        # block update in case feeds is not sent but `edit_media` is called.
+        self.update_scd.waiting = True
 
 
 class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
@@ -227,3 +233,4 @@ class BaseAppHook(DefaultForwardHook, DefaultQrHook, DefaultFeedHook):
     async def send_all(self):
         await self.msg_scd.send_all()
         self.update_scd.send_all()
+        self.update_scd.waiting = False

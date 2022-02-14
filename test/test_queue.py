@@ -36,7 +36,7 @@ class FwdEvt_Norm(ForwardEvent):
         if dep: await dep
         self.record.append(feed.content)
 
-    async def FeedDroped(self, feed: FeedContent, *exc):
+    async def MaxRetryExceed(self, feed: FeedContent, *exc):
         assert False
 
 
@@ -60,7 +60,7 @@ class FwdEvt_Buggy(ForwardEvent):
         self.record.append(feed.content)
         if not self.on or feed.content in self.on: raise NotImplementedError
 
-    async def FeedDroped(self, feed: FeedContent, *exc):
+    async def MaxRetryExceed(self, feed: FeedContent, *exc):
         self.err[feed.content] = len(exc)
 
 
@@ -85,8 +85,8 @@ async def test_seq_first():
     for i in seq:
         await sched.add(i, fake_feed(i))
 
-    assert empty(iter(sched.pending_feeds()))
-    assert len(hook.record) == 0
+    assert len(list(sched.pending_feeds())) == 9    # the last feed is submit
+    assert len(hook.record) == 0    # but the task hasn't run
     await sched.send_all()
     seq.reverse()
     assert hook.record == seq
@@ -111,52 +111,12 @@ async def test_reverse_first():
     seq = list(range(9, -1, -1))
     for i in seq:
         await sched.add(i, fake_feed(i))
+        await asyncio.sleep(0)
+        assert sched._waiting == i
 
     assert empty(iter(sched.pending_feeds()))
     await sched.send_all()
     assert hook.record == seq
-    assert empty(iter(sched.pending_feeds()))
-
-
-async def test_random_first():
-    sched = MsgScheduler(10)
-    sched.register_hook(hook := FwdEvt_Norm())
-    for i in [8, 7]:
-        await sched.add(i, fake_feed(i))
-    assert all(isinstance(i, FeedContent) for i in sched.buffer.values())
-    await sched.add(9, fake_feed(9))
-    assert empty(iter(sched.pending_feeds()))
-
-    for i in range(6):
-        await sched.add(i, fake_feed(i))
-    assert len(list(sched.pending_feeds())) == 6
-    await sched.add(6, fake_feed(6))
-    assert empty(iter(sched.pending_feeds()))
-
-    await sched.send_all()
-    assert hook.record == sorted(range(10), reverse=True)
-    assert empty(iter(sched.pending_feeds()))
-
-
-async def test_random_mid():
-    sched = MsgScheduler()
-    sched.register_hook(hook := FwdEvt_Norm())
-    for i in [9, 8, 7]:
-        await sched.add(i, fake_feed(i))
-    assert all(isinstance(i, FeedContent) for i in sched.buffer.values())
-    sched.set_upper_bound(10)
-    await sched.add(6, fake_feed(6))
-    assert empty(iter(sched.pending_feeds()))
-
-    for i in range(5):
-        await sched.add(i, fake_feed(i))
-    assert len(list(sched.pending_feeds())) == 5
-    await sched.add(5, fake_feed(5))
-    assert empty(iter(sched.pending_feeds()))
-
-    await sched.send_all()
-    assert hook.record == sorted(range(10), reverse=True)
-    assert empty(iter(sched.pending_feeds()))
 
 
 async def test_err_all():
@@ -178,8 +138,8 @@ async def test_err_erpt():
     await sched.send_all()
     # assert len(sched.excs[3]) == 2
     assert len(hook.err) == len(hook.on)
-    assert hook.err[3] == sched._retry
-    assert hook.record == [4, 3, 2, 1, 0, 3]
+    assert hook.err[3] == sched.retry
+    assert hook.record == [4, 3, 3, 2, 1, 0]
 
 
 async def test_forward():
@@ -193,7 +153,8 @@ async def test_forward():
     await sched.send_all()
     assert hook.record == sorted(range(10), reverse=True)
 
-async def test_forward_exc():
+
+async def test_err_forward():
     sched = MsgScheduler(5)
     sched.register_hook(hook := FwdEvt_Buggy(3, 5, 8))
     hook.register_hook(StorageEvent())
@@ -203,4 +164,4 @@ async def test_forward_exc():
         await sched.add(i, m)
     await sched.send_all()
     assert len(hook.err) == len(hook.on)
-    assert hook.record == [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 8, 5, 3]
+    assert hook.record == [9, 8, 8, 7, 6, 5, 5, 4, 3, 3, 2, 1, 0]

@@ -34,9 +34,9 @@ class FeedOrm(Base):    # type: ignore
 
     @staticmethod
     def set_by(record: 'FeedOrm', obj: BaseFeed, mids: list[int] = None):
-        assert record.fid == obj.fid
         assert record.uin == obj.uin
         assert record.abstime == obj.abstime
+        assert record.fid == obj.fid
         record.appid = obj.appid
         record.typeid = obj.typeid
         record.nickname = obj.nickname

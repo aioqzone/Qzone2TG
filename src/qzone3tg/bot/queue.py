@@ -14,6 +14,7 @@ from aioqzone_feed.type import BaseFeed
 from aioqzone_feed.type import FeedContent
 
 logger = logging.getLogger(__name__)
+BUBBLE = object.__new__(FeedContent)
 
 
 class _rsct:
@@ -120,26 +121,39 @@ class ForwardEvent(Event, Emittable[StorageEvent]):
         """
         if dep: await dep
 
-    async def FeedDroped(self, feed: FeedContent, *exc):
+    async def MaxRetryExceed(self, feed: FeedContent, *exc):
         pass
 
 
 class MsgBarrier(Emittable[ForwardEvent]):
     buffer: set[FeedContent]
     excs: dict[FeedContent, list[BaseException]]
-    __slots__ = ('buffer', 'excs', '_retry')
+    waiting: bool
+    """Set this to save all feeds in this barrier. Set to false will emit sending at once."""
+
+    __slots__ = ('buffer', 'excs', 'waiting', '_retry')
 
     def __init__(self, max_retry: int = 2) -> None:
         super().__init__()
         self.buffer = set()
         self.excs = defaultdict(list)
         self._retry = max_retry
+        self.waiting = False
 
     def send_all(self):
         while self.buffer:
             feed = self.buffer.pop()
             task = self.add_hook_ref('send', self.hook.SendNow(feed))
             self._add_handler(task, feed)
+
+    def add(self, feed: FeedContent):
+        if feed is BUBBLE: return
+        if self.waiting:
+            self.buffer.add(feed)
+        else:
+            task = self.add_hook_ref('send', self.hook.SendNow(feed))
+            self._add_handler(task, feed)
+            logger.info(f'Feed scheduled in add: task={task}')
 
     def _add_handler(self, task: asyncio.Task, feed: FeedContent):
         def check_succ(t: asyncio.Task):
@@ -148,33 +162,34 @@ class MsgBarrier(Emittable[ForwardEvent]):
                 return    # task has been removed by add_hook_ref
             self.excs[feed].append(exc)
             if len(self.excs[feed]) < self._retry:
-                logger.warning(f'Task failed # {len(self.excs[feed])}, retry.')
+                logger.warning('Task failed #%d, retry.', len(self.excs[feed]))
                 task = self.add_hook_ref('send', self.hook.SendNow(feed, last_exc=exc))
                 self._add_handler(task, feed)
                 return
-            self.add_hook_ref('hook', self.hook.FeedDroped(feed, *self.excs[feed]))
+            self.add_hook_ref('hook', self.hook.MaxRetryExceed(feed, *self.excs[feed]))
 
         task.add_done_callback(check_succ)
         return task
 
 
-class MsgScheduler(MsgBarrier):
+class MsgScheduler(Emittable[ForwardEvent]):
     """Buf a batch of message and schedule them with hook."""
     buffer: dict[int, Optional[FeedContent]]
-    __slots__ = ('_max', '_point')
+    __slots__ = ('_max', '_waiting', 'retry', 'buffer', 'excs')
 
     def __init__(self, val: int = 0, max_retry: int = 2) -> None:
         assert max_retry >= 0
-        super().__init__(max_retry)
+        super().__init__()
         self.buffer = {}
+        self.excs = defaultdict(list)
         self._max = 0
-        self._retry = max_retry
+        self.retry = max_retry
         if val > 0: self.set_upper_bound(val)
 
     def set_upper_bound(self, val: int):
         assert val > 0
         self._max = val
-        self._point = 2 * val - 1    # which feed should be sent in advance
+        self._waiting = val - 1
 
     def pending_feeds(self, reverse: bool = True):
         if not reverse: return filter(None, self.buffer.values())
@@ -185,35 +200,82 @@ class MsgScheduler(MsgBarrier):
         return self._tasks['send']
 
     async def add(self, bid: int, feed: FeedContent):
-        if isinstance(feed.forward, FeedContent) and \
+        """Add a feed to scheduler. It will buffered on `2 * bid`, and its forwardee, if any,
+        will be buffered at `2 * bid + 1`. If the bid is the expected one, it will be submit
+        as a task at once.
+
+        If any send task is done but its callback is not called, it will be called to clear
+        the task set."""
+
+        if not feed is BUBBLE and isinstance(feed.forward, FeedContent) and \
             await self.hook.hook.get_message_id(feed.forward) is None:
             # schedule forwardee before forwarder
             self.buffer[2 * bid + 1] = feed.forward
         self.buffer[bid << 1] = feed
+
         if self._max == 0: return    # skip if upper bound unknown
+        if self.pending_tasks() and all(i.done() for i in self._tasks['send']):
+            logger.debug('Some task is done but callback not called. Await.')
+            await self.wait('send')
 
-        task = next(iter(self._tasks['send']), None)
+        if (f := self.buffer.get(self._waiting * 2)) is None:
+            logger.debug(f'bid {bid} added but expected {self._waiting}, skip.')
+            return
+        await self._schedule_expected()
 
-        while self._point >= 0:
-            assert self._point & 1, 'pointer should point at an odd num'
-            for i in range(2):
-                if (f := self.buffer.get(self._point - i)):    # if this bid should be sent
-                    logger.debug('bid=%d is ready.', self._point)
-                else:
-                    if i == 0: continue
-                    return
+    async def _schedule_expected(self):
+        """Schedule the feed buffered on `waiting` pointer."""
 
-                self.buffer[self._point - i] = None    # remove the feed from buffer
-                task = self.add_hook_ref(
-                    'send', self.hook.SendNow(f, task)
-                )    # pass the first task when i=1
-                task = self._add_handler(task, f)
-                logger.info(f'Feed scheduled in add: bid={bid}, task={task}')
-                if i == 1: self._point -= 2    # donot care whether succ or not
+        if (f := self.buffer.get(self._waiting * 2)) is None:
+            return
+
+        if self.pending_tasks():
+            logger.debug('Task scheduled but preceding task hasnot done. Send at once!')
+            await self.wait('send')
+
+        logger.debug(f'bid={self._waiting} is ready to send')
+        dep = None
+        if (df := self.buffer.get(self._waiting * 2 + 1)):
+            self.buffer[self._waiting * 2 + 1] = None
+            dep = self.add_hook_ref('send', self.hook.SendNow(df))
+            self._add_handler(dep, df)
+
+        self.buffer[self._waiting * 2] = None
+        if f is BUBBLE:
+            logger.info(f"Bubble detected. Skipped!")
+            self._waiting -= 1
+            return
+        else:
+            task = self.add_hook_ref('send', self.hook.SendNow(f, dep=dep))
+            self._add_handler(task, f)
+            logger.info(f'Feed scheduled in advance: bid={self._waiting}, task={task}, dep={dep}')
+
+    def _add_handler(self, task: asyncio.Task, feed: FeedContent):
+        def check_succ(t: asyncio.Task):
+            if (exc := t.exception()) is None:
+                logger.info('Task success. Removed.')
+                self._waiting -= 1
+                return    # task has been removed by add_hook_ref
+            self.excs[feed].append(exc)
+            if len(self.excs[feed]) < self.retry:
+                logger.warning('Task failed #%d, retry.', len(self.excs[feed]))
+                task = self.add_hook_ref('send', self.hook.SendNow(feed, last_exc=exc))
+                self._add_handler(task, feed)
+                return
+            self.add_hook_ref('hook', self.hook.MaxRetryExceed(feed, *self.excs[feed]))
+            self._waiting -= 1
+
+        task.add_done_callback(check_succ)
+        return task
 
     async def send_all(self):
         assert len(self.buffer), "Wait until all item arrive"
+        # clear all bubble since we needn't it now
+        for k, v in self.buffer.items():
+            if v is BUBBLE: self.buffer[k] = None
+        # await existing send task
         await self.wait('send')
+        # await in order
         for feed in self.pending_feeds(reverse=True):
             task = self.add_hook_ref('send', self.hook.SendNow(feed))
             self._add_handler(task, feed)
@@ -222,4 +284,5 @@ class MsgScheduler(MsgBarrier):
             except:
                 pass    # callback will handle exceptions
             await asyncio.sleep(0)    # essential for schedule tasks
+        # await for hooks
         await self.wait('hook')

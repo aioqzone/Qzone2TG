@@ -97,7 +97,9 @@ class LimitedBot(SemaBot):
             markup = None
 
     async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        yield (msg := await super().send_photo(to, text[:MEDIA_TEXT_LIM], media, **kw))
+        meth = super(
+        ).send_animation if isinstance(media, bytes) and self.is_gif(media) else super().send_photo
+        yield (msg := await meth(to, text[:MEDIA_TEXT_LIM], media, **kw))
         kw.pop('reply_markup', None)
         async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
                                            reply_to_message_id=msg.message_id):
@@ -146,6 +148,10 @@ class LimitedBot(SemaBot):
     @staticmethod
     def supported_video(url: HttpUrl):
         return PurePath(url.path).suffix in ['.mp4']
+
+    @staticmethod
+    def is_gif(b: bytes):
+        return b.startswith((b'47494638', b'GIF89a', b'GIF87a'))
 
     @classmethod
     async def wrap_media(
@@ -261,7 +267,7 @@ class FetchBot(LimitedBot):
             if media.is_video:
                 media_cls = InputMediaVideo
             else:
-                media_cls = InputMediaAnimation if m.startswith(b'47494638') else InputMediaPhoto
+                media_cls = InputMediaAnimation if self.is_gif(m) else InputMediaPhoto
             media = m
 
         return await super().wrap_media(media, media_cls, **kwds)
@@ -272,20 +278,24 @@ class FetchBot(LimitedBot):
     async def send_photo(
         self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
     ):
-        if isinstance(media, bytes) and media.startswith(b'47494638') or\
-            isinstance(media, HttpUrl) and self.prob_gif and \
-            (media := await self.fetcher(media)) and media.startswith(b'47494638'): # type: ignore
-            async for i in self.send_animation(to, text, media, fetch, **kw):
-                yield i
-            return
+        if isinstance(media, HttpUrl) and (self.prob_gif or fetch):
+            if (m := await self.fetcher(media)) is None:
+                if fetch: raise BadRequest(str(media))
+            else: media = m
 
         async for i in super().send_photo(to, text, media, **kw):
             yield i
 
-    def send_animation(
+    async def send_animation(
         self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
     ):
-        return super().send_animation(to, text, media, **kw)
+        if isinstance(media, HttpUrl) and fetch:
+            m = await self.fetcher(media)
+            if m is None: raise BadRequest(str(media))
+            media = m
+
+        async for i in super().send_animation(to, text, media, **kw):
+            yield i
 
     def send_video(
         self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
