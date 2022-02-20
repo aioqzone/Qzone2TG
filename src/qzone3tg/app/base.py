@@ -11,6 +11,7 @@ from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
 from qqqr.exception import UserBreak
+import qzemoji as qe
 from telegram import ParseMode
 from telegram.ext import Defaults
 from telegram.ext import Updater
@@ -75,6 +76,10 @@ class BaseApp:
     @property
     def bot(self):
         return self.forward.bot
+
+    @property
+    def sess(self):
+        return self.qzone.api.sess
 
     @property
     def store(self) -> DefaultStorageHook:
@@ -150,17 +155,19 @@ class BaseApp:
         first_run = not await self.loginman.table_exists()
         self.log.info('注册心跳...')
         self.qzone.add_heartbeat()
-        self.log.info('尝试恢复本地缓存的cookie...')
-        await self.store.create()
-        await self.loginman.load_cached_cookie()
         self.log.info('注册数据库清理任务...')
         self.store.add_clean_task(self.conf.bot.storage.keepdays)
+        self.log.info('等待异步初始化任务...')
+        qe.proxy = self.conf.bot.network.proxy and str(self.conf.bot.network.proxy)
+        init_task = [qe.init(), self.store.create(), self.loginman.load_cached_cookie()]
+        await asyncio.wait(init_task)
 
         if first_run:
             await self.license(self.conf.bot.admin)
 
-        await anext(self.bot.send_message(self.conf.bot.admin, '发送 /start 启动bot'))
+        await anext(self.bot.send_message(self.conf.bot.admin, 'bot初始化完成，发送 /start 启动 🚀'))
 
+        # idle
         while True:
             await asyncio.sleep(1)
 
@@ -191,13 +198,11 @@ class BaseApp:
             )
         except (UserBreak, LoginError):
             self.qzone.hb.cancel()
-            try:
-                self.bot.send_message(to, '命令已取消')
-            finally:
-                return
+            self.forward.add_hook_ref('command', anext(self.bot.send_message(to, '命令已取消')))
+            return
 
         if got == 0:
-            self.bot.send_message(to, '您已跟上时代')
+            self.forward.add_hook_ref('command', anext(self.bot.send_message(to, '您已跟上时代🎉')))
             return
 
         # forward

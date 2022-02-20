@@ -6,6 +6,8 @@ from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData
 from aioqzone.type import PersudoCurkey
 from aioqzone_feed.type import FeedContent
+from pydantic import HttpUrl
+import qzemoji as qe
 from telegram import BotCommand
 from telegram import CallbackQuery
 from telegram import InlineKeyboardButton
@@ -84,6 +86,7 @@ class InteractApp(BaseApp):
         "refresh": "刷新",
         'status': '获取运行状态',
         "relogin": "强制重新登陆",
+        "em": "自定义表情代码，如 /em 400343 🐷",
         "help": "帮助",
     }
 
@@ -233,3 +236,28 @@ class InteractApp(BaseApp):
         f = switch[command]
         assert f
         task = self.forward.add_hook_ref('button', f())
+
+    def em(self, update: Update, context: CallbackContext):
+        chat = update.effective_chat
+        assert chat
+        if not context.args or len(context.args) not in [1, 2]:
+            msg = '错误的输入格式。示例：\n/em 400343，展示图片\n/em 400343 🐷，自定义表情文字'
+            self.forward.add_hook_ref(
+                'command', anext(self.bot.send_message(chat.id, msg))
+            )
+            return
+
+        if len(context.args) == 1:
+
+            async def show_eid(eid: int):
+                msg = f'示例： /em {eid} 😅'
+                for ext in ['gif', 'png', 'jpg']:
+                    m = await self.bot.fetcher(cast(HttpUrl, qe.utils.build_html(eid, ext=ext)))
+                    if m: return await anext(self.bot.send_photo(chat.id, msg, m))
+
+            self.forward.add_hook_ref('command', show_eid(int(context.args[0])))
+
+        eid, text = context.args
+        eid = int(eid)
+        self.log.info(f'Customize emoji text: {eid}->{text}')
+        self.forward.add_hook_ref('storage', qe.set(eid, text))

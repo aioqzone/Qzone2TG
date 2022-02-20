@@ -193,7 +193,7 @@ class Fetcher:
 
     async def __call__(self, url: HttpUrl) -> Optional[bytes]:
         """Get content w/o streaming. `@noexcept`"""
-        async with self.sess.get(url) as r:
+        async with self.sess.get(str(url)) as r:
             try:
                 return await r.content.read()
             except:

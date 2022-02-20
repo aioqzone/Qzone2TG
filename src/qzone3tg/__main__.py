@@ -3,8 +3,6 @@ import asyncio
 from pathlib import Path
 
 from aiohttp import ClientSession
-from pydantic import DirectoryPath
-from pydantic import FilePath
 import yaml
 
 from qzone3tg.app.interact import InteractApp
