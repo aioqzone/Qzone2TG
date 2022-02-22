@@ -148,11 +148,20 @@ class BaseApp:
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
         logging.getLogger("charset_normalizer").setLevel(logging.WARN)
 
+    def register_signal(self):
+        def sigterm_handler(_signo, _stack_frame):
+            raise KeyboardInterrupt
+
+        import signal
+        signal.signal(signal.SIGTERM, sigterm_handler)
+
     async def run(self):
         """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
         or `loop.stop()` is called."""
 
         first_run = not await self.loginman.table_exists()
+        self.log.info('注册信号处理...')
+        self.register_signal()
         self.log.info('注册心跳...')
         self.qzone.add_heartbeat()
         self.log.info('注册数据库清理任务...')

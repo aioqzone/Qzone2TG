@@ -29,7 +29,9 @@ class LoginMan(MixedLoginMan):
 
     async def table_exists(self):
         def sync(conn):
-            return inspect(conn).has_table(CookieOrm.__tablename__)
+            exist = inspect(conn).has_table(CookieOrm.__tablename__)
+            if not exist: CookieOrm.metadata.create_all(conn)
+            return exist
 
         async with self.engine.begin() as conn:
             return await conn.run_sync(sync)

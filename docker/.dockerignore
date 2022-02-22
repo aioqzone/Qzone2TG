@@ -1,0 +1,13 @@
+.git
+.vscode
+/config
+/data
+/dist
+/doc
+/docker
+/log
+/test
+/tmp
+.pre-commit-config.yaml
+
+*.pyc

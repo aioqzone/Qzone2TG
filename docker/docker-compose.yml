@@ -1,23 +1,41 @@
-version: "3.9"
 services:
   qzone:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
+      network: host
+    configs:
+    - source: qzone3tg_conf
+      target: /app/config/settings.yml
+    - source: qzone3tg_log_ini
+      target: /app/config/log.ini
     container_name: app
-    image: jamzumsum/qzone3tg:latest
+    image: qzone3tg:0.1.6.dev0
+    network_mode: host    # add/remove this on demand
+    secrets:
+    - source: qzone_password
+      target: password
+    - source: telegram_bot_token
+      target: token
     volumes:
-      - $PWD/config:/app/config:ro
-      - $PWD/data:/app/data
-    privileged: true
-
-  # remove the following service if you needn't reverse proxy.
-  # nginx:
-  #   container_name: reverse
-  #   image: nginx
-  #   ports:
-  #     - 443:443
-  #   links:
-  #     - qzone
-  #   depends_on:
-  #     - qzone
-  #   restart: always
-  #   volumes:
-  #     - $PWD/config/nginx.conf:/etc/nginx/nginx.conf:ro
+    - type: volume
+      source: qzone-data
+      target: /app/config/data
+      volume: {}
+volumes:
+  qzone-data:
+    name: qzone-data
+secrets:
+  qzone_password:
+    name: qzone_password
+    file: ../config/secrets/password
+  telegram_bot_token:
+    name: telegram_bot_token
+    file: ../config/secrets/token
+configs:
+  qzone3tg_conf:
+    name: qzone3tg_conf
+    file: ../config/test.yml
+  qzone3tg_log_ini:
+    name: qzone3tg_log_ini
+    file: ../config/log.ini

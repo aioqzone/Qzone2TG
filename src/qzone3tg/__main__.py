@@ -20,14 +20,14 @@ async def main(conf: Settings) -> int:
             await app.run()
             return 0
         except (KeyboardInterrupt, asyncio.CancelledError):
-            app.stop()
             return 0
         except SystemExit as e:
             return e.code
         except:
             app.log.error("Uncaught error in main.", exc_info=True)
-            app.stop()
             return 1
+        finally:
+            app.stop()
 
 
 if __name__ == '__main__':
