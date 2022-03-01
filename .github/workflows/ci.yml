@@ -1,0 +1,34 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Dev CI
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "test/**"
+    branches:
+      - v3/dev
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    with:
+      pytest_arg: test
+    secrets:
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_TOKEN: helloworld
+
+  merge:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create Pull Request
+        uses: repo-sync/pull-request@v2
+        with:
+          destination_branch: v3/beta
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_title: "CI: Pulling ${{ github.ref }} into v3/beta"
+          pr_body: ${{ github.event.head_commit.message }} # only push event has head_commit

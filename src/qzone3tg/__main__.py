@@ -36,7 +36,13 @@ if __name__ == '__main__':
         '--conf', '-c', help='配置文件路径 (*.yml, *.yaml)', type=Path, default=DEFAULT_CONF
     )
     parser.add_argument('--secrets', '-s', help='密钥目录', type=Path, default=DEFAULT_SECRETS)
+    parser.add_argument('--version', '-v', help='打印版本', action='store_true')
     args = parser.parse_args()
+
+    if args.version:
+        from qzone3tg import VERSION
+        print(VERSION)
+        exit(0)
 
     assert args.conf.exists()
     with open(args.conf) as f:

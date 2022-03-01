@@ -90,14 +90,15 @@ class WebhookConf(BaseModel):
     @validator('destination')
     def force_https(cls, v):
         """webhook 地址强制启用 SSL"""
-        assert v.destination.scheme == 'https', "webhook needs a https server"
+        assert v.scheme == 'https', "webhook needs a https server"
+        return v
 
     def webhook_url(self, token: SecretStr = None):
-        """获取实际的 webhook url. telegram api 实际访问的 url 是 destination/bot_token.
-        用户不需要考虑这一连接过程，由程序完成拼接. 用户应该注意的是，如果使用反向代理，对 `destination`
+        """获取实际的 webhook url. telegram api 实际访问的 url 是 `destination/bot_token`.
+        用户不需要考虑这一连接过程，由程序完成拼接. 用户应该注意的是，如果要使用反向代理，对 `destination`
         路径的一切访问都应该转发."""
         if token is None: return SecretStr(self.destination)
-        from urllib.parse import urljoin
+        urljoin = lambda u, p: str(u) + ('' if str.endswith(u, '/') else '/') + p
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
 
 
@@ -136,7 +137,7 @@ class BotConf(BaseModel):
     default: BotDefaultConf = BotDefaultConf()
     """Bot 的默认行为配置。包括禁止通知、禁止链接预览等."""
 
-    init_args: Union[PollingConf, WebhookConf] = PollingConf()
+    init_args: Union[WebhookConf, PollingConf] = PollingConf()
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
     两种类型 :class:`.PollingConf`, :class:`.WebhookConf` 分别对应 polling 模式和 webhook 模式。"""
 
