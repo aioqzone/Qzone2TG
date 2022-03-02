@@ -242,20 +242,19 @@ class InteractApp(BaseApp):
         assert chat
         if not context.args or len(context.args) not in [1, 2]:
             msg = '错误的输入格式。示例：\n/em 400343，展示图片\n/em 400343 🐷，自定义表情文字'
-            self.forward.add_hook_ref(
-                'command', anext(self.bot.send_message(chat.id, msg))
-            )
+            self.forward.add_hook_ref('command', anext(self.bot.send_message(chat.id, msg)))
             return
 
         if len(context.args) == 1:
 
             async def show_eid(eid: int):
-                msg = f'示例： /em {eid} 😅'
+                msg = f'示例： /em {eid} {qe.query(eid, "😅")}'
                 for ext in ['gif', 'png', 'jpg']:
                     m = await self.bot.fetcher(cast(HttpUrl, qe.utils.build_html(eid, ext=ext)))
                     if m: return await anext(self.bot.send_photo(chat.id, msg, m))
 
             self.forward.add_hook_ref('command', show_eid(int(context.args[0])))
+            return
 
         eid, text = context.args
         eid = int(eid)
