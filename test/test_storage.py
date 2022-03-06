@@ -14,8 +14,8 @@ pytestmark = pytest.mark.asyncio
 
 
 def randhex(B: int = 4):
-    p = (hex(randint(0, 0xffffffff))[2:] for _ in range(B))
-    return ''.join(p)
+    p = (hex(randint(0, 0xFFFFFFFF))[2:] for _ in range(B))
+    return "".join(p)
 
 
 def randint_(a: float, b: float):
@@ -28,24 +28,25 @@ def fake_feed():
         typeid=randint(0, 10000),
         fid=randhex(randint(4, 5)),
         abstime=randint_(time() - 86400, time()),
-        uin=randint_(1E8, 1E9),
-        nickname=str(randint(0, 100))
+        uin=randint_(1e8, 1e9),
+        nickname=str(randint(0, 100)),
     )
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def fixed():
     l = [fake_feed(), fake_feed()]
     return l
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest_asyncio.fixture(scope='module')
+@pytest_asyncio.fixture(scope="module")
 async def store():
     async with AsyncEnginew.sqlite3(None) as engine:
         yield InteractStorageHook(engine)
@@ -66,13 +67,13 @@ async def test_exist(store: InteractStorageHook, fixed: list):
 
 async def test_update(store: InteractStorageHook, fixed: list):
     feed = await store.get_orm(FeedOrm.fid == fixed[0].fid)
-    assert feed.mids is None    # type: ignore
+    assert feed.mids is None  # type: ignore
 
     await store.update_message_id(fixed[0], [0])
-    _, mids = await store.get(FeedOrm.fid == fixed[0].fid)    # type: ignore
+    _, mids = await store.get(FeedOrm.fid == fixed[0].fid)  # type: ignore
     assert mids == [0]
 
 
 async def test_remove(store: InteractStorageHook, fixed: list):
-    await store.clean(0)    # clean all
+    await store.clean(0)  # clean all
     assert not await store.exists(fixed[0])

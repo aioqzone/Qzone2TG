@@ -14,14 +14,15 @@ class LoginMan(MixedLoginMan):
 
     .. versionadded:: 0.1.3
     """
+
     def __init__(
         self,
         sess: ClientSession,
         engine: AsyncEngine,
         uin: int,
         strategy: str,
-        pwd: str = None,
-        refresh_time: int = 6
+        pwd: str | None = None,
+        refresh_time: int = 6,
     ) -> None:
         super().__init__(sess, uin, strategy, pwd, refresh_time)
         self.engine = engine
@@ -30,7 +31,8 @@ class LoginMan(MixedLoginMan):
     async def table_exists(self):
         def sync(conn):
             exist = inspect(conn).has_table(CookieOrm.__tablename__)
-            if not exist: CookieOrm.metadata.create_all(conn)
+            if not exist:
+                CookieOrm.metadata.create_all(conn)
             return exist
 
         async with self.engine.begin() as conn:
@@ -40,7 +42,8 @@ class LoginMan(MixedLoginMan):
         async with self.sessmaker() as sess:
             stmt = select(CookieOrm).where(CookieOrm.uin == self.uin)
             result = await sess.execute(stmt)
-        if (prev := result.scalar()) is None: return
+        if (prev := result.scalar()) is None:
+            return
         self._cookie = prev.cookie
         self.sess.cookie_jar.update_cookies(self._cookie)
 
@@ -48,8 +51,10 @@ class LoginMan(MixedLoginMan):
         r = await super()._new_cookie()
         async with self.sessmaker() as sess:
             async with sess.begin():
-                result = await sess.execute(select(CookieOrm).where(CookieOrm.uin == self.uin))
-                if (prev := result.scalar()):
+                result = await sess.execute(
+                    select(CookieOrm).where(CookieOrm.uin == self.uin)
+                )
+                if prev := result.scalar():
                     # if exist: update
                     prev.cookie = r
                 else:

@@ -10,17 +10,20 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
-from ...bot.queue import StorageEvent
+from ...bot.queue.task import StorageEvent
 from .orm import FeedOrm
 
 
 class AsyncEnginew:
     @classmethod
     def sqlite3(cls, path: Optional[Path], **kwds):
-        if path is None: url = "sqlite+aiosqlite://"
-        else: url = "sqlite+aiosqlite:///" + path.as_posix()
+        if path is None:
+            url = "sqlite+aiosqlite://"
+        else:
+            url = "sqlite+aiosqlite:///" + path.as_posix()
         # make dir if parent not exist
-        if path: path.parent.mkdir(parents=True, exist_ok=True)
+        if path:
+            path.parent.mkdir(parents=True, exist_ok=True)
         engine = create_async_engine(url, **kwds)
         return cls(engine)
 
@@ -45,7 +48,9 @@ class DefaultStorageHook(StorageEvent):
         async with self.engine.begin() as conn:
             await conn.run_sync(FeedOrm.metadata.create_all)
 
-    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] = None, flush: bool = True):
+    async def SaveFeed(
+        self, feed: BaseFeed, msgs_id: list[int] = None, flush: bool = True
+    ):
         """Add/Update an record by the given feed and messages id.
 
         :param feed: feed
@@ -61,7 +66,8 @@ class DefaultStorageHook(StorageEvent):
                 else:
                     # not exist: add
                     sess.add(FeedOrm.from_base(feed, msgs_id))
-            if flush: await sess.commit()
+            if flush:
+                await sess.commit()
 
     async def exists(self, feed: Union[BaseFeed, FeedRep]) -> bool:
         """check if a feed exists in this database.
@@ -77,7 +83,8 @@ class DefaultStorageHook(StorageEvent):
         :return: :class:`.FeedOrm`
         """
         stmt = select(FeedOrm)
-        if where: stmt = stmt.where(*where)
+        if where:
+            stmt = stmt.where(*where)
         if sess:
             return (await sess.execute(stmt)).scalar()
         async with self.sess() as sess:
@@ -89,7 +96,8 @@ class DefaultStorageHook(StorageEvent):
 
         :return: :external:class:`aioqzone_feed.type.BaseFeed` and message ids, optional
         """
-        if (orm := await self.get_orm(*pred)) is None: return
+        if (orm := await self.get_orm(*pred)) is None:
+            return
         mids = orm.mids
         assert mids is None or isinstance(mids, list)
         return BaseFeed.from_orm(orm), mids
@@ -103,26 +111,36 @@ class DefaultStorageHook(StorageEvent):
         :return: pending set is empty
         """
         from time import time
-        if seconds <= 0: seconds += time()
+
+        if seconds <= 0:
+            seconds += time()
         async with self.sess() as sess:
             async with sess.begin():
-                result = await sess.execute(select(FeedOrm).where(FeedOrm.abstime < seconds))
+                result = await sess.execute(
+                    select(FeedOrm).where(FeedOrm.abstime < seconds)
+                )
                 tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
-                if not tasks: return False
+                if not tasks:
+                    return False
                 _, pending = await asyncio.wait(tasks, timeout=timeout)
-            if flush: await sess.commit()
+            if flush:
+                await sess.commit()
             return not pending
 
     async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
         r = await self.get(*FeedOrm.primkey(feed))
         return r and r[1]
 
-    async def update_message_id(self, feed: BaseFeed, mids: list[int], flush: bool = True):
+    async def update_message_id(
+        self, feed: BaseFeed, mids: list[int], flush: bool = True
+    ):
         async with self.sess() as sess:
             orm = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
-            if orm is None: return
+            if orm is None:
+                return
             orm.mids = mids
-            if flush: await sess.commit()
+            if flush:
+                await sess.commit()
 
     def add_clean_task(self, keepdays: int):
         """

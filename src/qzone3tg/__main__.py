@@ -9,12 +9,14 @@ from qzone3tg.app.interact import InteractApp
 from qzone3tg.app.storage import AsyncEnginew
 from qzone3tg.settings import Settings
 
-DEFAULT_CONF = Path('config/settings.yml')
-DEFAULT_SECRETS = Path('/run/secrets')
+DEFAULT_CONF = Path("config/settings.yml")
+DEFAULT_SECRETS = Path("/run/secrets")
 
 
 async def main(conf: Settings) -> int:
-    async with ClientSession() as sess, AsyncEnginew.sqlite3(conf.bot.storage.database) as engine:
+    async with ClientSession() as sess, AsyncEnginew.sqlite3(
+        conf.bot.storage.database
+    ) as engine:
         app = InteractApp(sess, engine, conf)
         try:
             await app.run()
@@ -30,17 +32,20 @@ async def main(conf: Settings) -> int:
             app.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--conf', '-c', help='配置文件路径 (*.yml, *.yaml)', type=Path, default=DEFAULT_CONF
+        "--conf", "-c", help="配置文件路径 (*.yml, *.yaml)", type=Path, default=DEFAULT_CONF
     )
-    parser.add_argument('--secrets', '-s', help='密钥目录', type=Path, default=DEFAULT_SECRETS)
-    parser.add_argument('--version', '-v', help='打印版本', action='store_true')
+    parser.add_argument(
+        "--secrets", "-s", help="密钥目录", type=Path, default=DEFAULT_SECRETS
+    )
+    parser.add_argument("--version", "-v", help="打印版本", action="store_true")
     args = parser.parse_args()
 
     if args.version:
         from qzone3tg import VERSION
+
         print(VERSION)
         exit(0)
 

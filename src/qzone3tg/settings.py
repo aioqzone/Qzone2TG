@@ -14,7 +14,7 @@ from pydantic import SecretStr
 from pydantic import validator
 from pydantic.env_settings import SettingsSourceCallable
 
-__all__ = ['Settings']
+__all__ = ["Settings"]
 
 
 class StorageConfig(BaseModel):
@@ -35,7 +35,7 @@ class BotDefaultConf(BaseModel):
 
     disable_notification: Optional[bool] = None
     disable_web_page_preview: Optional[bool] = None
-    timeout: Optional[float] = None    # read timeout from the server
+    timeout: Optional[float] = None  # read timeout from the server
 
 
 class PollingConf(BaseModel):
@@ -87,25 +87,29 @@ class WebhookConf(BaseModel):
     """Bot 启动后不响应启动前等待的命令. """
     max_connections: int = 40
     """服务器最大连接数"""
-    @validator('destination')
+
+    @validator("destination")
     def force_https(cls, v):
         """webhook 地址强制启用 SSL"""
-        assert v.scheme == 'https', "webhook needs a https server"
+        assert v.scheme == "https", "webhook needs a https server"
         return v
 
-    def webhook_url(self, token: SecretStr = None):
+    def webhook_url(self, token: SecretStr | None = None):
         """获取实际的 webhook url. telegram api 实际访问的 url 是 `destination/bot_token`.
         用户不需要考虑这一连接过程，由程序完成拼接. 用户应该注意的是，如果要使用反向代理，对 `destination`
         路径的一切访问都应该转发."""
-        if token is None: return SecretStr(self.destination)
-        urljoin = lambda u, p: str(u) + ('' if str.endswith(u, '/') else '/') + p
+        if token is None:
+            return SecretStr(self.destination)
+        urljoin = lambda u, p: str(u) + ("" if str.endswith(u, "/") else "/") + p
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
 
 
 class NetworkConf(BaseModel):
     """网络配置。包括代理和等待时间自定义优化。"""
 
-    proxy: Optional[AnyUrl] = Field(None, env='HTTPS_PROXY')    # support http(s); socks(5(h)).
+    proxy: Optional[AnyUrl] = Field(
+        None, env="HTTPS_PROXY"
+    )  # support http(s); socks(5(h)).
     """代理设置，支持 http 和 socks 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
 
     Example:
@@ -115,10 +119,11 @@ class NetworkConf(BaseModel):
     - `socks5://localhost:7890`
     - `socks5h://username:password@your.proxy.com:7890`
     """
-    @validator('proxy')
+
+    @validator("proxy")
     def proxy_scheme(cls, v):
         """验证代理 url 协议"""
-        assert v.scheme in ('http', 'https', 'socks', 'socks5', 'socks5h')
+        assert v.scheme in ("http", "https", "socks", "socks5", "socks5h")
         return v
 
 
@@ -127,7 +132,7 @@ class BotConf(BaseModel):
     """管理员用户ID，唯一指明管理员. bot 只响应管理员的指令. """
 
     token: Optional[SecretStr] = None
-    network: NetworkConf = NetworkConf()    # type: ignore
+    network: NetworkConf = NetworkConf()  # type: ignore
     """网络配置。包括代理和等待时间自定义优化。:class:`.NetworkConf`"""
 
     storage: StorageConfig = StorageConfig()
@@ -155,11 +160,11 @@ class BotConf(BaseModel):
 class QzoneConf(BaseModel):
     """对应配置文件中的 `qzone` 项。包含要登陆的QQ账户信息和爬虫相关的设置。"""
 
-    uin: int = Field(alias='qq')
+    uin: int = Field(alias="qq")
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    qr_strategy: str = 'allow'
+    qr_strategy: str = "allow"
     """二维码策略. 枚举类型，可选值为 `force`, `prefer`, `allow`, `forbid`
 
     - `force`：强制二维码登录，不使用密码登录. 如果您没有安装 NodeJs，则仅此模式可用.
@@ -173,17 +178,18 @@ class QzoneConf(BaseModel):
     """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
     block_self: bool = True
     """是否舍弃当前登录账号发布的内容. 等同于在 `.block` 中加入当前 `.uin`"""
-    @validator('qr_strategy')
+
+    @validator("qr_strategy")
     def must_be_enum(cls, v):
         """确保输入的 `qr_strategy` 是四个枚举值之一."""
-        assert v in ('force', 'prefer', 'allow', 'forbid')
+        assert v in ("force", "prefer", "allow", "forbid")
         return v
 
 
 class LogConf(BaseModel):
     """日志配置，支持配置文件."""
 
-    level: Optional[str] = 'INFO'
+    level: Optional[str] = "INFO"
     format: Optional[str] = None
     datefmt: Optional[str] = None
     conf: Optional[FilePath] = None
@@ -192,13 +198,17 @@ class LogConf(BaseModel):
 class UserSecrets(BaseSettings):
     """专门管理用户密码/密钥的配置。依赖于 `pydnatic` 对 secrets 的支持。用户可以通过 `docker secrets`
     或通过环境变量来传递密码/密钥。"""
-    password: Optional[SecretStr] = Field(default=None, env=['TEST_PASSWORD', 'password'])
+
+    password: Optional[SecretStr] = Field(
+        default=None, env=["TEST_PASSWORD", "password"]
+    )
     """QQ 密码"""
 
-    token: SecretStr = Field(env=['TEST_TOKEN', 'token'])
+    token: SecretStr = Field(env=["TEST_TOKEN", "token"])
     """TG 机器人的 `bot token`"""
+
     class Config:
-        secrets_dir = '/run/secrets'
+        secrets_dir = "/run/secrets"
 
         @classmethod
         def customise_sources(
@@ -211,8 +221,8 @@ class UserSecrets(BaseSettings):
 
 
 class Settings(BaseSettings):
-    """`Qzone3TG` 的配置文件。分为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项.
-    """
+    """`Qzone3TG` 的配置文件。分为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项."""
+
     log: LogConf = LogConf()
     """日志配置: :class:`.LogConf`"""
 
@@ -221,8 +231,9 @@ class Settings(BaseSettings):
 
     bot: BotConf
     """bot配置: :class:`.BotConf`"""
+
     def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())    # type: ignore
+        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())  # type: ignore
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self

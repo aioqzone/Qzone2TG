@@ -1,311 +1,187 @@
-import asyncio
+"""Telegram API has many limits. This module detects and solve these conflicts."""
+
+import asyncio as aio
+from collections import deque
 from functools import partial
 import logging
-from pathlib import PurePath
-from typing import Optional, Type, Union
+from time import time
+from typing import Callable, TypeVar
 
 from aiohttp import ClientSession
-from aioqzone_feed.type import VisualMedia
+from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
 from telegram import Bot
-from telegram import InputMediaAnimation
-from telegram import InputMediaPhoto
-from telegram import InputMediaVideo
-from telegram.error import BadRequest
+from telegram import InputFile
+from telegram import Message
 
+from qzone3tg.utils.iter import countif
 from qzone3tg.utils.iter import split_by_len
 
-from .queue import RelaxSemaphore
+from . import BotProtocol
+from . import ChatId
+from .atom import InputMedia
+from .atom import LIM_GROUP_MD
+from .atom import LIM_MD_TXT
+from .atom import LIM_TXT
+from .atom import MediaMsg
+from .atom import MsgArg
+from .atom import Splitter
+from .atom import TextMsg
 
-TEXT_LIM = 4096
-MEDIA_TEXT_LIM = 1024
-MEDIA_GROUP_LIM = 10
-
-InputMedia = Union[InputMediaPhoto, InputMediaVideo, InputMediaAnimation]
-ChatId = Union[str, int]
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
-__all__ = ['LimitedBot']
+
+def to_task(args: list[MsgArg]) -> list[MsgArg | list[MediaMsg]]:
+    """Group args, and associate each arg group with a operation name. The operation name
+    is the method name in `.limitbot` (also in `telegram.bot`)"""
+
+    md_num = countif(args, lambda a: isinstance(a, MediaMsg), initial=True)
+    if md_num <= 1:
+        return args  # type: ignore
+
+    groups: list[list[MediaMsg]] = split_by_len(args[:md_num], LIM_GROUP_MD)
+    return groups + args[md_num:]  # type: ignore
 
 
-class SemaBot:
-    """Basic limited bot with a semaphore. Cannot handle media/text exceeds the limit."""
-    def __init__(self, bot: Bot, freq_limit: int = 30) -> None:
+class BotTaskGenerator:
+    def __init__(self, bot: Bot, splitter: Splitter):
         self.bot = bot
-        self.sem = RelaxSemaphore(freq_limit)
-        self._loop = asyncio.get_event_loop()
+        self.splitter = splitter
 
-    async def send_message(self, to: ChatId, text: str, **kw):
-        assert len(text) < TEXT_LIM
-        kwds = dict(chat_id=to, text=text)
-        func = partial(self.bot.send_message, **kwds, **kw)
-        async with self.sem.num():
-            return await self._loop.run_in_executor(None, func)
+    async def unify_send(self, feed: FeedContent):
+        tasks = to_task(await self.splitter.split(feed))
+        for group in tasks:
+            yield self._get_partial(group)
 
-    async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        assert len(text) < MEDIA_TEXT_LIM
-        kwds = dict(
-            chat_id=to, caption=text, photo=str(media) if isinstance(media, HttpUrl) else media
-        )
-        func = partial(self.bot.send_photo, **kwds, **kw)
-        async with self.sem.num():
-            return await self._loop.run_in_executor(None, func)
-
-    async def send_animation(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        assert len(text) < MEDIA_TEXT_LIM
-        kwds = dict(
-            chat_id=to,
-            caption=text,
-            animation=str(media) if isinstance(media, HttpUrl) else media
-        )
-        func = partial(self.bot.send_animation, **kwds, **kw)
-        async with self.sem.num():
-            return await self._loop.run_in_executor(None, func)
-
-    async def send_video(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        assert len(text) < MEDIA_TEXT_LIM
-        kwds = dict(chat_id=to, caption=text, video=str(media))
-        func = partial(self.bot.send_video, **kwds, **kw)
-        async with self.sem.num():
-            return await self._loop.run_in_executor(None, func)
-
-    async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw):
-        assert len(media) < MEDIA_GROUP_LIM
-        kwds = dict(chat_id=to, media=media)
-        func = partial(self.bot.send_media_group, **kwds, **kw)
-        async with self.sem.num(len(media)):
-            return await self._loop.run_in_executor(None, func)
-
-    async def edit_media(self, to: ChatId, message_id: int, media: InputMedia):
-        kwds = dict(chat_id=to, message_id=message_id, media=media)
-        func = partial(self.bot.edit_message_media, **kwds)
-        async with self.sem.num():
-            return await self._loop.run_in_executor(None, func)
-
-
-class LimitedBot(SemaBot):
-    """Add support for media/text exceeds the limit."""
-    async def send_message(self, to: ChatId, text: str, **kw):
-        reply: Optional[int] = kw.pop('reply_to_message_id', None)
-        markup = kw.pop('reply_markup', None)
-        for i in split_by_len(text, TEXT_LIM):
-            msg = await super().send_message(
-                to, i, **kw, reply_to_message_id=reply, reply_markup=markup
+    def _get_partial(self, arg: MsgArg | list[MediaMsg]):
+        if isinstance(arg, list):
+            assert isinstance(arg, list)
+            return partial(
+                self.bot.send_media_group, media=[i.wrap_media() for i in arg]
             )
-            yield msg
-            reply = msg.message_id
-            markup = None
-
-    async def send_photo(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        meth = super(
-        ).send_animation if isinstance(media, bytes) and self.is_gif(media) else super().send_photo
-        yield (msg := await meth(to, text[:MEDIA_TEXT_LIM], media, **kw))
-        kw.pop('reply_markup', None)
-        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
-                                           reply_to_message_id=msg.message_id):
-            yield msg
-
-    async def send_animation(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        yield (msg := await super().send_animation(to, text, media, **kw))
-        kw.pop('reply_markup', None)
-        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
-                                           reply_to_message_id=msg.message_id):
-            yield msg
-
-    async def send_video(self, to: ChatId, text: str, media: Union[HttpUrl, bytes], **kw):
-        yield (msg := await super().send_video(to, text[:MEDIA_TEXT_LIM], media, **kw))
-        kw.pop('reply_markup', None)
-        async for msg in self.send_message(to, text[MEDIA_TEXT_LIM:], **kw,
-                                           reply_to_message_id=msg.message_id):
-            yield msg
-
-    async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw):
-        for i in split_by_len(media, MEDIA_GROUP_LIM):
-            for msg in await super().send_media_group(to, i, **kw):
-                yield msg
-
-    async def unify_send(self, to: ChatId, text: str, medias: list[VisualMedia] = None, **kw):
-        if not medias:
-            return self.send_message(to, text, **kw)
-
-        first = medias[0]
-        meth = self.send_video if first.is_video else self.send_photo
-        if len(medias) == 1:
-            return meth(to, text, first.raw, **kw)
-
-        kw.pop('reply_markup', None)
-        ipmds = [await self.wrap_media(first, caption=text, **kw)]
-        ipmds += [await self.wrap_media(i, **kw) for i in medias[1:]]
-        return self.send_media_group(to, ipmds, **kw)
-
-    async def edit_media(self, to: ChatId, message_id: list[int], medias: list[VisualMedia]):
-        g = (
-            super().edit_media(to, mid, await self.wrap_media(media))
-            for mid, media in zip(message_id, medias)
-        )
-        return await asyncio.gather(*g)
-
-    @staticmethod
-    def supported_video(url: HttpUrl):
-        return PurePath(url.path).suffix in ['.mp4']
-
-    @staticmethod
-    def is_gif(b: bytes):
-        return b.startswith((b'47494638', b'GIF89a', b'GIF87a'))
-
-    @classmethod
-    async def wrap_media(
-        cls,
-        media: Union[VisualMedia, bytes],
-        media_cls: Type[InputMedia] = None,
-        **kwds
-    ) -> InputMedia:
-        """Wrap a media object with :external:class:`telegram.InputMedia`:.
-
-        :param media: media url, photo or video. If video, mp4 only.
-        :param media_cls: media class. Needed when media is bytes, ommitted when media is url.
-
-        :raises ValueError: if media ext not supported
-        :return: InputMedia object.
-
-        .. note::
-            This method is not async. The async syntax is for allowing subclass
-            implementing async logic, e.g. make async request.
-        """
-        if isinstance(media, bytes):
-            assert media_cls
-            kwds['media'] = media
-        else:
-            kwds['media'] = str(media.raw)
-            media_cls = media_cls or (InputMediaVideo if media.is_video else InputMediaPhoto)
-            if media_cls is InputMediaVideo and not cls.supported_video(media.raw):
-                raise ValueError(media.raw)
-            if media_cls in (InputMediaVideo, InputMediaAnimation) and media.thumbnail:
-                kwds['thumb'] = kwds.get('thumb') or str(media.thumbnail)
-        return media_cls(**kwds)
+        match arg.meth:
+            case "message":
+                assert isinstance(arg, TextMsg)
+                return partial(self.bot.send_message, text=arg.text)
+            case "photo" | "video" | "animation" | "document":
+                assert isinstance(arg, MediaMsg)
+                kw = {arg.meth: arg.content}
+                f: Callable[..., Message] = getattr(self.bot, f"send_{arg.meth}")
+                return partial(f, caption=arg.text, **kw)
+            case _:
+                raise AttributeError(arg.meth)
 
 
-class Fetcher:
-    def __init__(self, sess: ClientSession, epsilon=5e-6) -> None:
+class BotTaskEditter(BotTaskGenerator):
+    def __init__(self, bot: Bot, splitter: Splitter, sess: ClientSession):
+        super().__init__(bot, splitter)
         self.sess = sess
-        self.eps = epsilon
-        self.tpa = epsilon
 
-    async def __call__(self, url: HttpUrl) -> Optional[bytes]:
-        """Get content w/o streaming. `@noexcept`"""
-        async with self.sess.get(str(url)) as r:
-            try:
-                return await r.content.read()
-            except:
-                return
+    async def edit_args(self, feed: FeedContent):
+        for group in await self.splitter.split(feed):
+            if isinstance(group, MediaMsg):
+                yield group
+                continue
+            return
 
-    def timeout(self):
-        self.tpa *= 2
+    async def force_bytes(self, call: partial[T]) -> partial[T]:
+        _, meth = call.func.__name__.split("_", maxsplit=1)
+        media = call.keywords.get(meth)
+        match meth:
+            case "animation" | "document" | "photo" | "video":
+                if isinstance(media, bytes):
+                    return call
+                assert isinstance(media, str)
+                logger.info(f"force fetch {meth}: {media}")
+                async with self.sess.get(media) as r:
+                    call.keywords[meth] = await r.content.read()
+                return call
+            case "media_group":
+                assert isinstance(media, list)
+                for i, im in enumerate(media):
+                    media[i] = await self.force_bytes_inputmedia(im)
+        return call
 
-    def succ(self):
-        self.tpa = max(self.eps, self.tpa - self.eps)
+    async def force_bytes_inputmedia(self, media: InputMedia):
+        if isinstance(media.media, InputFile) and isinstance(
+            media.media.input_file_content, bytes
+        ):
+            return media
 
-    def pred_timeout(self, media: VisualMedia):
-        p = media.width * media.height
-        if media.is_video: return max(20, self.tpa * p * 4)
-        else: return max(5, self.tpa * p)
+        assert isinstance(media.media, str)
+        logger.info(f"force fetch {media.type}: {media.media}")
+        async with self.sess.get(media.media) as r:
+            media.media = InputFile(await r.content.read(), attach=True)
+            return media
 
 
-class FetchBot(LimitedBot):
-    """Predict image size and fetch timeout when request; Fetch media on this server if BadRequest."""
-    def __init__(
-        self,
-        sess: ClientSession,
-        bot: Bot,
-        freq_limit: int = 30,
-        send_gif_as_anim: bool = False
-    ) -> None:
-        super().__init__(bot, freq_limit)
-        self.fetcher = Fetcher(sess)
-        self.prob_gif = send_gif_as_anim
+class RelaxSemaphore:
+    def __init__(self, max_val: int) -> None:
+        self.max = max_val
+        self._loop = aio.get_event_loop()
+        self._waiters = deque(maxlen=max_val)
 
-    def unify_send(
-        self, to: ChatId, text: str, medias: list[VisualMedia] = None, fetch: bool = False, **kw
-    ):
-        """Send text with media.
+    def reset(self):
+        self._val = self.max
 
-        :param to: send to
-        :param text: text or caption
-        :param media: media list, defaults to None
-        :param fetch: Fetch url by this server. By default, the url will be fetched on telegram server.
-        But some url has irregular standard and will cause a :external:exc:`telegram.error.BadRequest`.
-        Under such condition, we shall retry with this flag set, and send bytes to telegram.
+    async def acquire(self, times: int = 1, *, block: bool = True):
+        if self._val >= times:
+            # accept
+            self._val -= times
+            return True
+        if not block:
+            return False
+        assert self.max >= times
+        while self._val < times:
+            # wait for release
+            task = self._waiters.popleft()
+            await task
+        self._val -= times
+        return True
 
-        :yield: messages
-        """
-        kw['fetch'] = fetch
-        kw['timeout'] = sum(self.fetcher.pred_timeout(i) for i in medias) if medias else None
-        return super().unify_send(to, text, medias, **kw)
+    def release(self, times: int = 1) -> None:
+        async def delay_release(end_time: float):
+            await aio.sleep(end_time - time())
+            self._val += times
 
-    async def wrap_media(
-        self,
-        media: Union[VisualMedia, bytes],
-        media_cls: Type[InputMedia] = None,
-        fetch: bool = False,
-        **kwds
-    ) -> InputMedia:
-        """Wrap a media object with :external:class:`telegram.InputMedia`:.
+        self._waiters.append(task := aio.create_task(delay_release(time() + 1)))
+        task.add_done_callback(lambda t: self._waiters.remove(task))
 
-        :param media: media url, photo or video. If video, mp4 only.
-        :param media_cls: media class. Needed when media is bytes, ommitted when media is url.
+    def context(self, times: int = 1):
+        # fmt: off
+        class ctx:
+            __slots__ = ()
+            async def __aenter__(*_): await self.acquire(times)
+            async def __aexit__(*_): self.release(times)
+        # fmt: on
+        return ctx()
 
-        :raises ValueError: if media ext not supported
-        :raises `telegram.error.BadRequest`: if any exception in fetcher
-        :return: InputMedia object.
-        """
-        kwds.pop('timeout', None)
-        if isinstance(media, VisualMedia) and (fetch or self.prob_gif and not media.is_video):
-            m = await self.fetcher(media.raw)
-            if m is None:
-                logger.error('%s is not a valid media url', str(media.raw))
-                raise BadRequest(str(media.raw))
-            if media.is_video:
-                media_cls = InputMediaVideo
-            else:
-                media_cls = InputMediaAnimation if self.is_gif(m) else InputMediaPhoto
-            media = m
 
-        return await super().wrap_media(media, media_cls, **kwds)
+class SemaBot(BotProtocol):
+    """A queue with convenient `send_*` methods for interacting purpose."""
 
-    def send_message(self, to: ChatId, text: str, fetch: bool = False, **kw):
-        return super().send_message(to, text, **kw)
+    def __init__(self, bot: Bot, sem: RelaxSemaphore) -> None:
+        self.bot = bot
+        self.sem = sem
+        self._loop = self.sem._loop
 
-    async def send_photo(
-        self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
-    ):
-        if isinstance(media, HttpUrl) and (self.prob_gif or fetch):
-            if (m := await self.fetcher(media)) is None:
-                if fetch: raise BadRequest(str(media))
-            else: media = m
+    async def send_message(self, to: ChatId, text: str, **kw):
+        assert len(text) < LIM_TXT
+        f = partial(self.bot.send_message, to, text, **kw)
+        async with self.sem.context():
+            return await self._loop.run_in_executor(None, f)
 
-        async for i in super().send_photo(to, text, media, **kw):
-            yield i
+    async def send_photo(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
+        assert len(text) < LIM_MD_TXT
+        photo = media if isinstance(media, bytes) else str(media)
+        f = partial(self.bot.send_photo, to, photo, text, **kw)
+        async with self.sem.context():
+            return await self._loop.run_in_executor(None, f)
 
-    async def send_animation(
-        self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
-    ):
-        if isinstance(media, HttpUrl) and fetch:
-            m = await self.fetcher(media)
-            if m is None: raise BadRequest(str(media))
-            media = m
-
-        async for i in super().send_animation(to, text, media, **kw):
-            yield i
-
-    def send_video(
-        self, to: ChatId, text: str, media: Union[HttpUrl, bytes], fetch: bool = False, **kw
-    ):
-        return super().send_video(to, text, media, **kw)
-
-    def send_media_group(self, to: ChatId, media: list[InputMedia], fetch: bool = False, **kw):
-        return super().send_media_group(to, media, **kw)
-
-    def edit_media(
-        self, to: ChatId, message_id: list[int], medias: list[VisualMedia], fetch: bool = False
-    ):
-        return super().edit_media(to, message_id, medias)
+    async def send_animation(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
+        assert len(text) < LIM_MD_TXT
+        anim = media if isinstance(media, bytes) else str(media)
+        f = partial(self.bot.send_animation, to, anim, caption=text, **kw)
+        async with self.sem.context():
+            return await self._loop.run_in_executor(None, f)
