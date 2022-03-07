@@ -15,7 +15,7 @@ class CommaList(Generic[T]):
         self,
         cls: Type[T],
         tostr: Callable[[T], str] = str,
-        toT: Callable[[bytes], T] = None,
+        toT: Callable[[bytes], T] | None = None,
     ) -> None:
         self.cls = cls
         self.tostr = tostr
@@ -40,12 +40,12 @@ class FeedOrm(Base):  # type: ignore
     curkey = sa.Column(sa.VARCHAR, nullable=True)
     unikey = sa.Column(sa.VARCHAR, nullable=True)
     mids: Optional[list[int]] = sa.Column(
-        sa.PickleType(pickler=CommaList(int)), nullable=True
-    )  # type: ignore
+        sa.PickleType(pickler=CommaList(int)), nullable=True  # type: ignore
+    )
     """message_id list, as a pickle type"""
 
     @classmethod
-    def from_base(cls, obj: BaseFeed, mids: list[int] = None):
+    def from_base(cls, obj: BaseFeed, mids: list[int] | None = None):
         return cls(
             fid=obj.fid,
             uin=obj.uin,
@@ -59,7 +59,7 @@ class FeedOrm(Base):  # type: ignore
         )
 
     @staticmethod
-    def set_by(record: "FeedOrm", obj: BaseFeed, mids: list[int] = None):
+    def set_by(record: "FeedOrm", obj: BaseFeed, mids: list[int] | None = None):
         assert record.uin == obj.uin
         assert record.abstime == obj.abstime
         assert record.fid == obj.fid

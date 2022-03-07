@@ -18,7 +18,7 @@ import telegram as tg
 import telegram.ext as ext
 
 from qzone3tg import DISCUSS
-from qzone3tg.bot.atom import FetchSpliter
+from qzone3tg.bot.atom import FetchSplitter
 from qzone3tg.bot.atom import LocalSplitter
 from qzone3tg.bot.atom import Splitter
 from qzone3tg.bot.limitbot import BotTaskEditter
@@ -101,7 +101,7 @@ class BaseApp(Emittable):
         self.forward = self.hook_cls(
             sess=sess,
             bot=self.updater.bot,
-            splitter=FetchSpliter(sess)
+            splitter=FetchSplitter(sess)
             if self.conf.bot.send_gif_as_anim
             else LocalSplitter(),
             block=block,

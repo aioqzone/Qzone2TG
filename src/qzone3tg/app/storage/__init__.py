@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
-from ...bot.queue.task import StorageEvent
+from ...bot.queue import StorageEvent
 from .orm import FeedOrm
 
 
@@ -49,7 +49,7 @@ class DefaultStorageHook(StorageEvent):
             await conn.run_sync(FeedOrm.metadata.create_all)
 
     async def SaveFeed(
-        self, feed: BaseFeed, msgs_id: list[int] = None, flush: bool = True
+        self, feed: BaseFeed, msgs_id: list[int] | None = None, flush: bool = True
     ):
         """Add/Update an record by the given feed and messages id.
 
@@ -77,7 +77,9 @@ class DefaultStorageHook(StorageEvent):
         """
         return await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed))) is not None
 
-    async def get_orm(self, *where, sess: AsyncSession = None) -> Optional[FeedOrm]:
+    async def get_orm(
+        self, *where, sess: AsyncSession | None = None
+    ) -> Optional[FeedOrm]:
         """Get a feed orm from database, with given criteria.
 
         :return: :class:`.FeedOrm`
@@ -88,6 +90,7 @@ class DefaultStorageHook(StorageEvent):
         if sess:
             return (await sess.execute(stmt)).scalar()
         async with self.sess() as sess:
+            assert sess
             return (await sess.execute(stmt)).scalar()
 
     async def get(self, *pred) -> Optional[tuple[BaseFeed, Optional[list[int]]]]:
@@ -102,7 +105,9 @@ class DefaultStorageHook(StorageEvent):
         assert mids is None or isinstance(mids, list)
         return BaseFeed.from_orm(orm), mids
 
-    async def clean(self, seconds: float, timeout: float = None, flush: bool = True):
+    async def clean(
+        self, seconds: float, timeout: float | None = None, flush: bool = True
+    ):
         """clean feeds out of date, based on `abstime`.
 
         :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.

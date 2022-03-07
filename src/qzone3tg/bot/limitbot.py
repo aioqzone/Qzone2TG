@@ -56,10 +56,13 @@ class BotTaskGenerator:
 
     def _get_partial(self, arg: MsgArg | list[MediaMsg]):
         if isinstance(arg, list):
-            assert isinstance(arg, list)
-            return partial(
-                self.bot.send_media_group, media=[i.wrap_media() for i in arg]
-            )
+            if len(arg) > 1:
+                assert isinstance(arg, list)
+                return partial(
+                    self.bot.send_media_group, media=[i.wrap_media() for i in arg]
+                )
+            (arg,) = arg  # just unpack the single element
+
         match arg.meth:
             case "message":
                 assert isinstance(arg, TextMsg)
@@ -87,9 +90,9 @@ class BotTaskEditter(BotTaskGenerator):
 
     async def force_bytes(self, call: partial[T]) -> partial[T]:
         _, meth = call.func.__name__.split("_", maxsplit=1)
-        media = call.keywords.get(meth)
         match meth:
             case "animation" | "document" | "photo" | "video":
+                media = call.keywords.get(meth)
                 if isinstance(media, bytes):
                     return call
                 assert isinstance(media, str)
@@ -98,6 +101,7 @@ class BotTaskEditter(BotTaskGenerator):
                     call.keywords[meth] = await r.content.read()
                 return call
             case "media_group":
+                media = call.keywords.get("media")
                 assert isinstance(media, list)
                 for i, im in enumerate(media):
                     media[i] = await self.force_bytes_inputmedia(im)
@@ -121,6 +125,7 @@ class RelaxSemaphore:
         self.max = max_val
         self._loop = aio.get_event_loop()
         self._waiters = deque(maxlen=max_val)
+        self.reset()
 
     def reset(self):
         self._val = self.max

@@ -64,9 +64,9 @@ class MediaMsg(MsgArg, Generic[MD]):
         return self._raw or str(self.meta.raw)
 
     def wrap_media(self, **kw) -> MD:
-        return MD(
+        return self.__orig_bases__[0].__args__[0](  # type: ignore
             media=self.content,
-            caption=self.text,  # type: ignore
+            caption=self.text,
             **kw,
         )
 
@@ -140,18 +140,14 @@ class LocalSplitter(Splitter):
             msgs += [TextMsg(i) for i in split_by_len(alltext[LIM_MD_TXT:], LIM_TXT)]
             return msgs
 
+        cur = len(msgs)  # attach caption to this msg
         md_clss = [await self.probe_md_type(i) for i in media]
         # document must not mixed with other types
         if all(i is DocMsg for i in md_clss) == any(i is DocMsg for i in md_clss):
-            msgs.append(md_clss[0](feed.media[0], first_md, alltext[:LIM_MD_TXT]))
-            msgs += [
-                cls(vm, m) for cls, vm, m in zip(md_clss[1:], feed.media[1:], media[1:])
-            ]
-            msgs += [TextMsg(i) for i in split_by_len(alltext[LIM_MD_TXT:], LIM_TXT)]
-            return msgs
+            msgs += [cls(vm, m) for cls, vm, m in zip(md_clss, feed.media, media)]
+            return self.__merge_text_into_media_ls(msgs, alltext, cur)
 
         alltext += "\n\n"
-        cur = len(msgs)  # attach caption to this msg
         for i, (cls, vm, m) in enumerate(zip(md_clss, feed.media, media), start=1):
             # attach link directly in text
             if cls is DocMsg:
@@ -162,8 +158,18 @@ class LocalSplitter(Splitter):
                 continue
             # otherwise send the media
             msgs.append(cls(vm, m))
-        cast(MediaMsg, msgs[cur]).text = alltext[:LIM_MD_TXT]
-        msgs += [TextMsg(i) for i in split_by_len(alltext[LIM_MD_TXT:], LIM_TXT)]
+
+        return self.__merge_text_into_media_ls(msgs, alltext, cur)
+
+    def __merge_text_into_media_ls(self, msgs: list[MsgArg], text: str, start: int = 0):
+        # insert text into group heads
+        passages = split_by_len(text, LIM_MD_TXT)
+        for i in range(start, len(msgs), LIM_GROUP_MD):
+            if not passages:
+                continue
+            assert isinstance(a := msgs[i], MediaMsg)
+            a.text = passages.pop(0)
+        msgs += [TextMsg(i) for i in passages]
         return msgs
 
     def header(self, feed: FeedContent) -> str:
@@ -198,10 +204,12 @@ class LocalSplitter(Splitter):
             return DocMsg
         if media.height + media.width > 1e4:
             return DocMsg
+        if media.raw.path and media.raw.path.endswith(".gif"):
+            return AnimMsg
         return PicMsg
 
 
-class FetchSpliter(LocalSplitter):
+class FetchSplitter(LocalSplitter):
     """Fetch splitter has the right to fetch raw content of an url from network to make a
     more precise predict."""
 
