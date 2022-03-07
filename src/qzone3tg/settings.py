@@ -146,9 +146,6 @@ class BotConf(BaseModel):
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
     两种类型 :class:`.PollingConf`, :class:`.WebhookConf` 分别对应 polling 模式和 webhook 模式。"""
 
-    reload_on_start: bool = False
-    """/start 命令是否忽略已转发的内容. 即，此开关为 True 时，
-    Bot 不会检查说说是否曾经转发过，而是将 :meth:`.QzoneConf.dayspac` 天内的所有说说重新转发。"""
     send_gif_as_anim: bool = True
     """当此项为 False 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
     在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`SendPhoto`) 发送给

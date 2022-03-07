@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import asyncio as aio
 from collections import defaultdict
 from functools import partial
@@ -6,15 +7,17 @@ from typing import Mapping
 
 from aioqzone.interface.hook import Emittable
 from aioqzone.interface.hook import Event
-from aioqzone.type import FeedRep
 from aioqzone_feed.type import BaseFeed
 from aioqzone_feed.type import FeedContent
 from telegram import Message
+from telegram import ReplyMarkup
+from telegram import TelegramError
 from telegram.error import BadRequest
 from telegram.error import TimedOut
 
 from qzone3tg.utils.iter import aenumerate
 from qzone3tg.utils.iter import alist
+from qzone3tg.utils.iter import countif
 
 from . import ChatId
 from .atom import MediaMsg
@@ -25,7 +28,7 @@ SendFunc = partial[list[Message]] | partial[Message]
 logger = logging.getLogger(__name__)
 
 
-class StorageEvent(Event):
+class QueueEvent(Event):
     """Basic hook event for storage function."""
 
     async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
@@ -37,28 +40,21 @@ class StorageEvent(Event):
         return
 
     async def get_message_id(self, feed: BaseFeed) -> list[int] | None:
+        """Get a list of message id from storage.
+
+        :param feed: feed
+        :return: the list of message id associated with this feed, or None if not found.
+        """
         return
 
     async def update_message_id(self, feed: BaseFeed, mids: list[int]):
         return
 
-    async def clean(self, seconds: float):
-        """clean feeds out of date, based on `abstime`.
-
-        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
-        """
+    async def reply_markup(self, feed: FeedContent) -> list[ReplyMarkup | None] | None:
         return
 
-    async def exists(self, feed: FeedRep) -> bool:
-        """check if a feed exists in local storage.
 
-        :param feed: feed to check
-        :return: whether exists
-        """
-        return False
-
-
-class MsgQueue(Emittable[StorageEvent]):
+class MsgQueue(Emittable[QueueEvent]):
     bid = -1
 
     def __init__(
@@ -68,6 +64,7 @@ class MsgQueue(Emittable[StorageEvent]):
         sem: RelaxSemaphore,
         max_retry: int = 2,
     ) -> None:
+        super().__init__()
         self.q: dict[FeedContent, list[SendFunc] | int] = {}
         self.tasker = tasker
         self.fwd2 = forward_map
@@ -76,6 +73,7 @@ class MsgQueue(Emittable[StorageEvent]):
         self.exc = defaultdict(list)
         self.max_retry = max_retry
         self.sending = None
+        self.skip_num = 0
 
     async def add(self, bid: int, feed: FeedContent):
         if bid != self.bid:
@@ -87,13 +85,48 @@ class MsgQueue(Emittable[StorageEvent]):
 
         # add a sending task
         tasks = await alist(self.tasker.unify_send(feed))
+        markup = await self.hook.reply_markup(feed)
+        if markup:
+            ee, er = markup
+        else:
+            ee = er = None
+
         for p in tasks:
             p.keywords.update(chat_id=self.fwd2[feed.uin])
+            match p.func.__name__.split("_", maxsplit=1):
+                case ["send", "media_group"]:
+                    pass
+                case ["send", "photo" | "animation" | "document" | "video"]:
+                    if ee:
+                        if str(feed.uin) in p.keywords.get("caption", ""):
+                            ee = None
+                        else:
+                            p.keywords.update(reply_markup=ee)
+                            ee = None
+                    elif er:
+                        p.keywords.update(reply_markup=er)
+                        er = None
+                case ["send", "message"]:
+                    if ee:
+                        if str(feed.uin) in p.keywords.get("text", ""):
+                            ee = None
+                        else:
+                            p.keywords.update(reply_markup=ee)
+                            ee = None
+                    elif er:
+                        p.keywords.update(reply_markup=er)
+                        er = None
+
         self.q[feed] = tasks
+
+    @property
+    def exc_num(self):
+        return countif(self.exc.values(), lambda i: len(i) == self.max_retry)
 
     def new_batch(self, bid: int):
         assert self.sending is None
         assert bid != self.bid
+        self.skip_num = 0
         self.q.clear()
         self.exc.clear()
         self.sem.reset()
@@ -102,10 +135,10 @@ class MsgQueue(Emittable[StorageEvent]):
     async def send_all(self):
         for k in sorted(self.q):
             self.sending = k
-            await self.send_one_feed(k)
+            await self._send_one_feed(k)
         self.sending = None
 
-    async def send_one_feed(self, feed: FeedContent):
+    async def _send_one_feed(self, feed: FeedContent):
         reply: int | None = None
         mids: list[int] = []
         if isinstance(v := self.q[feed], int):
@@ -114,30 +147,54 @@ class MsgQueue(Emittable[StorageEvent]):
         for f in v:
             f.keywords.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
-                reply = await self.send_one(f, feed)
+                if (r := await self._send_one(f, feed)) is True:
+                    continue
+                if isinstance(r, list):
+                    mids += r
+                    reply = r[-1]
+                break
+
+        if not mids:
+            logger.error(f"feed {feed}, max retry exceeded: {self.exc[feed]}")
+            for i, e in enumerate(self.exc[feed], start=1):
+                if e:
+                    logger.debug("Retry %d", i, exc_info=e)
+            return
 
         # Save the feed after all sending task is done
         self.q[feed] = mids[-1]
         self.add_hook_ref("storage", self.hook.SaveFeed(feed, mids))
 
-    async def send_one(self, f: SendFunc, feed: FeedContent) -> int | None:
+    async def _send_one(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
         try:
             async with self.sem.context(len(f.keywords.get("media", "0"))):
                 # minimize semaphore context
                 r = await self._loop.run_in_executor(None, f)
             if isinstance(r, Message):
-                return r.message_id
+                return [r.message_id]
             if isinstance(r, list):
-                return r[0].message_id
+                return [i.message_id for i in r]
         except TimedOut as e:
             self.exc[feed].append(e)
+            # TODO: more operations
             f.keywords["timeout"] = f.keywords.get("timeout", 5) * 2
+            return True
         except BadRequest as e:
             self.exc[feed].append(e)
             assert isinstance(tasks := self.q[feed], list)
             tasks[tasks.index(f)] = await self.tasker.force_bytes(f)  # type: ignore
+            return True
+        except TelegramError as e:
+            self.exc[feed].append(e)
+            self.exc[feed] += [None] * (self.max_retry - 1)
+            logger.error("Uncaught telegram error in send_all.", exc_info=True)
+            return False
         except BaseException as e:
             self.exc[feed].append(e)
+            self.exc[feed] += [None] * (self.max_retry - 1)
+            logger.error("Uncaught error in send_all.", exc_info=True)
+            return False
+        return False
 
 
 class EditableQueue(MsgQueue):
@@ -166,6 +223,13 @@ class EditableQueue(MsgQueue):
                 f.keywords["media"] = await self.tasker.force_bytes_inputmedia(
                     f.keywords["media"]
                 )
+            except TelegramError:
+                logger.error(
+                    "Uncaught telegram error when editting media.", exc_info=True
+                )
+            except BaseException:
+                logger.error("Uncaught error when editting media.", exc_info=True)
+                return
 
     async def edit(self, bid: int, feed: FeedContent):
         if bid != self.bid:

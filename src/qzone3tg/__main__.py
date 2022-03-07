@@ -14,9 +14,10 @@ DEFAULT_SECRETS = Path("/run/secrets")
 
 
 async def main(conf: Settings) -> int:
-    async with ClientSession() as sess, AsyncEnginew.sqlite3(
-        conf.bot.storage.database
-    ) as engine:
+    async with (
+        ClientSession() as sess,
+        AsyncEnginew.sqlite3(conf.bot.storage.database) as engine,
+    ):
         app = InteractApp(sess, engine, conf)
         try:
             await app.run()
@@ -49,17 +50,8 @@ if __name__ == "__main__":
         print(VERSION)
         exit(0)
 
-    assert args.conf.exists()
+    assert args.conf.exists(), "配置文件不存在"
     with open(args.conf) as f:
         d = yaml.safe_load(f)
     conf = Settings(**d).load_secrets(args.secrets)
-
-    try:
-        code = asyncio.run(main(conf))
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        code = 0
-    except SystemExit as e:
-        code = e.code
-    except:
-        code = 1
-    exit(code)
+    exit(asyncio.run(main(conf)))

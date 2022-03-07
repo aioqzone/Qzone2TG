@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import cast, Optional, Union
+from typing import cast
 
 from aioqzone.type import FeedRep
 from aioqzone_feed.type import BaseFeed
@@ -10,13 +10,30 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
-from ...bot.queue import StorageEvent
+from ...bot.queue import QueueEvent
 from .orm import FeedOrm
+
+
+class StorageEvent(QueueEvent):
+    async def clean(self, seconds: float):
+        """clean feeds out of date, based on `abstime`.
+
+        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
+        """
+        return
+
+    async def exists(self, feed: FeedRep) -> bool:
+        """check if a feed exists in local storage.
+
+        :param feed: feed to check
+        :return: whether exists
+        """
+        return False
 
 
 class AsyncEnginew:
     @classmethod
-    def sqlite3(cls, path: Optional[Path], **kwds):
+    def sqlite3(cls, path: Path | None, **kwds):
         if path is None:
             url = "sqlite+aiosqlite://"
         else:
@@ -69,7 +86,7 @@ class DefaultStorageHook(StorageEvent):
             if flush:
                 await sess.commit()
 
-    async def exists(self, feed: Union[BaseFeed, FeedRep]) -> bool:
+    async def exists(self, feed: BaseFeed | FeedRep) -> bool:
         """check if a feed exists in this database.
 
         :param feed: feed to check
@@ -77,9 +94,7 @@ class DefaultStorageHook(StorageEvent):
         """
         return await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed))) is not None
 
-    async def get_orm(
-        self, *where, sess: AsyncSession | None = None
-    ) -> Optional[FeedOrm]:
+    async def get_orm(self, *where, sess: AsyncSession | None = None) -> FeedOrm | None:
         """Get a feed orm from database, with given criteria.
 
         :return: :class:`.FeedOrm`
@@ -93,7 +108,7 @@ class DefaultStorageHook(StorageEvent):
             assert sess
             return (await sess.execute(stmt)).scalar()
 
-    async def get(self, *pred) -> Optional[tuple[BaseFeed, Optional[list[int]]]]:
+    async def get(self, *pred) -> tuple[BaseFeed, list[int] | None] | None:
         """Get a feed from database, with given criteria.
         If multiple records satisfy the criteria, returns the first.
 
@@ -132,7 +147,7 @@ class DefaultStorageHook(StorageEvent):
                 await sess.commit()
             return not pending
 
-    async def get_message_id(self, feed: BaseFeed) -> Optional[list[int]]:
+    async def get_message_id(self, feed: BaseFeed) -> list[int] | None:
         r = await self.get(*FeedOrm.primkey(feed))
         return r and r[1]
 

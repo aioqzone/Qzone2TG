@@ -31,16 +31,6 @@ from .storage.orm import FeedOrm
 
 
 class InteractAppHook(BaseAppHook):
-    def like_markup(self, feed: FeedContent):
-        if feed.unikey is None:
-            return
-        curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
-        if feed.islike:
-            likebtn = InlineKeyboardButton("Unlike", callback_data="like:-" + curkey)
-        else:
-            likebtn = InlineKeyboardButton("Like", callback_data="like:" + curkey)
-        return InlineKeyboardMarkup([[likebtn]])
-
     def qr_markup(self):
         btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
         btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
@@ -65,6 +55,25 @@ class InteractStorageHook(DefaultStorageHook):
             abstime=feed.abstime,
         )
 
+    def _like_markup(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
+        if feed.unikey is None:
+            return
+        curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
+        if feed.islike:
+            likebtn = InlineKeyboardButton("Unlike", callback_data="like:-" + curkey)
+        else:
+            likebtn = InlineKeyboardButton("Like", callback_data="like:" + curkey)
+        return InlineKeyboardMarkup([[likebtn]])
+
+    async def reply_markup(self, feed: FeedContent):
+        markup = []
+        if isinstance(feed.forward, FeedContent):
+            markup.append(self._like_markup(feed.forward))
+        else:
+            markup.append(None)
+        markup.append(self._like_markup(feed))
+        return markup
+
 
 class LockFilter(MessageFilter):
     def __init__(self) -> None:
@@ -85,7 +94,6 @@ class InteractApp(BaseApp):
 
     commands = {
         "start": "刷新",
-        "refresh": "刷新",
         "status": "获取运行状态",
         "relogin": "强制重新登陆",
         "em": "自定义表情代码，如 /em 400343 🐷",
@@ -95,12 +103,6 @@ class InteractApp(BaseApp):
     def __init__(self, sess: Session, store: AsyncEngine, conf: Settings) -> None:
         super().__init__(sess, store, conf)
         self.fetch_lock = LockFilter()
-
-        if conf.bot.reload_on_start:
-            self.commands["start"] = f"获取{conf.qzone.dayspac}天内的全部说说，覆盖数据库"
-        else:
-            self.commands["refresh"] = "还是刷新"
-
         self.set_commands()
 
     @property
@@ -155,16 +157,7 @@ class InteractApp(BaseApp):
         chat = update.effective_chat
         assert chat
         self.log.info("Start! chat=%d", chat.id)
-        task = self.add_hook_ref(
-            "command", super().fetch(chat.id, reload=self.conf.bot.reload_on_start)
-        )
-        self.fetch_lock.acquire(task)
-
-    def refresh(self, update: Update, context: CallbackContext):
-        chat = update.effective_chat
-        assert chat
-        self.log.info("Refresh! chat=%d", chat.id)
-        task = self.add_hook_ref("command", super().fetch(chat.id, reload=False))
+        task = self.add_hook_ref("command", super().fetch(chat.id))
         self.fetch_lock.acquire(task)
 
     def help(self, update: Update, context: CallbackContext):

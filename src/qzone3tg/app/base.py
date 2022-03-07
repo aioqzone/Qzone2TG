@@ -18,6 +18,7 @@ import telegram as tg
 import telegram.ext as ext
 
 from qzone3tg import DISCUSS
+from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter
 from qzone3tg.bot.atom import LocalSplitter
 from qzone3tg.bot.atom import Splitter
@@ -29,7 +30,6 @@ from qzone3tg.settings import LogConf
 from qzone3tg.settings import NetworkConf
 from qzone3tg.settings import Settings
 
-from ..bot.queue import ChatId
 from .hook import DefaultFeedHook
 from .hook import DefaultQrHook
 from .storage import AsyncEngine
@@ -63,6 +63,7 @@ class BaseApp(Emittable):
     store_cls: Type[DefaultStorageHook] = DefaultStorageHook
 
     def __init__(self, sess: Session, engine: AsyncEngine, conf: Settings) -> None:
+        super().__init__()
         assert conf.bot.token
         # init logger at first
         self.conf = conf
@@ -229,9 +230,7 @@ class BaseApp(Emittable):
         self.qzone.stop()
         self.updater.stop()
 
-    async def fetch(
-        self, to: Union[int, str], *, reload: bool, is_period: bool = False
-    ):
+    async def fetch(self, to: Union[int, str], *, is_period: bool = False):
         """fetch feeds.
 
         :param reload: dismiss existing records in database
@@ -242,15 +241,14 @@ class BaseApp(Emittable):
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
         # NOTE: subclass must handle async/threading lock here
-        self.log.info(f"Start fetch with reload={reload}, period={is_period}")
+        self.log.info(f"Start fetch with period={is_period}")
 
         # start a new batch
         self.forward.new_batch(self.qzone.new_batch())
         # fetch feed
-        check_exceed = None if reload else self.store.exists
         try:
             got = await self.qzone.get_feeds_by_second(
-                self.conf.qzone.dayspac * 86400, exceed_pred=check_exceed
+                self.conf.qzone.dayspac * 86400, exceed_pred=self.store.exists
             )
         except (UserBreak, LoginError):
             self.qzone.hb.cancel()
@@ -270,20 +268,17 @@ class BaseApp(Emittable):
             exit(1)
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
-        max_retry_exceed = filter(
-            lambda i: len(i) == self.forward.queue.max_retry,
-            self.forward.queue.exc.values(),
-        )
-        errs = len(list(max_retry_exceed))
+        errs = self.forward.queue.exc_num
         log_level_helper = (
             f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。"
             if self.log.level > 10
             else ""
         )
-        err_msg = (
-            f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。" + log_level_helper if errs else ""
-        )
-        await self.bot.send_message(to, f"发送结束，共{got}条，{errs}条错误。" + err_msg)
+        summary = f"发送结束，共{got}条，{self.forward.queue.skip_num}条跳过，{errs}条错误。"
+        if errs:
+            summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
+            summary += log_level_helper
+        await self.bot.send_message(to, summary)
 
     async def license(self, to: ChatId):
         from telegram.parsemode import ParseMode

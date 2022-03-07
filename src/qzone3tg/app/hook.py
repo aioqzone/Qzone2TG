@@ -83,6 +83,7 @@ class DefaultFeedHook(FeedEvent):
 
     async def FeedDropped(self, bid: int, feed):
         logger.debug(f"batch {bid}: one feed dropped")
+        self.queue.skip_num += 1
 
     async def FeedMediaUpdate(self, bid: int, feed: FeedContent):
         logger.debug(f"feed update received: media={feed.media}")

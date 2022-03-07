@@ -2,6 +2,7 @@ from aioqzone_feed.type import FeedContent
 from aioqzone_feed.type import VisualMedia
 from pydantic import BaseModel
 from pydantic import HttpUrl
+from telegram import Message
 
 from qzone3tg.bot import BotProtocol
 from qzone3tg.bot import ChatId
@@ -11,19 +12,28 @@ class FakeBot(BotProtocol):
     def __init__(self) -> None:
         self.log = []
 
-    def send_message(self, to: ChatId, text: str, **kw):
-        self.log.append(("message", to, text, kw))
+    def send_message(self, chat_id: ChatId, text: str, **kw):
+        self.log.append(("message", chat_id, text, kw))
+        return fake_message(len(self.log))
 
-    def send_photo(self, to: ChatId, photo: str | bytes, text: str, **kw):
-        self.log.append(("photo", to, photo, text, kw))
+    def send_photo(self, chat_id: ChatId, photo: str | bytes, caption: str, **kw):
+        self.log.append(("photo", chat_id, photo, caption, kw))
+        return fake_message(len(self.log))
 
-    def send_media_group(self, to: ChatId, media: list, **kw):
-        self.log.append(("group", to, media, kw))
+    def send_media_group(self, chat_id: ChatId, media: list, **kw):
+        self.log.append(("group", chat_id, media, kw))
+        return fake_message(len(self.log))
 
 
 class Feed4Test(FeedContent):
     def __hash__(self) -> int:
         return hash(self.content)
+
+
+def fake_message(id: int):
+    m = object.__new__(Message)
+    m.message_id = id
+    return m
 
 
 def fake_feed(i: int | str):
