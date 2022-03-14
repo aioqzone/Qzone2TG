@@ -1,32 +1,30 @@
 """Telegram API has many limits. This module detects and solve these conflicts."""
 
 import asyncio as aio
+import logging
 from collections import deque
 from functools import partial
-import logging
 from time import time
 from typing import Callable, TypeVar
 
 from aiohttp import ClientSession
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
-from telegram import Bot
-from telegram import InputFile
-from telegram import Message
+from telegram import Bot, InputFile, Message
 
-from qzone3tg.utils.iter import countif
-from qzone3tg.utils.iter import split_by_len
+from qzone3tg.utils.iter import countif, split_by_len
 
-from . import BotProtocol
-from . import ChatId
-from .atom import InputMedia
-from .atom import LIM_GROUP_MD
-from .atom import LIM_MD_TXT
-from .atom import LIM_TXT
-from .atom import MediaMsg
-from .atom import MsgArg
-from .atom import Splitter
-from .atom import TextMsg
+from . import BotProtocol, ChatId
+from .atom import (
+    LIM_GROUP_MD,
+    LIM_MD_TXT,
+    LIM_TXT,
+    InputMedia,
+    MediaMsg,
+    MsgArg,
+    Splitter,
+    TextMsg,
+)
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -58,9 +56,7 @@ class BotTaskGenerator:
         if isinstance(arg, list):
             if len(arg) > 1:
                 assert isinstance(arg, list)
-                return partial(
-                    self.bot.send_media_group, media=[i.wrap_media() for i in arg]
-                )
+                return partial(self.bot.send_media_group, media=[i.wrap_media() for i in arg])
             (arg,) = arg  # just unpack the single element
 
         match arg.meth:

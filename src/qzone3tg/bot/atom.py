@@ -1,15 +1,12 @@
 """This module split a feed into multiple atomic message."""
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import cast, Generic, Type, TypeVar
+from typing import Generic, Type, TypeVar, cast
 
 from aiohttp import ClientSession
 from aioqzone.utils.time import sementic_time
-from aioqzone_feed.type import BaseFeed
-from aioqzone_feed.type import FeedContent
-from aioqzone_feed.type import VisualMedia
+from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
 from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc

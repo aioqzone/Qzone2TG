@@ -3,15 +3,17 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from pydantic import AnyUrl
-from pydantic import BaseModel
-from pydantic import BaseSettings
-from pydantic import DirectoryPath
-from pydantic import Field
-from pydantic import FilePath
-from pydantic import HttpUrl
-from pydantic import SecretStr
-from pydantic import validator
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    BaseSettings,
+    DirectoryPath,
+    Field,
+    FilePath,
+    HttpUrl,
+    SecretStr,
+    validator,
+)
 from pydantic.env_settings import SettingsSourceCallable
 
 __all__ = ["Settings"]
@@ -107,9 +109,7 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置。包括代理和等待时间自定义优化。"""
 
-    proxy: Optional[AnyUrl] = Field(
-        None, env="HTTPS_PROXY"
-    )  # support http(s); socks(5(h)).
+    proxy: Optional[AnyUrl] = Field(None, env="HTTPS_PROXY")  # support http(s); socks(5(h)).
     """代理设置，支持 http 和 socks 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
 
     Example:
@@ -196,9 +196,7 @@ class UserSecrets(BaseSettings):
     """专门管理用户密码/密钥的配置。依赖于 `pydnatic` 对 secrets 的支持。用户可以通过 `docker secrets`
     或通过环境变量来传递密码/密钥。"""
 
-    password: Optional[SecretStr] = Field(
-        default=None, env=["TEST_PASSWORD", "password"]
-    )
+    password: Optional[SecretStr] = Field(default=None, env=["TEST_PASSWORD", "password"])
     """QQ 密码"""
 
     token: SecretStr = Field(env=["TEST_TOKEN", "token"])

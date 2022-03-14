@@ -2,22 +2,18 @@ import asyncio
 from functools import partial
 from time import time
 
-from aiohttp import ClientSession
 import pytest
 import pytest_asyncio
+from aiohttp import ClientSession
 from qzemoji.utils import build_html
 from telegram import InputFile
 
-from qzone3tg.bot.atom import LIM_MD_TXT
-from qzone3tg.bot.atom import LIM_TXT
-from qzone3tg.bot.atom import LocalSplitter
+from qzone3tg.bot.atom import LIM_MD_TXT, LIM_TXT, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter as BTE
 from qzone3tg.bot.limitbot import BotTaskGenerator as BTG
 from qzone3tg.bot.limitbot import RelaxSemaphore
 
-from . import fake_feed
-from . import fake_media
-from . import FakeBot
+from . import FakeBot, fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
 

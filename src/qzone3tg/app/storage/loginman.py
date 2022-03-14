@@ -1,8 +1,7 @@
 from aiohttp import ClientSession
 from aioqzone.api.loginman import MixedLoginMan
 from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
@@ -51,9 +50,7 @@ class LoginMan(MixedLoginMan):
         r = await super()._new_cookie()
         async with self.sessmaker() as sess:
             async with sess.begin():
-                result = await sess.execute(
-                    select(CookieOrm).where(CookieOrm.uin == self.uin)
-                )
+                result = await sess.execute(select(CookieOrm).where(CookieOrm.uin == self.uin))
                 if prev := result.scalar():
                     # if exist: update
                     prev.cookie = r

@@ -2,21 +2,17 @@ import asyncio
 from collections import defaultdict
 from typing import Any, cast
 
-from aiohttp import ClientSession
-from aioqzone_feed.type import FeedContent
 import pytest
 import pytest_asyncio
-from telegram.error import BadRequest
-from telegram.error import TimedOut
+from aiohttp import ClientSession
+from aioqzone_feed.type import FeedContent
+from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter
-from qzone3tg.bot.limitbot import RelaxSemaphore
-from qzone3tg.bot.queue import EditableQueue
-from qzone3tg.bot.queue import StorageEvent
+from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore
+from qzone3tg.bot.queue import EditableQueue, StorageEvent
 
-from . import fake_feed
-from . import FakeBot
+from . import FakeBot, fake_feed
 
 pytestmark = pytest.mark.asyncio
 
@@ -45,9 +41,7 @@ class Ihave0(StorageEvent):
 def ideal(sess):
     sem = RelaxSemaphore(30)
     bot: Any = FakeBot()
-    q = EditableQueue(
-        BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem
-    )
+    q = EditableQueue(BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem)
     q.register_hook(Ihave0())
     return q
 
@@ -99,9 +93,7 @@ class RealBot(FakeBot):
 def real(sess):
     sem = RelaxSemaphore(30)
     bot: Any = RealBot()
-    q = EditableQueue(
-        BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem
-    )
+    q = EditableQueue(BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem)
     q.register_hook(Ihave0())
     return q
 

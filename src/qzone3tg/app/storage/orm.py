@@ -2,8 +2,8 @@
 
 from typing import Callable, Generic, Optional, Type, TypeVar
 
-from aioqzone_feed.type import BaseFeed
 import sqlalchemy as sa
+from aioqzone_feed.type import BaseFeed
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()

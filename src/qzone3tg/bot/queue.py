@@ -1,23 +1,16 @@
-from abc import abstractmethod
 import asyncio as aio
+import logging
+from abc import abstractmethod
 from collections import defaultdict
 from functools import partial
-import logging
 from typing import Mapping
 
-from aioqzone.interface.hook import Emittable
-from aioqzone.interface.hook import Event
-from aioqzone_feed.type import BaseFeed
-from aioqzone_feed.type import FeedContent
-from telegram import Message
-from telegram import ReplyMarkup
-from telegram import TelegramError
-from telegram.error import BadRequest
-from telegram.error import TimedOut
+from aioqzone.interface.hook import Emittable, Event
+from aioqzone_feed.type import BaseFeed, FeedContent
+from telegram import Message, ReplyMarkup, TelegramError
+from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.utils.iter import aenumerate
-from qzone3tg.utils.iter import alist
-from qzone3tg.utils.iter import countif
+from qzone3tg.utils.iter import aenumerate, alist, countif
 
 from . import ChatId
 from .atom import MediaMsg
@@ -210,9 +203,7 @@ class EditableQueue(MsgQueue):
         super().__init__(tasker, forward_map, sem, max_retry)
 
     async def edit_media(self, to: ChatId, mid: int, media: MediaMsg):
-        f = partial(
-            self.tasker.bot.edit_message_media, to, mid, media=media.wrap_media()
-        )
+        f = partial(self.tasker.bot.edit_message_media, to, mid, media=media.wrap_media())
         for _ in range(self.max_retry):
             try:
                 async with self.sem.context():
@@ -220,13 +211,9 @@ class EditableQueue(MsgQueue):
             except TimedOut:
                 f.keywords["timeout"] = f.keywords.get("timeout", 5) * 2
             except BadRequest:
-                f.keywords["media"] = await self.tasker.force_bytes_inputmedia(
-                    f.keywords["media"]
-                )
+                f.keywords["media"] = await self.tasker.force_bytes_inputmedia(f.keywords["media"])
             except TelegramError:
-                logger.error(
-                    "Uncaught telegram error when editting media.", exc_info=True
-                )
+                logger.error("Uncaught telegram error when editting media.", exc_info=True)
             except BaseException:
                 logger.error("Uncaught error when editting media.", exc_info=True)
                 return

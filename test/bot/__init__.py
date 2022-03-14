@@ -1,11 +1,8 @@
-from aioqzone_feed.type import FeedContent
-from aioqzone_feed.type import VisualMedia
-from pydantic import BaseModel
-from pydantic import HttpUrl
+from aioqzone_feed.type import FeedContent, VisualMedia
+from pydantic import BaseModel, HttpUrl
 from telegram import Message
 
-from qzone3tg.bot import BotProtocol
-from qzone3tg.bot import ChatId
+from qzone3tg.bot import BotProtocol, ChatId
 
 
 class FakeBot(BotProtocol):
@@ -53,6 +50,4 @@ def fake_media(url: str):
     class W(BaseModel): u: HttpUrl
     url = W.parse_obj(dict(u=url)).u
     # fmt: on
-    return VisualMedia.construct(
-        height=1, width=1, thumbnail=url, raw=url, is_video=False
-    )
+    return VisualMedia.construct(height=1, width=1, thumbnail=url, raw=url, is_video=False)

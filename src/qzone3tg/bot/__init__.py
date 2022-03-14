@@ -1,7 +1,6 @@
 """This package contains some essential customizations for :external:mod:`telegram.bot`."""
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 ChatId = str | int
 

@@ -4,9 +4,7 @@ from typing import cast
 
 from aioqzone.type import FeedRep
 from aioqzone_feed.type import BaseFeed
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
@@ -65,9 +63,7 @@ class DefaultStorageHook(StorageEvent):
         async with self.engine.begin() as conn:
             await conn.run_sync(FeedOrm.metadata.create_all)
 
-    async def SaveFeed(
-        self, feed: BaseFeed, msgs_id: list[int] | None = None, flush: bool = True
-    ):
+    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] | None = None, flush: bool = True):
         """Add/Update an record by the given feed and messages id.
 
         :param feed: feed
@@ -120,9 +116,7 @@ class DefaultStorageHook(StorageEvent):
         assert mids is None or isinstance(mids, list)
         return BaseFeed.from_orm(orm), mids
 
-    async def clean(
-        self, seconds: float, timeout: float | None = None, flush: bool = True
-    ):
+    async def clean(self, seconds: float, timeout: float | None = None, flush: bool = True):
         """clean feeds out of date, based on `abstime`.
 
         :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
@@ -136,9 +130,7 @@ class DefaultStorageHook(StorageEvent):
             seconds += time()
         async with self.sess() as sess:
             async with sess.begin():
-                result = await sess.execute(
-                    select(FeedOrm).where(FeedOrm.abstime < seconds)
-                )
+                result = await sess.execute(select(FeedOrm).where(FeedOrm.abstime < seconds))
                 tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
                 if not tasks:
                     return False
@@ -151,9 +143,7 @@ class DefaultStorageHook(StorageEvent):
         r = await self.get(*FeedOrm.primkey(feed))
         return r and r[1]
 
-    async def update_message_id(
-        self, feed: BaseFeed, mids: list[int], flush: bool = True
-    ):
+    async def update_message_id(self, feed: BaseFeed, mids: list[int], flush: bool = True):
         async with self.sess() as sess:
             orm = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
             if orm is None:

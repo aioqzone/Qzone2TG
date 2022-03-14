@@ -2,13 +2,12 @@ import asyncio
 from random import randint
 from time import time
 
-from aioqzone_feed.type import BaseFeed
 import pytest
 import pytest_asyncio
+from aioqzone_feed.type import BaseFeed
 
 from qzone3tg.app.interact import InteractStorageHook
-from qzone3tg.app.storage import AsyncEnginew
-from qzone3tg.app.storage import FeedOrm
+from qzone3tg.app.storage import AsyncEnginew, FeedOrm
 
 pytestmark = pytest.mark.asyncio
 

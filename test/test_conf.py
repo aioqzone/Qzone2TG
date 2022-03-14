@@ -1,18 +1,14 @@
 from os import environ as env
 from pathlib import Path
 
-from pydantic import SecretStr
 import pytest
 import yaml
+from pydantic import SecretStr
 
-from qzone3tg.settings import Settings
-from qzone3tg.settings import UserSecrets
-from qzone3tg.settings import WebhookConf
+from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 
 
-@pytest.mark.skipif(
-    not Path("config/test.yml").exists(), reason="test config not exist"
-)
+@pytest.mark.skipif(not Path("config/test.yml").exists(), reason="test config not exist")
 def test_load():
     with open("config/test.yml") as f:
         d = yaml.safe_load(f)

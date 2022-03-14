@@ -1,39 +1,31 @@
 """Base class for all app. Scheduled by heartbeat. No interaction with user."""
 
 import asyncio
-from collections import defaultdict
 import logging
 import logging.config
+from collections import defaultdict
 from pathlib import Path
-from typing import cast, Type, Union
+from typing import Type, Union, cast
 
+import qzemoji as qe
+import telegram as tg
+import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.exception import LoginError
 from aioqzone.interface.hook import Emittable
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
 from qqqr.exception import UserBreak
-import qzemoji as qe
-import telegram as tg
-import telegram.ext as ext
 
 from qzone3tg import DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.atom import FetchSplitter
-from qzone3tg.bot.atom import LocalSplitter
-from qzone3tg.bot.atom import Splitter
-from qzone3tg.bot.limitbot import BotTaskEditter
-from qzone3tg.bot.limitbot import RelaxSemaphore
-from qzone3tg.bot.limitbot import SemaBot
+from qzone3tg.bot.atom import FetchSplitter, LocalSplitter, Splitter
+from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot
 from qzone3tg.bot.queue import EditableQueue
-from qzone3tg.settings import LogConf
-from qzone3tg.settings import NetworkConf
-from qzone3tg.settings import Settings
+from qzone3tg.settings import LogConf, NetworkConf, Settings
 
-from .hook import DefaultFeedHook
-from .hook import DefaultQrHook
-from .storage import AsyncEngine
-from .storage import DefaultStorageHook
+from .hook import DefaultFeedHook, DefaultQrHook
+from .storage import AsyncEngine, DefaultStorageHook
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
@@ -102,9 +94,7 @@ class BaseApp(Emittable):
         self.forward = self.hook_cls(
             sess=sess,
             bot=self.updater.bot,
-            splitter=FetchSplitter(sess)
-            if self.conf.bot.send_gif_as_anim
-            else LocalSplitter(),
+            splitter=FetchSplitter(sess) if self.conf.bot.send_gif_as_anim else LocalSplitter(),
             block=block,
             **kw,
         )
@@ -270,9 +260,7 @@ class BaseApp(Emittable):
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
         errs = self.forward.queue.exc_num
         log_level_helper = (
-            f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。"
-            if self.log.level > 10
-            else ""
+            f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ""
         )
         summary = f"发送结束，共{got}条，{self.forward.queue.skip_num}条跳过，{errs}条错误。"
         if errs:

@@ -4,13 +4,10 @@
 import logging
 
 from aioqzone.interface.hook import QREvent
-from aioqzone_feed.interface.hook import FeedContent
-from aioqzone_feed.interface.hook import FeedEvent
-from telegram import InlineKeyboardMarkup
-from telegram import Message
+from aioqzone_feed.interface.hook import FeedContent, FeedEvent
+from telegram import InlineKeyboardMarkup, Message
 
-from qzone3tg.bot import BotProtocol
-from qzone3tg.bot import ChatId
+from qzone3tg.bot import BotProtocol, ChatId
 from qzone3tg.bot.queue import EditableQueue
 
 logger = logging.getLogger(__name__)
@@ -37,11 +34,7 @@ class DefaultQrHook(QREvent):
 
     async def QrFetched(self, png: bytes, renew: bool = False):
         text = (
-            "二维码已刷新:"
-            if renew
-            else f"二维码已过期, 请重新扫描[{self.qr_times}]"
-            if self.qr_times
-            else "扫码登陆:"
+            "二维码已刷新:" if renew else f"二维码已过期, 请重新扫描[{self.qr_times}]" if self.qr_times else "扫码登陆:"
         )
 
         self.qr_msg = await self.bot.send_photo(

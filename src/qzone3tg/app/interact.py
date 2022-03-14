@@ -2,31 +2,25 @@
 import asyncio
 from typing import cast
 
+import qzemoji as qe
 from aiohttp import ClientSession as Session
-from aioqzone.type import LikeData
-from aioqzone.type import PersudoCurkey
+from aioqzone.type import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
-import qzemoji as qe
-from telegram import BotCommand
-from telegram import CallbackQuery
-from telegram import InlineKeyboardButton
-from telegram import InlineKeyboardMarkup
-from telegram import Update
-from telegram.ext import CallbackContext
-from telegram.ext import CallbackQueryHandler
-from telegram.ext import CommandHandler
-from telegram.ext import Dispatcher
-from telegram.ext import Filters
-from telegram.ext import MessageFilter
+from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    CallbackContext,
+    CallbackQueryHandler,
+    CommandHandler,
+    Dispatcher,
+    Filters,
+    MessageFilter,
+)
 
-from qzone3tg.settings import PollingConf
-from qzone3tg.settings import Settings
+from qzone3tg.settings import PollingConf, Settings
 
-from .base import BaseApp
-from .base import BaseAppHook
-from .storage import AsyncEngine
-from .storage import DefaultStorageHook
+from .base import BaseApp, BaseAppHook
+from .storage import AsyncEngine, DefaultStorageHook
 from .storage.orm import FeedOrm
 
 
@@ -144,9 +138,7 @@ class InteractApp(BaseApp):
             safe_asposix = lambda p: p and p.as_posix()
             self.updater.start_webhook(
                 url_path=token.get_secret_value(),
-                webhook_url=self.conf.bot.init_args.webhook_url(
-                    token
-                ).get_secret_value(),
+                webhook_url=self.conf.bot.init_args.webhook_url(token).get_secret_value(),
                 cert=safe_asposix(self.conf.bot.init_args.cert),
                 key=safe_asposix(self.conf.bot.init_args.key),
                 **kw,
@@ -165,17 +157,13 @@ class InteractApp(BaseApp):
         assert chat
         helpm = "\n".join(f"/{k} - {v}" for k, v in self.commands.items())
         helpm += "\n\n讨论群：@qzone2tg_discuss"
-        task = self.add_hook_ref(
-            "command", self.forward.bot.send_message(chat.id, helpm)
-        )
+        task = self.add_hook_ref("command", self.forward.bot.send_message(chat.id, helpm))
 
     def status(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         statusm = "阿巴阿巴"
-        task = self.add_hook_ref(
-            "command", self.forward.bot.send_message(chat.id, statusm)
-        )
+        task = self.add_hook_ref("command", self.forward.bot.send_message(chat.id, statusm))
 
     def relogin(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
@@ -204,9 +192,7 @@ class InteractApp(BaseApp):
                     self.log.error("Failed to change button", exc_info=True)
                 return
 
-            task = self.add_hook_ref(
-                "button", self.qzone.like_app(likedata, not unlike)
-            )
+            task = self.add_hook_ref("button", self.qzone.like_app(likedata, not unlike))
             task.add_done_callback(check_succ)
 
         def check_succ(succ: asyncio.Task[bool]):
@@ -252,9 +238,7 @@ class InteractApp(BaseApp):
                     async with self.sess.get(
                         cast(HttpUrl, qe.utils.build_html(eid, ext=ext))
                     ) as r:
-                        return await self.bot.send_photo(
-                            chat.id, await r.content.read(), msg
-                        )
+                        return await self.bot.send_photo(chat.id, await r.content.read(), msg)
 
             self.add_hook_ref("command", show_eid(int(context.args[0])))
             return

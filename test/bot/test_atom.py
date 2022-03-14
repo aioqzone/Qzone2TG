@@ -1,15 +1,14 @@
 import asyncio
 
-from aiohttp import ClientSession
-from pydantic import HttpUrl
 import pytest
 import pytest_asyncio
+from aiohttp import ClientSession
+from pydantic import HttpUrl
 from qzemoji.utils import build_html
 
 import qzone3tg.bot.atom as atom
 
-from . import fake_feed
-from . import fake_media
+from . import fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
 

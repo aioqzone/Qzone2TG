@@ -1,14 +1,66 @@
+[tool.poetry]
+name = "Qzone3TG"
+version = "0.2.2.dev0"
+description = "Forward Qzone feeds to telegram."
+authors = ["JamzumSum <zzzzss990315@gmail.com>"]
+readme = "README.md"
+license = "AGPL-3.0"
+homepage = "https://github.com/JamzumSum/Qzone2TG"
+repository = "https://github.com/JamzumSum/Qzone2TG"
+
+[tool.poetry.dependencies]
+python = "3.10"
+aioqzone-feed = {git = "https://github.com/JamzumSum/aioqzone-feed.git", rev = "beta"}
+python-telegram-bot = {extras = ["socks"], version = "^13.11"}
+PyYAML = "^6.0"
+# extras: dev
+pre-commit = {version = "^2.17.0", optional = true}
+black = {version = "^22.1.0", optional = true}
+isort = {version = "^5.10.1", optional = true}
+# extras: doc
+Sphinx = {version = "^4.4.0", optional = true}
+autodoc-pydantic = {version = "^1.6.1", optional = true}
+sphinx-autodoc-typehints = {version = "^1.17.0", optional = true}
+sphinx-rtd-theme = {version = "^1.0.0", optional = true}
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.1"
+pytest-asyncio = "^0.18.2"
+
+[tool.poetry.extras]
+dev = [
+    "pre-commit",
+    "black",
+    "isort"
+]
+doc = [
+    "Sphinx",
+    "autodoc-pydantic",
+    "sphinx-autodoc-typehints",
+    "sphinx-rtd-theme"
+]
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-
+# customize begin
 [tool.pytest.ini_options]
+pythonpath = 'src'
 markers = [
     "needuser: Need user interaction, DO NOT use in ci",
-    "incremental: xfail succ cases if pred case failed or skipped.",
+    "incremental: xfail succ cases if pred case failed or skipped",
+    "upstream: Test cannot run normally due to upstream problems",
 ]
 asyncio_mode = 'strict'
+log_cli = 1
+log_cli_level = 'WARNING'
+
 
 [tool.isort]
-profile = "google"
+profile = "black"
+line_length = 99
+
+[tool.black]
+line-length = 99
+target-version = ['py310']
