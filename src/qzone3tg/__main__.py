@@ -48,7 +48,7 @@ if __name__ == "__main__":
         print(VERSION)
         exit(0)
 
-    assert args.conf.exists(), "配置文件不存在"
+    assert args.conf.exists(), f"配置文件{args.conf}不存在"
     with open(args.conf) as f:
         d = yaml.safe_load(f)
     conf = Settings(**d).load_secrets(args.secrets)

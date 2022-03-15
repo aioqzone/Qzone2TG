@@ -5,7 +5,7 @@ services:
       dockerfile: ./docker/Dockerfile
       network: host
     container_name: app
-    image: qzone3tg:0.1.6.dev0
+    image: qzone3tg:${QZONE3TG_VERSION} # ghcr.io/jamzumsum/qzone3tg:latest
     network_mode: host    # add/remove this on demand
     secrets:
     - source: qzone_password

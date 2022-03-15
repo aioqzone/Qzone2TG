@@ -57,11 +57,26 @@ class DefaultStorageHook(StorageEvent):
 
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
-        self.sess = sessionmaker(self.engine, class_=AsyncSession)
+        self._sess = sessionmaker(self.engine, class_=AsyncSession)
 
     async def create(self):
         async with self.engine.begin() as conn:
             await conn.run_sync(FeedOrm.metadata.create_all)
+
+    @property
+    def sess(self):
+        self.__ensure_async_mutex()
+        return self._sess
+
+    def __ensure_async_mutex(self):
+        """A temp fix to self.engine.pool.dispatch.connect._exec_once_mutex blocked"""
+        from _thread import LockType
+
+        try:
+            if isinstance(self.engine.pool.dispatch.connect._exec_once_mutex, LockType):
+                self.engine.pool.dispatch.connect._set_asyncio()
+        except AttributeError:
+            return
 
     async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] | None = None, flush: bool = True):
         """Add/Update an record by the given feed and messages id.

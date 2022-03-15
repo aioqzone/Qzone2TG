@@ -25,7 +25,22 @@ class LoginMan(MixedLoginMan):
     ) -> None:
         super().__init__(sess, uin, strategy, pwd, refresh_time)
         self.engine = engine
-        self.sessmaker = sessionmaker(self.engine, class_=AsyncSession)
+        self._sessmaker = sessionmaker(self.engine, class_=AsyncSession)
+
+    @property
+    def sessmaker(self):
+        self.__ensure_async_mutex()
+        return self._sessmaker
+
+    def __ensure_async_mutex(self):
+        """A temp fix to self.engine.pool.dispatch.connect._exec_once_mutex blocked"""
+        from _thread import LockType
+
+        try:
+            if isinstance(self.engine.pool.dispatch.connect._exec_once_mutex, LockType):
+                self.engine.pool.dispatch.connect._set_asyncio()
+        except AttributeError:
+            return
 
     async def table_exists(self):
         def sync(conn):
