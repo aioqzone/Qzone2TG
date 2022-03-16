@@ -4,6 +4,7 @@ from typing import cast
 
 from aioqzone.type import FeedRep
 from aioqzone_feed.type import BaseFeed
+from aioqzone_feed.utils.task import AsyncTimer
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
@@ -167,24 +168,18 @@ class DefaultStorageHook(StorageEvent):
             if flush:
                 await sess.commit()
 
-    def add_clean_task(self, keepdays: int):
+    def add_clean_task(self, keepdays: int, interval: float = 86400):
         """
-        The add_clean_task function adds a task to the bot's event loop that cleans up old records in database.
-        The :meth:`.clean` function is called every 24 hours with `-keepdays * 86400` seconds as an argument.
-        This means that it will call the clean function with -(the number of days you want to keep messages for) * 86400 seconds,
-        which is equivalent to (negative) (the number of days you want to keep messages for).
+        This function register a timer that calls `self.clean(-keepdays * 86400)`
+        every `interval` seconds.
 
         :param keepdays: Used to determine how many days worth of messages to keep.
         :return: the clean Task
         """
 
-        async def clean_sleep():
-            while True:
-                try:
-                    await self.clean(-keepdays * 86400)
-                    await asyncio.sleep(86400)
-                except asyncio.CancelledError:
-                    return
+        async def clean():
+            await self.clean(-keepdays * 86400)
+            return False
 
-        self.cl = asyncio.create_task(clean_sleep())
+        self.cl = AsyncTimer(interval, clean, name="clean")
         return self.cl

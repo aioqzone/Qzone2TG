@@ -162,13 +162,14 @@ class InteractApp(BaseApp):
     def status(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
-        statusm = "阿巴阿巴"
-        task = self.add_hook_ref("command", self.forward.bot.send_message(chat.id, statusm))
+        task = self.add_hook_ref("command", super().status(chat.id))
 
     def relogin(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         task = self.add_hook_ref("command", self.qzone.api.login.new_cookie())
+        if self.qzone.hb_timer.state == "init":
+            self.qzone.hb_timer()
 
     def btn_dispatch(self, update: Update, context: CallbackContext):
         query: CallbackQuery = update.callback_query
@@ -220,7 +221,7 @@ class InteractApp(BaseApp):
         switch = {"refresh": self.forward.resend, "cancel": self.forward.cancel}
         f = switch[command]
         assert f
-        task = self.add_hook_ref("button", f())
+        task = self.add_hook_ref("button", f())  # type: ignore
 
     def em(self, update: Update, context: CallbackContext):
         chat = update.effective_chat

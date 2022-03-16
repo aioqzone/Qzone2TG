@@ -241,7 +241,7 @@ class BaseApp(Emittable):
                 self.conf.qzone.dayspac * 86400, exceed_pred=self.store.exists
             )
         except (UserBreak, LoginError):
-            self.qzone.hb.cancel()
+            self.qzone.hb_timer.stop()
             self.add_hook_ref("command", self.bot.send_message(to, "命令已取消"))
             return
 
@@ -273,3 +273,16 @@ class BaseApp(Emittable):
 
         LICENSE_TEXT = """用户协议"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
+
+    async def status(self, to: ChatId):
+        from aioqzone.utils.time import sementic_time
+
+        ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
+        stat_dic = {
+            "上次登录": "还是在上次",
+            "心跳状态": self.qzone.hb_timer.state,
+            "上次心跳": ts2a(self.qzone.hb_timer.last_call),
+            "上次清理数据库": ts2a(self.store.cl.last_call),
+        }
+        statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
+        await self.bot.send_message(to, statm)
