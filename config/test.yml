@@ -1,0 +1,35 @@
+# min config
+qzone: { qq: 123 }
+bot: { admin: 456 }
+---
+# max config
+log:
+  level: 'DEBUG'
+  format: "%(message)s"
+  datefmt: "%Y %b %d %H:%M:%S"
+
+qzone:
+  qq: 123
+  qr_strategy: forbid
+  dayspac: 1
+  block: [2333, 1234]
+  block_self: false
+
+bot:
+  admin: 456
+  storage:
+    database: data/123.db
+    keepdays: 180
+  init_args:
+    destination: https://example.com/prefix
+    port: 8443
+    max_connections: 10
+    bootstrap_retries: -1
+    drop_pending_updates: True
+  network:
+    proxy: socks5h://localhost:443
+  default:
+    disable_notification: True
+    disable_web_page_preview: False
+    timeout: 10
+  send_gif_as_anim: false

@@ -10,7 +10,7 @@ from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore
-from qzone3tg.bot.queue import EditableQueue, StorageEvent
+from qzone3tg.bot.queue import EditableQueue, QueueEvent
 
 from . import FakeBot, fake_feed
 
@@ -30,7 +30,7 @@ async def sess():
         yield sess
 
 
-class Ihave0(StorageEvent):
+class Ihave0(QueueEvent):
     async def get_message_id(self, feed) -> list[int] | None:
         assert isinstance(feed, FeedContent)
         if feed.content == "0":

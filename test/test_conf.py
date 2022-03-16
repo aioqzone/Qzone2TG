@@ -11,11 +11,9 @@ from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 @pytest.mark.skipif(not Path("config/test.yml").exists(), reason="test config not exist")
 def test_load():
     with open("config/test.yml") as f:
-        d = yaml.safe_load(f)
-    conf = Settings(**d).load_secrets(Path("./config/secrets"))
-
-    if isinstance((arg := conf.bot.init_args), WebhookConf):
-        assert arg.destination
+        mind, maxd = yaml.safe_load_all(f)
+    minc = Settings(**mind)
+    maxc = Settings(**maxd)
 
 
 @pytest.mark.skipif("TEST_TOKEN" not in env, reason="test env not exist")

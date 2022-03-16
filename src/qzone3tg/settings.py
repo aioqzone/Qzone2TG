@@ -216,7 +216,7 @@ class UserSecrets(BaseSettings):
 
 
 class Settings(BaseSettings):
-    """`Qzone3TG` 的配置文件。分为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项."""
+    """`Qzone3TG` 的配置文件。主要为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项."""
 
     log: LogConf = LogConf()
     """日志配置: :class:`.LogConf`"""
@@ -232,3 +232,6 @@ class Settings(BaseSettings):
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self
+
+    class Config:
+        env_nested_delimiter = "."

@@ -8,7 +8,9 @@ archive
 
 /dist
 /build
-/config
+/config/*
+!/config/test*
+
 /doc/*
 !/doc/source
 /log
