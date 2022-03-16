@@ -168,7 +168,7 @@ class InteractApp(BaseApp):
         chat = update.effective_chat
         assert chat
         task = self.add_hook_ref("command", self.qzone.api.login.new_cookie())
-        if self.qzone.hb_timer.state == "init":
+        if self.qzone.hb_timer.state != "PENDING":
             self.qzone.hb_timer()
 
     def btn_dispatch(self, update: Update, context: CallbackContext):

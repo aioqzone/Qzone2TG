@@ -182,4 +182,5 @@ class DefaultStorageHook(StorageEvent):
             return False
 
         self.cl = AsyncTimer(interval, clean, name="clean")
+        self.cl()
         return self.cl
