@@ -42,9 +42,7 @@
 
 > We are using [QzEmoji][qzemoji] to provide a `link2title` service. We'll appreciate your contirbution if you're willing to 'name' a emoji link.
 
-> [2.2.2][latest] 已更新! <br>
-> 点击上方徽章, 加入我们的TG频道和讨论组, 在 [Github Discussion][notice] 查看更多信息.<br>
-> 关于3.0: Qzone3TG 是一个重写版本. 3.0的 Qzone API：[aioqzone](https://github.com/JamzumSum/aioqzone) 已开源.
+> [v3](https://github.com/JamzumSum/Qzone2TG/tree/v3/dev)已开源.
 
 ---
 
