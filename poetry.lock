@@ -65,7 +65,7 @@ resolved_reference = "0e2150c86cb6f3e6b7ed871cf979304209f59af5"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.4.0a2"
+version = "0.4.1.dev0"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -84,7 +84,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "4aeeb0d039b2692bed18815e2b25bd318be9056f"
+resolved_reference = "332cc9451ebf40ac83804bfc267ba6578a721d7d"
 
 [[package]]
 name = "aiosignal"

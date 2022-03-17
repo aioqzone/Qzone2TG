@@ -19,54 +19,9 @@ from telegram.ext import (
 
 from qzone3tg.settings import PollingConf, Settings
 
-from .base import BaseApp, BaseAppHook
-from .storage import AsyncEngine, DefaultStorageHook
+from .base import BaseApp
+from .storage import AsyncEngine
 from .storage.orm import FeedOrm
-
-
-class InteractAppHook(BaseAppHook):
-    def qr_markup(self):
-        btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
-        btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
-        return InlineKeyboardMarkup([[btnrefresh, btncancel]])
-
-
-class InteractStorageHook(DefaultStorageHook):
-    async def query_likedata(self, persudo_curkey: str) -> LikeData | None:
-        p = PersudoCurkey.from_str(persudo_curkey)
-        r = await self.get(FeedOrm.uin == p.uin, FeedOrm.abstime == p.abstime)
-        if r is None:
-            return None
-        feed, _ = r
-        if feed.unikey is None:
-            return
-        return LikeData(
-            unikey=str(feed.unikey),
-            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
-            appid=feed.appid,
-            typeid=feed.typeid,
-            fid=feed.fid,
-            abstime=feed.abstime,
-        )
-
-    def _like_markup(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
-        if feed.unikey is None:
-            return
-        curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
-        if feed.islike:
-            likebtn = InlineKeyboardButton("Unlike", callback_data="like:-" + curkey)
-        else:
-            likebtn = InlineKeyboardButton("Like", callback_data="like:" + curkey)
-        return InlineKeyboardMarkup([[likebtn]])
-
-    async def reply_markup(self, feed: FeedContent):
-        markup = []
-        if isinstance(feed.forward, FeedContent):
-            markup.append(self._like_markup(feed.forward))
-        else:
-            markup.append(None)
-        markup.append(self._like_markup(feed))
-        return markup
 
 
 class LockFilter(MessageFilter):
@@ -83,9 +38,6 @@ class LockFilter(MessageFilter):
 
 
 class InteractApp(BaseApp):
-    hook_cls = InteractAppHook
-    store_cls = InteractStorageHook
-
     commands = {
         "start": "刷新",
         "status": "获取运行状态",
@@ -99,9 +51,46 @@ class InteractApp(BaseApp):
         self.fetch_lock = LockFilter()
         self.set_commands()
 
+    # --------------------------------
+    #            hook init
+    # --------------------------------
     @property
-    def store(self) -> InteractStorageHook:
-        return cast(InteractStorageHook, super().store)
+    def _storage_hook_cls(self):
+        cls = super()._storage_hook_cls
+
+        class interact_storage_hook(cls):
+            def _like_markup(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
+                if feed.unikey is None:
+                    return
+                curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
+                if feed.islike:
+                    likebtn = InlineKeyboardButton("Unlike", callback_data="like:-" + curkey)
+                else:
+                    likebtn = InlineKeyboardButton("Like", callback_data="like:" + curkey)
+                return InlineKeyboardMarkup([[likebtn]])
+
+            async def reply_markup(self, feed: FeedContent):
+                markup = []
+                if isinstance(feed.forward, FeedContent):
+                    markup.append(self._like_markup(feed.forward))
+                else:
+                    markup.append(None)
+                markup.append(self._like_markup(feed))
+                return markup
+
+        return interact_storage_hook
+
+    @property
+    def _qr_hook_cls(self):
+        cls = super()._qr_hook_cls
+
+        class interact_qr_hook(cls):
+            def qr_markup(self):
+                btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
+                btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
+                return InlineKeyboardMarkup([[btnrefresh, btncancel]])
+
+        return interact_qr_hook
 
     def set_commands(self):
         # build chat filters
@@ -157,7 +146,7 @@ class InteractApp(BaseApp):
         assert chat
         helpm = "\n".join(f"/{k} - {v}" for k, v in self.commands.items())
         helpm += "\n\n讨论群：@qzone2tg_discuss"
-        task = self.add_hook_ref("command", self.forward.bot.send_message(chat.id, helpm))
+        task = self.add_hook_ref("command", self.bot.send_message(chat.id, helpm))
 
     def status(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
@@ -168,8 +157,6 @@ class InteractApp(BaseApp):
         chat = update.effective_chat
         assert chat
         task = self.add_hook_ref("command", self.qzone.api.login.new_cookie())
-        if self.qzone.hb_timer.state != "PENDING":
-            self.qzone.hb_timer()
 
     def btn_dispatch(self, update: Update, context: CallbackContext):
         query: CallbackQuery = update.callback_query
@@ -183,6 +170,23 @@ class InteractApp(BaseApp):
         _, data = str.split(query.data, ":", maxsplit=1)
         if unlike := data.startswith("-"):
             data = data.removeprefix("-")
+
+        async def query_likedata(persudo_curkey: str) -> LikeData | None:
+            p = PersudoCurkey.from_str(persudo_curkey)
+            r = await self.store.get(FeedOrm.uin == p.uin, FeedOrm.abstime == p.abstime)
+            if r is None:
+                return None
+            feed, _ = r
+            if feed.unikey is None:
+                return
+            return LikeData(
+                unikey=str(feed.unikey),
+                curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+                appid=feed.appid,
+                typeid=feed.typeid,
+                fid=feed.fid,
+                abstime=feed.abstime,
+            )
 
         def like_trans(likedata: LikeData | None):
             if likedata is None:
@@ -212,13 +216,13 @@ class InteractApp(BaseApp):
             except:
                 self.log.error("Failed to change button", exc_info=True)
 
-        task = self.add_hook_ref("storage", self.store.query_likedata(data))
+        task = self.add_hook_ref("storage", query_likedata(data))
         task.add_done_callback(lambda t: like_trans(t.result()))
 
     def qr(self, query: CallbackQuery):
         self.log.info(f"QR! query={query.data}")
         _, command = str.split(query.data, ":", maxsplit=1)
-        switch = {"refresh": self.forward.resend, "cancel": self.forward.cancel}
+        switch = {"refresh": self.hook_qr.resend, "cancel": self.hook_qr.cancel}
         f = switch[command]
         assert f
         task = self.add_hook_ref("button", f())  # type: ignore

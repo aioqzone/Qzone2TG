@@ -1,29 +1,23 @@
+# This compose yaml is for starting up qzone3tg container.
+# Substitute any environment variables on demand;
+# or a .env file in docker folder is okay.
+version: "3"
 services:
   qzone:
-    build:
-      context: ..
-      dockerfile: ./docker/Dockerfile
-      network: host
-    container_name: app
-    image: qzone3tg:${QZONE3TG_VERSION} # ghcr.io/jamzumsum/qzone3tg:latest
-    network_mode: host    # add/remove this on demand
-    secrets:
-    - source: qzone_password
-      target: password
-    - source: telegram_bot_token
-      target: token
+    container_name: qzone
+    image: qzone3tg:latest  # ghcr.io/JamzumSum/qzone3tg:latest
+    environment:
+      password: ${PWD}
+      token: ${TOKEN}
+      log.conf: config/log.ini
+      qzone.qq: ${UIN}
+      bot.admin: ${PWD}
+      bot.storage.database: data/${UIN}.db
+      bot.network.proxy: socks5h://host.docker.internal:7890
+    network_mode: host
     volumes:
-    - type: volume
-      source: qzone-data
-      target: /app/data
-    - ../config:/app/config:ro
+      - ../config:/app/config:ro
+      - qzone-data:/app/data
+      # - ../data:/app/data   # choose a syntax as you like
 volumes:
   qzone-data:
-    name: qzone-data
-secrets:
-  qzone_password:
-    name: qzone_password
-    file: ../config/secrets/password
-  telegram_bot_token:
-    name: telegram_bot_token
-    file: ../config/secrets/token

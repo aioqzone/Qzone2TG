@@ -2,8 +2,9 @@
 """
 
 import logging
+from typing import Awaitable, Callable, Optional
 
-from aioqzone.interface.hook import QREvent
+from aioqzone.interface.hook import Emittable, Event, QREvent
 from aioqzone_feed.interface.hook import FeedContent, FeedEvent
 from telegram import InlineKeyboardMarkup, Message
 
@@ -60,7 +61,7 @@ class DefaultQrHook(QREvent):
         self.qr_msg = None
 
 
-class DefaultFeedHook(FeedEvent):
+class DefaultFeedHook(FeedEvent, Emittable["FetchEvent"]):
     def __init__(self, queue: EditableQueue, block: list[int]) -> None:
         super().__init__()
         self.queue = queue
@@ -81,3 +82,15 @@ class DefaultFeedHook(FeedEvent):
     async def FeedMediaUpdate(self, bid: int, feed: FeedContent):
         logger.debug(f"feed update received: media={feed.media}")
         await self.queue.edit(bid, feed)
+
+    async def HeartbeatFailed(self, exc: Optional[BaseException] = None):
+        logger.debug(f"notify: heartbeat failed: {exc}")
+
+    async def HeartbeatRefresh(self, num: int):
+        logger.info(f"Heartbeat triggers a refresh: count={num}")
+        self.add_hook_ref("heartbeat", self.hook.fetch_by_count(num))
+
+
+class FetchEvent(Event):
+    async def fetch_by_count(self, count: int):
+        pass

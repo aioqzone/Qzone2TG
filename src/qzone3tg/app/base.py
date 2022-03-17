@@ -12,59 +12,35 @@ import telegram as tg
 import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.exception import LoginError
-from aioqzone.interface.hook import Emittable
 from aioqzone_feed.api.feed import FeedApi
 from pydantic import AnyUrl
 from qqqr.exception import UserBreak
 
 from qzone3tg import DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.atom import FetchSplitter, LocalSplitter, Splitter
+from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
-from .hook import DefaultFeedHook, DefaultQrHook
+from .hook import DefaultFeedHook, DefaultQrHook, FetchEvent
 from .storage import AsyncEngine, DefaultStorageHook
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
 
 
-class BaseAppHook(DefaultQrHook, DefaultFeedHook):
-    def __init__(
-        self,
-        admin: ChatId,
-        sess: Session,
-        bot: tg.Bot,
-        splitter: Splitter,
-        block: list[int] | None = None,
-        fwd2: dict[int, ChatId] | None = None,
-        freq_limit: int = 30,
-    ) -> None:
-        sem = RelaxSemaphore(freq_limit)
-        fwd2 = defaultdict(lambda: admin, fwd2 or {})
-        q = EditableQueue(BotTaskEditter(bot, splitter, sess), fwd2, sem)
-        DefaultQrHook.__init__(self, admin, SemaBot(bot, sem))
-        DefaultFeedHook.__init__(self, q, block or [])
-        self.send_all = self.queue.send_all
-
-
-class BaseApp(Emittable):
-    hook_cls: Type[BaseAppHook] = BaseAppHook
-    store_cls: Type[DefaultStorageHook] = DefaultStorageHook
-
+class BaseApp:
     def __init__(self, sess: Session, engine: AsyncEngine, conf: Settings) -> None:
         super().__init__()
         assert conf.bot.token
         # init logger at first
         self.conf = conf
+        self.sess = sess
+        self.engine = engine
         self._get_logger(conf.log)
         self.silent_noisy_logger()
         self.fetch_lock = asyncio.Lock()
-
-        self.engine = engine
-        self.log.info("数据库已连接")
 
         self.loginman = LoginMan(
             sess,
@@ -84,37 +60,85 @@ class BaseApp(Emittable):
             request_kwargs=self._request_args(conf.bot.network),
             workers=0,
         )
+        self.init_hooks()
 
-        block = conf.qzone.block or []
+    # --------------------------------
+    #            properties
+    # --------------------------------
+    @property
+    def admin(self):
+        return self.conf.bot.admin
+
+    @property
+    def tgbot(self):
+        return self.updater.bot
+
+    # --------------------------------
+    #             hook init
+    # --------------------------------
+    @property
+    def _qr_hook_cls(self) -> Type[DefaultQrHook]:
+        class inner_qr_hook(DefaultQrHook):
+            async def LoginSuccess(*a):
+                if self.qzone.hb_timer.state != "PENDING":
+                    self.qzone.hb_timer()
+                await super().LoginSuccess()
+
+        return inner_qr_hook
+
+    @property
+    def _storage_hook_cls(self) -> Type[DefaultStorageHook]:
+        return DefaultStorageHook
+
+    @property
+    def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
+
+        return DefaultFeedHook
+
+    @property
+    def fetch_hook_cls(self) -> Type[FetchEvent]:
+        class inner_fetch_event(FetchEvent):
+            async def fetch_by_count(*a):
+                await self.fetch(self.conf.bot.admin, is_period=True)
+
+        return inner_fetch_event
+
+    def init_hooks(self):
+        sem = RelaxSemaphore(30)
+        self.bot = SemaBot(self.tgbot, sem)
+        self.hook_qr = self._qr_hook_cls(self.admin, self.bot)
+        block = self.conf.qzone.block or []
         block = block.copy()
-        if conf.qzone.block_self:
-            block.append(conf.qzone.uin)
-        kw = conf.bot.dict(include={"admin"})
-
-        self.forward = self.hook_cls(
-            sess=sess,
-            bot=self.updater.bot,
-            splitter=FetchSplitter(sess) if self.conf.bot.send_gif_as_anim else LocalSplitter(),
-            block=block,
-            **kw,
+        if self.conf.qzone.block_self:
+            block.append(self.conf.qzone.uin)
+        self.hook_feed = self._feed_hook_cls(
+            EditableQueue(
+                BotTaskEditter(
+                    self.tgbot,
+                    FetchSplitter(self.sess)
+                    if self.conf.bot.send_gif_as_anim
+                    else LocalSplitter(),
+                    self.sess,
+                ),
+                defaultdict(lambda: self.admin),
+                sem,
+            ),
+            block or [],
         )
-        self.forward.queue.register_hook(self.store_cls(self.engine))
-        self.loginman.register_hook(self.forward)
-        self.qzone.register_hook(self.forward)
+        self.hook_fetch = self.fetch_hook_cls()
+        self.store = self._storage_hook_cls(self.engine)
+
+        self.hook_feed.register_hook(self.hook_fetch)
+        self.qzone.register_hook(self.hook_feed)
+        self.hook_feed.queue.register_hook(self.store)
+        self.loginman.register_hook(self.hook_qr)
+
+        self.add_hook_ref = self.hook_feed.add_hook_ref
         self.log.info("TG端初始化完成")
 
-    @property
-    def bot(self):
-        return self.forward.bot
-
-    @property
-    def sess(self):
-        return self.qzone.api.sess
-
-    @property
-    def store(self) -> DefaultStorageHook:
-        return cast(DefaultStorageHook, self.forward.queue.hook)
-
+    # --------------------------------
+    #           init logger
+    # --------------------------------
     def _get_logger(self, conf: LogConf):
         """(internal use only) Build a logger from given config.
 
@@ -146,6 +170,18 @@ class BaseApp(Emittable):
         self.log = logging.getLogger(self.__class__.__name__)
         return self.log
 
+    def silent_noisy_logger(self):
+        """Silent some noisy logger in other packages."""
+
+        if self.log.level >= logging.WARN or self.log.level == logging.DEBUG:
+            return
+        logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
+        logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
+        logging.getLogger("charset_normalizer").setLevel(logging.WARN)
+
+    # --------------------------------
+    #          init network
+    # --------------------------------
     def _request_args(self, conf: NetworkConf) -> dict:
         """(internal use only) Build request_kwargs for PTB updater.
 
@@ -174,15 +210,9 @@ class BaseApp(Emittable):
             args["proxy_url"] = proxy
         return args
 
-    def silent_noisy_logger(self):
-        """Silent some noisy logger in other packages."""
-
-        if self.log.level >= logging.WARN or self.log.level == logging.DEBUG:
-            return
-        logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
-        logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
-        logging.getLogger("charset_normalizer").setLevel(logging.WARN)
-
+    # --------------------------------
+    #          graceful stop
+    # --------------------------------
     def register_signal(self):
         def sigterm_handler(_signo, _stack_frame):
             raise KeyboardInterrupt
@@ -191,6 +221,13 @@ class BaseApp(Emittable):
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
+    def stop(self):
+        self.qzone.stop()
+        self.updater.stop()
+
+    # --------------------------------
+    #          work logics
+    # --------------------------------
     async def run(self):
         """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
         or `loop.stop()` is called."""
@@ -216,10 +253,6 @@ class BaseApp(Emittable):
         while True:
             await asyncio.sleep(1)
 
-    def stop(self):
-        self.qzone.stop()
-        self.updater.stop()
-
     async def fetch(self, to: Union[int, str], *, is_period: bool = False):
         """fetch feeds.
 
@@ -234,7 +267,7 @@ class BaseApp(Emittable):
         self.log.info(f"Start fetch with period={is_period}")
 
         # start a new batch
-        self.forward.new_batch(self.qzone.new_batch())
+        self.hook_feed.new_batch(self.qzone.new_batch())
         # fetch feed
         try:
             got = await self.qzone.get_feeds_by_second(
@@ -252,17 +285,17 @@ class BaseApp(Emittable):
         # forward
         try:
             await self.qzone.wait()
-            await self.forward.send_all()
+            await self.hook_feed.queue.send_all()
         except:
-            self.log.fatal("Unexpected exception in forward.send_all", exc_info=True)
+            self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
             exit(1)
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
-        errs = self.forward.queue.exc_num
+        errs = self.hook_feed.queue.exc_num
         log_level_helper = (
             f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ""
         )
-        summary = f"发送结束，共{got}条，{self.forward.queue.skip_num}条跳过，{errs}条错误。"
+        summary = f"发送结束，共{got}条，{self.hook_feed.queue.skip_num}条跳过，{errs}条错误。"
         if errs:
             summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
             summary += log_level_helper

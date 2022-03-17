@@ -1,68 +1,15 @@
-# This workflow build python packages (sdist, bdist) and docker image and push them.
+# This workflow builds docker image and pushes it.
 
 name: Build and Release
 
 on:
-  pull_request:
-    types:
-      - closed
-    branches:
-      - "release"
-      - "release/**"
+  workflow_call:
+    inputs:
+      VERSION_TAG:
+        required: true
+        type: string
 
 jobs:
-  build-release-pkg:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.9]
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Get Version
-        id: version_step
-        run: |
-          echo ::set-output name=version::$(python -c "import qzone3tg;print(qzone3tg.VERSION)")
-
-      # No need to install nodejs
-
-      - name: Cache pip
-        uses: actions/cache@v2
-        with:
-          # This path is specific to Ubuntu
-          path: ~/.cache/pip
-          # Look to see if there is a cache hit for the corresponding requirements file
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install -U pip build
-          pip install .
-
-      - name: Build dist
-        run: |
-          python -m build
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          files: dist/*
-          tag_name: ${{ steps.version_step.outputs.version }}
-
-    outputs:
-      version: ${{ steps.version_step.outputs.version }}
-
-
   build-release-docker:
     runs-on: ubuntu-latest
     steps:
@@ -83,7 +30,7 @@ jobs:
           push: true
           file: ./docker/Dockerfile
           tags: |
-            qzone3tg:${{ jobs.build-release-pkg.outputs.version }}
+            qzone3tg:${{ inputs.VERSION_TAG }}
             qzone3tg:latest
           build-args: |
             ${{ jobs.build-release-pkg.outputs.version }}
