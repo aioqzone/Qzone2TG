@@ -6,8 +6,7 @@ import pytest
 import pytest_asyncio
 from aioqzone_feed.type import BaseFeed
 
-from qzone3tg.app.interact import InteractStorageHook
-from qzone3tg.app.storage import AsyncEnginew, FeedOrm
+from qzone3tg.app.storage import AsyncEnginew, DefaultStorageHook, FeedOrm
 
 pytestmark = pytest.mark.asyncio
 
@@ -48,23 +47,23 @@ def event_loop():
 @pytest_asyncio.fixture(scope="module")
 async def store():
     async with AsyncEnginew.sqlite3(None) as engine:
-        yield InteractStorageHook(engine)
+        yield DefaultStorageHook(engine)
 
 
-async def test_create(store: InteractStorageHook):
+async def test_create(store: DefaultStorageHook):
     await store.create()
 
 
-async def test_insert(store: InteractStorageHook, fixed: list):
+async def test_insert(store: DefaultStorageHook, fixed: list):
     await store.SaveFeed(fixed[0])
 
 
-async def test_exist(store: InteractStorageHook, fixed: list):
+async def test_exist(store: DefaultStorageHook, fixed: list):
     assert not await store.exists(fixed[1])
     assert await store.exists(fixed[0])
 
 
-async def test_update(store: InteractStorageHook, fixed: list):
+async def test_update(store: DefaultStorageHook, fixed: list):
     feed = await store.get_orm(FeedOrm.fid == fixed[0].fid)
     assert feed.mids is None  # type: ignore
 
@@ -73,6 +72,6 @@ async def test_update(store: InteractStorageHook, fixed: list):
     assert mids == [0]
 
 
-async def test_remove(store: InteractStorageHook, fixed: list):
+async def test_remove(store: DefaultStorageHook, fixed: list):
     await store.clean(0)  # clean all
     assert not await store.exists(fixed[0])

@@ -1,11 +1,41 @@
-# aioqzone-feed
+# Qzone3TG
 
-An [aioqzone][aioqzone] plugin for handling feeds, a high-level api for feed operation.
+Forward Qzone feeds to telegram.
 
-## Usage
+> Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
+
+## Deploy
+
+> No official image has been released now. You might build one on your own.
+
+Build and startup docker image:
+
+``` sh
+docker build -f docker/Dockerfile --network host -t qzone3tg:latest .
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+## Config
+
+Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are supported. See [config/test.yml](config/test.yml) for the minimal and maximal config examples.
+
+Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.
 
 ## License
 
-- [AGPL-3.0](LICENSE)
+```
+Copyright (C) 2021-2022 JamzumSum
 
-[aioqzone]: https://github.com/JamzumSum/aioqzone "Python wrapper for Qzone web login and Qzone http api."
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```

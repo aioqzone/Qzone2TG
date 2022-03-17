@@ -111,4 +111,4 @@ class TestReal:
         bot = cast(FakeBot, real.tasker.bot)
         assert not bot.log
         assert len(real.exc) == 3
-        assert [len(i) for i in real.exc.values()] == [2, 2, 1]
+        assert [len(i) for i in real.exc.values()] == [2, 2, 2]
