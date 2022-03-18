@@ -186,3 +186,8 @@ class SemaBot(BotProtocol):
         f = partial(self.bot.send_animation, to, anim, caption=text, **kw)
         async with self.sem.context():
             return await self._loop.run_in_executor(None, f)
+
+    async def edit_message_media(self, to: ChatId, mid: int, media: InputMedia, **kw):
+        f = partial(self.bot.edit_message_media, to, mid, media=media)
+        async with self.sem.context():
+            return await self._loop.run_in_executor(None, f)

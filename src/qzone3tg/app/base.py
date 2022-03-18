@@ -23,7 +23,7 @@ from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
-from .hook import DefaultFeedHook, DefaultQrHook, FetchEvent
+from .hook import DefaultFeedHook, DefaultQrHook
 from .storage import AsyncEngine, DefaultStorageHook
 from .storage.loginman import LoginMan
 
@@ -92,18 +92,15 @@ class BaseApp:
 
     @property
     def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
+        class inner_feed_hook(DefaultFeedHook):
+            async def HeartbeatRefresh(_, num):
+                await super().HeartbeatRefresh(num)
+                self.add_hook_ref("heartbeat", self.fetch(self.conf.bot.admin, is_period=True))
 
-        return DefaultFeedHook
-
-    @property
-    def fetch_hook_cls(self) -> Type[FetchEvent]:
-        class inner_fetch_event(FetchEvent):
-            async def fetch_by_count(*a):
-                await self.fetch(self.conf.bot.admin, is_period=True)
-
-        return inner_fetch_event
+        return inner_feed_hook
 
     def init_hooks(self):
+        self.tgbot.edit_message_media()
         sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.tgbot, sem)
         self.hook_qr = self._qr_hook_cls(self.admin, self.bot)
@@ -125,15 +122,12 @@ class BaseApp:
             ),
             block or [],
         )
-        self.hook_fetch = self.fetch_hook_cls()
         self.store = self._storage_hook_cls(self.engine)
-
-        self.hook_feed.register_hook(self.hook_fetch)
         self.qzone.register_hook(self.hook_feed)
         self.hook_feed.queue.register_hook(self.store)
         self.loginman.register_hook(self.hook_qr)
 
-        self.add_hook_ref = self.hook_feed.add_hook_ref
+        self.add_hook_ref = self.hook_feed.queue.add_hook_ref
         self.log.info("TG端初始化完成")
 
     # --------------------------------

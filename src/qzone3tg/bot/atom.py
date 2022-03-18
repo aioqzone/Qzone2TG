@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, Type, TypeVar, cast
+from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
 from aioqzone.utils.time import sementic_time
@@ -15,7 +15,8 @@ from telegram import InputMediaVideo as Video
 
 from qzone3tg.utils.iter import split_by_len
 
-InputMedia = Pic | Video | Anim | Doc
+from . import InputMedia
+
 MD = TypeVar("MD", bound=InputMedia)
 LIM_TXT = 4096
 LIM_MD_TXT = 1024

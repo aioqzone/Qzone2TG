@@ -6,7 +6,7 @@ from typing import Awaitable, Callable, Optional
 
 from aioqzone.interface.hook import Emittable, Event, QREvent
 from aioqzone_feed.interface.hook import FeedContent, FeedEvent
-from telegram import InlineKeyboardMarkup, Message
+from telegram import InlineKeyboardMarkup, InputMediaPhoto, Message
 
 from qzone3tg.bot import BotProtocol, ChatId
 from qzone3tg.bot.queue import EditableQueue
@@ -34,17 +34,21 @@ class DefaultQrHook(QREvent):
         return
 
     async def QrFetched(self, png: bytes, renew: bool = False):
-        text = (
-            "二维码已刷新:" if renew else f"二维码已过期, 请重新扫描[{self.qr_times}]" if self.qr_times else "扫码登陆:"
-        )
-
-        self.qr_msg = await self.bot.send_photo(
-            self.admin,
-            png,
-            text,
-            disable_notification=False,
-            reply_markup=self.qr_markup(),
-        )
+        if self.qr_msg is None:
+            self.qr_msg = await self.bot.send_photo(
+                self.admin,
+                png,
+                "扫码登陆:",
+                disable_notification=False,
+                reply_markup=self.qr_markup(),
+            )
+        else:
+            text = "二维码已刷新:" if renew else f"二维码已过期, 请重新扫描[{self.qr_times}]"
+            self.qr_msg = await self.bot.edit_message_media(
+                self.admin,
+                self.qr_msg.message_id,
+                InputMediaPhoto(png, text),
+            )
         self.qr_times += 1
 
     async def QrFailed(self, msg: str | None = None):
@@ -61,7 +65,7 @@ class DefaultQrHook(QREvent):
         self.qr_msg = None
 
 
-class DefaultFeedHook(FeedEvent, Emittable["FetchEvent"]):
+class DefaultFeedHook(FeedEvent):
     def __init__(self, queue: EditableQueue, block: list[int]) -> None:
         super().__init__()
         self.queue = queue
@@ -88,9 +92,3 @@ class DefaultFeedHook(FeedEvent, Emittable["FetchEvent"]):
 
     async def HeartbeatRefresh(self, num: int):
         logger.info(f"Heartbeat triggers a refresh: count={num}")
-        self.add_hook_ref("heartbeat", self.hook.fetch_by_count(num))
-
-
-class FetchEvent(Event):
-    async def fetch_by_count(self, count: int):
-        pass

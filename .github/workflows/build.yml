@@ -8,6 +8,12 @@ on:
       VERSION_TAG:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      VERSION_TAG:
+        description: "tag of the image"
+        required: true
+        type: string
 
 jobs:
   build-release-docker:
@@ -20,17 +26,16 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker images
         id: docker_build
-        uses: docker/build-push-action@v2.7.0
+        uses: docker/build-push-action@v2
         with:
           push: true
           file: ./docker/Dockerfile
           tags: |
             qzone3tg:${{ inputs.VERSION_TAG }}
             qzone3tg:latest
-          build-args: |
-            ${{ jobs.build-release-pkg.outputs.version }}
