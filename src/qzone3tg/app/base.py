@@ -101,7 +101,6 @@ class BaseApp:
         return inner_feed_hook
 
     def init_hooks(self):
-        self.tgbot.edit_message_media()
         sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.tgbot, sem)
         self.hook_qr = self._qr_hook_cls(self.admin, self.bot)
@@ -236,7 +235,7 @@ class BaseApp:
         self.store.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
         qe.proxy = self.conf.bot.network.proxy and str(self.conf.bot.network.proxy)
-        init_task = [qe.init(), self.store.create(), self.loginman.load_cached_cookie()]
+        init_task = [qe.auto_update(), self.store.create(), self.loginman.load_cached_cookie()]
         await asyncio.wait(init_task)
 
         if first_run:
@@ -246,7 +245,10 @@ class BaseApp:
 
         # idle
         while True:
-            await asyncio.sleep(1)
+            try:
+                await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                continue
 
     async def fetch(self, to: Union[int, str], *, is_period: bool = False):
         """fetch feeds.
@@ -254,13 +256,13 @@ class BaseApp:
         :param reload: dismiss existing records in database
         :param is_period: triggered by heartbeat, defaults to False
 
-        :raises `SystemExist`: unexcpected error
+        :raises `SystemExist`: unexpected error
         """
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
         # NOTE: subclass must handle async/threading lock here
         self.log.info(f"Start fetch with period={is_period}")
-
+        echo = lambda m: self.add_hook_ref("command", self.bot.send_message(to, m))
         # start a new batch
         self.hook_feed.new_batch(self.qzone.new_batch())
         # fetch feed
@@ -270,11 +272,11 @@ class BaseApp:
             )
         except (UserBreak, LoginError):
             self.qzone.hb_timer.stop()
-            self.add_hook_ref("command", self.bot.send_message(to, "命令已取消"))
+            echo("命令已取消")
             return
 
         if got == 0:
-            self.add_hook_ref("command", self.bot.send_message(to, "您已跟上时代🎉"))
+            echo("您已跟上时代🎉")
             return
 
         # forward
@@ -286,10 +288,11 @@ class BaseApp:
             exit(1)
 
         if is_period:
-            return  # skip if this is called by heartbeat
+            return  # skip summary if this is called by heartbeat
+
         got -= self.hook_feed.queue.skip_num
         if got == 0:
-            await self.bot.send_message(to, "您已跟上时代🎉")
+            echo("您已跟上时代🎉")
             return
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
@@ -301,7 +304,7 @@ class BaseApp:
         if errs:
             summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
             summary += log_level_helper
-        await self.bot.send_message(to, summary)
+        echo(summary)
 
     async def license(self, to: ChatId):
         from telegram.parsemode import ParseMode
