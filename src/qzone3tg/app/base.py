@@ -284,12 +284,19 @@ class BaseApp:
             self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
             exit(1)
 
+        if is_period:
+            return  # skip if this is called by heartbeat
+        got -= self.hook_feed.queue.skip_num
+        if got == 0:
+            await self.bot.send_message(to, "您已跟上时代🎉")
+            return
+
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
         errs = self.hook_feed.queue.exc_num
         log_level_helper = (
             f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ""
         )
-        summary = f"发送结束，共{got}条，{self.hook_feed.queue.skip_num}条跳过，{errs}条错误。"
+        summary = f"发送结束，共{got}条，{errs}条错误。"
         if errs:
             summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
             summary += log_level_helper
