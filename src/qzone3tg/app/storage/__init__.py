@@ -54,7 +54,7 @@ class AsyncEnginew:
 
 
 class DefaultStorageHook(StorageEvent):
-    # sess: sessionmaker[AsyncSession]
+    # _sess: sessionmaker[AsyncSession]
 
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine

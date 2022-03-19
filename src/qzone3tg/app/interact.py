@@ -20,6 +20,7 @@ from telegram.ext import (
 from qzone3tg.settings import PollingConf, Settings
 
 from .base import BaseApp
+from .hook import DefaultFeedHook
 from .storage import AsyncEngine
 from .storage.orm import FeedOrm
 
@@ -56,9 +57,7 @@ class InteractApp(BaseApp):
     # --------------------------------
     @property
     def _storage_hook_cls(self):
-        cls = super()._storage_hook_cls
-
-        class interact_storage_hook(cls):
+        class interact_storage_hook(super()._storage_hook_cls):
             def _like_markup(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
                 if feed.unikey is None:
                     return
@@ -82,15 +81,26 @@ class InteractApp(BaseApp):
 
     @property
     def _qr_hook_cls(self):
-        cls = super()._qr_hook_cls
-
-        class interact_qr_hook(cls):
+        class interact_qr_hook(super()._qr_hook_cls):
             def qr_markup(self):
                 btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
                 btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
                 return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
         return interact_qr_hook
+
+    @property
+    def _feed_hook_cls(self):
+        class interact_feed_hook(super()._feed_hook_cls):
+            async def HeartbeatRefresh(hook, num: int):  # type: ignore
+                await DefaultFeedHook.HeartbeatRefresh(hook, num)
+                if self.fetch_lock.locked:
+                    self.log.warning("Heartbeat refresh skipped since fetch is running.")
+                    return
+                task = self.add_hook_ref("heartbeat", self.fetch(self.admin, is_period=True))
+                self.fetch_lock.acquire(task)
+
+        return interact_feed_hook
 
     def set_commands(self):
         # build chat filters
@@ -134,11 +144,14 @@ class InteractApp(BaseApp):
             )
         return await super().run()
 
+    # --------------------------------
+    #            command
+    # --------------------------------
     def start(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         self.log.info("Start! chat=%d", chat.id)
-        task = self.add_hook_ref("command", super().fetch(chat.id))
+        task = self.add_hook_ref("command", self.fetch(chat.id))
         self.fetch_lock.acquire(task)
 
     def help(self, update: Update, context: CallbackContext):
@@ -158,6 +171,50 @@ class InteractApp(BaseApp):
         assert chat
         task = self.add_hook_ref("command", self.qzone.api.login.new_cookie())
 
+    def em(self, update: Update, context: CallbackContext):
+        chat = update.effective_chat
+        assert chat
+        echo = lambda m: self.add_hook_ref("command", self.bot.send_message(chat.id, m))
+
+        if not context.args or len(context.args) not in [1, 2]:
+            # fmt: off
+            echo("错误的输入格式。示例：\n" \
+                "/em 400343，展示图片\n" \
+                "/em 400343 🐷，自定义表情文字\n" \
+                "/em export，导出自定义表情")
+            # fmt: on
+            return
+
+        if len(context.args) == 1:
+            # /em <eid> or /em export
+            try:
+                eid = int(context.args[0])
+            except ValueError:
+                if context.args[0] == "export":
+                    task = self.add_hook_ref("command", qe.export())
+                    task.add_done_callback(lambda t: echo(f"已导出到{t.result().as_posix()}."))
+                else:
+                    echo("错误的输入格式。示例：\n/em 400343，展示图片\n/em export，导出自定义表情")
+                return
+
+            async def show_eid(eid: int):
+                msg = f'示例： /em {eid} {await qe.query(eid, "😅")}'
+                for ext in ["gif", "png", "jpg"]:
+                    async with self.sess.get(qe.utils.build_html(eid, ext=ext)) as r:
+                        b = await r.content.read()
+                        self.add_hook_ref("command", self.bot.send_photo(chat.id, b, msg))
+
+            self.add_hook_ref("command", show_eid(eid))
+            return
+
+        eid, text = context.args
+        eid = int(eid)
+        self.log.info(f"Customize emoji text: {eid}->{text}")
+        self.add_hook_ref("storage", qe.set(eid, text))
+
+    # --------------------------------
+    #              query
+    # --------------------------------
     def btn_dispatch(self, update: Update, context: CallbackContext):
         query: CallbackQuery = update.callback_query
         data: str = query.data
@@ -226,29 +283,3 @@ class InteractApp(BaseApp):
         f = switch[command]
         assert f
         task = self.add_hook_ref("button", f())  # type: ignore
-
-    def em(self, update: Update, context: CallbackContext):
-        chat = update.effective_chat
-        assert chat
-        if not context.args or len(context.args) not in [1, 2]:
-            msg = "错误的输入格式。示例：\n/em 400343，展示图片\n/em 400343 🐷，自定义表情文字"
-            self.add_hook_ref("command", self.bot.send_message(chat.id, msg))
-            return
-
-        if len(context.args) == 1:
-
-            async def show_eid(eid: int):
-                msg = f'示例： /em {eid} {qe.query(eid, "😅")}'
-                for ext in ["gif", "png", "jpg"]:
-                    async with self.sess.get(
-                        cast(HttpUrl, qe.utils.build_html(eid, ext=ext))
-                    ) as r:
-                        return await self.bot.send_photo(chat.id, await r.content.read(), msg)
-
-            self.add_hook_ref("command", show_eid(int(context.args[0])))
-            return
-
-        eid, text = context.args
-        eid = int(eid)
-        self.log.info(f"Customize emoji text: {eid}->{text}")
-        self.add_hook_ref("storage", qe.set(eid, text))

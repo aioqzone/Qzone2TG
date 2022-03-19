@@ -21,6 +21,10 @@ class FakeBot(BotProtocol):
         self.log.append(("group", chat_id, media, kw))
         return fake_message(len(self.log))
 
+    def edit_message_media(self, to: ChatId, mid: int, media):
+        self.log.append(("edit_photo", to, mid, media))
+        return fake_message(len(self.log))
+
 
 class Feed4Test(FeedContent):
     def __hash__(self) -> int:

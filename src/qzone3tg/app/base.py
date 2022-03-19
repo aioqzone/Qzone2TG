@@ -40,7 +40,6 @@ class BaseApp:
         self.engine = engine
         self._get_logger(conf.log)
         self.silent_noisy_logger()
-        self.fetch_lock = asyncio.Lock()
 
         self.loginman = LoginMan(
             sess,
@@ -95,7 +94,9 @@ class BaseApp:
         class inner_feed_hook(DefaultFeedHook):
             async def HeartbeatRefresh(_, num):
                 await super().HeartbeatRefresh(num)
-                self.add_hook_ref("heartbeat", self.fetch(self.conf.bot.admin, is_period=True))
+                return self.add_hook_ref(
+                    "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
+                )
 
         return inner_feed_hook
 
