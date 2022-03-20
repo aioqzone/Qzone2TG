@@ -26,8 +26,8 @@ class StorageConfig(BaseModel):
     database: Optional[Path] = None
     """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录."""
 
-    keepdays: int = 30
-    """一条记录要保存多少天. 默认为30天."""
+    keepdays: float = 30
+    """一条记录要保存多长时间，以天为单位. 默认为30."""
 
 
 class BotDefaultConf(BaseModel):
@@ -169,8 +169,8 @@ class QzoneConf(BaseModel):
     - `allow`：密码优先于二维码登录. 当密码登陆失败（通常是在新设备上登录触发了保护）时使用二维码登录. **推荐普通用户使用**.
     - `forbid`：禁止二维码登录. 通常用于自动测试."""
 
-    dayspac: int = 3
-    """最多爬取从现在起几天内的说说. 默认为三天."""
+    dayspac: float = 3
+    """最多爬取从现在起多长时间内的说说，以天为单位. 默认为3."""
     block: Optional[list[int]] = None
     """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
     block_self: bool = True

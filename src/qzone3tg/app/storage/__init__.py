@@ -168,7 +168,7 @@ class DefaultStorageHook(StorageEvent):
             if flush:
                 await sess.commit()
 
-    def add_clean_task(self, keepdays: int, interval: float = 86400):
+    def add_clean_task(self, keepdays: float, interval: float = 86400):
         """
         This function register a timer that calls `self.clean(-keepdays * 86400)`
         every `interval` seconds.

@@ -281,5 +281,11 @@ class InteractApp(BaseApp):
         _, command = str.split(query.data, ":", maxsplit=1)
         switch = {"refresh": self.hook_qr.resend, "cancel": self.hook_qr.cancel}
         f = switch[command]
-        assert f
-        task = self.add_hook_ref("button", f())  # type: ignore
+        if f:
+            task = self.add_hook_ref("button", f())
+            if command == "cancel":
+                task.add_done_callback(
+                    lambda t: query.delete_message() and setattr(self.hook_qr, "qr_msg", None)
+                )
+        else:
+            query.delete_message()
