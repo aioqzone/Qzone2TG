@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, Type, TypeVar
+from typing import Generic, Tuple, Type, TypeVar
 
 from aiohttp import ClientSession
 from aioqzone.utils.time import sementic_time
@@ -111,23 +111,25 @@ def is_gif(b: bytes):
 
 class Splitter(ABC):
     @abstractmethod
-    async def split(self, feed: FeedContent) -> list[MsgArg]:
+    async def split(self, feed: FeedContent) -> Tuple[list[MsgArg], list[MsgArg]]:
+        """:return: (forward msg list, feed msg list)"""
         pass
 
 
 class LocalSplitter(Splitter):
-    async def split(self, feed: FeedContent) -> list[MsgArg]:
+    async def split(self, feed: FeedContent) -> Tuple[list[MsgArg], list[MsgArg]]:
         msgs: list[MsgArg] = []
+        fmsg = []
         # send forward before stem message
         if isinstance(feed.forward, FeedContent):
-            msgs += await self.split(feed.forward)
+            fmsg = (await self.split(feed.forward))[1]
 
         alltext = self.header(feed) + feed.content
 
         # no media, send as text message
         if not feed.media:
             msgs += [TextMsg(i) for i in split_by_len(alltext, LIM_TXT)]
-            return msgs
+            return fmsg, msgs
 
         media = [await self.probe(i) for i in feed.media]
         first_md = media[0]
@@ -136,14 +138,14 @@ class LocalSplitter(Splitter):
             cls = await self.probe_md_type(first_md)
             msgs.append(cls(feed.media[0], first_md, alltext[:LIM_MD_TXT]))
             msgs += [TextMsg(i) for i in split_by_len(alltext[LIM_MD_TXT:], LIM_TXT)]
-            return msgs
+            return fmsg, msgs
 
         cur = len(msgs)  # attach caption to this msg
         md_clss = [await self.probe_md_type(i) for i in media]
         # document must not mixed with other types
         if all(i is DocMsg for i in md_clss) == any(i is DocMsg for i in md_clss):
             msgs += [cls(vm, m) for cls, vm, m in zip(md_clss, feed.media, media)]
-            return self.__merge_text_into_media_ls(msgs, alltext, cur)
+            return fmsg, self.__merge_text_into_media_ls(msgs, alltext, cur)
 
         alltext += "\n\n"
         for i, (cls, vm, m) in enumerate(zip(md_clss, feed.media, media), start=1):
@@ -157,7 +159,7 @@ class LocalSplitter(Splitter):
             # otherwise send the media
             msgs.append(cls(vm, m))
 
-        return self.__merge_text_into_media_ls(msgs, alltext, cur)
+        return fmsg, self.__merge_text_into_media_ls(msgs, alltext, cur)
 
     def __merge_text_into_media_ls(self, msgs: list[MsgArg], text: str, start: int = 0):
         # insert text into group heads

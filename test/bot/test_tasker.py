@@ -1,5 +1,4 @@
 import asyncio
-from functools import partial
 from time import time
 
 import pytest
@@ -11,7 +10,7 @@ from telegram import InputFile
 from qzone3tg.bot.atom import LIM_MD_TXT, LIM_TXT, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter as BTE
 from qzone3tg.bot.limitbot import BotTaskGenerator as BTG
-from qzone3tg.bot.limitbot import RelaxSemaphore
+from qzone3tg.bot.limitbot import RelaxSemaphore, TaskerEvent
 
 from . import FakeBot, fake_feed, fake_media
 
@@ -33,12 +32,21 @@ async def sess():
 
 @pytest.fixture(scope="class")
 def gen():
-    return BTG(FakeBot(), LocalSplitter())  # type: ignore
+    t = BTG(FakeBot(), LocalSplitter())  # type: ignore
+
+    class FakeMarkup(TaskerEvent):
+        async def reply_markup(self, feed):
+            return 1, 1
+
+    t.register_hook(FakeMarkup())
+    yield t
 
 
 @pytest.fixture(scope="class")
 def edit(sess):
-    return BTE(FakeBot(), LocalSplitter(), sess)  # type: ignore
+    t = BTE(FakeBot(), LocalSplitter(), sess)  # type: ignore
+    t.register_hook(TaskerEvent())
+    yield t
 
 
 class TestSemaphore:
@@ -61,6 +69,7 @@ class TestGenerator:
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 1
         assert ps[0].func.__name__ == "send_message"
+        assert ps[0].keywords["reply_markup"] == 1
 
     async def test_msg_long(self, gen: BTG):
         f = fake_feed("a" * LIM_TXT)
@@ -68,6 +77,8 @@ class TestGenerator:
         assert len(ps) == 2
         assert ps[0].func.__name__ == "send_message"
         assert ps[1].func.__name__ == "send_message"
+        assert ps[0].keywords["reply_markup"] == 1
+        assert ps[1].keywords.get("reply_markup") is None
 
     async def test_media_norm(self, gen: BTG):
         f = fake_feed(0)
@@ -90,6 +101,7 @@ class TestGenerator:
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 1
         assert ps[0].func.__name__ == "send_media_group"
+        assert ps[0].keywords.get("reply_markup") is None
 
     async def test_media_group_exd(self, gen: BTG):
         f = fake_feed("a" * LIM_MD_TXT)
@@ -99,6 +111,7 @@ class TestGenerator:
         assert ps[0].func.__name__ == "send_media_group"
         assert ps[1].func.__name__ == "send_photo"
         assert ps[1].keywords["caption"]
+        assert ps[1].keywords["reply_markup"] == 1
 
 
 class TestEditter:

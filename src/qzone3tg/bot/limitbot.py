@@ -5,12 +5,13 @@ import logging
 from collections import deque
 from functools import partial
 from time import time
-from typing import Callable, TypeVar
+from typing import Callable, Optional, Tuple, TypeVar
 
 from aiohttp import ClientSession
+from aioqzone.interface.hook import Emittable, Event
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
-from telegram import Bot, InputFile, Message
+from telegram import Bot, InputFile, Message, ReplyMarkup
 
 from qzone3tg.utils.iter import countif, split_by_len
 
@@ -22,6 +23,7 @@ from .atom import (
     InputMedia,
     MediaMsg,
     MsgArg,
+    PicMsg,
     Splitter,
     TextMsg,
 )
@@ -42,34 +44,67 @@ def to_task(args: list[MsgArg]) -> list[MsgArg | list[MediaMsg]]:
     return groups + args[md_num:]  # type: ignore
 
 
-class BotTaskGenerator:
+class TaskerEvent(Event):
+    async def reply_markup(
+        self, feed: FeedContent
+    ) -> Tuple[Optional[ReplyMarkup], Optional[ReplyMarkup]]:
+        """:return: (forward reply_markup, feed reply_markup)."""
+        return None, None
+
+
+class BotTaskGenerator(Emittable[TaskerEvent]):
+    bps: float = 2e6  # 2Mbps
+    eps = bps
+
     def __init__(self, bot: Bot, splitter: Splitter):
         self.bot = bot
         self.splitter = splitter
 
-    async def unify_send(self, feed: FeedContent):
-        tasks = to_task(await self.splitter.split(feed))
-        for group in tasks:
-            yield self._get_partial(group)
+    def estim_timeout(self, arg: MediaMsg) -> float:
+        min_timeout = 10
+        if isinstance(arg, PicMsg):
+            min_timeout = 5
+        if isinstance(arg.content, str):
+            size = 1e7 if isinstance(arg, PicMsg) else 2e7
+        else:
+            size = len(arg.content)
+        return max(min_timeout, size / self.bps)
 
-    def _get_partial(self, arg: MsgArg | list[MediaMsg]):
+    async def unify_send(self, feed: FeedContent):
+        dual_tasks = await self.splitter.split(feed)
+        el = list(await self.hook.reply_markup(feed))
+        for i, tasks in enumerate(dual_tasks):
+            for group in to_task(tasks):
+                if el[i] and not (isinstance(group, list) and len(group) > 1):
+                    yield self._get_partial(group, el[i])
+                    el[i] = None
+                else:
+                    yield self._get_partial(group)
+
+    def _get_partial(
+        self, arg: MsgArg | list[MediaMsg], reply_markup: Optional[ReplyMarkup] = None
+    ):
         if isinstance(arg, list):
             if len(arg) > 1:
-                assert isinstance(arg, list)
-                return partial(self.bot.send_media_group, media=[i.wrap_media() for i in arg])
+                timeout = sum(self.estim_timeout(i) for i in arg)
+                return partial(
+                    self.bot.send_media_group, media=[i.wrap_media() for i in arg], timeout=timeout
+                )
             (arg,) = arg  # just unpack the single element
 
         match arg.meth:
             case "message":
                 assert isinstance(arg, TextMsg)
-                return partial(self.bot.send_message, text=arg.text)
+                f = partial(self.bot.send_message, text=arg.text)
             case "photo" | "video" | "animation" | "document":
                 assert isinstance(arg, MediaMsg)
-                kw = {arg.meth: arg.content}
+                kw = {arg.meth: arg.content, "timeout": self.estim_timeout(arg)}
                 f: Callable[..., Message] = getattr(self.bot, f"send_{arg.meth}")
-                return partial(f, caption=arg.text, **kw)
+                f = partial(f, caption=arg.text, **kw)
             case _:
                 raise AttributeError(arg.meth)
+        f.keywords["reply_markup"] = reply_markup
+        return f
 
 
 class BotTaskEditter(BotTaskGenerator):
@@ -114,6 +149,40 @@ class BotTaskEditter(BotTaskGenerator):
         async with self.sess.get(media.media) as r:
             media.media = InputFile(await r.content.read(), attach=True)
             return media
+
+    def inc_timeout(self, call: partial[T]) -> partial[T]:
+        org = call.keywords.get("timeout", 5)
+        min_inc = 5
+        _, meth = call.func.__name__.split("_", maxsplit=1)
+        match meth:
+            case "message":
+                call.keywords["timeout"] = org + min_inc
+                return call
+            case "photo":
+                content = call.keywords["photo"]
+                size = 1e7 if isinstance(content, str) else len(content)
+            case "animation" | "document" | "video":
+                min_inc = 10
+                content = call.keywords[meth]
+                size = 2e7 if isinstance(content, str) else len(content)
+            case "media_group":
+                min_inc = len(call.keywords["media"]) * 5
+                size = sum(self.estim_size_inputmedia(i) for i in call.keywords["media"])
+            case _:
+                raise ValueError
+        timeout = max(org + min_inc, size / self.bps)
+        call.keywords["timeout"] = timeout
+        return call
+
+    def estim_size_inputmedia(self, media: InputMedia) -> float:
+        if isinstance(media.media, InputFile) and isinstance(
+            media.media.input_file_content, bytes
+        ):
+            return len(media.media.input_file_content)
+
+        if media.type == "photo":
+            return 1e7
+        return 2e7
 
 
 class RelaxSemaphore:
