@@ -318,7 +318,7 @@ class BaseApp:
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
         stat_dic = {
             "上次登录": ts2a(self.loginman.last_login),
-            "心跳状态": self.qzone.hb_timer.state,
+            "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
             "上次心跳": ts2a(self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(self.store.cl.last_call),
         }

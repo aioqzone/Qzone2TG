@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import partial
-from typing import Mapping
+from typing import Mapping, cast
 
 from aioqzone.interface.hook import Emittable, Event
 from aioqzone_feed.type import BaseFeed, FeedContent
@@ -145,6 +145,8 @@ class MsgQueue(Emittable[QueueEvent]):
                 if isinstance(r, list):
                     mids += r
                     reply = r[-1]
+                if retry == 0:
+                    self.tasker.bps += self.tasker.eps
                 break
 
         if not mids:
@@ -169,8 +171,9 @@ class MsgQueue(Emittable[QueueEvent]):
                 return [i.message_id for i in r]
         except TimedOut as e:
             self.exc[feed].append(e)
+            self.tasker.bps /= 2
+            self.tasker.inc_timeout(cast(partial, f))
             # TODO: more operations
-            f.keywords["timeout"] = f.keywords.get("timeout", 5) * 2
             return True
         except BadRequest as e:
             self.exc[feed].append(e)
