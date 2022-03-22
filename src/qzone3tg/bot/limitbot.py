@@ -5,13 +5,13 @@ import logging
 from collections import deque
 from functools import partial
 from time import time
-from typing import Callable, TypeVar
+from typing import Callable, Optional, Tuple, TypeVar
 
 from aiohttp import ClientSession
+from aioqzone.interface.hook import Emittable, Event
 from aioqzone_feed.type import FeedContent
-from async_timeout import timeout
 from pydantic import HttpUrl
-from telegram import Bot, InputFile, Message
+from telegram import Bot, InputFile, Message, ReplyMarkup
 
 from qzone3tg.utils.iter import countif, split_by_len
 
@@ -44,7 +44,15 @@ def to_task(args: list[MsgArg]) -> list[MsgArg | list[MediaMsg]]:
     return groups + args[md_num:]  # type: ignore
 
 
-class BotTaskGenerator:
+class TaskerEvent(Event):
+    async def reply_markup(
+        self, feed: FeedContent
+    ) -> Tuple[Optional[ReplyMarkup], Optional[ReplyMarkup]]:
+        """:return: (forward reply_markup, feed reply_markup)."""
+        return None, None
+
+
+class BotTaskGenerator(Emittable[TaskerEvent]):
     bps: float = 2e6  # 2Mbps
     eps = bps
 
@@ -63,11 +71,19 @@ class BotTaskGenerator:
         return max(min_timeout, size / self.bps)
 
     async def unify_send(self, feed: FeedContent):
-        tasks = to_task(await self.splitter.split(feed))
-        for group in tasks:
-            yield self._get_partial(group)
+        dual_tasks = await self.splitter.split(feed)
+        el = list(await self.hook.reply_markup(feed))
+        for i, tasks in enumerate(dual_tasks):
+            for group in to_task(tasks):
+                if el[i] and not (isinstance(group, list) and len(group) > 1):
+                    yield self._get_partial(group, el[i])
+                    el[i] = None
+                else:
+                    yield self._get_partial(group)
 
-    def _get_partial(self, arg: MsgArg | list[MediaMsg]):
+    def _get_partial(
+        self, arg: MsgArg | list[MediaMsg], reply_markup: Optional[ReplyMarkup] = None
+    ):
         if isinstance(arg, list):
             if len(arg) > 1:
                 timeout = sum(self.estim_timeout(i) for i in arg)
@@ -79,14 +95,16 @@ class BotTaskGenerator:
         match arg.meth:
             case "message":
                 assert isinstance(arg, TextMsg)
-                return partial(self.bot.send_message, text=arg.text)
+                f = partial(self.bot.send_message, text=arg.text)
             case "photo" | "video" | "animation" | "document":
                 assert isinstance(arg, MediaMsg)
                 kw = {arg.meth: arg.content, "timeout": self.estim_timeout(arg)}
                 f: Callable[..., Message] = getattr(self.bot, f"send_{arg.meth}")
-                return partial(f, caption=arg.text, **kw)
+                f = partial(f, caption=arg.text, **kw)
             case _:
                 raise AttributeError(arg.meth)
+        f.keywords["reply_markup"] = reply_markup
+        return f
 
 
 class BotTaskEditter(BotTaskGenerator):

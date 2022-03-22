@@ -9,7 +9,7 @@ from aioqzone_feed.type import FeedContent
 from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore
+from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue, QueueEvent
 
 from . import FakeBot, fake_feed
@@ -41,8 +41,15 @@ class Ihave0(QueueEvent):
 def ideal(sess):
     sem = RelaxSemaphore(30)
     bot: Any = FakeBot()
-    q = EditableQueue(BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem)
+    tasker = BotTaskEditter(bot, FetchSplitter(sess), sess)
+    q = EditableQueue(tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
+
+    class FakeMarkup(TaskerEvent):
+        async def reply_markup(self, feed):
+            return 1, 1
+
+    tasker.register_hook(FakeMarkup())
     return q
 
 
@@ -71,6 +78,18 @@ class TestIdeal:
         assert len(bot.log) == 3
         assert "".join(i[2][-1] for i in bot.log) == "123"
 
+    async def test_reply_markup(self, ideal: EditableQueue):
+        ideal.new_batch(2)
+        f = fake_feed(2)
+        f.forward = fake_feed(1)
+        await ideal.add(2, f)
+        await ideal.send_all()
+        bot = cast(FakeBot, ideal.tasker.bot)
+        dfw = bot.log[0][-1]
+        df = bot.log[1][-1]
+        assert dfw["reply_markup"] == 1
+        assert df["reply_markup"] == 1
+
 
 class RealBot(FakeBot):
     def send_message(self, chat_id, text: str, **kw):
@@ -93,8 +112,10 @@ class RealBot(FakeBot):
 def real(sess):
     sem = RelaxSemaphore(30)
     bot: Any = RealBot()
-    q = EditableQueue(BotTaskEditter(bot, FetchSplitter(sess), sess), defaultdict(int), sem)
+    tasker = BotTaskEditter(bot, FetchSplitter(sess), sess)
+    q = EditableQueue(tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
+    tasker.register_hook(TaskerEvent())
     return q
 
 

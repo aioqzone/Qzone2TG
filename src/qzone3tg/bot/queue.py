@@ -43,9 +43,6 @@ class QueueEvent(Event):
     async def update_message_id(self, feed: BaseFeed, mids: list[int]):
         return
 
-    async def reply_markup(self, feed: FeedContent) -> list[ReplyMarkup | None] | None:
-        return
-
 
 class MsgQueue(Emittable[QueueEvent]):
     bid = -1
@@ -78,37 +75,8 @@ class MsgQueue(Emittable[QueueEvent]):
 
         # add a sending task
         tasks = await alist(self.tasker.unify_send(feed))
-        markup = await self.hook.reply_markup(feed)
-        if markup:
-            ee, er = markup
-        else:
-            ee = er = None
-
         for p in tasks:
             p.keywords.update(chat_id=self.fwd2[feed.uin])
-            match p.func.__name__.split("_", maxsplit=1):
-                case ["send", "media_group"]:
-                    pass
-                case ["send", "photo" | "animation" | "document" | "video"]:
-                    if ee:
-                        if str(feed.uin) in p.keywords.get("caption", ""):
-                            ee = None
-                        else:
-                            p.keywords.update(reply_markup=ee)
-                            ee = None
-                    elif er:
-                        p.keywords.update(reply_markup=er)
-                        er = None
-                case ["send", "message"]:
-                    if ee:
-                        if str(feed.uin) in p.keywords.get("text", ""):
-                            ee = None
-                        else:
-                            p.keywords.update(reply_markup=ee)
-                            ee = None
-                    elif er:
-                        p.keywords.update(reply_markup=er)
-                        er = None
 
         self.q[feed] = tasks
 

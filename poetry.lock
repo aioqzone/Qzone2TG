@@ -38,7 +38,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "aioqzone"
-version = "0.4.0a3"
+version = "0.4.0a4"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -61,11 +61,11 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone.git"
 reference = "beta"
-resolved_reference = "0e2150c86cb6f3e6b7ed871cf979304209f59af5"
+resolved_reference = "abb9eb42bc6c1ca9235f1b47c62c9f61f8925090"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.4.1.dev1"
+version = "0.4.2.dev0"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -84,7 +84,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "96906dff2567438f98655cef95f01aac90d1ffc6"
+resolved_reference = "acaa95e43a81f21abcd71b08e8b390e8dc58bfef"
 
 [[package]]
 name = "aiosignal"
@@ -915,7 +915,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "qzemoji"
-version = "2.2.0.dev1"
+version = "2.2.1.dev1"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
@@ -935,7 +935,7 @@ dev = ["tox (>=3.24.5,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0
 type = "git"
 url = "https://github.com/JamzumSum/QzEmoji.git"
 reference = "async"
-resolved_reference = "3bf64ee140b16bdfab28de80c3d129dc055c8e84"
+resolved_reference = "665586ae6e3e936f525500c58e5c96a509f389a6"
 
 [[package]]
 name = "requests"

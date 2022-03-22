@@ -56,8 +56,8 @@ class InteractApp(BaseApp):
     #            hook init
     # --------------------------------
     @property
-    def _storage_hook_cls(self):
-        class interact_storage_hook(super()._storage_hook_cls):
+    def _tasker_hook_cls(self):
+        class interact_tasker_hook(super()._tasker_hook_cls):
             def _like_markup(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
                 if feed.unikey is None:
                     return
@@ -77,7 +77,7 @@ class InteractApp(BaseApp):
                 markup.append(self._like_markup(feed))
                 return markup
 
-        return interact_storage_hook
+        return interact_tasker_hook
 
     @property
     def _qr_hook_cls(self):

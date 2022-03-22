@@ -19,7 +19,7 @@ from qqqr.exception import UserBreak
 from qzone3tg import DISCUSS
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot
+from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
@@ -90,6 +90,10 @@ class BaseApp:
         return DefaultStorageHook
 
     @property
+    def _tasker_hook_cls(self) -> Type[TaskerEvent]:
+        return TaskerEvent
+
+    @property
     def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
         class inner_feed_hook(DefaultFeedHook):
             async def HeartbeatRefresh(_, num):
@@ -108,6 +112,7 @@ class BaseApp:
         block = block.copy()
         if self.conf.qzone.block_self:
             block.append(self.conf.qzone.uin)
+
         self.hook_feed = self._feed_hook_cls(
             EditableQueue(
                 BotTaskEditter(
@@ -122,9 +127,12 @@ class BaseApp:
             ),
             block or [],
         )
+        self.hook_tasker = self._tasker_hook_cls()
         self.store = self._storage_hook_cls(self.engine)
+
         self.qzone.register_hook(self.hook_feed)
         self.hook_feed.queue.register_hook(self.store)
+        self.hook_feed.queue.tasker.register_hook(self.hook_tasker)
         self.loginman.register_hook(self.hook_qr)
 
         self.add_hook_ref = self.hook_feed.queue.add_hook_ref
