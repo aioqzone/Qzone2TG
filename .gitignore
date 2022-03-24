@@ -13,7 +13,6 @@ archive
 
 /doc/*
 !/doc/source
-!/doc/Makefile
 
 /log
 /data

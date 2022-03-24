@@ -41,10 +41,7 @@ jobs:
       #             Run sphinx-build
       #----------------------------------------------
       - name: Build HTML
-        uses: ammaraskar/sphinx-action@0.4
-        with:
-          docs-folder: doc
-          path: doc/build/html
+        run: poetry run sphinx-build doc/source doc/build
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:

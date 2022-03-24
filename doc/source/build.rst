@@ -21,7 +21,7 @@ sdist & bdist 在 :file:`dist/` 下
 
 .. code-block:: shell
 
-    poetry run pip install -r doc/requirements.txt
+    poetry install -E doc
     poetry run sphinx-build doc/source doc/build
 
 html 在 :file:`doc/build/html` 下
