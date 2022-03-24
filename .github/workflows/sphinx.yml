@@ -41,7 +41,7 @@ jobs:
       #             Run sphinx-build
       #----------------------------------------------
       - name: Build HTML
-        run: poetry run sphinx-build doc/source doc/build
+        run: poetry run sphinx-build doc/source doc/build/html
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
