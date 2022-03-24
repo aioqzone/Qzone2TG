@@ -13,7 +13,6 @@ archive
 
 /doc/*
 !/doc/source
-!/doc/requirements.txt
 !/doc/Makefile
 
 /log
