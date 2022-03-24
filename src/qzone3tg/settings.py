@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Optional, Union
 
+from aioqzone.api.loginman import QrStrategy
 from pydantic import (
     AnyUrl,
     BaseModel,
@@ -24,7 +25,8 @@ class StorageConfig(BaseModel):
     存储的信息不包括说说内容, 但通常能够通过存储的参数复原说说内容."""
 
     database: Optional[Path] = None
-    """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录."""
+    """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录.
+    如果传入值为 ``None``，则不建立文件数据库，而是维持一个内存数据库。"""
 
     keepdays: float = 30
     """一条记录要保存多长时间，以天为单位. 默认为30."""
@@ -110,14 +112,15 @@ class NetworkConf(BaseModel):
     """网络配置。包括代理和等待时间自定义优化。"""
 
     proxy: Optional[AnyUrl] = Field(None, env="HTTPS_PROXY")  # support http(s); socks(5(h)).
-    """代理设置，支持 http 和 socks 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
+    """代理设置，支持 `http` 和 `socks` 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
+    也支持读取系统全局代理 :envvar:`HTTPS_PROXY`，但优先级 **低于** 配置文件提供的值。
 
     Example:
 
-    - `http://127.0.0.1:1234`
-    - `https://username:password@your.proxy.com:1234`
-    - `socks5://localhost:7890`
-    - `socks5h://username:password@your.proxy.com:7890`
+    - http://127.0.0.1:1234
+    - https://username:password@your.proxy.com:1234
+    - socks5://localhost:7890
+    - socks5h://username:password@your.proxy.com:7890
     """
 
     @validator("proxy")
@@ -135,7 +138,7 @@ class BotConf(BaseModel):
     network: NetworkConf = NetworkConf()  # type: ignore
     """网络配置。包括代理和等待时间自定义优化。:class:`.NetworkConf`"""
 
-    storage: StorageConfig = StorageConfig()
+    storage: StorageConfig = StorageConfig(keepdays=1)
     """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容.
     默认只在内存中建立 sqlite3 数据库。"""
 
@@ -144,14 +147,19 @@ class BotConf(BaseModel):
 
     init_args: Union[WebhookConf, PollingConf] = PollingConf()
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
-    两种类型 :class:`.PollingConf`, :class:`.WebhookConf` 分别对应 polling 模式和 webhook 模式。"""
+
+    * 按照 :class:`.PollingConf` 填写，对应 `polling` 模式（默认）；
+    * 按照 :class:`.WebhookConf` 填写，对应 `webhook` 模式。"""
 
     send_gif_as_anim: bool = True
-    """当此项为 False 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
+    """当此项为 ``False`` 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
     在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`SendPhoto`) 发送给
     telegram，最终导致用户收到的 gif 链接“不会动”.
 
-    开启此项会导致额外的服务器流量和额外的连接时间（向Qzone服务器请求图片）. 用户可以根据需要关闭."""
+    .. warning::
+        开启此项会导致额外的服务器流量和额外的连接时间（向Qzone服务器请求图片）.
+        用户可以根据需要关闭.
+    """
 
 
 class QzoneConf(BaseModel):
@@ -161,8 +169,8 @@ class QzoneConf(BaseModel):
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    qr_strategy: str = "allow"
-    """二维码策略. 枚举类型，可选值为 `force`, `prefer`, `allow`, `forbid`
+    qr_strategy: QrStrategy = QrStrategy.allow
+    """二维码策略. 枚举类型，可选值为 ``force``, ``prefer``, ``allow``, ``forbid``
 
     - `force`：强制二维码登录，不使用密码登录. 如果您没有安装 NodeJs，则仅此模式可用.
     - `prefer`：二维码优先于密码登录. 当二维码登陆失败（包括未得到用户响应时）尝试密码登录.
@@ -176,12 +184,6 @@ class QzoneConf(BaseModel):
     block_self: bool = True
     """是否舍弃当前登录账号发布的内容. 等同于在 `.block` 中加入当前 `.uin`"""
 
-    @validator("qr_strategy")
-    def must_be_enum(cls, v):
-        """确保输入的 `qr_strategy` 是四个枚举值之一."""
-        assert v in ("force", "prefer", "allow", "forbid")
-        return v
-
 
 class LogConf(BaseModel):
     """日志配置，支持配置文件."""
@@ -193,14 +195,23 @@ class LogConf(BaseModel):
 
 
 class UserSecrets(BaseSettings):
-    """专门管理用户密码/密钥的配置。依赖于 `pydnatic` 对 secrets 的支持。用户可以通过 `docker secrets`
-    或通过环境变量来传递密码/密钥。"""
+    """**直接写在配置文件中的明文密码/密钥不会被读取**。
+    用户可以通过 `docker secrets <https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets>`_
+    或环境变量来传递密码/密钥。
+    """
 
     password: Optional[SecretStr] = Field(default=None, env=["TEST_PASSWORD", "password"])
-    """QQ 密码"""
+    """QQ密码，支持以下两种输入：
+
+    * 名为 ``password`` 的 `docker secrets`
+    * 名为 :envvar:`TEST_PASSWORD` 或 :envvar:`password` 的环境变量
+    """
 
     token: SecretStr = Field(env=["TEST_TOKEN", "token"])
-    """TG 机器人的 `bot token`"""
+    """TG 机器人的密钥(bot token)，支持以下两种输入：
+
+    * 名为 ``token`` 的 `docker secrets`
+    * 名为 :envvar:`TEST_TOKEN` 或 :envvar:`token` 的环境变量"""
 
     class Config:
         secrets_dir = "/run/secrets"

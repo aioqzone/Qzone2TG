@@ -21,6 +21,11 @@ Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to 
 
 Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.
 
+## Documents and Tutorials
+
+- [Qzone3TG Documents](#)
+- Author's blog: [Qzone3TG Topic](#)
+
 ## License
 
 ```

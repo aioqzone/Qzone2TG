@@ -1,0 +1,30 @@
+# This workflow builds sphinx documents and deploy it.
+name: Sphinx Build and Deploy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    paths:
+      - doc/**
+      - ".github/workflows/sphinx.yml"
+      # ci.yml will handle these pushes
+      - "!src/**"
+      - "!test/**"
+      - "!poetry.lock"
+
+jobs:
+  sphinx-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build HTML
+        uses: ammaraskar/sphinx-action@0.4
+        with:
+          docs-folder: doc
+          path: doc/build/html
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: doc/build/html
