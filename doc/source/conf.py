@@ -21,7 +21,7 @@ copyright = "2022, JamzumSum"
 author = "JamzumSum"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.5.dev0"
+release = "0.2.6.dev1"
 
 # -- General configuration ---------------------------------------------------
 
@@ -31,6 +31,7 @@ release = "0.1.5.dev0"
 extensions = [
     "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.githubpages",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -64,7 +65,9 @@ html_static_path = ["_static"]
 intersphinx_mapping = {"telegram": ("https://python-telegram-bot.readthedocs.io/en/stable/", None)}
 
 # autodoc_pydantic settings
-autodoc_pydantic_model_show_json = False
 autodoc_pydantic_settings_show_json = False
 autodoc_pydantic_settings_undoc_members = False
+autodoc_pydantic_settings_show_validator_members = False
+
+autodoc_pydantic_model_show_json = False
 autodoc_pydantic_model_undoc_members = False

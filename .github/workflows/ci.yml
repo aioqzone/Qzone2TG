@@ -8,8 +8,12 @@ on:
     paths:
       - "src/**"
       - "test/**"
+      - ".github/workflows/test.yml"
+      - ".github/workflows/ci.yml"
+      - "poetry.lock"
     branches:
       - v3/dev
+      - v3/dev/**
 
 jobs:
   test:
@@ -32,3 +36,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: ${{ needs.test.outputs.package-version }}
           pr_body: ${{ github.event.head_commit.message }} # only push event has head_commit
+
+  sphinx:
+    needs: test
+    uses: ./.github/workflows/sphinx.yml

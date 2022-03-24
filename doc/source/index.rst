@@ -10,7 +10,9 @@ Welcome to Qzone3TG's documentation!
    :maxdepth: 2
    :caption: 目录
 
+   quickstart
    config/index
+   build
 
 
 索引 & 搜索
