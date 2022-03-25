@@ -1,12 +1,10 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
-from typing import cast
 
 import qzemoji as qe
 from aiohttp import ClientSession as Session
 from aioqzone.type import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
-from pydantic import HttpUrl
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CallbackContext,
@@ -198,7 +196,7 @@ class InteractApp(BaseApp):
                 return
 
             async def show_eid(eid: int):
-                msg = f'示例： /em {eid} {await qe.query(eid, "😅")}'
+                msg = f'示例： /em {eid} {(await qe.query(eid)) or "😅"}'
                 for ext in ["gif", "png", "jpg"]:
                     async with self.sess.get(qe.utils.build_html(eid, ext=ext)) as r:
                         b = await r.content.read()

@@ -22,7 +22,7 @@ sdist & bdist 在 :file:`dist/` 下
 .. code-block:: shell
 
     poetry install -E doc
-    poetry run sphinx-build doc/source doc/build/html
+    poetry run sphinx-build doc/source doc/build/html -D release=$(poetry version -s)
 
 html 在 :file:`doc/build/html` 下
 

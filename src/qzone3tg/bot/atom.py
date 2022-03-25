@@ -2,9 +2,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, Tuple, Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
+from aioqzone.type import AtEntity, ConEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
@@ -111,20 +112,33 @@ def is_gif(b: bytes):
 
 class Splitter(ABC):
     @abstractmethod
-    async def split(self, feed: FeedContent) -> Tuple[list[MsgArg], list[MsgArg]]:
+    async def split(self, feed: FeedContent) -> tuple[list[MsgArg], list[MsgArg]]:
         """:return: (forward msg list, feed msg list)"""
         pass
 
 
 class LocalSplitter(Splitter):
-    async def split(self, feed: FeedContent) -> Tuple[list[MsgArg], list[MsgArg]]:
+    def stringify_entities(self, entities: list[ConEntity] | None) -> str:
+        if not entities:
+            return ""
+        s = ""
+        for e in entities:
+            if isinstance(e, TextEntity):
+                s += e.con
+            elif isinstance(e, AtEntity):
+                s += f"@{href(e.nick, f'user.qzone.qq.com/{e.uin}')}"
+            else:
+                s += str(e.dict(exclude={"type"}))
+        return s
+
+    async def split(self, feed: FeedContent) -> tuple[list[MsgArg], list[MsgArg]]:
         msgs: list[MsgArg] = []
         fmsg = []
         # send forward before stem message
         if isinstance(feed.forward, FeedContent):
             fmsg = (await self.split(feed.forward))[1]
 
-        alltext = self.header(feed) + feed.content
+        alltext = self.header(feed) + self.stringify_entities(feed.entities)
 
         # no media, send as text message
         if not feed.media:

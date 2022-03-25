@@ -2,7 +2,6 @@
 name: Sphinx Build and Deploy
 
 on:
-  workflow_call:
   workflow_dispatch:
   push:
     paths:
@@ -15,35 +14,4 @@ on:
 
 jobs:
   sphinx-build-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      #----------------------------------------------
-      #   check-out repo and set-up node & python
-      #----------------------------------------------
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: "3.10"
-      #----------------------------------------------
-      #  -----  install & configure poetry  -----
-      #----------------------------------------------
-      - name: Install Poetry Action
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      #----------------------------------------------
-      # install your root project, if required
-      #----------------------------------------------
-      - name: Install library
-        run: poetry install --no-interaction -E doc
-      #----------------------------------------------
-      #             Run sphinx-build
-      #----------------------------------------------
-      - name: Build HTML
-        run: poetry run sphinx-build doc/source doc/build/html
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: doc/build/html
+    uses: JamzumSum/aioqzone/.github/workflows/sphinx.yml

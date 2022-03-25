@@ -38,7 +38,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "aioqzone"
-version = "0.4.1a0"
+version = "0.4.2a1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -55,16 +55,17 @@ pytz = "^2021.3"
 
 [package.extras]
 dev = ["tox (>=3.24.5,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (<1.16.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone.git"
 reference = "beta"
-resolved_reference = "027329cdbdbe234b32ae1ba6ace1baab9695b093"
+resolved_reference = "ff170533151ea5fbf63e3410f3466f790708c2e7"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.4.2.dev0"
+version = "0.5.0.dev0"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -83,7 +84,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "acaa95e43a81f21abcd71b08e8b390e8dc58bfef"
+resolved_reference = "207b9724d6e89ac17fbcca0406c00bb297c4f6d2"
 
 [[package]]
 name = "aiosignal"
@@ -539,11 +540,11 @@ reference = "tsinghua"
 
 [[package]]
 name = "jinja2"
-version = "3.0.3"
+version = "3.1.0"
 description = "A very fast and expressive template engine."
 category = "main"
 optional = true
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 MarkupSafe = ">=2.0"
@@ -914,7 +915,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "qzemoji"
-version = "2.2.1.dev1"
+version = "2.2.2a0"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
@@ -934,7 +935,7 @@ dev = ["tox (>=3.24.5,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0
 type = "git"
 url = "https://github.com/JamzumSum/QzEmoji.git"
 reference = "async"
-resolved_reference = "665586ae6e3e936f525500c58e5c96a509f389a6"
+resolved_reference = "7c85c5d2fcb01631775fc7f2162ad12d98e485b1"
 
 [[package]]
 name = "requests"
@@ -1674,8 +1675,8 @@ isort = [
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
 jinja2 = [
-    {file = "Jinja2-3.0.3-py3-none-any.whl", hash = "sha256:077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8"},
-    {file = "Jinja2-3.0.3.tar.gz", hash = "sha256:611bb273cd68f3b993fabdc4064fc858c5b47a973cb5aa7999ec1ba405c87cd7"},
+    {file = "Jinja2-3.1.0-py3-none-any.whl", hash = "sha256:da424924c069a4013730d8dd010cbecac7e7bb752be388db3741688bffb48dc6"},
+    {file = "Jinja2-3.1.0.tar.gz", hash = "sha256:a2f09a92f358b96b5f6ca6ecb4502669c4acb55d8733bbb2b2c9c4af5564c605"},
 ]
 lxml = [
     {file = "lxml-4.8.0-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:e1ab2fac607842ac36864e358c42feb0960ae62c34aa4caaf12ada0a1fb5d99b"},
