@@ -33,7 +33,7 @@ async def sess():
 class Ihave0(QueueEvent):
     async def get_message_id(self, feed) -> list[int] | None:
         assert isinstance(feed, FeedContent)
-        if feed.content == "0":
+        if feed.entities[0].con == "0":  # type: ignore
             return [0]
 
 

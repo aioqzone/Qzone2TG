@@ -1,3 +1,4 @@
+from aioqzone.type import TextEntity
 from aioqzone_feed.type import FeedContent, VisualMedia
 from pydantic import BaseModel, HttpUrl
 from telegram import Message
@@ -28,7 +29,7 @@ class FakeBot(BotProtocol):
 
 class Feed4Test(FeedContent):
     def __hash__(self) -> int:
-        return hash(self.content)
+        return hash(str(self.entities))
 
 
 def fake_message(id: int):
@@ -39,7 +40,7 @@ def fake_message(id: int):
 
 def fake_feed(i: int | str):
     return Feed4Test.construct(
-        content=str(i) if isinstance(i, int) else i,
+        entities=[TextEntity(type=2, con=str(i))],
         appid=0,
         typeid=0,
         fid="",
