@@ -540,7 +540,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "jinja2"
-version = "3.1.0"
+version = "3.1.1"
 description = "A very fast and expressive template engine."
 category = "main"
 optional = true
@@ -828,7 +828,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.18.2"
+version = "0.18.3"
 description = "Pytest support for asyncio"
 category = "dev"
 optional = false
@@ -838,7 +838,7 @@ python-versions = ">=3.7"
 pytest = ">=6.1.0"
 
 [package.extras]
-testing = ["coverage (==6.2)", "hypothesis (>=5.7.1)", "flaky (>=3.5.0)", "mypy (==0.931)"]
+testing = ["coverage (==6.2)", "hypothesis (>=5.7.1)", "flaky (>=3.5.0)", "mypy (==0.931)", "pytest-trio (>=0.7.0)"]
 
 [package.source]
 type = "legacy"
@@ -1306,7 +1306,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "virtualenv"
-version = "20.13.4"
+version = "20.14.0"
 description = "Virtual Python Environment builder"
 category = "main"
 optional = true
@@ -1675,8 +1675,8 @@ isort = [
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
 jinja2 = [
-    {file = "Jinja2-3.1.0-py3-none-any.whl", hash = "sha256:da424924c069a4013730d8dd010cbecac7e7bb752be388db3741688bffb48dc6"},
-    {file = "Jinja2-3.1.0.tar.gz", hash = "sha256:a2f09a92f358b96b5f6ca6ecb4502669c4acb55d8733bbb2b2c9c4af5564c605"},
+    {file = "Jinja2-3.1.1-py3-none-any.whl", hash = "sha256:539835f51a74a69f41b848a9645dbdc35b4f20a3b601e2d9a7e22947b15ff119"},
+    {file = "Jinja2-3.1.1.tar.gz", hash = "sha256:640bed4bb501cbd17194b3cace1dc2126f5b619cf068a726b98192a0fde74ae9"},
 ]
 lxml = [
     {file = "lxml-4.8.0-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:e1ab2fac607842ac36864e358c42feb0960ae62c34aa4caaf12ada0a1fb5d99b"},
@@ -1940,8 +1940,8 @@ pytest = [
     {file = "pytest-7.1.1.tar.gz", hash = "sha256:841132caef6b1ad17a9afde46dc4f6cfa59a05f9555aae5151f73bdf2820ca63"},
 ]
 pytest-asyncio = [
-    {file = "pytest-asyncio-0.18.2.tar.gz", hash = "sha256:fc8e4190f33fee7797cc7f1829f46a82c213f088af5d1bb5d4e454fe87e6cdc2"},
-    {file = "pytest_asyncio-0.18.2-py3-none-any.whl", hash = "sha256:20db0bdd3d7581b2e11f5858a5d9541f2db9cd8c5853786f94ad273d466c8c6d"},
+    {file = "pytest-asyncio-0.18.3.tar.gz", hash = "sha256:7659bdb0a9eb9c6e3ef992eef11a2b3e69697800ad02fb06374a210d85b29f91"},
+    {file = "pytest_asyncio-0.18.3-py3-none-any.whl", hash = "sha256:8fafa6c52161addfd41ee7ab35f11836c5a16ec208f93ee388f752bea3493a84"},
 ]
 python-telegram-bot = [
     {file = "python-telegram-bot-13.11.tar.gz", hash = "sha256:baeff704baa2ac3dc17a944c02da888228ad258e89be2e5bcbd13a8a5102d573"},
@@ -2144,8 +2144,8 @@ urllib3 = [
     {file = "urllib3-1.26.9.tar.gz", hash = "sha256:aabaf16477806a5e1dd19aa41f8c2b7950dd3c746362d7e3223dbe6de6ac448e"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.13.4-py2.py3-none-any.whl", hash = "sha256:c3e01300fb8495bc00ed70741f5271fc95fed067eb7106297be73d30879af60c"},
-    {file = "virtualenv-20.13.4.tar.gz", hash = "sha256:ce8901d3bbf3b90393498187f2d56797a8a452fb2d0d7efc6fd837554d6f679c"},
+    {file = "virtualenv-20.14.0-py2.py3-none-any.whl", hash = "sha256:1e8588f35e8b42c6ec6841a13c5e88239de1e6e4e4cedfd3916b306dc826ec66"},
+    {file = "virtualenv-20.14.0.tar.gz", hash = "sha256:8e5b402037287126e81ccde9432b95a8be5b19d36584f64957060a3488c11ca8"},
 ]
 yarl = [
     {file = "yarl-1.7.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:f2a8508f7350512434e41065684076f640ecce176d262a7d54f0da41d99c5a95"},

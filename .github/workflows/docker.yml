@@ -14,6 +14,9 @@ on:
         description: "tag of the image"
         required: true
         type: string
+  push:
+    paths:
+      - ".github/workflows/docker.yml"
 
 jobs:
   build-release-docker:
@@ -37,5 +40,5 @@ jobs:
           push: true
           file: ./docker/Dockerfile
           tags: |
-            qzone3tg:${{ inputs.VERSION_TAG }}
+            qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
             qzone3tg:latest

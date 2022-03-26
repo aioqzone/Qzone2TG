@@ -1,12 +1,13 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.2.7.dev0"
+version = "0.2.7.dev1"
 description = "Forward Qzone feeds to telegram."
 authors = ["JamzumSum <zzzzss990315@gmail.com>"]
 readme = "README.md"
 license = "AGPL-3.0"
 homepage = "https://github.com/JamzumSum/Qzone2TG"
 repository = "https://github.com/JamzumSum/Qzone2TG"
+documentation = "https://jamzumsum.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
 python = "~3.10.2"

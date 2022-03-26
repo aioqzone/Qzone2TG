@@ -238,8 +238,8 @@ class Settings(BaseSettings):
     bot: BotConf
     """bot配置: :class:`.BotConf`"""
 
-    def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())  # type: ignore
+    def load_secrets(self, secrets_dir: Optional[DirectoryPath] = None):
+        secrets = UserSecrets(_secrets_dir=secrets_dir and secrets_dir.as_posix())  # type: ignore
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self
