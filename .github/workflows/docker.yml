@@ -14,9 +14,6 @@ on:
         description: "tag of the image"
         required: true
         type: string
-  push:
-    paths:
-      - ".github/workflows/docker.yml"
 
 jobs:
   build-release-docker:
