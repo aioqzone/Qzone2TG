@@ -3,14 +3,11 @@ name: Sphinx Build and Deploy
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths:
       - doc/**
       - ".github/workflows/sphinx.yml"
-      # ci.yml will handle these pushes
-      - "!src/**"
-      - "!test/**"
-      - "!poetry.lock"
 
 jobs:
   sphinx-build-deploy:

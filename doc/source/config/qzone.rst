@@ -1,5 +1,6 @@
 Qzone 配置
 ==============
 
-.. autopydantic_settings:: qzone3tg.settings.QzoneConf
-    :members:
+.. currentmodule:: qzone3tg.settings
+
+.. autopydantic_settings:: QzoneConf

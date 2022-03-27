@@ -4,6 +4,8 @@ Forward Qzone feeds to telegram.
 
 > Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
+[简体中文](README.zh-CN.md)
+
 ## Deploy
 
 > No official image has been released now. You might build one on your own.
@@ -17,14 +19,16 @@ docker-compose -f docker/docker-compose.yml up -d
 
 ## Config
 
+> See: [Quick Start](https://jamzumsum.github.io/Qzone2TG/quickstart.html#id3)
+
 Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are supported. See [config/test.yml](config/test.yml) for the minimal and maximal config examples.
 
 Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.
 
 ## Documents and Tutorials
 
-- [Qzone3TG Documents](#)
-- Author's blog: [Qzone3TG Topic](#)
+- [Qzone3TG Documents](https://jamzumsum.github.io/Qzone2TG)
+- Author's blog: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
 
 ## License
 

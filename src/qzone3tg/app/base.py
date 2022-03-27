@@ -5,7 +5,7 @@ import logging
 import logging.config
 from collections import defaultdict
 from pathlib import Path
-from typing import Type, Union, cast
+from typing import Type, Union
 
 import qzemoji as qe
 import telegram as tg
@@ -28,6 +28,13 @@ from .storage import AsyncEngine, DefaultStorageHook
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
+
+
+class FakeLock(object):
+    __slots__ = ()
+
+    def acquire(self, _):
+        pass
 
 
 class BaseApp:
@@ -60,6 +67,8 @@ class BaseApp:
             workers=0,
         )
         self.init_hooks()
+        # init a fake lock since subclass impls this protocol but BaseApp needn't
+        self.fetch_lock = FakeLock()
 
     # --------------------------------
     #            properties
@@ -249,7 +258,12 @@ class BaseApp:
         if first_run:
             await self.license(self.conf.bot.admin)
 
-        await self.bot.send_message(self.conf.bot.admin, "bot初始化完成，发送 /start 启动 🚀")
+        if self.conf.bot.auto_start:
+            await self.bot.send_message(self.admin, "Auto Start 🚀")
+            task = self.add_hook_ref("command", self.fetch(self.admin))
+            self.fetch_lock.acquire(task)  # type: ignore
+        else:
+            await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
 
         # idle
         while True:

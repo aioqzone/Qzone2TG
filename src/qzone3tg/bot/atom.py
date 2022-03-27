@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
-from aioqzone.type import AtEntity, ConEntity, TextEntity
+from aioqzone.type.entity import AtEntity, ConEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl

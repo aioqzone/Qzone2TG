@@ -3,7 +3,7 @@ import asyncio
 
 import qzemoji as qe
 from aiohttp import ClientSession as Session
-from aioqzone.type import LikeData, PersudoCurkey
+from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -41,14 +41,13 @@ class InteractApp(BaseApp):
         "start": "刷新",
         "status": "获取运行状态",
         "relogin": "强制重新登陆",
-        "em": "自定义表情代码，如 /em 400343 🐷",
+        "em": "自定义表情代码，如 /em 400343 🐷；导出自定义表情，/em export",
         "help": "帮助",
     }
 
     def __init__(self, sess: Session, store: AsyncEngine, conf: Settings) -> None:
         super().__init__(sess, store, conf)
         self.fetch_lock = LockFilter()
-        self.set_commands()
 
     # --------------------------------
     #            hook init
@@ -140,6 +139,7 @@ class InteractApp(BaseApp):
                 key=safe_asposix(self.conf.bot.init_args.key),
                 **kw,
             )
+        self.set_commands()
         return await super().run()
 
     # --------------------------------
@@ -199,8 +199,11 @@ class InteractApp(BaseApp):
                 msg = f'示例： /em {eid} {(await qe.query(eid)) or "😅"}'
                 for ext in ["gif", "png", "jpg"]:
                     async with self.sess.get(qe.utils.build_html(eid, ext=ext)) as r:
+                        if r.status != 200:
+                            continue
                         b = await r.content.read()
                         self.add_hook_ref("command", self.bot.send_photo(chat.id, b, msg))
+                    break
 
             self.add_hook_ref("command", show_eid(eid))
             return

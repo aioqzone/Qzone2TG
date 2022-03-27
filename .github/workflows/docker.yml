@@ -1,6 +1,6 @@
 # This workflow builds docker image and pushes it.
 
-name: Build and Release
+name: Build Docker Image
 
 on:
   workflow_call:
@@ -37,5 +37,5 @@ jobs:
           push: true
           file: ./docker/Dockerfile
           tags: |
-            qzone3tg:${{ inputs.VERSION_TAG }}
+            qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
             qzone3tg:latest

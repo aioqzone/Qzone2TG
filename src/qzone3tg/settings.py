@@ -21,7 +21,7 @@ __all__ = ["Settings"]
 
 
 class StorageConfig(BaseModel):
-    """Bot 存储配置。Bot 将保留说说的一部分必要参数，用于验证说说是否已爬取、已发送，以及用于点赞、取消赞等.
+    """Bot 存储配置，对应 ``bot.storage``。Bot 将保留说说的一部分必要参数，用于验证说说是否已爬取、已发送，以及用于点赞、取消赞等.
     存储的信息不包括说说内容, 但通常能够通过存储的参数复原说说内容."""
 
     database: Optional[Path] = None
@@ -33,7 +33,7 @@ class StorageConfig(BaseModel):
 
 
 class BotDefaultConf(BaseModel):
-    """Bot 的一些默认值配置。包括禁止通知、禁止链接预览等.
+    """对应 ``bot.default``. Bot 的一些默认值配置。包括禁止通知、禁止链接预览等.
 
     See: :external:class:`telegram.ext.Defaults`"""
 
@@ -43,7 +43,7 @@ class BotDefaultConf(BaseModel):
 
 
 class PollingConf(BaseModel):
-    """顾名思义，Polling 模式通过频繁地向 telegram 查询消息来确保能够响应用户的命令.
+    """对应 ``bot.init_args``. 顾名思义，Polling 模式通过频繁地向 telegram 查询消息来确保能够响应用户的命令.
     比 webhook 简单、要求低，适合测试使用.
 
     See: :external:meth:`telegram.ext.Updater.start_polling`"""
@@ -61,7 +61,7 @@ class PollingConf(BaseModel):
 
 
 class WebhookConf(BaseModel):
-    """Webhook 的原理是在本机启动一个小型服务器以接收 telegram api 的更新消息. 因为不必时时从 telegram 查询更新，
+    """对应 ``bot.init_args``. Webhook 的原理是在本机启动一个小型服务器以接收 telegram api 的更新消息. 因为不必时时从 telegram 查询更新，
     webhook 的效率更高，资源消耗更少. 用户需要保证 telegram api 能够通过 `destination` 访问到这个服务器.
 
     此外，由于 telegram api 的限制，对 webhook destination 的请求必须开启 SSL. 因此您可能需要域名（和证书）才能使用 webhook.
@@ -109,7 +109,7 @@ class WebhookConf(BaseModel):
 
 
 class NetworkConf(BaseModel):
-    """网络配置。包括代理和等待时间自定义优化。"""
+    """网络配置，对应配置文件中的 ``bot.network``. 包括代理和等待时间自定义优化。"""
 
     proxy: Optional[AnyUrl] = Field(None, env="HTTPS_PROXY")  # support http(s); socks(5(h)).
     """代理设置，支持 `http` 和 `socks` 代理. 代理将用于向 `telegram api` 和 `github` 发送请求.
@@ -131,6 +131,8 @@ class NetworkConf(BaseModel):
 
 
 class BotConf(BaseModel):
+    """对应配置文件中的 ``bot`` 项。"""
+
     admin: int
     """管理员用户ID，唯一指明管理员. bot 只响应管理员的指令. """
 
@@ -153,17 +155,22 @@ class BotConf(BaseModel):
 
     send_gif_as_anim: bool = True
     """当此项为 ``False`` 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
-    在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`SendPhoto`) 发送给
+    在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`~SendPhoto`) 发送给
     telegram，最终导致用户收到的 gif 链接“不会动”.
 
     .. warning::
         开启此项会导致额外的服务器流量和额外的连接时间（向Qzone服务器请求图片）.
         用户可以根据需要关闭.
     """
+    auto_start: bool = False
+    """是否在程序启动后自动运行一次更新（``/start``）。默认为 ``False``.
+
+    .. versionadded:: 0.2.7.dev2
+    """
 
 
 class QzoneConf(BaseModel):
-    """对应配置文件中的 `qzone` 项。包含要登陆的QQ账户信息和爬虫相关的设置。"""
+    """对应配置文件中的 ``qzone`` 项。包含要登陆的QQ账户信息和爬虫相关的设置。"""
 
     uin: int = Field(alias="qq")
     """QQ账号"""
@@ -186,12 +193,21 @@ class QzoneConf(BaseModel):
 
 
 class LogConf(BaseModel):
-    """日志配置，支持配置文件."""
+    """日志配置，对应配置文件中的 ``log`` 项。
+
+    .. seealso:: :external+python:mod:`logging 模块 <logging>`"""
 
     level: Optional[str] = "INFO"
+    """日志等级。`NOTSET` < `DEBUG` < `INFO` < `WARNING` < `ERROR` < `FATAL`."""
     format: Optional[str] = None
+    """格式字符串。
+
+    .. seealso:: `Formatter Objects <https://docs.python.org/3.10/library/logging.html#formatter-objects>`_"""
     datefmt: Optional[str] = None
     conf: Optional[FilePath] = None
+    """日志配置文件，指定此项将导致其他配置被忽略，因为您可以在日志配置文件中指定更详细更复杂的配置。
+
+    .. seealso:: `logging.config.fileConfig <https://docs.python.org/3.10/library/logging.config.html#logging.config.fileConfig>`_"""
 
 
 class UserSecrets(BaseSettings):
@@ -227,19 +243,20 @@ class UserSecrets(BaseSettings):
 
 
 class Settings(BaseSettings):
-    """`Qzone3TG` 的配置文件。主要为两部分：`Qzone` 配置 和 `TG` 配置. 除此之外还包括日志配置等杂项."""
+    """:program:`Qzone3TG` 的配置文件。目前包括三大项：:class:`bot <.BotConf>`,
+    :class:`log <.LogConf>`, :class:`qzone <.QzoneConf>`."""
 
     log: LogConf = LogConf()
-    """日志配置: :class:`.LogConf`"""
+    """日志配置: :class:`.LogConf`, 对应 `log` 项"""
 
     qzone: QzoneConf
-    """爬虫配置: :class:`.QzoneConf`"""
+    """爬虫配置: :class:`.QzoneConf`, 对应 `qzone` 项"""
 
     bot: BotConf
-    """bot配置: :class:`.BotConf`"""
+    """bot配置: :class:`.BotConf`, 对应 `bot` 项"""
 
-    def load_secrets(self, secrets_dir: DirectoryPath):
-        secrets = UserSecrets(_secrets_dir=secrets_dir.as_posix())  # type: ignore
+    def load_secrets(self, secrets_dir: Optional[DirectoryPath] = None):
+        secrets = UserSecrets(_secrets_dir=secrets_dir and secrets_dir.as_posix())  # type: ignore
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self

@@ -1,4 +1,4 @@
-from aioqzone.type import TextEntity
+from aioqzone.type.entity import TextEntity
 from aioqzone_feed.type import FeedContent, VisualMedia
 from pydantic import BaseModel, HttpUrl
 from telegram import Message

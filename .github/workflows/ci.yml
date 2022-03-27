@@ -21,8 +21,8 @@ jobs:
     with:
       pytest_arg: test
     secrets:
-      TEST_PASSWORD: aabaaaba
-      TEST_TOKEN: helloworld
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
 
   merge:
     needs: test
@@ -36,7 +36,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: ${{ needs.test.outputs.package-version }}
           pr_body: ${{ github.event.head_commit.message }} # only push event has head_commit
-
-  sphinx:
-    needs: test
-    uses: ./.github/workflows/sphinx.yml
