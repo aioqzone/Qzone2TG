@@ -38,7 +38,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "aioqzone"
-version = "0.5.0.dev1"
+version = "0.5.0.dev2"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -61,7 +61,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/JamzumSum/aioqzone.git"
 reference = "beta"
-resolved_reference = "240e6837a207b9574a0f29382821fbe5b13bea95"
+resolved_reference = "789d4685ae9a2648af8eea2b1e3a886387db4b9c"
 
 [[package]]
 name = "aioqzone-feed"
