@@ -21,8 +21,8 @@ jobs:
     with:
       pytest_arg: test
     secrets:
-      TEST_PASSWORD: aabaaaba
-      TEST_TOKEN: helloworld
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
 
   merge:
     needs: test
