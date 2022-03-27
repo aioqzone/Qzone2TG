@@ -3,7 +3,7 @@ import asyncio
 
 import qzemoji as qe
 from aiohttp import ClientSession as Session
-from aioqzone.type import LikeData, PersudoCurkey
+from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (

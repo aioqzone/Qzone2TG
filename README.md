@@ -19,6 +19,8 @@ docker-compose -f docker/docker-compose.yml up -d
 
 ## Config
 
+> See: [Quick Start](https://jamzumsum.github.io/Qzone2TG/quickstart.html#id3)
+
 Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are supported. See [config/test.yml](config/test.yml) for the minimal and maximal config examples.
 
 Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.

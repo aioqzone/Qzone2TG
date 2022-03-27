@@ -7,11 +7,11 @@ services:
     container_name: qzone
     image: qzone3tg:latest  # ghcr.io/JamzumSum/qzone3tg:latest
     environment:
-      password: ${PWD}
+      password: ${PASSWD}
       token: ${TOKEN}
       log.conf: config/log.ini
       qzone.qq: ${UIN}
-      bot.admin: ${PWD}
+      bot.admin: ${ADMIN}
       bot.storage.database: data/${UIN}.db
       # bot.network.proxy: socks5h://host.docker.internal:7890
     network_mode: host

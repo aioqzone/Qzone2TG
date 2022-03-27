@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 from typing import cast
 
-from aioqzone.type import FeedRep
+from aioqzone.type.resp import FeedRep
 from aioqzone_feed.type import BaseFeed
 from aioqzone_feed.utils.task import AsyncTimer
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine

@@ -1,6 +1,6 @@
 # This workflow builds docker image and pushes it.
 
-name: Build and Release
+name: Build Docker Image
 
 on:
   workflow_call:

@@ -62,7 +62,10 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 # external inventory
-intersphinx_mapping = {"telegram": ("https://python-telegram-bot.readthedocs.io/en/stable/", None)}
+intersphinx_mapping = {
+    "telegram": ("https://python-telegram-bot.readthedocs.io/en/stable/", None),
+    "python": ("https://docs.python.org/3.10/", None),
+}
 
 # autodoc_pydantic settings
 autodoc_pydantic_settings_show_json = False
