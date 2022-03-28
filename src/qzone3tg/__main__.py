@@ -4,6 +4,7 @@ from pathlib import Path
 
 import yaml
 from aiohttp import ClientSession
+from pydantic import ValidationError
 
 from qzone3tg.app.interact import InteractApp
 from qzone3tg.app.storage import AsyncEnginew
@@ -48,8 +49,17 @@ if __name__ == "__main__":
         print(VERSION)
         exit(0)
 
-    assert args.conf.exists(), f"配置文件{args.conf}不存在"
-    with open(args.conf) as f:
-        d = yaml.safe_load(f)
-    conf = Settings(**d).load_secrets(args.secrets)
+    d = {}
+    if args.conf.exists():
+        with open(args.conf) as f:
+            d = yaml.safe_load(f)
+    # support for a entire env-settings
+
+    try:
+        conf = Settings(**d).load_secrets(args.secrets)
+    except ValidationError as e:
+        if args.conf.exists():
+            raise e
+        raise FileNotFoundError(args.conf)
+
     exit(asyncio.run(main(conf)))

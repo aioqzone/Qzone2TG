@@ -13,6 +13,7 @@ import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
+from aioqzone_feed.utils.task import AsyncTimer
 from pydantic import AnyUrl
 from qqqr.exception import UserBreak
 
@@ -105,11 +106,16 @@ class BaseApp:
     @property
     def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
         class inner_feed_hook(DefaultFeedHook):
-            async def HeartbeatRefresh(_, num):
+            async def HeartbeatRefresh(_, num):  # type: ignore
                 await super().HeartbeatRefresh(num)
                 return self.add_hook_ref(
                     "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
                 )
+
+            async def HeartbeatFailed(_, exc):  # type: ignore
+                await super().HeartbeatFailed(exc)
+                info = f"（{exc}）" if exc else ""
+                await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
 
         return inner_feed_hook
 
@@ -179,7 +185,21 @@ class BaseApp:
             logging.basicConfig(**default)
 
         self.log = logging.getLogger(self.__class__.__name__)
-        return self.log
+
+        # register debug status timer
+        if conf.debug_status_interval <= 0:
+            return
+
+        async def dst_forever():
+            await self.status(self.admin, debug=True)
+            return False
+
+        self._dst = AsyncTimer(
+            conf.debug_status_interval,
+            dst_forever,
+            name="/status debug",
+            delay=conf.debug_status_interval,
+        )
 
     def silent_noisy_logger(self):
         """Silent some noisy logger in other packages."""
@@ -261,9 +281,11 @@ class BaseApp:
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
             task = self.add_hook_ref("command", self.fetch(self.admin))
-            self.fetch_lock.acquire(task)  # type: ignore
+            self.fetch_lock.acquire(task)
+            task.add_done_callback(lambda _: self._dst())
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
+            self._dst()
 
         # idle
         while True:
@@ -334,7 +356,7 @@ class BaseApp:
         LICENSE_TEXT = """用户协议"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
-    async def status(self, to: ChatId):
+    async def status(self, to: ChatId, debug: bool = False):
         from aioqzone.utils.time import sementic_time
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
@@ -344,5 +366,10 @@ class BaseApp:
             "上次心跳": ts2a(self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(self.store.cl.last_call),
         }
+        if debug:
+            dbg_dic = {
+                "updater.running": repr(self.updater.running),
+            }
+            stat_dic.update(dbg_dic)
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
         await self.bot.send_message(to, statm)

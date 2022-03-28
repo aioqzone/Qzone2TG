@@ -2,6 +2,9 @@
 
 转发说说到 Telegram.
 
+[![Dev CI](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml)
+[![Sphinx](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
+
 > 注意：Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
 
 [English](README.md)
@@ -27,7 +30,7 @@ Qzone3TG 使用 [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) �
 
 ## 文档和教程
 
-- [Qzone3TG 文档](https://jamzumsum.github.io/Qzone2TG)
+- [Qzone3TG 文档][doc]
 - 博客专题: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
 
 ## License
@@ -48,3 +51,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
+
+
+[doc]: https://jamzumsum.github.io/Qzone2TG

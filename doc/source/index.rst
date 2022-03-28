@@ -13,6 +13,7 @@ Welcome to Qzone3TG's documentation!
    quickstart
    config/index
    build
+   reference
 
 
 索引 & 搜索

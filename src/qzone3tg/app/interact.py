@@ -162,7 +162,11 @@ class InteractApp(BaseApp):
     def status(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
-        task = self.add_hook_ref("command", super().status(chat.id))
+        if context.args and len(context.args) == 1 and context.args[0].lower() == "debug":
+            coro = super().status(chat.id, debug=True)
+        else:
+            coro = super().status(chat.id)
+        task = self.add_hook_ref("command", coro)
 
     def relogin(self, update: Update, context: CallbackContext):
         chat = update.effective_chat

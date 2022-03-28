@@ -988,7 +988,7 @@ reference = "tsinghua"
 
 [[package]]
 name = "sphinx"
-version = "4.4.0"
+version = "4.5.0"
 description = "Python documentation generator"
 category = "main"
 optional = true
@@ -1056,6 +1056,28 @@ sphinx = ">=1.6"
 
 [package.extras]
 dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
+name = "sphinx-tabs"
+version = "3.3.1"
+description = "Tabbed views for Sphinx"
+category = "main"
+optional = true
+python-versions = "~=3.6"
+
+[package.dependencies]
+docutils = ">=0.17.0,<0.18.0"
+pygments = "*"
+sphinx = ">=2,<5"
+
+[package.extras]
+code_style = ["pre-commit (==2.13.0)"]
+testing = ["coverage", "pytest (>=3.6,<4)", "pytest-cov", "pytest-regressions", "pygments", "sphinx-testing", "bs4", "rinohtype"]
 
 [package.source]
 type = "legacy"
@@ -1346,12 +1368,12 @@ reference = "tsinghua"
 
 [extras]
 dev = ["pre-commit", "black", "isort"]
-doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
+doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-theme", "sphinx-tabs"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "05b00e4892956643b91116d41bd647315e2b51a910a08715fb6d8c40695f28e0"
+content-hash = "32f24d9cf9c1092d618ae348e0cf76de4e7408d1aebab317ac12d53be3231c97"
 
 [metadata.files]
 aiofiles = [
@@ -2004,8 +2026,8 @@ snowballstemmer = [
     {file = "snowballstemmer-2.2.0.tar.gz", hash = "sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1"},
 ]
 sphinx = [
-    {file = "Sphinx-4.4.0-py3-none-any.whl", hash = "sha256:5da895959511473857b6d0200f56865ed62c31e8f82dd338063b84ec022701fe"},
-    {file = "Sphinx-4.4.0.tar.gz", hash = "sha256:6caad9786055cb1fa22b4a365c1775816b876f91966481765d7d50e9f0dd35cc"},
+    {file = "Sphinx-4.5.0-py3-none-any.whl", hash = "sha256:ebf612653238bcc8f4359627a9b7ce44ede6fdd75d9d30f68255c7383d3a6226"},
+    {file = "Sphinx-4.5.0.tar.gz", hash = "sha256:7bf8ca9637a4ee15af412d1a1d9689fec70523a68ca9bb9127c2f3eeb344e2e6"},
 ]
 sphinx-autodoc-typehints = [
     {file = "sphinx_autodoc_typehints-1.17.0-py3-none-any.whl", hash = "sha256:081daf53077b4ae1c28347d6d858e13e63aefe3b4aacef79fd717dd60687b470"},
@@ -2014,6 +2036,10 @@ sphinx-autodoc-typehints = [
 sphinx-rtd-theme = [
     {file = "sphinx_rtd_theme-1.0.0-py2.py3-none-any.whl", hash = "sha256:4d35a56f4508cfee4c4fb604373ede6feae2a306731d533f409ef5c3496fdbd8"},
     {file = "sphinx_rtd_theme-1.0.0.tar.gz", hash = "sha256:eec6d497e4c2195fa0e8b2016b337532b8a699a68bcb22a512870e16925c6a5c"},
+]
+sphinx-tabs = [
+    {file = "sphinx-tabs-3.3.1.tar.gz", hash = "sha256:d10dd7fb2700329b8e5948ab9f8e3ef54fff30f79d2e42cfd1b0089ae26e8c5e"},
+    {file = "sphinx_tabs-3.3.1-py3-none-any.whl", hash = "sha256:73209aa769246501f6de9e33051cfd2d54f5900e0cc28a63367d8e4af4c0db5d"},
 ]
 sphinxcontrib-applehelp = [
     {file = "sphinxcontrib-applehelp-1.0.2.tar.gz", hash = "sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58"},

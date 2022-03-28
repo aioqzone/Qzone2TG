@@ -2,9 +2,12 @@
 
 Forward Qzone feeds to telegram.
 
+[![Dev CI](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml)
+[![Sphinx](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
+
 > Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
-[简体中文](README.zh-CN.md)
+[简体中文](README.zh-cn.md)
 
 ## Deploy
 
@@ -27,7 +30,7 @@ Since environment variable style configuration is fully supported, one can merge
 
 ## Documents and Tutorials
 
-- [Qzone3TG Documents](https://jamzumsum.github.io/Qzone2TG)
+- [Qzone3TG Documents][doc]
 - Author's blog: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
 
 ## License
@@ -48,3 +51,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
+
+
+[doc]: https://jamzumsum.github.io/Qzone2TG
