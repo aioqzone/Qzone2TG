@@ -369,6 +369,7 @@ class BaseApp:
         if debug:
             dbg_dic = {
                 "updater.running": repr(self.updater.running),
+                "/status timer": self._dst.state,
             }
             stat_dic.update(dbg_dic)
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
