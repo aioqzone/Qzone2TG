@@ -1,12 +1,11 @@
-# This compose yaml is for starting up qzone3tg container.
-# Substitute any environment variables on demand;
-# or a .env file in docker folder is okay.
 version: "3"
 services:
   qzone:
     container_name: qzone
-    image: qzone3tg:latest  # ghcr.io/JamzumSum/qzone3tg:latest
+    image: ghcr.io/jamzumsum/qzone3tg:latest
     environment:
+      # 您可以直接将下列配置中的变量替换为实际值
+      # 也可以在 docker 目录中新建 .env 文件并定义这些变量。
       password: ${PASSWD}
       token: ${TOKEN}
       log.conf: config/log.ini
@@ -19,5 +18,6 @@ services:
       - ../config:/app/config:ro
       - qzone-data:/app/data
       # - ../data:/app/data   # choose a syntax as you like
+      # - ../log:/app/log
 volumes:
   qzone-data:

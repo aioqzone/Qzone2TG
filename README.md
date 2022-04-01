@@ -4,6 +4,7 @@ Forward Qzone feeds to telegram.
 
 [![Dev CI](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
+[![ghcr.io](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
 
 > Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
@@ -11,14 +12,15 @@ Forward Qzone feeds to telegram.
 
 ## Deploy
 
-> No official image has been released now. You might build one on your own.
-
-Build and startup docker image:
+We support and only support docker deployment. Currently we have published our pre-built images
+to [ghcr.io][ghcr].
 
 ``` sh
-docker build -f docker/Dockerfile --network host -t qzone3tg:latest .
+# you may save a copy of this file and modify it.
 docker-compose -f docker/docker-compose.yml up -d
 ```
+
+> If you'd like build a image by yourself, see documentation: [build](https://jamzumsum.github.io/Qzone2TG/build.html#docker)
 
 ## Config
 
@@ -54,3 +56,4 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 [doc]: https://jamzumsum.github.io/Qzone2TG
+[ghcr]: https://github.com/JamzumSum/Qzone2TG/pkgs/container/qzone3tg/latest
