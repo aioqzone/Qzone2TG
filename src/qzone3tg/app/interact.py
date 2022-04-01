@@ -153,10 +153,13 @@ class InteractApp(BaseApp):
         self.fetch_lock.acquire(task)
 
     def help(self, update: Update, context: CallbackContext):
+        from .. import DOCUMENT
+
         chat = update.effective_chat
         assert chat
         helpm = "\n".join(f"/{k} - {v}" for k, v in self.commands.items())
         helpm += "\n\n讨论群：@qzone2tg_discuss"
+        helpm += f"\n文档：{DOCUMENT}/usage.html"
         task = self.add_hook_ref("command", self.bot.send_message(chat.id, helpm))
 
     def status(self, update: Update, context: CallbackContext):
@@ -207,7 +210,9 @@ class InteractApp(BaseApp):
                             continue
                         b = await r.content.read()
                         self.add_hook_ref("command", self.bot.send_photo(chat.id, b, msg))
-                    break
+                    return
+                else:
+                    echo(f"eid={eid}不存在，请检查输入")
 
             self.add_hook_ref("command", show_eid(eid))
             return

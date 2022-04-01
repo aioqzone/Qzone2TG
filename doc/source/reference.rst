@@ -5,6 +5,10 @@ References
 Terms
 -------------------------
 
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Update Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. glossary::
 
    polling
@@ -17,6 +21,13 @@ Terms
 
       .. seealso:: :external:meth:`telegram.ext.Updater.start_polling`
 
+
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Proxy
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. glossary::
+
    http_proxy
       支持 ``http`` ``https``. 支持指定用户名和密码，如 `!https://username:password@your.proxy.com:1234`
 
@@ -24,16 +35,26 @@ Terms
       支持 ``socks`` ``socks5`` ``socks5h``. Supported by `pysocks <https://pypi.org/project/PySocks/>`_.
       支持用户名和密码，如 `!socks5h://username:password@your.proxy.com:7890`.
 
+
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Miscellaneous
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. glossary::
+
    docker secrets
       这里主要指 docker compose 对 secrets 的支持。见 `compose-file-v3/secrets <https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets>`_ 。
       您在 :file:`docker-compose.yml` 中指定 ``secrets`` 后，对应的 ``secrets`` 会以文件的形式映射到 :file:`/run/secrets`.
       这也是 :option:`qzone3tg -s` 的默认值。
 
+
 --------------------------
 Programs
 --------------------------
 
-.. rubric:: Module: qzone3tg
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Module: qzone3tg
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. program:: qzone3tg
 

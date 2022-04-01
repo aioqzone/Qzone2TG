@@ -15,6 +15,9 @@ on:
         required: true
         type: string
 
+permissions:
+  packages: write
+
 jobs:
   build-release-docker:
     runs-on: ubuntu-latest
@@ -37,5 +40,5 @@ jobs:
           push: true
           file: ./docker/Dockerfile
           tags: |
-            qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
-            qzone3tg:latest
+            ghcr.io/qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
+            ghcr.io/qzone3tg:latest

@@ -5,6 +5,7 @@ import logging
 import logging.config
 from collections import defaultdict
 from pathlib import Path
+from time import time
 from typing import Type, Union
 
 import qzemoji as qe
@@ -39,6 +40,8 @@ class FakeLock(object):
 
 
 class BaseApp:
+    start_time = 0
+
     def __init__(self, sess: Session, engine: AsyncEngine, conf: Settings) -> None:
         super().__init__()
         assert conf.bot.token
@@ -287,6 +290,8 @@ class BaseApp:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
             self._dst()
 
+        self.start_time = time()
+
         # idle
         while True:
             try:
@@ -361,6 +366,7 @@ class BaseApp:
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
         stat_dic = {
+            "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
             "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
             "上次心跳": ts2a(self.qzone.hb_timer.last_call),
@@ -369,7 +375,12 @@ class BaseApp:
         if debug:
             dbg_dic = {
                 "updater.running": repr(self.updater.running),
+                "/status timer": self._dst.state,
             }
             stat_dic.update(dbg_dic)
+            # restart timer if stopped
+            if self._dst.state != "PENDING":
+                self._dst()
+
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
         await self.bot.send_message(to, statm)

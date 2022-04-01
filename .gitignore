@@ -1,18 +1,25 @@
+# IDE, local settings
 .vscode
 .env
 
+# build, metadata and distribution
 *.pyc
 *.egg-info
-tmp
-archive
-
 /dist
 /build
-/config/*
-!/config/test*
 
-/doc/*
-!/doc/source
-
+# tempfiles, log, huge files
+tmp
 /log
 /data
+
+# personal info
+/config/*
+!/config/test*
+/docker/*.yml
+!/docker/docker-compose.yml
+
+# useless documents and archives
+archive
+/doc/*
+!/doc/source
