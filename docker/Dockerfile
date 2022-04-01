@@ -1,3 +1,5 @@
+LABEL org.opencontainers.image.source=https://github.com/JamzumSum/Qzone2TG
+
 FROM python:3.10 as build
 
 COPY . /app
