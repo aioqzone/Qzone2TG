@@ -10,7 +10,7 @@ Qzone3TG 支持且仅支持 docker 部署。当然，若您是 Python 开发者�
 0. 确保您的服务器上安装了 :program:`docker`，确保能够使用 :program:`docker-compose`。
 1. Qzone3TG 支持文件配置和环境变量配置：:download:`文件配置模板 <../../config/test.yml>`；:download:`docker-compose 模板 <../../docker/docker-compose.yml>`。
 2. 按照下文提供的范例编辑您的配置文件，配置的具体含义见 :doc:`文档 <config/index>`。
-3. 运行：:command:`docker-compose up -d`。
+3. 运行：:command:`docker-compose up -f docker/my-compose.yml -d`。
 
 ==============
 配置

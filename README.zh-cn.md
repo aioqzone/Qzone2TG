@@ -4,6 +4,7 @@
 
 [![Dev CI](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/JamzumSum/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
+[![ghcr.io](https://img.shields.io/github/workflow/status/JamzumSum/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
 
 > 注意：Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
 
@@ -11,14 +12,14 @@
 
 ## 部署
 
-> 目前还没有发布官方构建镜像。您可能需要自己构建 docker 镜像。
-
-构建 & 启动:
+我们仅支持 docker 部署。目前我们在 [ghcr.io][ghcr] 发布了镜像。
 
 ``` sh
-docker build -f docker/Dockerfile --network host -t qzone3tg:latest .
+# 或许您应该复制一份文件，并对其中的配置做一些修改。
 docker-compose -f docker/docker-compose.yml up -d
 ```
+
+> 如果您想要自行构建镜像，请查看文档：[build](https://jamzumsum.github.io/Qzone2TG/build.html#docker)
 
 ## 配置
 
@@ -54,3 +55,4 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 [doc]: https://jamzumsum.github.io/Qzone2TG
+[ghcr]: https://github.com/JamzumSum/Qzone2TG/pkgs/container/qzone3tg/latest

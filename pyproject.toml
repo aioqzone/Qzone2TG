@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.2.8a2"
+version = "0.2.8a2.post1"
 description = "Forward Qzone feeds to telegram."
 authors = ["JamzumSum <zzzzss990315@gmail.com>"]
 readme = "README.md"
