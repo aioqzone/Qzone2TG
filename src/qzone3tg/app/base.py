@@ -183,14 +183,14 @@ class BaseApp:
                 "datefmt": "%Y %b %d %H:%M:%S",
                 "level": "INFO",
             }
-            default.update(conf.dict())
-            default.pop("conf", None)
+            default.update(conf.dict(include={"level", "format", "datefmt"}))
             logging.basicConfig(**default)
 
         self.log = logging.getLogger(self.__class__.__name__)
 
         # register debug status timer
         if conf.debug_status_interval <= 0:
+            self._dst = None
             return
 
         async def dst_forever():
@@ -285,10 +285,11 @@ class BaseApp:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
             task = self.add_hook_ref("command", self.fetch(self.admin))
             self.fetch_lock.acquire(task)
-            task.add_done_callback(lambda _: self._dst())
+            task.add_done_callback(lambda _: self._dst and self._dst())
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
-            self._dst()
+            if self._dst:
+                self._dst()
 
         self.start_time = time()
 
@@ -375,11 +376,11 @@ class BaseApp:
         if debug:
             dbg_dic = {
                 "updater.running": repr(self.updater.running),
-                "/status timer": self._dst.state,
+                "/status timer": self._dst and self._dst.state,
             }
             stat_dic.update(dbg_dic)
             # restart timer if stopped
-            if self._dst.state != "PENDING":
+            if self._dst and self._dst.state != "PENDING":
                 self._dst()
 
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
