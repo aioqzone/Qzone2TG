@@ -35,4 +35,3 @@ bot:
     timeout: 10
   send_gif_as_anim: false
   auto_start: True
-  debug_status_interval: 3600
