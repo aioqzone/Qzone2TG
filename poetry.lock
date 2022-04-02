@@ -1403,7 +1403,7 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "56918ad036bd6e0af1e60229da67fce20b7d05a665de470a134fd62594117ed7"
+content-hash = "8cebd68e3f037a9395de0d0163d9fbd048cc507c525c165138c41581b64c1772"
 
 [metadata.files]
 aiofiles = [
