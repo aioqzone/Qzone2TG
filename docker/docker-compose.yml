@@ -2,7 +2,7 @@ version: "3"
 services:
   qzone:
     container_name: qzone
-    image: ghcr.io/jamzumsum/qzone3tg:latest
+    image: ghcr.io/aioqzone/qzone3tg:latest
     environment:
       # 您可以直接将下列配置中的变量替换为实际值
       # 也可以在 docker 目录中新建 .env 文件并定义这些变量。

@@ -17,8 +17,8 @@
 # -- Project information -----------------------------------------------------
 
 project = "Qzone3TG"
-copyright = "2022, JamzumSum"
-author = "JamzumSum"
+copyright = "2022, aioqzone"
+author = "aioqzone"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"  # overwritten by command line options (-D).

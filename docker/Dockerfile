@@ -1,6 +1,8 @@
 FROM python:3.10 as build
 
-LABEL org.opencontainers.image.source=https://github.com/JamzumSum/Qzone2TG
+LABEL org.opencontainers.image.url=https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg
+LABEL org.opencontainers.image.documentation=https://aioqzone.github.io/Qzone2TG
+LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
 
 COPY . /app
 WORKDIR /app
