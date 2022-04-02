@@ -11,4 +11,4 @@ on:
 
 jobs:
   sphinx-build-deploy:
-    uses: JamzumSum/aioqzone/.github/workflows/sphinx.yml@beta
+    uses: aioqzone/aioqzone/.github/workflows/sphinx.yml@beta

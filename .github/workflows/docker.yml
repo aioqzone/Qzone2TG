@@ -40,5 +40,5 @@ jobs:
           push: true
           file: ./docker/Dockerfile
           tags: |
-            ghcr.io/jamzumsum/qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
-            ghcr.io/jamzumsum/qzone3tg:latest
+            ghcr.io/aioqzone/qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG }}
+            ghcr.io/aioqzone/qzone3tg:latest

@@ -1,17 +1,17 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.2.8a2.post1"
+version = "0.2.8a3"
 description = "Forward Qzone feeds to telegram."
-authors = ["JamzumSum <zzzzss990315@gmail.com>"]
+authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
 license = "AGPL-3.0"
-homepage = "https://github.com/JamzumSum/Qzone2TG"
-repository = "https://github.com/JamzumSum/Qzone2TG"
-documentation = "https://jamzumsum.github.io/Qzone2TG"
+homepage = "https://github.com/aioqzone/Qzone2TG"
+repository = "https://github.com/aioqzone/Qzone2TG"
+documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
 python = "~3.10.2"
-aioqzone-feed = {git = "https://github.com/JamzumSum/aioqzone-feed.git", rev = "beta"}
+aioqzone-feed = {git = "https://github.com/aioqzone/aioqzone-feed.git", rev = "beta"}
 python-telegram-bot = {extras = ["socks"], version = "^13.11"}
 PyYAML = "^6.0"
 # extras: dev
