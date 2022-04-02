@@ -7,6 +7,7 @@ log:
   level: 'DEBUG'
   format: "%(message)s"
   datefmt: "%Y %b %d %H:%M:%S"
+  debug_status_interval: 3600
 
 qzone:
   qq: 123
