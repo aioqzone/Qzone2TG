@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class QueueEvent(Event):
     """Basic hook event for storage function."""
 
-    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int]):
+    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] | None = None):
         """Add/Update an record by the given feed and messages id.
 
         :param feed: feed
@@ -122,6 +122,8 @@ class MsgQueue(Emittable[QueueEvent]):
             for i, e in enumerate(self.exc[feed], start=1):
                 if e:
                     logger.debug("Retry %d", i, exc_info=e)
+            # Save the feed even if send failed
+            self.add_hook_ref("storage", self.hook.SaveFeed(feed))
             return
 
         # Save the feed after all sending task is done

@@ -257,7 +257,10 @@ class InteractApp(BaseApp):
 
         def like_trans(likedata: LikeData | None):
             if likedata is None:
-                query.answer(text="记录丢失，请检查数据库")
+                try:
+                    query.answer(text=f"记录已丢失。可能是记录已被清理，或此消息本应发送失败。")
+                except:
+                    pass
                 try:
                     query.edit_message_reply_markup()
                 except:
