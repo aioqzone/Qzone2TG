@@ -194,7 +194,7 @@ class BaseApp:
             return
 
         async def dst_forever():
-            await self.status(self.admin, debug=True)
+            await BaseApp.status(self, self.admin, debug=True)
             return False
 
         self._dst = AsyncTimer(
