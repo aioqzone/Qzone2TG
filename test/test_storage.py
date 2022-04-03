@@ -33,7 +33,7 @@ def fake_feed():
 
 @pytest.fixture(scope="module")
 def fixed():
-    l = [fake_feed(), fake_feed()]
+    l = [fake_feed(), fake_feed(), fake_feed()]
     return l
 
 
@@ -55,23 +55,26 @@ async def test_create(store: DefaultStorageHook):
 
 
 async def test_insert(store: DefaultStorageHook, fixed: list):
-    await store.SaveFeed(fixed[0])
+    await store.SaveFeed(fixed[1])
+    await store.SaveFeed(fixed[2], [1])
 
 
 async def test_exist(store: DefaultStorageHook, fixed: list):
+    assert not await store.exists(fixed[0])
     assert not await store.exists(fixed[1])
-    assert await store.exists(fixed[0])
+    assert await store.exists(fixed[2])
 
 
 async def test_update(store: DefaultStorageHook, fixed: list):
-    feed = await store.get_orm(FeedOrm.fid == fixed[0].fid)
-    assert feed.mids is None  # type: ignore
+    feed = await store.get_orm(FeedOrm.fid == fixed[1].fid)
+    assert feed
+    assert feed.mids is None
 
-    await store.update_message_id(fixed[0], [0])
-    _, mids = await store.get(FeedOrm.fid == fixed[0].fid)  # type: ignore
+    await store.update_message_id(fixed[2], [0])
+    _, mids = await store.get(FeedOrm.fid == fixed[2].fid)  # type: ignore
     assert mids == [0]
 
 
 async def test_remove(store: DefaultStorageHook, fixed: list):
     await store.clean(0)  # clean all
-    assert not await store.exists(fixed[0])
+    assert not await store.exists(fixed[2])
