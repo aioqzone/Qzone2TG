@@ -91,10 +91,10 @@ class BaseApp:
     @property
     def _qr_hook_cls(self) -> Type[DefaultQrHook]:
         class inner_qr_hook(DefaultQrHook):
-            async def LoginSuccess(*a):
+            async def LoginSuccess(hook):  # type: ignore
                 if self.qzone.hb_timer.state != "PENDING":
                     self.qzone.hb_timer()
-                await super().LoginSuccess()
+                await DefaultQrHook.LoginSuccess(hook)
 
         return inner_qr_hook
 
