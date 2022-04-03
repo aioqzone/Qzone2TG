@@ -43,9 +43,9 @@ doc = [
     "sphinx-tabs"
 ]
 
-[[tool.poetry.source]]
-name = "alpine-wheels"
-url = "https://alpine-wheels.github.io/index"
+# [[tool.poetry.source]]
+# name = "alpine-wheels"
+# url = "https://alpine-wheels.github.io/index"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
