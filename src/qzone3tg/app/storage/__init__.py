@@ -99,12 +99,13 @@ class DefaultStorageHook(StorageEvent):
                 await sess.commit()
 
     async def exists(self, feed: BaseFeed | FeedRep) -> bool:
-        """check if a feed exists in this database.
+        """check if a feed exists in this database AND it has a message id.
 
         :param feed: feed to check
-        :return: whether exists
+        :return: whether exists and is sent
         """
-        return await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed))) is not None
+        r: FeedOrm | None = await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed)))
+        return bool(r and r.mids)
 
     async def get_orm(self, *where, sess: AsyncSession | None = None) -> FeedOrm | None:
         """Get a feed orm from database, with given criteria.
