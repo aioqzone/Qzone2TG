@@ -21,13 +21,15 @@ FROM python:3.10-slim as release
 # Though copying the built opencv does work, but cryptography cannot work with this method.
 
 COPY --from=build /app/.venv /venv
+COPY package.json /app
+WORKDIR /app
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     nodejs \
+    && npm install \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 80 88 443 8443
 ENV PATH=/venv/bin:$PATH
-WORKDIR /app
 
-CMD ["python", "-m", "qzone3tg"]
+ENTRYPOINT ["python", "-m", "qzone3tg"]

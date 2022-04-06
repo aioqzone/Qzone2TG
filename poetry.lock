@@ -28,35 +28,28 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aioqzone"
-version = "0.5.1a1"
+version = "0.5.2.dev0"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.11"
-develop = false
 
 [package.dependencies]
-aiohttp = "^3.8.1"
-cssselect = "^1.1.0"
-lxml = "^4.8.0"
-opencv-python-headless = "^4.5.5"
-pydantic = "^1.9.0"
-pytz = "^2022.1"
-rsa = "^4.8"
+aiohttp = ">=3.8.1,<4.0.0"
+cssselect = ">=1.1.0,<2.0.0"
+lxml = ">=4.8.0,<5.0.0"
+opencv-python-headless = ">=4.5.5,<5.0.0"
+pydantic = ">=1.9.0,<2.0.0"
+pytz = ">=2022.1,<2023.0"
+rsa = ">=4.8,<5.0"
 
 [package.extras]
 dev = ["tox (>=3.24.5,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
 doc = ["Sphinx (>=4.5.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (<1.16.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
-[package.source]
-type = "git"
-url = "https://github.com/aioqzone/aioqzone.git"
-reference = "beta"
-resolved_reference = "8b72f61d6afb1ed27930ca02b8a17880e7abb6fe"
-
 [[package]]
 name = "aioqzone-feed"
-version = "0.5.1.dev1"
+version = "0.5.1a1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -64,7 +57,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = {git = "https://github.com/aioqzone/aioqzone.git", branch = "beta"}
+aioqzone = "^0.5.2-alpha.0"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -75,7 +68,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "1cd909c86e34e424a8b621ee4d542cc3e2f865a8"
+resolved_reference = "4cb5d2556dcd841339b976a9865e8072ec362584"
 
 [[package]]
 name = "aiosignal"
@@ -1115,7 +1108,10 @@ aiohttp = [
     {file = "aiohttp-3.8.1-cp39-cp39-win_amd64.whl", hash = "sha256:1c182cb873bc91b411e184dab7a2b664d4fea2743df0e4d57402f7f3fa644bac"},
     {file = "aiohttp-3.8.1.tar.gz", hash = "sha256:fc5471e1a54de15ef71c1bc6ebe80d4dc681ea600e68bfd1cbce40427f0b7578"},
 ]
-aioqzone = []
+aioqzone = [
+    {file = "aioqzone-0.5.2.dev0-py3-none-any.whl", hash = "sha256:7b47bc3ab4d775c63fc21015969d34590d7e296f1789d8abb83b91c0e7b5ccf6"},
+    {file = "aioqzone-0.5.2.dev0.tar.gz", hash = "sha256:cd45679169ce3e0644b450e5e62242f36b9b58f41489dcade8f45d8db101b397"},
+]
 aioqzone-feed = []
 aiosignal = [
     {file = "aiosignal-1.2.0-py3-none-any.whl", hash = "sha256:26e62109036cd181df6e6ad646f91f0dcfd05fe16d0cb924138ff2ab75d64e3a"},

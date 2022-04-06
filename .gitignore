@@ -8,6 +8,12 @@
 /dist
 /build
 
+# venv, node modules
+/venv
+.venv
+.tox
+node_modules
+
 # tempfiles, log, huge files
 tmp
 /log
