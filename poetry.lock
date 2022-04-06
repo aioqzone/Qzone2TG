@@ -57,7 +57,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = "^0.5.2-alpha.0"
+aioqzone = "^0.5.2.dev0"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -68,7 +68,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "4cb5d2556dcd841339b976a9865e8072ec362584"
+resolved_reference = "78e31db1175b6aae7661f873a52a862fa9d7b010"
 
 [[package]]
 name = "aiosignal"
