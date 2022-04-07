@@ -2,3 +2,4 @@
 !/src
 !/poetry.lock
 !/pyproject.toml
+!/package.json
