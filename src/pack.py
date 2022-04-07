@@ -2,10 +2,9 @@
 """
 
 import argparse as ap
-import stat
 import subprocess as sp
 from pathlib import Path
-from shutil import copytree, move, rmtree
+from shutil import copy, move, rmtree
 
 
 def sp_retval(cmd: str) -> str:
@@ -20,39 +19,25 @@ def sp_retval(cmd: str) -> str:
 def check_tools():
     """check if subprocess executables are available."""
     sp_retval("pip --version")
-    if not REQUIREMENT.exists():
-        sp_retval("poetry --version")
-
-
-def ensure_requirement():
-    if not REQUIREMENT.exists():
-        sp_retval(f"poetry export --without-hashes -o {REQUIREMENT.as_posix()}")
-    assert REQUIREMENT.exists()
 
 
 def inst_deps():
     """Install dependencies in `workdir`/.venv"""
-    WORKDIR.mkdir(exist_ok=True)
-    ensure_requirement()
+    DEPDIR.mkdir(exist_ok=True, parents=True)
 
-    if DEPDIR.exists():
-        if DEPDIR.is_dir():
-            rmtree(DEPDIR)
-        else:
-            DEPDIR.unlink()
-    print(f"$ cp {SRC.as_posix()} {DEPDIR.as_posix()}")
-    copytree(SRC, DEPDIR)
-    assert (DEPDIR / "__main__.py").exists()
-
-    args = ["pip", "install", "-r", REQUIREMENT.as_posix(), "-t", DEPDIR.as_posix(), "-i", INDEX]
+    args = ["pip", "install", PROJECT.as_posix(), "-t", DEPDIR.as_posix(), "-i", INDEX]
     print(f"$ {' '.join(args)}")
     p = sp.run(args, stdin=sp.PIPE, capture_output=False)
     p.check_returncode()
-    print("> OK")
 
     for p in DEPDIR.iterdir():
         if p.is_dir() and p.stem == ".dist-info":
             rmtree(p, ignore_errors=True)
+
+    main = DEPDIR / SRC / "__main__.py"
+    dest = DEPDIR / "__main__.py"
+    print(f"$ cp {main.as_posix()} {dest.as_posix()}")
+    copy(main, dest)
 
     return DEPDIR
 
@@ -85,7 +70,6 @@ def pack_app():
     assert (DEPDIR / "__main__.py").exists()
     dest = WORKDIR / OUTNAME
     create_archive(DEPDIR, dest, interpreter=INTERPRETER, compressed=True)
-    # dest.chmod(stat.S_IXUSR)
     return dest
 
 
@@ -93,9 +77,6 @@ def clean_deps():
     """clean workspace if necessary."""
     print(f"$ rm -r {DEPDIR.as_posix()}")
     rmtree(DEPDIR, ignore_errors=True)
-
-    print(f"$ rm {REQUIREMENT.as_posix()}")
-    REQUIREMENT.unlink()
 
 
 def zip_workdir(outpath: Path):
@@ -125,11 +106,11 @@ def main(stage: int, clean: bool = False, _zip: Path | None = None):
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description=__doc__)
+    parser.add_argument("project", type=Path, default=Path("."))
     parser.add_argument("-i", "--index", type=str, default="https://pypi.org/simple")
     parser.add_argument("-o", "--outname", type=str, default="app.pyz")
     parser.add_argument("-p", "--python", type=str)
-    parser.add_argument("-r", "--requirement", type=str, default="requirements.txt")
-    parser.add_argument("-s", "--src", type=Path, default=Path("src/qzone3tg"))
+    parser.add_argument("-s", "--src", type=str, default="qzone3tg")
     parser.add_argument("-w", "--workdir", type=Path, default=Path("run"))
     parser.add_argument("-z", "--zip", type=Path)
     parser.add_argument("--clean", action="store_true")
@@ -138,10 +119,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     INDEX: str = args.index
     OUTNAME: str = args.outname
+    PROJECT: Path = args.project
     INTERPRETER: str | None = args.python
-    SRC: Path = args.src
+    SRC: str = args.src
     WORKDIR: Path = args.workdir
 
-    REQUIREMENT: Path = WORKDIR / args.requirement
     DEPDIR = WORKDIR / ".venv"
     main(args.stage, clean=args.clean, _zip=args.zip)
