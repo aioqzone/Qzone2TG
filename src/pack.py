@@ -13,7 +13,7 @@ def sp_retval(cmd: str) -> str:
     p = sp.run(cmd.split(), capture_output=True)
     p.check_returncode()
     r = p.stdout.decode().removesuffix("\n")
-    print(f"$ {cmd}\n> {r}")
+    print(f"$ {cmd}", f"\n> {r}" if r else "", sep="")
     return r
 
 
@@ -40,6 +40,7 @@ def inst_deps():
             rmtree(DEPDIR)
         else:
             DEPDIR.unlink()
+    print(f"$ cp {SRC.as_posix()} {DEPDIR.as_posix()}")
     copytree(SRC, DEPDIR)
     assert (DEPDIR / "__main__.py").exists()
 
@@ -56,10 +57,17 @@ def inst_deps():
     return DEPDIR
 
 
-def mv_pyd():
+def mv_binary():
     """move dir with pyd files inside out of DEPDIR"""
+    bins = [".pyd", ".so"]
+
     for p in DEPDIR.iterdir():
-        if p.is_file() and p.stem == ".pyd" or p.is_dir() and next(p.rglob("*.pyd"), False):
+        if (
+            p.is_file()
+            and p.suffix in bins
+            or p.is_dir()
+            and next(filter(lambda p: p.suffix in bins, p.rglob("*")), False)
+        ):
             dest = WORKDIR / p.name
             if dest.exists():
                 if dest.is_dir():
@@ -103,7 +111,7 @@ def main(stage: int, clean: bool = False, _zip: Path | None = None):
     if stage < 1:
         check_tools()
         inst_deps()
-        mv_pyd()
+        mv_binary()
 
     if stage < 2:
         pack_app()
