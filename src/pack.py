@@ -4,32 +4,34 @@
 import argparse as ap
 import subprocess as sp
 from pathlib import Path
-from shutil import copy, move, rmtree
+from shutil import copy, move, rmtree, which
 
 
-def sp_retval(cmd: str) -> str:
+def sp_retval(cmd: str, **kw) -> str:
     """run a subprocess and get returns as str."""
-    p = sp.run(cmd.split(), shell=True, capture_output=True)
+    args = cmd.split()
+    print(f"$ {cmd}")
+    p = sp.run(args, executable=which(args[0]), **kw)
     p.check_returncode()
-    r = p.stdout.decode().removesuffix("\n")
-    print(f"$ {cmd}", f"\n> {r}" if r else "", sep="")
+    r = p.stdout
+    if isinstance(r, bytes):
+        r = r.decode()
+    if r:
+        r = r.removesuffix("\n")
+        print(">", r)
     return r
 
 
 def check_tools():
     """check if subprocess executables are available."""
-    sp_retval("pip --version")
-    sp_retval("npm --version")
+    sp_retval("pip --version", capture_output=False)
+    sp_retval("npm --version", capture_output=False)
 
 
 def inst_pip_deps():
     """Install dependencies in `workdir`/.venv"""
     DEPDIR.mkdir(exist_ok=True, parents=True)
-
-    args = ["pip", "install", CONTEXT.as_posix(), "-t", DEPDIR.as_posix(), "-i", INDEX]
-    print(f"$ {' '.join(args)}")
-    p = sp.run(args, stdin=sp.PIPE, capture_output=False)
-    p.check_returncode()
+    sp_retval(f"pip install {CONTEXT.as_posix()} -t {DEPDIR.as_posix()} -i {INDEX}")
 
     for p in DEPDIR.iterdir():
         if p.is_dir() and p.stem == ".dist-info":
@@ -45,16 +47,14 @@ def inst_pip_deps():
 
 def inst_node_deps():
     """install node nodules"""
-    args = ["npm", "install", "--no-optional", "--no-fund"]
     WORKDIR.mkdir(parents=True, exist_ok=True)
-    copy(PACKAGE, WORKDIR)
     print(f"$ cp {PACKAGE.as_posix()} {WORKDIR.as_posix()}")
-    print(f"{WORKDIR.as_posix()} $ {' '.join(args)}")
-    p = sp.run(args, shell=True, capture_output=False, cwd=WORKDIR)
-    p.check_returncode()
+    copy(PACKAGE, WORKDIR)
+
+    sp_retval("npm install --no-optional --no-fund", cwd=WORKDIR)
     (tp := WORKDIR / PACKAGE.name).unlink()
     (tpl := tp.with_stem("package-lock")).unlink()
-    print(f"{WORKDIR.as_posix()} $ rm {tp.as_posix()} {tpl.as_posix()}")
+    print(f"$ rm {tp.as_posix()} {tpl.as_posix()}")
 
 
 def mv_binary():
@@ -74,8 +74,8 @@ def mv_binary():
                     rmtree(dest)
                 else:
                     dest.unlink()
-            move(p, dest)
             print(f"$ mv {p.as_posix()} {dest.as_posix()}")
+            move(p, dest)
 
 
 def pack_app():

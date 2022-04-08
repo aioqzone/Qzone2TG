@@ -20,6 +20,7 @@ sdist & bdist 在 :file:`dist/` 下
 ========================
 
 打包程序需要的所有依赖，在安装 :program:`python` 和 :program:`node` 的环境上开箱即用。
+完全由 python 代码构成的包会被压缩。参见 :external+python:mod:`zipapp`.
 
 .. code-block:: shell
 

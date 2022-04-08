@@ -33,7 +33,6 @@ FROM python:3.10-slim as release
 # use slim since opencv-python doesn't offically support alpine.
 
 COPY --from=build /app/run /app
-COPY --from=build /app/node_modules /app/node_modules
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
