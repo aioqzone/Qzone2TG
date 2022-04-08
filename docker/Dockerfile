@@ -32,16 +32,16 @@ RUN python src/pack.py . --clean
 FROM python:3.10-slim as release
 # use slim since opencv-python doesn't offically support alpine.
 
-COPY --from=build /app/run /app
+EXPOSE 80 88 443 8443
+ENV PATH="/app:$PATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 80 88 443 8443
-ENV PATH="/app:$PATH"
-ENV PYTHONPATH="/app:$PYTHONPATH"
+COPY --from=build /app/run /app
 WORKDIR /app
 
 ENTRYPOINT ["python", "app.pyz"]
