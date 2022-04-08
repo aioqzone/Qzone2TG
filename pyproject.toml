@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.2.9.dev1"
+version = "0.2.9a2.dev0"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -42,10 +42,6 @@ doc = [
     "sphinx-rtd-theme",
     "sphinx-tabs"
 ]
-
-# [[tool.poetry.source]]
-# name = "alpine-wheels"
-# url = "https://alpine-wheels.github.io/index"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

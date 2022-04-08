@@ -1,33 +1,47 @@
-FROM python:3.10 as build
+FROM python:3.10-slim as build
 
 LABEL org.opencontainers.image.url=https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg
 LABEL org.opencontainers.image.documentation=https://aioqzone.github.io/Qzone2TG
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
 
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        git \
+        curl \
+        nodejs \
+        npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# install and configure poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - \
+    && $HOME/.local/bin/poetry config virtualenvs.create true \
+    && $HOME/.local/bin/poetry config virtualenvs.in-project true
+
+ENV PATH="/root/.local/bin:$PATH"
+
 COPY . /app
 WORKDIR /app
 
-RUN curl -sSL https://install.python-poetry.org | python3 - \
-    && $HOME/.local/bin/poetry config virtualenvs.create true \
-    && $HOME/.local/bin/poetry config virtualenvs.in-project true \
-    && $HOME/.local/bin/poetry install --no-dev --no-interaction --no-root \
-    && $HOME/.local/bin/poetry build -f wheel \
-    && $HOME/.local/bin/poetry run pip install dist/*.whl
+# package the package
+RUN python src/pack.py . --clean
 
+# ==============================================
+#                 Runtime Stage
 # ==============================================
 
 FROM python:3.10-slim as release
 # use slim since opencv-python doesn't offically support alpine.
-# Though copying the built opencv does work, but cryptography cannot work with this method.
-
-COPY --from=build /app/.venv /venv
-
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    nodejs \
-    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 80 88 443 8443
-ENV PATH=/venv/bin:$PATH
+ENV PATH="/app:$PATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/run /app
 WORKDIR /app
 
-CMD ["python", "-m", "qzone3tg"]
+ENTRYPOINT ["python", "app.pyz"]

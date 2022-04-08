@@ -6,7 +6,7 @@ name: Dev CI
 on:
   push:
     paths:
-      - "src/**"
+      - "src/qzone3tg/**"
       - "test/**"
       - ".github/workflows/test.yml"
       - ".github/workflows/ci.yml"

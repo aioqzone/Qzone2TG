@@ -13,6 +13,12 @@ updates:
       interval: weekly
       day: saturday
 
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: saturday
+
   - package-ecosystem: docker
     directory: "/docker"
     schedule:

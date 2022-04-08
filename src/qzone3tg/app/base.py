@@ -372,6 +372,7 @@ class BaseApp:
             "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
             "上次心跳": ts2a(self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(self.store.cl.last_call),
+            "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:
             dbg_dic = {
