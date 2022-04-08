@@ -4,27 +4,26 @@ LABEL org.opencontainers.image.url=https://github.com/aioqzone/Qzone2TG/pkgs/con
 LABEL org.opencontainers.image.documentation=https://aioqzone.github.io/Qzone2TG
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
 
-COPY . /app
-WORKDIR /app
-
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         git \
         curl \
         nodejs \
         npm \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install
+    && rm -rf /var/lib/apt/lists/*
 
 # install and configure poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - \
     && $HOME/.local/bin/poetry config virtualenvs.create true \
     && $HOME/.local/bin/poetry config virtualenvs.in-project true
 
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+COPY . /app
+WORKDIR /app
 
 # package the package
-RUN python src/pack.py -p "python" --clean
+RUN python src/pack.py . --clean
 
 # ==============================================
 #                 Runtime Stage
@@ -35,7 +34,6 @@ FROM python:3.10-slim as release
 
 COPY --from=build /app/run /app
 COPY --from=build /app/node_modules /app/node_modules
-WORKDIR /app
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
@@ -43,5 +41,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 80 88 443 8443
+ENV PATH="/app:$PATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
+WORKDIR /app
 
-ENTRYPOINT ["./app.pyz"]
+ENTRYPOINT ["python", "app.pyz"]

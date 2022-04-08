@@ -9,7 +9,7 @@ from shutil import copy, move, rmtree
 
 def sp_retval(cmd: str) -> str:
     """run a subprocess and get returns as str."""
-    p = sp.run(cmd.split(), capture_output=True)
+    p = sp.run(cmd.split(), shell=True, capture_output=True)
     p.check_returncode()
     r = p.stdout.decode().removesuffix("\n")
     print(f"$ {cmd}", f"\n> {r}" if r else "", sep="")
@@ -19,13 +19,14 @@ def sp_retval(cmd: str) -> str:
 def check_tools():
     """check if subprocess executables are available."""
     sp_retval("pip --version")
+    sp_retval("npm --version")
 
 
-def inst_deps():
+def inst_pip_deps():
     """Install dependencies in `workdir`/.venv"""
     DEPDIR.mkdir(exist_ok=True, parents=True)
 
-    args = ["pip", "install", PROJECT.as_posix(), "-t", DEPDIR.as_posix(), "-i", INDEX]
+    args = ["pip", "install", CONTEXT.as_posix(), "-t", DEPDIR.as_posix(), "-i", INDEX]
     print(f"$ {' '.join(args)}")
     p = sp.run(args, stdin=sp.PIPE, capture_output=False)
     p.check_returncode()
@@ -40,6 +41,20 @@ def inst_deps():
     copy(main, dest)
 
     return DEPDIR
+
+
+def inst_node_deps():
+    """install node nodules"""
+    args = ["npm", "install", "--no-optional", "--no-fund"]
+    WORKDIR.mkdir(parents=True, exist_ok=True)
+    copy(PACKAGE, WORKDIR)
+    print(f"$ cp {PACKAGE.as_posix()} {WORKDIR.as_posix()}")
+    print(f"{WORKDIR.as_posix()} $ {' '.join(args)}")
+    p = sp.run(args, shell=True, capture_output=False, cwd=WORKDIR)
+    p.check_returncode()
+    (tp := WORKDIR / PACKAGE.name).unlink()
+    (tpl := tp.with_stem("package-lock")).unlink()
+    print(f"{WORKDIR.as_posix()} $ rm {tp.as_posix()} {tpl.as_posix()}")
 
 
 def mv_binary():
@@ -91,10 +106,13 @@ def zip_workdir(outpath: Path):
 def main(stage: int, clean: bool = False, _zip: Path | None = None):
     if stage < 1:
         check_tools()
-        inst_deps()
-        mv_binary()
+        inst_node_deps()
 
     if stage < 2:
+        inst_pip_deps()
+        mv_binary()
+
+    if stage < 3:
         pack_app()
 
     if clean or _zip:
@@ -106,8 +124,9 @@ def main(stage: int, clean: bool = False, _zip: Path | None = None):
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description=__doc__)
-    parser.add_argument("project", type=Path, default=Path("."))
+    parser.add_argument("context", type=Path, default=Path("."))
     parser.add_argument("-i", "--index", type=str, default="https://pypi.org/simple")
+    parser.add_argument("-n", "--package-json", type=Path, default=Path("package.json"))
     parser.add_argument("-o", "--outname", type=str, default="app.pyz")
     parser.add_argument("-p", "--python", type=str)
     parser.add_argument("-s", "--src", type=str, default="qzone3tg")
@@ -118,8 +137,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     INDEX: str = args.index
+    PACKAGE: Path = args.package_json
     OUTNAME: str = args.outname
-    PROJECT: Path = args.project
+    CONTEXT: Path = args.context
     INTERPRETER: str | None = args.python
     SRC: str = args.src
     WORKDIR: Path = args.workdir
