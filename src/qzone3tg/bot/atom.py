@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from turtle import forward
 from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
@@ -143,6 +144,9 @@ class LocalSplitter(Splitter):
         # no media, send as text message
         if not feed.media:
             msgs += [TextMsg(i) for i in split_by_len(alltext, LIM_TXT)]
+            if isinstance(feed.forward, HttpUrl):
+                # override disable_web_page_preview if forwarding an app.
+                msgs[0].kw["disable_web_page_preview"] = False
             return fmsg, msgs
 
         media = [await self.probe(i) for i in feed.media]

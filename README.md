@@ -11,9 +11,9 @@ Forward Qzone feeds to telegram.
 
 [简体中文](README.zh-cn.md)
 
-## Deploy
+## Deployment
 
-We support and only support docker deployment. Currently we have published our pre-built images
+We support and only support docker deployment. Currently we have published our pre-built image
 to [ghcr.io][ghcr].
 
 ``` sh
@@ -23,15 +23,15 @@ docker-compose -f docker/docker-compose.yml up -d
 
 > If you'd like build a image by yourself, see documentation: [build](https://aioqzone.github.io/Qzone2TG/build.html#docker)
 
-## Config
+## Configuration
 
 > See: [Quick Start](https://aioqzone.github.io/Qzone2TG/quickstart.html#id3)
 
-Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are supported. See [config/test.yml](config/test.yml) for the minimal and maximal config examples.
+Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are __both__ supported. See [config/test.yml](config/test.yml) for an example of (the minimal and maximal) configurations.
 
 Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.
 
-## Documents and Tutorials
+## Documentations and Tutorials
 
 - [Qzone3TG Documents][doc]
 - Author's blog: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
