@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from turtle import forward
 from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
