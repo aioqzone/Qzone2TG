@@ -385,4 +385,5 @@ class BaseApp:
                 self._dst()
 
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
-        await self.bot.send_message(to, statm)
+        dn = debug or self.conf.bot.default.disable_notification
+        await self.bot.send_message(to, statm, disable_notification=dn)
