@@ -12,6 +12,7 @@ import qzemoji as qe
 import telegram as tg
 import telegram.ext as ext
 from aiohttp import ClientSession as Session
+from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
@@ -265,7 +266,7 @@ class BaseApp:
     async def run(self):
         """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
         or `loop.stop()` is called."""
-
+        self.check_node()
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")
         self.register_signal()
@@ -299,6 +300,19 @@ class BaseApp:
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
                 continue
+
+    def check_node(self):
+        if self.conf.qzone.qr_strategy == QrStrategy.force:
+            return
+        from shutil import which
+
+        from jssupport.jsdom import JSDOM
+
+        if not which("node"):
+            self.log.error("Node not available, qr strategy switched to `force`.")
+            self.conf.qzone.qr_strategy = QrStrategy.force
+        elif not JSDOM(src="", ua="", location="", referrer="").check_jsdom():
+            self.log.warning("jsdom not available. Passing captcha will not work.")
 
     async def fetch(self, to: Union[int, str], *, is_period: bool = False):
         """fetch feeds.
