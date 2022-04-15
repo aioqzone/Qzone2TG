@@ -28,7 +28,7 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aioqzone"
-version = "0.5.2.dev1"
+version = "0.5.3a1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -49,7 +49,7 @@ doc = ["Sphinx (>=4.5.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.5.1a1"
+version = "0.5.1a2"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -57,7 +57,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = "^0.5.2.dev0"
+aioqzone = "^0.5.3a1"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -68,7 +68,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "78e31db1175b6aae7661f873a52a862fa9d7b010"
+resolved_reference = "e08f05349e3c0da32b143f4525a7bc93eb9abdb0"
 
 [[package]]
 name = "aiosignal"
@@ -772,7 +772,7 @@ test = ["pytest", "pytest-cov", "html5lib", "cython", "typed-ast"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.18.0"
+version = "1.18.1"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 category = "main"
 optional = true
@@ -1108,8 +1108,8 @@ aiohttp = [
     {file = "aiohttp-3.8.1.tar.gz", hash = "sha256:fc5471e1a54de15ef71c1bc6ebe80d4dc681ea600e68bfd1cbce40427f0b7578"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.5.2.dev1-py3-none-any.whl", hash = "sha256:997cf6d0f5a89705143bcd82bef193dd7fc03ef697ac0f7efe52148e71289278"},
-    {file = "aioqzone-0.5.2.dev1.tar.gz", hash = "sha256:72d50917161144de01220ff3c28cb222c8548a306532f97c43e057f8eaedb917"},
+    {file = "aioqzone-0.5.3a1-py3-none-any.whl", hash = "sha256:bce4eab5cf11c5d0f5bd438121467d449db101ac8e85ac351e354fda41d79f2e"},
+    {file = "aioqzone-0.5.3a1.tar.gz", hash = "sha256:6dacb472490cbd03e298c23baaf03a16e1d81e5e9b30fba6ed0f002c0cc1d384"},
 ]
 aioqzone-feed = []
 aiosignal = [
@@ -1728,8 +1728,8 @@ sphinx = [
     {file = "Sphinx-4.5.0.tar.gz", hash = "sha256:7bf8ca9637a4ee15af412d1a1d9689fec70523a68ca9bb9127c2f3eeb344e2e6"},
 ]
 sphinx-autodoc-typehints = [
-    {file = "sphinx_autodoc_typehints-1.18.0-py3-none-any.whl", hash = "sha256:539c71a3cf387dec0890923cc024b2f3906f5b02ee8f1c9640a49424802f00aa"},
-    {file = "sphinx_autodoc_typehints-1.18.0.tar.gz", hash = "sha256:685e175e39be81312deb9780e7d76150deb7c3c803afd42346b6149e75e56e21"},
+    {file = "sphinx_autodoc_typehints-1.18.1-py3-none-any.whl", hash = "sha256:f8f5bb7c13a9a71537dc2be2eb3b9e28a9711e2454df63587005eacf6fbac453"},
+    {file = "sphinx_autodoc_typehints-1.18.1.tar.gz", hash = "sha256:07631c5f0c6641e5ba27143494aefc657e029bed3982138d659250e617f6f929"},
 ]
 sphinx-rtd-theme = [
     {file = "sphinx_rtd_theme-1.0.0-py2.py3-none-any.whl", hash = "sha256:4d35a56f4508cfee4c4fb604373ede6feae2a306731d533f409ef5c3496fdbd8"},

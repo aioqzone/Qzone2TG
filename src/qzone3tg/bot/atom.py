@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from turtle import forward
 from typing import Generic, Type, TypeVar
 
 from aiohttp import ClientSession
@@ -98,7 +97,7 @@ class VideoMsg(MediaMsg[Video]):
         return str(self.meta.thumbnail)
 
 
-def href(txt: str, url: str):
+def href(txt: str | int, url: str):
     return f"<a href='{url}'>{txt}</a>"
 
 
@@ -192,7 +191,7 @@ class LocalSplitter(Splitter):
 
     def header(self, feed: FeedContent) -> str:
         semt = sementic_time(feed.abstime)
-        nickname = href(feed.nickname, f"user.qzone.qq.com/{feed.uin}")
+        nickname = href(feed.nickname or feed.uin, f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
             return f"{nickname}{semt}发布了{href('说说', str(feed.unikey))}：\n\n"
