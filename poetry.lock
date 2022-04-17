@@ -28,7 +28,7 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aioqzone"
-version = "0.5.3a1"
+version = "0.6.0.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -49,7 +49,7 @@ doc = ["Sphinx (>=4.5.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.5.1a2"
+version = "0.6.0.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -57,7 +57,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = "^0.5.3a1"
+aioqzone = "^0.6.0.dev1"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -68,7 +68,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "e08f05349e3c0da32b143f4525a7bc93eb9abdb0"
+resolved_reference = "050ab528a080df0a30c728d25540a3f5f8f04da2"
 
 [[package]]
 name = "aiosignal"
@@ -181,7 +181,7 @@ tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>
 
 [[package]]
 name = "autodoc-pydantic"
-version = "1.6.1"
+version = "1.6.2"
 description = "Seamlessly integrate pydantic models in your Sphinx documentation."
 category = "main"
 optional = true
@@ -1108,8 +1108,8 @@ aiohttp = [
     {file = "aiohttp-3.8.1.tar.gz", hash = "sha256:fc5471e1a54de15ef71c1bc6ebe80d4dc681ea600e68bfd1cbce40427f0b7578"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.5.3a1-py3-none-any.whl", hash = "sha256:bce4eab5cf11c5d0f5bd438121467d449db101ac8e85ac351e354fda41d79f2e"},
-    {file = "aioqzone-0.5.3a1.tar.gz", hash = "sha256:6dacb472490cbd03e298c23baaf03a16e1d81e5e9b30fba6ed0f002c0cc1d384"},
+    {file = "aioqzone-0.6.0.dev1-py3-none-any.whl", hash = "sha256:133d8d3aae37a5050265ba789cd399ef2fd8d649af5ba345b2bf3835e75d7b80"},
+    {file = "aioqzone-0.6.0.dev1.tar.gz", hash = "sha256:141723844dda362debffeea70bcfa6fea9c5a407c143c02087ce8648acb50559"},
 ]
 aioqzone-feed = []
 aiosignal = [
@@ -1142,8 +1142,8 @@ attrs = [
     {file = "attrs-21.4.0.tar.gz", hash = "sha256:626ba8234211db98e869df76230a137c4c40a12d72445c45d5f5b716f076e2fd"},
 ]
 autodoc-pydantic = [
-    {file = "autodoc_pydantic-1.6.1-py3-none-any.whl", hash = "sha256:da885bf969f2f30d2a95e224386807ed4bf313649c449d6caa74637fddb83a17"},
-    {file = "autodoc_pydantic-1.6.1.tar.gz", hash = "sha256:ef84151a083d0d55f84b4fe211bcafb542df856f632a5ed7b4168fe508acdffa"},
+    {file = "autodoc_pydantic-1.6.2-py3-none-any.whl", hash = "sha256:ccae852962cf1c3dc58694f7a0ca4905f07583d5cba68b4e670090435fc1db3b"},
+    {file = "autodoc_pydantic-1.6.2.tar.gz", hash = "sha256:183138958829a546621e1a25c6afaf74ef867d0699d2e8abdfcd476019635206"},
 ]
 babel = [
     {file = "Babel-2.9.1-py2.py3-none-any.whl", hash = "sha256:ab49e12b91d937cd11f0b67cb259a57ab4ad2b59ac7a3b41d6c06c0ac5b0def9"},
