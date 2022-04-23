@@ -116,9 +116,9 @@ class BaseApp:
                     "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
                 )
 
-            async def HeartbeatFailed(_, exc):  # type: ignore
+            async def HeartbeatFailed(_, exc: BaseException | None):  # type: ignore
                 await super().HeartbeatFailed(exc)
-                info = f"（{exc}）" if exc else ""
+                info = f"({exc})" if exc else ""
                 await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
 
         return inner_feed_hook

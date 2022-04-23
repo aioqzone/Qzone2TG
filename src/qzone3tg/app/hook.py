@@ -53,16 +53,16 @@ class DefaultQrHook(QREvent):
 
     async def QrFailed(self, msg: str | None = None):
         self.qr_times = 0
-        assert self.qr_msg
-        self.qr_msg.delete()
-        self.qr_msg = None
+        if self.qr_msg:
+            self.qr_msg.delete()
+            self.qr_msg = None
         await self.bot.send_message(self.admin, "二维码登录失败" + (f": {msg}" if msg else ""))
 
     async def QrSucceess(self):
         self.qr_times = 0
-        assert self.qr_msg
-        self.qr_msg.delete()
-        self.qr_msg = None
+        if self.qr_msg:
+            self.qr_msg.delete()
+            self.qr_msg = None
 
 
 class DefaultFeedHook(FeedEvent):
