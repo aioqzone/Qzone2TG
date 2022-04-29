@@ -219,7 +219,7 @@ class InteractApp(BaseApp):
 
         eid, text = context.args
         eid = int(eid)
-        self.log.info(f"Customize emoji text: {eid}->{text}")
+        echo(f"Customize emoji text: {eid}->{text}")
         self.add_hook_ref("storage", qe.set(eid, text))
 
     # --------------------------------
