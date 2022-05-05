@@ -1,6 +1,7 @@
 # IDE, local settings
 .vscode
 .env
+poetry.toml
 
 # build, metadata and distribution
 *.pyc
