@@ -28,7 +28,7 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aioqzone"
-version = "0.6.2.dev2"
+version = "0.7.0.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -49,7 +49,7 @@ doc = ["Sphinx (>=4.5.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.6.2.dev3"
+version = "0.7.0.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -57,7 +57,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = "^0.6.2.dev2"
+aioqzone = "^0.7.0.dev1"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -68,7 +68,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "7aeb095b49d0b60a96cd8edb4e6e3d550b5dc478"
+resolved_reference = "aa71a885359b68eb67c1e6dea1e62b06f55b8c4e"
 
 [[package]]
 name = "aiosignal"
@@ -515,7 +515,7 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pre-commit"
-version = "2.18.1"
+version = "2.19.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "main"
 optional = true
@@ -1026,7 +1026,7 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "b0169c0f2abe808054fc1ff9f15b8bde38bfb3eadd59e712e5a0f26c6cb4059c"
+content-hash = "04090c53f8df122bd3d04a190bc7b25a9a8cc8d1904b3acc79bf90913b2fa9a2"
 
 [metadata.files]
 aiofiles = [
@@ -1108,8 +1108,8 @@ aiohttp = [
     {file = "aiohttp-3.8.1.tar.gz", hash = "sha256:fc5471e1a54de15ef71c1bc6ebe80d4dc681ea600e68bfd1cbce40427f0b7578"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.6.2.dev2-py3-none-any.whl", hash = "sha256:11e28cf666aed43fa5fa5946c2f75513ed7a46f71b6cb1629d0996a020c851c2"},
-    {file = "aioqzone-0.6.2.dev2.tar.gz", hash = "sha256:8935bc2d8d93d50f8a865dd75e2a63d180b5b79f9f151883ec59d3718182b764"},
+    {file = "aioqzone-0.7.0.dev1-py3-none-any.whl", hash = "sha256:fb2a5f042066f1602d5d484806176df438d0b604274292403fdcc4cb0585dfad"},
+    {file = "aioqzone-0.7.0.dev1.tar.gz", hash = "sha256:39d7d047cfa454964221a665b716e6439dc52fb8a8037760b098bd97416dccc4"},
 ]
 aioqzone-feed = []
 aiosignal = [
@@ -1578,8 +1578,8 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 pre-commit = [
-    {file = "pre_commit-2.18.1-py2.py3-none-any.whl", hash = "sha256:02226e69564ebca1a070bd1f046af866aa1c318dbc430027c50ab832ed2b73f2"},
-    {file = "pre_commit-2.18.1.tar.gz", hash = "sha256:5d445ee1fa8738d506881c5d84f83c62bb5be6b2838e32207433647e8e5ebe10"},
+    {file = "pre_commit-2.19.0-py2.py3-none-any.whl", hash = "sha256:10c62741aa5704faea2ad69cb550ca78082efe5697d6f04e5710c3c229afdd10"},
+    {file = "pre_commit-2.19.0.tar.gz", hash = "sha256:4233a1e38621c87d9dda9808c6606d7e7ba0e087cd56d3fe03202a01d2919615"},
 ]
 py = [
     {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
