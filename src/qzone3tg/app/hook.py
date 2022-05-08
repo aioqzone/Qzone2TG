@@ -24,7 +24,7 @@ class DefaultQrHook(QREvent):
         self.qr_times: int = 0
         """qr sent times"""
 
-    async def LoginFailed(self, msg: str | None = None):
+    async def LoginFailed(self, meth, msg: str | None = None):
         pass
 
     async def LoginSuccess(self):

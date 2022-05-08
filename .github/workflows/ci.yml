@@ -12,8 +12,8 @@ on:
       - ".github/workflows/ci.yml"
       - "poetry.lock"
     branches:
-      - v3/dev
-      - v3/dev/**
+      - dev
+      - dev/**
 
 jobs:
   test:
@@ -32,7 +32,7 @@ jobs:
       - name: Create Pull Request
         uses: repo-sync/pull-request@v2
         with:
-          destination_branch: v3/beta
+          destination_branch: beta
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: ${{ needs.test.outputs.package-version }}
           pr_body: ${{ github.event.head_commit.message }} # only push event has head_commit
