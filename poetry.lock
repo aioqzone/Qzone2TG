@@ -128,7 +128,7 @@ zookeeper = ["kazoo"]
 
 [[package]]
 name = "assetsupdater"
-version = "1.0.1.dev2"
+version = "1.2.0.dev1"
 description = "Update assets from network."
 category = "main"
 optional = false
@@ -142,12 +142,13 @@ packaging = "^21.3"
 
 [package.extras]
 dev = ["pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+tui = ["rich (>=12.4.1,<13.0.0)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/JamzumSum/AssetsUpdater.git"
 reference = "release"
-resolved_reference = "e7e9203b0c6926d84b1b8ad1d992e2e1836d2c87"
+resolved_reference = "05fc783fe116cab8d754c237356ee3b4fdd098f0"
 
 [[package]]
 name = "async-timeout"
@@ -181,7 +182,7 @@ tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>
 
 [[package]]
 name = "autodoc-pydantic"
-version = "1.6.2"
+version = "1.7.0"
 description = "Seamlessly integrate pydantic models in your Sphinx documentation."
 category = "main"
 optional = true
@@ -1026,7 +1027,7 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "5fb4d62cb531eb647d7b730ca163d31ce9956248157423db23a47eb7a12e9ebf"
+content-hash = "ea4b5b6a66a8132b8ba0da6df633224501208bb2bac4a493884c39a10a3f1aba"
 
 [metadata.files]
 aiofiles = [
@@ -1142,8 +1143,8 @@ attrs = [
     {file = "attrs-21.4.0.tar.gz", hash = "sha256:626ba8234211db98e869df76230a137c4c40a12d72445c45d5f5b716f076e2fd"},
 ]
 autodoc-pydantic = [
-    {file = "autodoc_pydantic-1.6.2-py3-none-any.whl", hash = "sha256:ccae852962cf1c3dc58694f7a0ca4905f07583d5cba68b4e670090435fc1db3b"},
-    {file = "autodoc_pydantic-1.6.2.tar.gz", hash = "sha256:183138958829a546621e1a25c6afaf74ef867d0699d2e8abdfcd476019635206"},
+    {file = "autodoc_pydantic-1.7.0-py3-none-any.whl", hash = "sha256:5bb1561647e8bc2c3c66a5331b15e4c458c5dba04c21b027a0c0306b8d39ae9b"},
+    {file = "autodoc_pydantic-1.7.0.tar.gz", hash = "sha256:c48f80431fa45a531333dac96584efe8ce2177d5ffd0af21b6b4eadd6f1dd1df"},
 ]
 babel = [
     {file = "Babel-2.10.1-py3-none-any.whl", hash = "sha256:3f349e85ad3154559ac4930c3918247d319f21910d5ce4b25d439ed8693b98d2"},
