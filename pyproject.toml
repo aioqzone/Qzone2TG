@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.2.12.dev1"
+version = "0.2.12.dev2"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -19,7 +19,7 @@ black = {version = "^22.1.0", optional = true}
 isort = {version = "^5.10.1", optional = true}
 # extras: doc
 Sphinx = {version = "^4.5.0", optional = true}
-autodoc-pydantic = {version = "^1.6.2", optional = true}
+autodoc-pydantic = {version = "^1.7.0", optional = true}
 sphinx-autodoc-typehints = {version = "^1.17.0", optional = true}
 sphinx-rtd-theme = {version = "^1.0.0", optional = true}
 sphinx-tabs = {version = "^3.3.1", optional = true}

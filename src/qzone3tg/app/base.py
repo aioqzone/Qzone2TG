@@ -14,6 +14,7 @@ import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
+from aioqzone.interface.hook import LoginMethod
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from pydantic import AnyUrl
@@ -26,7 +27,7 @@ from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, Taske
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
-from .hook import DefaultFeedHook, DefaultQrHook
+from .hook import DefaultFeedHook, DefaultLoginHook, DefaultQrHook
 from .storage import AsyncEngine, DefaultStorageHook
 from .storage.loginman import LoginMan
 
@@ -90,14 +91,21 @@ class BaseApp:
     #             hook init
     # --------------------------------
     @property
-    def _qr_hook_cls(self) -> Type[DefaultQrHook]:
+    def _login_hook_cls(self) -> Type[DefaultLoginHook]:
         class inner_qr_hook(DefaultQrHook):
-            async def LoginSuccess(hook):  # type: ignore
+            async def LoginSuccess(_self, meth):
                 if self.qzone.hb_timer.state != "PENDING":
                     self.qzone.hb_timer()
-                await DefaultQrHook.LoginSuccess(hook)
+                await super().LoginSuccess(meth)
 
-        return inner_qr_hook
+        class inner_login_hook(DefaultLoginHook):
+            @classmethod
+            def _get_base(cls, meth: LoginMethod):
+                if meth == LoginMethod.qr:
+                    return inner_qr_hook
+                return super()._get_base(meth)
+
+        return inner_login_hook
 
     @property
     def _storage_hook_cls(self) -> Type[DefaultStorageHook]:
@@ -126,7 +134,7 @@ class BaseApp:
     def init_hooks(self):
         sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.tgbot, sem)
-        self.hook_qr = self._qr_hook_cls(self.admin, self.bot)
+        self.hook_qr = self._login_hook_cls(self.admin, self.bot)
         block = self.conf.qzone.block or []
         block = block.copy()
         if self.conf.qzone.block_self:

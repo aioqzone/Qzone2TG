@@ -3,6 +3,7 @@ import asyncio
 
 import qzemoji as qe
 from aiohttp import ClientSession as Session
+from aioqzone.interface.hook import LoginMethod
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -77,20 +78,31 @@ class InteractApp(BaseApp):
         return interact_tasker_hook
 
     @property
-    def _qr_hook_cls(self):
-        class interact_qr_hook(super()._qr_hook_cls):
+    def _login_hook_cls(self):
+        cls = super()._login_hook_cls
+
+        class interact_qr_hook(cls._get_base(LoginMethod.qr)):
             def qr_markup(self):
                 btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
                 btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
                 return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
-        return interact_qr_hook
+        class interact_login_hook(cls):
+            @classmethod
+            def _get_base(cls, meth: LoginMethod):
+                if meth == LoginMethod.qr:
+                    return interact_qr_hook
+                return super()._get_base(meth)
+
+        return interact_login_hook
 
     @property
     def _feed_hook_cls(self):
-        class interact_feed_hook(super()._feed_hook_cls):
-            async def HeartbeatRefresh(hook, num: int):  # type: ignore
-                await DefaultFeedHook.HeartbeatRefresh(hook, num)
+        cls = super()._feed_hook_cls
+
+        class interact_feed_hook(cls):
+            async def HeartbeatRefresh(_self, num: int):
+                await super().HeartbeatRefresh(num)
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
                     return
