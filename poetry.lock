@@ -28,28 +28,29 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aioqzone"
-version = "0.7.1.dev1"
+version = "0.8.2.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
-python-versions = ">=3.7,<3.11"
+python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
 aiohttp = ">=3.8.1,<4.0.0"
 cssselect = ">=1.1.0,<2.0.0"
 lxml = ">=4.8.0,<5.0.0"
+numpy = {version = ">=1.22.3,<2.0.0", markers = "python_version >= \"3.8\" and python_version < \"4.0\""}
 opencv-python-headless = ">=4.5.5,<5.0.0"
 pydantic = ">=1.9.0,<2.0.0"
 pytz = ">=2022.1,<2023.0"
 rsa = ">=4.8,<5.0"
 
 [package.extras]
-dev = ["tox (>=3.24.5,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+dev = ["pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
 doc = ["Sphinx (>=4.5.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (<1.16.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.7.0.dev1"
+version = "0.8.0.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
@@ -57,7 +58,7 @@ python-versions = ">=3.7,<3.11"
 develop = false
 
 [package.dependencies]
-aioqzone = "^0.7.0.dev1"
+aioqzone = "^0.8.0.dev1"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "async"}
 
 [package.extras]
@@ -68,7 +69,7 @@ doc = ["Sphinx (>=4.4.0,<5.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-a
 type = "git"
 url = "https://github.com/aioqzone/aioqzone-feed.git"
 reference = "beta"
-resolved_reference = "aa71a885359b68eb67c1e6dea1e62b06f55b8c4e"
+resolved_reference = "4dc0b29ce5eba614081582aa3ea5fff065f4dd5d"
 
 [[package]]
 name = "aiosignal"
@@ -128,7 +129,7 @@ zookeeper = ["kazoo"]
 
 [[package]]
 name = "assetsupdater"
-version = "1.0.1.dev2"
+version = "1.2.0.dev1"
 description = "Update assets from network."
 category = "main"
 optional = false
@@ -142,12 +143,13 @@ packaging = "^21.3"
 
 [package.extras]
 dev = ["pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+tui = ["rich (>=12.4.1,<13.0.0)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/JamzumSum/AssetsUpdater.git"
 reference = "release"
-resolved_reference = "e7e9203b0c6926d84b1b8ad1d992e2e1836d2c87"
+resolved_reference = "05fc783fe116cab8d754c237356ee3b4fdd098f0"
 
 [[package]]
 name = "async-timeout"
@@ -624,7 +626,7 @@ testing = ["coverage (==6.2)", "hypothesis (>=5.7.1)", "flaky (>=3.5.0)", "mypy 
 
 [[package]]
 name = "python-telegram-bot"
-version = "13.11"
+version = "13.12"
 description = "We have made you a wrapper you can't refuse"
 category = "main"
 optional = false
@@ -1026,7 +1028,7 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "5fb4d62cb531eb647d7b730ca163d31ce9956248157423db23a47eb7a12e9ebf"
+content-hash = "129b5578baa22c154e36633b3ebd28adfdca465c0e27be9d0d773e5d41909bc3"
 
 [metadata.files]
 aiofiles = [
@@ -1108,8 +1110,8 @@ aiohttp = [
     {file = "aiohttp-3.8.1.tar.gz", hash = "sha256:fc5471e1a54de15ef71c1bc6ebe80d4dc681ea600e68bfd1cbce40427f0b7578"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.7.1.dev1-py3-none-any.whl", hash = "sha256:6aed281cede25b6468bfbb5251aa11c6d94b50979f72915c4f80bc5037d71cb4"},
-    {file = "aioqzone-0.7.1.dev1.tar.gz", hash = "sha256:efb676db6bbafacebaf2fbc9e0790f43daa57594cdb04743d7eb340e576772ff"},
+    {file = "aioqzone-0.8.2.dev1-py3-none-any.whl", hash = "sha256:a49ec2c15a716c6b9a9e33d5ad0f441a09eb223bc00f2376fc197d53fd83eb2e"},
+    {file = "aioqzone-0.8.2.dev1.tar.gz", hash = "sha256:c721216eb497802cc306547c7a1e0e66acd873ebf2a6c10ab00fffa88b6118fe"},
 ]
 aioqzone-feed = []
 aiosignal = [
@@ -1660,8 +1662,8 @@ pytest-asyncio = [
     {file = "pytest_asyncio-0.18.3-py3-none-any.whl", hash = "sha256:8fafa6c52161addfd41ee7ab35f11836c5a16ec208f93ee388f752bea3493a84"},
 ]
 python-telegram-bot = [
-    {file = "python-telegram-bot-13.11.tar.gz", hash = "sha256:baeff704baa2ac3dc17a944c02da888228ad258e89be2e5bcbd13a8a5102d573"},
-    {file = "python_telegram_bot-13.11-py3-none-any.whl", hash = "sha256:534f5bb0ff4ca34c9252e97e0b3bcdab81d97be0eb4821682a361cb426c00e55"},
+    {file = "python-telegram-bot-13.12.tar.gz", hash = "sha256:daf55fb6f418b8752317fd12df824dd717e3229a87d83810a4cdd6e442f66de5"},
+    {file = "python_telegram_bot-13.12-py3-none-any.whl", hash = "sha256:08246ecccbb0e7b2ac43d3b545c3bdabc71194b20be9620cd0ed96a2eb66820d"},
 ]
 pytz = [
     {file = "pytz-2022.1-py2.py3-none-any.whl", hash = "sha256:e68985985296d9a66a881eb3193b0906246245294a881e7c8afe623866ac6a5c"},
