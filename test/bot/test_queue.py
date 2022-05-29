@@ -131,7 +131,7 @@ class TestReal:
             for p in real.q[f]:  # type: ignore
                 p.keywords["e"] = e
         await real.send_all()
-        assert ideal.sending is None
+        assert real.sending is None
         bot = cast(FakeBot, real.tasker.bot)
         assert not bot.log
         assert len(real.exc) == 3
