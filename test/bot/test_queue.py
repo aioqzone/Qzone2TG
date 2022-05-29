@@ -74,6 +74,7 @@ class TestIdeal:
             f.abstime = i
             await ideal.add(1, f)
         await ideal.send_all()
+        assert ideal.sending is None
         bot = cast(FakeBot, ideal.tasker.bot)
         assert len(bot.log) == 3
         assert "".join(i[2][-1] for i in bot.log) == "123"
@@ -84,6 +85,7 @@ class TestIdeal:
         f.forward = fake_feed(1)
         await ideal.add(2, f)
         await ideal.send_all()
+        assert ideal.sending is None
         bot = cast(FakeBot, ideal.tasker.bot)
         dfw = bot.log[0][-1]
         df = bot.log[1][-1]
@@ -129,6 +131,7 @@ class TestReal:
             for p in real.q[f]:  # type: ignore
                 p.keywords["e"] = e
         await real.send_all()
+        assert ideal.sending is None
         bot = cast(FakeBot, real.tasker.bot)
         assert not bot.log
         assert len(real.exc) == 3

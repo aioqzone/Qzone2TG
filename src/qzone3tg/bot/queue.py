@@ -92,9 +92,9 @@ class MsgQueue(Emittable[QueueEvent]):
         self.sem.reset()
         self.bid = bid
 
-    def send_all(self):
+    async def send_all(self):
         try:
-            return self._send_all_unsafe()
+            return await self._send_all_unsafe()
         finally:
             self.sending = None
 
