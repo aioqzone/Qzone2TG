@@ -92,22 +92,32 @@ class MsgQueue(Emittable[QueueEvent]):
         self.sem.reset()
         self.bid = bid
 
-    async def send_all(self):
+    def send_all(self):
+        try:
+            return self._send_all_unsafe()
+        finally:
+            self.sending = None
+
+    async def _send_all_unsafe(self):
         for k in sorted(self.q):
             self.sending = k
             await self._send_one_feed(k)
-        self.sending = None
 
     async def _send_one_feed(self, feed: FeedContent):
         reply: int | None = None
         mids: list[int] = []
-        if isinstance(v := self.q[feed], int):
-            reply = v
+        if (v := self.q.get(feed)) is None:
+            # BUG: why is KeyError?
+            logger.fatal(f"feed MISS!!! feed={feed}, q={self.q}")
             return
+        elif isinstance(v, int):
+            logger.debug(f"feed {feed} is sent before.")
+            return
+
         for f in v:
             f.keywords.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
-                if (r := await self._send_one(f, feed)) is True:
+                if (r := await self._send_one_atom(f, feed)) is True:
                     continue
                 if isinstance(r, list):
                     mids += r
@@ -129,7 +139,7 @@ class MsgQueue(Emittable[QueueEvent]):
         self.q[feed] = mids[-1]
         self.add_hook_ref("storage", self.hook.SaveFeed(feed, mids))
 
-    async def _send_one(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
+    async def _send_one_atom(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
         try:
             async with self.sem.context(len(f.keywords.get("media", "0"))):
                 # minimize semaphore context
