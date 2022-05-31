@@ -102,12 +102,10 @@ class InteractApp(BaseApp):
 
         class interact_feed_hook(cls):
             async def HeartbeatRefresh(_self, num: int):
-                await super().HeartbeatRefresh(num)
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
                     return
-                task = self.add_hook_ref("heartbeat", self.fetch(self.admin, is_period=True))
-                self.fetch_lock.acquire(task)
+                self.fetch_lock.acquire(await super().HeartbeatRefresh(num))  # type: ignore
 
         return interact_feed_hook
 

@@ -118,13 +118,13 @@ class BaseApp:
     @property
     def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
         class inner_feed_hook(DefaultFeedHook):
-            async def HeartbeatRefresh(_, num):  # type: ignore
+            async def HeartbeatRefresh(_self, num):
                 await super().HeartbeatRefresh(num)
                 return self.add_hook_ref(
                     "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
                 )
 
-            async def HeartbeatFailed(_, exc: BaseException | None):  # type: ignore
+            async def HeartbeatFailed(_self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
                 info = f"({exc})" if exc else ""
                 await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
