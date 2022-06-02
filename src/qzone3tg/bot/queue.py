@@ -68,6 +68,7 @@ class MsgQueue(Emittable[QueueEvent]):
 
     async def add(self, bid: int, feed: FeedContent):
         if bid != self.bid:
+            logger.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
         ids = await self.hook.get_message_id(feed)
         if ids:
@@ -163,6 +164,7 @@ class MsgQueue(Emittable[QueueEvent]):
             if isinstance(f, (MediaPartial, MediaGroupPartial)):
                 tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
                 return True
+            logger.error("Got BadRequest from send_message!", exc_info=e)
             # return False
         except TelegramError as e:
             self.exc[feed].append(e)

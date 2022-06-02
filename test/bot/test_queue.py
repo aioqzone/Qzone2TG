@@ -6,13 +6,14 @@ import pytest
 import pytest_asyncio
 from aiohttp import ClientSession
 from aioqzone_feed.type import FeedContent
+from qzemoji.utils import build_html
 from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue, QueueEvent
 
-from . import FakeBot, fake_feed
+from . import FakeBot, fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
 
@@ -103,10 +104,10 @@ class RealBot(FakeBot):
             raise e
         return super().send_media_group(to, media, **kw)
 
-    def send_photo(self, to, photo: str | bytes, caption: str, **kw):
+    def send_photo(self, to, media: str | bytes, text: str, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_photo(to, photo, caption, **kw)
+        return super().send_photo(to, media, text, **kw)
 
 
 @pytest.fixture(scope="class")
@@ -137,4 +138,20 @@ class TestReal:
         bot = cast(RealBot, real.bot)
         assert not bot.log
         assert len(real.exc) == 3
-        assert [len(i) for i in real.exc.values()] == [2, 2, 2]
+        assert [len(i) for i in real.exc.values()] == [2, 1, 2]
+
+    async def test_badrequest_media(self, real: EditableQueue):
+        real.new_batch(1)
+        f = fake_feed(1)
+        f.media = [fake_media(build_html(100))]
+        await real.add(1, f)
+        l = real.q[f]
+        assert isinstance(l, list)
+        for p in l:
+            p.kwds["e"] = BadRequest("")
+        await real.send_all()
+        assert real.sending is None
+        bot = cast(RealBot, real.bot)
+        assert not bot.log
+        assert len(real.exc) == 1
+        assert len(real.exc[f]) == 2
