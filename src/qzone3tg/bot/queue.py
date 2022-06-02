@@ -11,12 +11,12 @@ from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.utils.iter import aenumerate, alist, countif
 
-from . import ChatId
-from .atom import MediaMsg
+from . import BotProtocol, ChatId, InputMedia
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial
 from .limitbot import BotTaskEditter as BTE
-from .limitbot import RelaxSemaphore
+from .limitbot import RelaxSemaphore, SemaBot
 
-SendFunc = partial[list[Message]] | partial[Message]
+SendFunc = MsgPartial
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +48,7 @@ class MsgQueue(Emittable[QueueEvent]):
 
     def __init__(
         self,
+        bot: BotProtocol,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
         sem: RelaxSemaphore,
@@ -55,6 +56,7 @@ class MsgQueue(Emittable[QueueEvent]):
     ) -> None:
         super().__init__()
         self.q: dict[FeedContent, list[SendFunc] | int] = {}
+        self.bot = bot
         self.tasker = tasker
         self.fwd2 = forward_map
         self._loop = aio.get_event_loop()
@@ -75,7 +77,7 @@ class MsgQueue(Emittable[QueueEvent]):
         # add a sending task
         tasks = await alist(self.tasker.unify_send(feed))
         for p in tasks:
-            p.keywords.update(chat_id=self.fwd2[feed.uin])
+            p.kwds.update(to=self.fwd2[feed.uin])
 
         self.q[feed] = tasks
 
@@ -115,7 +117,7 @@ class MsgQueue(Emittable[QueueEvent]):
             return
 
         for f in v:
-            f.keywords.update(reply_to_message_id=reply)
+            f.kwds.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
                 if (r := await self._send_one_atom(f, feed)) is True:
                     continue
@@ -141,9 +143,10 @@ class MsgQueue(Emittable[QueueEvent]):
 
     async def _send_one_atom(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
         try:
-            async with self.sem.context(len(f.keywords.get("media", "0"))):
+            t = len(f.medias) if isinstance(f, MediaGroupPartial) else 1
+            async with self.sem.context(t):
                 # minimize semaphore context
-                r = await self._loop.run_in_executor(None, f)
+                r = await f(self.bot)
             if isinstance(r, Message):
                 return [r.message_id]
             if isinstance(r, list):
@@ -151,7 +154,7 @@ class MsgQueue(Emittable[QueueEvent]):
         except TimedOut as e:
             self.exc[feed].append(e)
             self.tasker.bps /= 2
-            self.tasker.inc_timeout(cast(partial, f))
+            self.tasker.inc_timeout(f)
             # TODO: more operations
             return True
         except BadRequest as e:
@@ -177,23 +180,23 @@ class EditableQueue(MsgQueue):
 
     def __init__(
         self,
+        bot: BotProtocol,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
         sem: RelaxSemaphore,
         max_retry: int = 2,
     ) -> None:
-        super().__init__(tasker, forward_map, sem, max_retry)
+        super().__init__(bot, tasker, forward_map, sem, max_retry)
 
-    async def edit_media(self, to: ChatId, mid: int, media: MediaMsg):
-        f = partial(self.tasker.bot.edit_message_media, to, mid, media=media.wrap_media())
+    async def edit_media(self, to: ChatId, mid: int, media: InputMedia):
+        kw = {}
         for _ in range(self.max_retry):
             try:
-                async with self.sem.context():
-                    return await self._loop.run_in_executor(None, f)
+                return await self.bot.edit_message_media(to, mid, media, **kw)
             except TimedOut:
-                f.keywords["timeout"] = f.keywords.get("timeout", 5) * 2
+                kw["timeout"] = kw.get("timeout", 5) * 2  # TODO
             except BadRequest:
-                f.keywords["media"] = await self.tasker.force_bytes_inputmedia(f.keywords["media"])
+                media = await self.tasker.force_bytes_inputmedia(media)
             except TelegramError:
                 logger.error("Uncaught telegram error when editting media.", exc_info=True)
             except BaseException:
@@ -219,20 +222,27 @@ class EditableQueue(MsgQueue):
         await self.wait("storage")
         mids = await self.hook.get_message_id(feed)
         if mids is None:
-            logger.warning("Edit media wasn't sent before, skipped.")
+            logger.error("Edit media wasn't sent before, skipped.")
             return
 
-        args = await self.tasker.splitter.split(feed)
-        for a, mid in zip(args, mids):
-            if not isinstance(a, MediaMsg):
+        args = await alist(self.tasker.unify_send(feed))
+        for a in args:
+            if isinstance(a, MediaPartial):
+                mid = mids.pop(0)
+                c = self.edit_media(self.fwd2[feed.uin], mid, a.wrap_media())
+                self.add_hook_ref("edit", c)
+            elif isinstance(a, MediaGroupPartial):
+                for i in a.medias:
+                    mid = mids.pop(0)
+                    self.add_hook_ref("edit", self.edit_media(self.fwd2[feed.uin], mid, i))
+                    pass
+            else:
                 break
-            c = self.edit_media(self.fwd2[feed.uin], mid, a.wrap_media())
-            self.add_hook_ref("edit", c)
 
     async def _edit_pending(self, feed: FeedContent):
-        tasks = self.q[feed]
-        assert isinstance(tasks, list)
-        async for i, a in aenumerate(self.tasker.edit_args(feed)):
-            # replace the kwarg with new content
-            assert tasks[i].func.__name__.endswith(a.meth)
-            tasks[i].keywords[a.meth] = a.content
+        # replace the kwarg with new content
+        tasks = await alist(self.tasker.unify_send(feed))
+        for p in tasks:
+            p.kwds.update(to=self.fwd2[feed.uin])
+
+        self.q[feed] = tasks

@@ -1,6 +1,6 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, cast
+from typing import cast
 
 import pytest
 import pytest_asyncio
@@ -40,9 +40,9 @@ class Ihave0(QueueEvent):
 @pytest.fixture(scope="class")
 def ideal(sess):
     sem = RelaxSemaphore(30)
-    bot: Any = FakeBot()
-    tasker = BotTaskEditter(bot, FetchSplitter(sess), sess)
-    q = EditableQueue(tasker, defaultdict(int), sem)
+    bot = FakeBot()
+    tasker = BotTaskEditter(FetchSplitter(sess), sess)
+    q = EditableQueue(bot, tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
 
     class FakeMarkup(TaskerEvent):
@@ -75,7 +75,7 @@ class TestIdeal:
             await ideal.add(1, f)
         await ideal.send_all()
         assert ideal.sending is None
-        bot = cast(FakeBot, ideal.tasker.bot)
+        bot = cast(FakeBot, ideal.bot)
         assert len(bot.log) == 3
         assert "".join(i[2][-1] for i in bot.log) == "123"
 
@@ -86,7 +86,7 @@ class TestIdeal:
         await ideal.add(2, f)
         await ideal.send_all()
         assert ideal.sending is None
-        bot = cast(FakeBot, ideal.tasker.bot)
+        bot = cast(FakeBot, ideal.bot)
         dfw = bot.log[0][-1]
         df = bot.log[1][-1]
         assert dfw["reply_markup"] == 1
@@ -113,9 +113,9 @@ class RealBot(FakeBot):
 @pytest.fixture(scope="class")
 def real(sess):
     sem = RelaxSemaphore(30)
-    bot: Any = RealBot()
-    tasker = BotTaskEditter(bot, FetchSplitter(sess), sess)
-    q = EditableQueue(tasker, defaultdict(int), sem)
+    bot = RealBot()
+    tasker = BotTaskEditter(FetchSplitter(sess), sess)
+    q = EditableQueue(bot, tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
     tasker.register_hook(TaskerEvent())
     return q
@@ -129,10 +129,10 @@ class TestReal:
             f.abstime = i
             await real.add(0, f)
             for p in real.q[f]:  # type: ignore
-                p.keywords["e"] = e
+                p.kwds["e"] = e
         await real.send_all()
         assert real.sending is None
-        bot = cast(FakeBot, real.tasker.bot)
+        bot = cast(RealBot, real.bot)
         assert not bot.log
         assert len(real.exc) == 3
         assert [len(i) for i in real.exc.values()] == [2, 2, 2]

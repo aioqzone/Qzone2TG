@@ -3,7 +3,6 @@ import asyncio
 import pytest
 import pytest_asyncio
 from aiohttp import ClientSession
-from pydantic import HttpUrl
 from qzemoji.utils import build_html
 
 import qzone3tg.bot.atom as atom
@@ -39,13 +38,13 @@ def fetch(sess):
 def test_media_arg():
     vm = fake_media(build_html(100))
     d = {
-        atom.PicMsg: atom.Pic,
-        atom.AnimMsg: atom.Anim,
-        atom.DocMsg: atom.Doc,
-        atom.VideoMsg: atom.Video,
+        atom.PicPartial: atom.Pic,
+        atom.AnimPartial: atom.Anim,
+        atom.DocPartial: atom.Doc,
+        atom.VideoPartial: atom.Video,
     }
     for k, v in d.items():
-        a = k(vm, vm)
+        a = k(vm, None)
         assert isinstance(a.wrap_media(), v)
 
 
@@ -70,41 +69,42 @@ class TestLocal:
         f.media = [fake_media(build_html(100))]
         _, a = await local.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.PicMsg)
+        assert isinstance(a[0], atom.PicPartial)
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
         _, a = await local.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.AnimMsg)
+        assert isinstance(a[0], atom.AnimPartial)
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
         _, a = await local.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.VideoMsg)
+        assert isinstance(a[0], atom.VideoPartial)
 
     async def test_media_long(self, local: atom.LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
         _, a = await local.split(f)
         assert len(a) == 2
-        assert isinstance(a[0], atom.PicMsg)
-        assert isinstance(a[1], atom.TextMsg)
+        assert isinstance(a[0], atom.PicPartial)
+        assert isinstance(a[1], atom.TextPartial)
 
     async def test_media_group(self, local: atom.LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))] * 2
         _, a = await local.split(f)
-        assert len(a) == 2
-        assert all(isinstance(i, atom.PicMsg) for i in a)
+        assert len(a) == 1
+        assert isinstance(a[0], atom.MediaGroupPartial)
 
     async def test_media_group_exd(self, local: atom.LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))] * 11
         _, a = await local.split(f)
-        assert len(a) == 11
+        assert len(a) == 2
         assert a[0].text  # type: ignore
-        assert a[10].text  # type: ignore
+        assert a[1].text  # type: ignore
+        assert isinstance(a[1], atom.PicPartial)
 
 
 class TestFetch:
@@ -113,17 +113,17 @@ class TestFetch:
         f.media = [fake_media(build_html(100))]
         _, a = await fetch.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.PicMsg)
+        assert isinstance(a[0], atom.PicPartial)
         assert a[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
         _, a = await fetch.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.AnimMsg)
+        assert isinstance(a[0], atom.AnimPartial)
         assert a[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
         _, a = await fetch.split(f)
         assert len(a) == 1
-        assert isinstance(a[0], atom.VideoMsg)
+        assert isinstance(a[0], atom.VideoPartial)

@@ -142,8 +142,8 @@ class BaseApp:
 
         self.hook_feed = self._feed_hook_cls(
             EditableQueue(
+                self.bot,
                 BotTaskEditter(
-                    self.tgbot,
                     FetchSplitter(self.sess)
                     if self.conf.bot.send_gif_as_anim
                     else LocalSplitter(),
