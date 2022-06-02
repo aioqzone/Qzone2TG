@@ -31,8 +31,7 @@ async def sess():
 
 
 class Ihave0(QueueEvent):
-    async def get_message_id(self, feed) -> list[int] | None:
-        assert isinstance(feed, FeedContent)
+    async def get_message_id(self, feed: FeedContent) -> list[int] | None:
         if feed.entities[0].con == "0":  # type: ignore
             return [0]
 
@@ -94,20 +93,20 @@ class TestIdeal:
 
 
 class RealBot(FakeBot):
-    def send_message(self, chat_id, text: str, **kw):
+    def send_message(self, to, text: str, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_message(chat_id, text, **kw)
+        return super().send_message(to, text, **kw)
 
-    def send_media_group(self, chat_id, media: list, **kw):
+    def send_media_group(self, to, media: list, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_media_group(chat_id, media, **kw)
+        return super().send_media_group(to, media, **kw)
 
-    def send_photo(self, chat_id, photo: str | bytes, caption: str, **kw):
+    def send_photo(self, to, photo: str | bytes, caption: str, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_photo(chat_id, photo, caption, **kw)
+        return super().send_photo(to, photo, caption, **kw)
 
 
 @pytest.fixture(scope="class")
@@ -128,7 +127,10 @@ class TestReal:
             f = fake_feed(i + 1)
             f.abstime = i
             await real.add(0, f)
-            for p in real.q[f]:  # type: ignore
+
+            l = real.q[f]
+            assert isinstance(l, list)
+            for p in l:
                 p.kwds["e"] = e
         await real.send_all()
         assert real.sending is None

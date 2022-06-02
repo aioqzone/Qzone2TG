@@ -25,10 +25,10 @@ class CommaList(Generic[T]):
         return ",".join(self.tostr(i) for i in obj).encode()
 
     def loads(self, commalist: bytes, *args, **kwds) -> list[T]:
-        return [self.toT(i) for i in commalist.split(b",")]  # type: ignore
+        return [self.toT(i) for i in commalist.split(b",")]
 
 
-class FeedOrm(Base):  # type: ignore
+class FeedOrm(Base):
     __tablename__ = "feed"
 
     fid = sa.Column(sa.VARCHAR, nullable=False)
@@ -75,7 +75,7 @@ class FeedOrm(Base):  # type: ignore
         return cls.uin == feed.uin, cls.abstime == feed.abstime
 
 
-class CookieOrm(Base):  # type: ignore
+class CookieOrm(Base):
     __tablename__ = "cookie"
 
     uin = sa.Column(sa.Integer, primary_key=True)

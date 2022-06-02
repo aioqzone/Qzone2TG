@@ -71,8 +71,9 @@ async def test_update(store: DefaultStorageHook, fixed: list):
     assert feed.mids is None
 
     await store.update_message_id(fixed[2], [0])
-    _, mids = await store.get(FeedOrm.fid == fixed[2].fid)  # type: ignore
-    assert mids == [0]
+    pack = await store.get(FeedOrm.fid == fixed[2].fid)
+    assert pack
+    assert pack[1] == [0]
 
 
 async def test_remove(store: DefaultStorageHook, fixed: list):

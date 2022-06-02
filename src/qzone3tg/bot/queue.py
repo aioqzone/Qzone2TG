@@ -160,8 +160,10 @@ class MsgQueue(Emittable[QueueEvent]):
         except BadRequest as e:
             self.exc[feed].append(e)
             assert isinstance(tasks := self.q[feed], list)
-            tasks[tasks.index(f)] = await self.tasker.force_bytes(f)  # type: ignore
-            return True
+            if isinstance(f, (MediaPartial, MediaGroupPartial)):
+                tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
+                return True
+            # return False
         except TelegramError as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)

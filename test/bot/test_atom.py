@@ -102,9 +102,10 @@ class TestLocal:
         f.media = [fake_media(build_html(100))] * 11
         _, a = await local.split(f)
         assert len(a) == 2
-        assert a[0].text  # type: ignore
-        assert a[1].text  # type: ignore
+        assert isinstance(a[0], atom.MediaGroupPartial)
         assert isinstance(a[1], atom.PicPartial)
+        assert a[0].text
+        assert a[1].text
 
 
 class TestFetch:
