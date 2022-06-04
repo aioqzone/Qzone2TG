@@ -32,7 +32,7 @@ async def sess():
 
 
 class Ihave0(QueueEvent):
-    async def get_message_id(self, feed: FeedContent) -> list[int] | None:
+    async def GetMid(self, feed: FeedContent) -> list[int] | None:
         if feed.entities[0].con == "0":  # type: ignore
             return [0]
 

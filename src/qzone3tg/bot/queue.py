@@ -31,7 +31,7 @@ class QueueEvent(Event):
         """
         return
 
-    async def get_message_id(self, feed: BaseFeed) -> list[int] | None:
+    async def GetMid(self, feed: BaseFeed) -> list[int] | None:
         """Get a list of message id from storage.
 
         :param feed: feed
@@ -39,7 +39,7 @@ class QueueEvent(Event):
         """
         return
 
-    async def update_message_id(self, feed: BaseFeed, mids: list[int]):
+    async def UpdateMid(self, feed: BaseFeed, mids: list[int]):
         return
 
 
@@ -70,7 +70,7 @@ class MsgQueue(Emittable[QueueEvent]):
         if bid != self.bid:
             logger.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
-        ids = await self.hook.get_message_id(feed)
+        ids = await self.hook.GetMid(feed)
         if ids:
             self.q[feed] = ids[-1]
             return  # needn't send again. refer to the message is okay.
@@ -224,7 +224,7 @@ class EditableQueue(MsgQueue):
 
     async def _edit_sent(self, feed: FeedContent):
         await self.wait("storage")
-        mids = await self.hook.get_message_id(feed)
+        mids = await self.hook.GetMid(feed)
         if mids is None:
             logger.error("Edit media wasn't sent before, skipped.")
             return

@@ -61,9 +61,9 @@ async def test_insert(store: DefaultStorageHook, fixed: list):
 
 
 async def test_exist(store: DefaultStorageHook, fixed: list):
-    assert not await store.exists(fixed[0])
-    assert not await store.exists(fixed[1])
-    assert await store.exists(fixed[2])
+    assert not await store.Exists(fixed[0])
+    assert not await store.Exists(fixed[1])
+    assert await store.Exists(fixed[2])
 
 
 async def test_update(store: DefaultStorageHook, fixed: list):
@@ -72,18 +72,18 @@ async def test_update(store: DefaultStorageHook, fixed: list):
     feed, mids = pack
     assert mids is None
 
-    await store.update_message_id(fixed[2], [1, 2])
-    mids = await store.get_message_id(fixed[2])
+    await store.UpdateMid(fixed[2], [1, 2])
+    mids = await store.GetMid(fixed[2])
     assert mids
     assert mids == [1, 2]
 
 
 async def test_mid2feed(store: DefaultStorageHook, fixed: list):
-    feed = await store.get_feed_from_mid(1)
+    feed = await store.Mid2Feed(1)
     assert feed == fixed[2]
 
 
 async def test_remove(store: DefaultStorageHook, fixed: list):
-    await store.clean(0)  # clean all
-    assert not await store.exists(fixed[2])
+    await store.Clean(0)  # clean all
+    assert not await store.Exists(fixed[2])
     assert await store.get_msg_orms(MessageOrm.mid == 1) is None

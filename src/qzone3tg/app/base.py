@@ -28,7 +28,7 @@ from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
 from .hook import DefaultFeedHook, DefaultLoginHook, DefaultQrHook
-from .storage import AsyncEngine, DefaultStorageHook
+from .storage import AsyncEngine, DefaultStorageHook, StorageMan
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
@@ -155,10 +155,11 @@ class BaseApp:
             block or [],
         )
         self.hook_tasker = self._tasker_hook_cls()
-        self.store = self._storage_hook_cls(self.engine)
+        self.store = StorageMan(self.engine)
+        self.hook_store = self._storage_hook_cls(self.store)
 
         self.qzone.register_hook(self.hook_feed)
-        self.hook_feed.queue.register_hook(self.store)
+        self.hook_feed.queue.register_hook(self.hook_store)
         self.hook_feed.queue.tasker.register_hook(self.hook_tasker)
         self.loginman.register_hook(self.hook_qr)
 
@@ -269,6 +270,26 @@ class BaseApp:
         self.updater.stop()
 
     # --------------------------------
+    #              timer
+    # --------------------------------
+    def add_clean_task(self, keepdays: float, interval: float = 86400):
+        """
+        This function registers a timer that calls `self.clean(-keepdays * 86400)`
+        every `interval` seconds.
+
+        :param keepdays: Used to determine how many days worth of messages to keep.
+        :return: the clean Task
+        """
+
+        async def clean():
+            await self.hook_store.Clean(-keepdays * 86400)
+            return False  # never stop
+
+        self.cl = AsyncTimer(interval, clean, name="clean")
+        self.cl()
+        return self.cl
+
+    # --------------------------------
     #          work logics
     # --------------------------------
     async def run(self):
@@ -281,7 +302,7 @@ class BaseApp:
         self.log.info("注册心跳...")
         self.qzone.add_heartbeat()
         self.log.info("注册数据库清理任务...")
-        self.store.add_clean_task(self.conf.bot.storage.keepdays)
+        self.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
         qe.proxy = self.conf.bot.network.proxy and str(self.conf.bot.network.proxy)
         init_task = [qe.auto_update(), self.store.create(), self.loginman.load_cached_cookie()]
@@ -340,7 +361,7 @@ class BaseApp:
         # fetch feed
         try:
             got = await self.qzone.get_feeds_by_second(
-                self.conf.qzone.dayspac * 86400, exceed_pred=self.store.exists
+                self.conf.qzone.dayspac * 86400, exceed_pred=self.hook_store.Exists
             )
         except (UserBreak, LoginError):
             self.qzone.hb_timer.stop()
@@ -393,7 +414,7 @@ class BaseApp:
             "上次登录": ts2a(self.loginman.last_login),
             "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
             "上次心跳": ts2a(self.qzone.hb_timer.last_call),
-            "上次清理数据库": ts2a(self.store.cl.last_call),
+            "上次清理数据库": ts2a(self.cl.last_call),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:
