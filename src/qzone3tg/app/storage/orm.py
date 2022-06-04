@@ -1,31 +1,11 @@
 """This module defines orms in this app."""
 
-from typing import Callable, Generic, Optional, Type, TypeVar
 
 import sqlalchemy as sa
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
-T = TypeVar("T")
-
-
-class CommaList(Generic[T]):
-    def __init__(
-        self,
-        cls: Type[T],
-        tostr: Callable[[T], str] = str,
-        toT: Callable[[bytes], T] | None = None,
-    ) -> None:
-        self.cls = cls
-        self.tostr = tostr
-        self.toT = toT or cls
-
-    def dumps(self, obj: list[T], *args, **kwds):
-        return ",".join(self.tostr(i) for i in obj).encode()
-
-    def loads(self, commalist: bytes, *args, **kwds) -> list[T]:
-        return [self.toT(i) for i in commalist.split(b",")]
 
 
 class FeedOrm(Base):
@@ -39,13 +19,10 @@ class FeedOrm(Base):
     nickname = sa.Column(sa.VARCHAR, default="Unknown", nullable=False)
     curkey = sa.Column(sa.VARCHAR, nullable=True)
     unikey = sa.Column(sa.VARCHAR, nullable=True)
-    mids: Optional[list[int]] = sa.Column(
-        sa.PickleType(pickler=CommaList(int)), nullable=True  # type: ignore
-    )
-    """message_id list, as a pickle type"""
+    """message id list, as a pickle type"""
 
     @classmethod
-    def from_base(cls, obj: BaseFeed, mids: list[int] | None = None):
+    def from_base(cls, obj: BaseFeed):
         return cls(
             fid=obj.fid,
             uin=obj.uin,
@@ -55,11 +32,10 @@ class FeedOrm(Base):
             nickname=obj.nickname,
             curkey=obj.curkey and str(obj.curkey),
             unikey=obj.unikey and str(obj.unikey),
-            mids=mids,
         )
 
     @staticmethod
-    def set_by(record: "FeedOrm", obj: BaseFeed, mids: list[int] | None = None):
+    def set_by(record: "FeedOrm", obj: BaseFeed):
         assert record.uin == obj.uin
         assert record.abstime == obj.abstime
         assert record.fid == obj.fid
@@ -68,10 +44,29 @@ class FeedOrm(Base):
         record.nickname = obj.nickname
         record.curkey = obj.curkey and str(obj.curkey)
         record.unikey = obj.unikey and str(obj.unikey)
-        record.mids = mids
+        return record
 
     @classmethod
     def primkey(cls, feed: BaseFeed):
+        return cls.uin == feed.uin, cls.abstime == feed.abstime
+
+
+class MessageOrm(Base):
+    __tablename__ = "message"
+
+    mid = sa.Column(sa.Integer, primary_key=True)
+    uin = sa.Column(sa.ForeignKey("feed.uin"))
+    abstime = sa.Column(sa.ForeignKey("feed.abstime"))
+
+    @staticmethod
+    def set_by(record: "MessageOrm", obj: BaseFeed, mid: int):
+        record.mid = mid
+        record.uin = obj.uin
+        record.abstime = obj.abstime
+        return record
+
+    @classmethod
+    def fkey(cls, feed: BaseFeed | FeedOrm):
         return cls.uin == feed.uin, cls.abstime == feed.abstime
 
 

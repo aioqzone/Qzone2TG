@@ -7,6 +7,7 @@ import pytest_asyncio
 from aioqzone_feed.type import BaseFeed
 
 from qzone3tg.app.storage import AsyncEnginew, DefaultStorageHook, FeedOrm
+from qzone3tg.app.storage.orm import MessageOrm
 
 pytestmark = pytest.mark.asyncio
 
@@ -56,7 +57,7 @@ async def test_create(store: DefaultStorageHook):
 
 async def test_insert(store: DefaultStorageHook, fixed: list):
     await store.SaveFeed(fixed[1])
-    await store.SaveFeed(fixed[2], [1])
+    await store.SaveFeed(fixed[2], [0])
 
 
 async def test_exist(store: DefaultStorageHook, fixed: list):
@@ -66,16 +67,23 @@ async def test_exist(store: DefaultStorageHook, fixed: list):
 
 
 async def test_update(store: DefaultStorageHook, fixed: list):
-    feed = await store.get_orm(FeedOrm.fid == fixed[1].fid)
-    assert feed
-    assert feed.mids is None
-
-    await store.update_message_id(fixed[2], [0])
-    pack = await store.get(FeedOrm.fid == fixed[2].fid)
+    pack = await store.get(*FeedOrm.primkey(fixed[1]))
     assert pack
-    assert pack[1] == [0]
+    feed, mids = pack
+    assert mids is None
+
+    await store.update_message_id(fixed[2], [1, 2])
+    mids = await store.get_message_id(fixed[2])
+    assert mids
+    assert mids == [1, 2]
+
+
+async def test_mid2feed(store: DefaultStorageHook, fixed: list):
+    feed = await store.get_feed_from_mid(1)
+    assert feed == fixed[2]
 
 
 async def test_remove(store: DefaultStorageHook, fixed: list):
     await store.clean(0)  # clean all
     assert not await store.exists(fixed[2])
+    assert await store.get_msg_orms(MessageOrm.mid == 1) is None

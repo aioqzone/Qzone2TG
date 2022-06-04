@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.3.1a1.dev2"
+version = "0.3.1a1.dev3"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -56,7 +56,7 @@ markers = [
 ]
 asyncio_mode = 'strict'
 log_cli = 1
-log_cli_level = 'WARNING'
+log_cli_level = 'DEBUG'
 
 
 [tool.isort]
