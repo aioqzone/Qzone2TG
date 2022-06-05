@@ -99,6 +99,10 @@ class BaseApp:
                 await super().LoginSuccess(meth)
 
         class inner_login_hook(DefaultLoginHook):
+            def __init__(self, admin: ChatId, bot) -> None:
+                super().__init__(admin, bot)
+                inner_qr_hook.__init__(self)  # type: ignore
+
             @classmethod
             def _get_base(cls, meth: LoginMethod):
                 if meth == LoginMethod.qr:
@@ -264,6 +268,12 @@ class BaseApp:
         import signal
 
         signal.signal(signal.SIGTERM, sigterm_handler)
+
+        def ptb_error_handler(_, context: ext.CallbackContext):
+            self.log.fatal("Uncaught error caught by PTB error handler", exc_info=context.error)
+            exit(1)
+
+        self.updater.dispatcher.add_error_handler(ptb_error_handler)
 
     def stop(self):
         self.qzone.stop()

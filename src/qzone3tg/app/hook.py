@@ -65,11 +65,13 @@ class DefaultQrHook(QREvent, Sender):
             )
         else:
             text = "二维码已刷新:" if self.qr_renew else f"二维码已过期, 请重新扫描[{self.qr_times}]"
-            self.qr_msg = await self.bot.edit_message_media(
+            msg = await self.bot.edit_message_media(
                 self.admin,
                 self.qr_msg.message_id,
                 InputMediaPhoto(png, text),
             )
+            if isinstance(msg, Message):
+                self.qr_msg = msg
         self.qr_times += 1
 
     def cleanup(self):

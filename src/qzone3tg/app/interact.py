@@ -239,10 +239,10 @@ class InteractApp(BaseApp):
         query: CallbackQuery = update.callback_query
         data: str = query.data
         prefix, data = data.split(":", maxsplit=1)
-        switch = {"like": self.like, "qr": self.qr}
+        switch = {"like": self.btn_like, "qr": self.btn_qr}
         switch[prefix](query)
 
-    def like(self, query: CallbackQuery):
+    def btn_like(self, query: CallbackQuery):
         self.log.info(f"Like! query={query.data}")
         _, data = str.split(query.data, ":", maxsplit=1)
         if unlike := data.startswith("-"):
@@ -299,7 +299,7 @@ class InteractApp(BaseApp):
         task = self.add_hook_ref("storage", query_likedata(data))
         task.add_done_callback(lambda t: like_trans(t.result()))
 
-    def qr(self, query: CallbackQuery):
+    def btn_qr(self, query: CallbackQuery):
         self.log.info(f"QR! query={query.data}")
         _, command = str.split(query.data, ":", maxsplit=1)
         switch = {"refresh": self.hook_qr.resend, "cancel": self.hook_qr.cancel}
