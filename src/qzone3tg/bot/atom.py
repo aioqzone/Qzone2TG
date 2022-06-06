@@ -173,9 +173,6 @@ class PicPartial(MediaPartial[Pic]):
 class VideoPartial(MediaPartial[Video]):
     meth = "video"
 
-    def wrap_media(self, **kw) -> Video:
-        return super().wrap_media(thumb=self.thumb, **kw)
-
     @property
     def thumb(self):
         return str(self.meta.thumbnail)

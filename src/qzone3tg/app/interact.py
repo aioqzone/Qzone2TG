@@ -19,7 +19,6 @@ from telegram.ext import (
 from qzone3tg.settings import PollingConf, Settings
 
 from .base import BaseApp
-from .hook import DefaultFeedHook
 from .storage import AsyncEngine
 from .storage.orm import FeedOrm
 
@@ -43,6 +42,7 @@ class InteractApp(BaseApp):
         "status": "获取运行状态",
         "relogin": "强制重新登陆",
         "em": "自定义表情代码，如 /em 400343 🐷；导出自定义表情，/em export",
+        "like": "点赞指定的说说",
         "help": "帮助",
     }
 
@@ -231,6 +231,42 @@ class InteractApp(BaseApp):
         eid = int(eid)
         echo(f"Customize emoji text: {eid}->{text}")
         self.add_hook_ref("storage", qe.set(eid, text))
+
+    async def like(self, update: Update, context: CallbackContext):
+        msg = update.effective_message
+        assert msg
+        reply = msg.reply_to_message
+        if not reply:
+            msg.reply_text("使用 /like 时，您需要回复一条消息。")
+            return
+
+        feed = await self.hook_store.Mid2Feed(reply.message_id)
+        if not feed:
+            msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
+            return
+
+        if feed.unikey is None:
+            msg.reply_text("该说说不支持点赞。")
+            return
+
+        likedata = LikeData(
+            unikey=str(feed.unikey),
+            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+            appid=feed.appid,
+            typeid=feed.typeid,
+            fid=feed.fid,
+            abstime=feed.abstime,
+        )
+        task = self.add_hook_ref("button", self.qzone.like_app(likedata, True))
+        task.add_done_callback(lambda t: check_succ(t))
+
+        def check_succ(task: asyncio.Task[bool]):
+            try:
+                assert task.result()
+            except:
+                msg.reply_text("点赞失败")
+            else:
+                msg.reply_text("点赞成功")
 
     # --------------------------------
     #              query
