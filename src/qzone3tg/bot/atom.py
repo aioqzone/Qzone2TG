@@ -190,6 +190,14 @@ class MediaGroupPartial(MsgPartial):
     def is_doc(self):
         return isinstance(self.medias[0], Doc)
 
+    @MsgPartial.reply_markup.getter
+    def reply_markup(self):
+        return None
+
+    @reply_markup.setter
+    def reply_markup(self, value: ReplyMarkup | None):
+        assert value is None
+
     async def __call__(self, bot: BotProtocol, *args, **kwds) -> list[Message]:
         assert self.medias
         self.medias[0].caption = self.text  # type: ignore
