@@ -18,19 +18,6 @@ from . import FakeBot, fake_feed, fake_media
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture(scope="module")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="module")
-async def sess():
-    async with ClientSession() as sess:
-        yield sess
-
-
 class Ihave0(QueueEvent):
     async def GetMid(self, feed: FeedContent) -> list[int] | None:
         if feed.entities[0].con == "0":  # type: ignore

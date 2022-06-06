@@ -5,7 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Type
 
-from aioqzone.interface.hook import LoginEvent, LoginMethod, QREvent, UPEvent
+from aioqzone.interface.login import LoginEvent, LoginMethod, QREvent, UPEvent
 from aioqzone_feed.interface.hook import FeedContent, FeedEvent
 from telegram import InlineKeyboardMarkup, InputMediaPhoto, Message
 

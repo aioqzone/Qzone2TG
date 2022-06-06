@@ -14,7 +14,7 @@ import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
-from aioqzone.interface.hook import LoginMethod
+from aioqzone.interface.login import LoginMethod
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from pydantic import AnyUrl
@@ -94,6 +94,7 @@ class BaseApp:
     def _login_hook_cls(self) -> Type[DefaultLoginHook]:
         class inner_qr_hook(DefaultQrHook):
             async def LoginSuccess(_self, meth):
+                assert self.qzone.hb_timer
                 if self.qzone.hb_timer.state != "PENDING":
                     self.qzone.hb_timer()
                 await super().LoginSuccess(meth)
@@ -374,7 +375,8 @@ class BaseApp:
                 self.conf.qzone.dayspac * 86400, exceed_pred=self.hook_store.Exists
             )
         except (UserBreak, LoginError):
-            self.qzone.hb_timer.stop()
+            if self.qzone.hb_timer:
+                self.qzone.hb_timer.stop()
             echo("命令已取消")
             return
 
@@ -422,8 +424,8 @@ class BaseApp:
         stat_dic = {
             "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
-            "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
-            "上次心跳": ts2a(self.qzone.hb_timer.last_call),
+            "心跳状态": "🟢" if self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING" else "🔴",
+            "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(self.cl.last_call),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
