@@ -232,7 +232,7 @@ class InteractApp(BaseApp):
         echo(f"Customize emoji text: {eid}->{text}")
         self.add_hook_ref("storage", qe.set(eid, text))
 
-    async def like(self, update: Update, context: CallbackContext):
+    def like(self, update: Update, context: CallbackContext):
         msg = update.effective_message
         assert msg
         reply = msg.reply_to_message
@@ -240,25 +240,34 @@ class InteractApp(BaseApp):
             msg.reply_text("使用 /like 时，您需要回复一条消息。")
             return
 
-        feed = await self.hook_store.Mid2Feed(reply.message_id)
-        if not feed:
-            msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
-            return
+        async def query_likedata(mid: int):
+            feed = await self.hook_store.Mid2Feed(reply.message_id)
+            if not feed:
+                msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
+                return
 
-        if feed.unikey is None:
-            msg.reply_text("该说说不支持点赞。")
-            return
+            if feed.unikey is None:
+                msg.reply_text("该说说不支持点赞。")
+                return
 
-        likedata = LikeData(
-            unikey=str(feed.unikey),
-            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
-            appid=feed.appid,
-            typeid=feed.typeid,
-            fid=feed.fid,
-            abstime=feed.abstime,
-        )
-        task = self.add_hook_ref("button", self.qzone.like_app(likedata, True))
-        task.add_done_callback(lambda t: check_succ(t))
+            return LikeData(
+                unikey=str(feed.unikey),
+                curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+                appid=feed.appid,
+                typeid=feed.typeid,
+                fid=feed.fid,
+                abstime=feed.abstime,
+            )
+
+        def like_trans(task: asyncio.Task[LikeData | None]):
+            try:
+                likedata = task.result()
+            except:
+                return
+            if likedata is None:
+                return
+            like = self.add_hook_ref("command", self.qzone.like_app(likedata, True))
+            like.add_done_callback(lambda t: check_succ(t))
 
         def check_succ(task: asyncio.Task[bool]):
             try:
@@ -267,6 +276,9 @@ class InteractApp(BaseApp):
                 msg.reply_text("点赞失败")
             else:
                 msg.reply_text("点赞成功")
+
+        task = self.add_hook_ref("command", query_likedata(reply.message_id))
+        task.add_done_callback(lambda t: like_trans(t))
 
     # --------------------------------
     #              query
