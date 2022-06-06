@@ -4,6 +4,7 @@ import asyncio as aio
 import logging
 from collections import deque
 from functools import partial
+from itertools import chain
 from time import time
 from typing import Optional, Tuple, TypeVar, overload
 
@@ -68,19 +69,20 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
         return 2e7
 
     async def unify_send(self, feed: FeedContent):
-        dual_tasks = await self.splitter.split(feed)
-        el = list(await self.hook.reply_markup(feed))
-        for i, tasks in enumerate(dual_tasks):
-            for group in tasks:
-                if el[i] and not isinstance(group, MediaGroupPartial):
-                    yield self._get_partial(group, el[i])
-                    el[i] = None
-                else:
-                    yield self._get_partial(group)
+        tasks = await self.splitter.split(feed)
+        for mkup, part in zip(await self.hook.reply_markup(feed), tasks):
+            if mkup is None:
+                continue
+            for part in part:
+                if isinstance(part, MediaGroupPartial):
+                    continue
+                part.reply_markup = mkup
+                break
 
-    def _get_partial(
-        self, arg: MsgPartial, reply_markup: Optional[ReplyMarkup] = None
-    ) -> MsgPartial:
+        for part in chain(*tasks):
+            yield self._get_partial(part)
+
+    def _get_partial(self, arg: MsgPartial) -> MsgPartial:
         match arg.meth:
             case "message":
                 assert isinstance(arg, TextPartial)
@@ -93,7 +95,6 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
                 arg.timeout = max(len(arg.medias) * 5, size / self.bps)
             case _:
                 raise AttributeError(arg.meth)
-        arg.reply_markup = reply_markup
         return arg
 
 

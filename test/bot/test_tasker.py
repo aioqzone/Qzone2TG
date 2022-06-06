@@ -105,7 +105,23 @@ class TestGenerator:
         assert isinstance(ps[0], MediaGroupPartial)
         assert isinstance(ps[1], PicPartial)
         assert ps[1].text
+        assert ps[0].reply_markup is None
         assert ps[1].reply_markup == 1
+
+    async def test_media_group_forward_exd(self, gen: BTG):
+        ff = fake_feed("a" * LIM_MD_TXT)
+        ff.media = [fake_media(build_html(100))] * 11
+        f = fake_feed("b")
+        f.forward = ff
+        ps = [i async for i in gen.unify_send(f)]
+        assert len(ps) == 3
+        assert isinstance(ps[0], MediaGroupPartial)
+        assert isinstance(ps[1], PicPartial)
+        assert isinstance(ps[2], TextPartial)
+        assert ps[1].text
+        assert ps[0].reply_markup is None
+        assert ps[1].reply_markup == 1
+        assert ps[2].reply_markup == 1
 
 
 class TestEditter:
