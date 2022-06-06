@@ -3,6 +3,7 @@ import asyncio
 
 import qzemoji as qe
 from aiohttp import ClientSession as Session
+from aioqzone.interface.login import LoginMethod
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -18,7 +19,6 @@ from telegram.ext import (
 from qzone3tg.settings import PollingConf, Settings
 
 from .base import BaseApp
-from .hook import DefaultFeedHook
 from .storage import AsyncEngine
 from .storage.orm import FeedOrm
 
@@ -42,6 +42,7 @@ class InteractApp(BaseApp):
         "status": "获取运行状态",
         "relogin": "强制重新登陆",
         "em": "自定义表情代码，如 /em 400343 🐷；导出自定义表情，/em export",
+        "like": "点赞指定的说说",
         "help": "帮助",
     }
 
@@ -77,25 +78,34 @@ class InteractApp(BaseApp):
         return interact_tasker_hook
 
     @property
-    def _qr_hook_cls(self):
-        class interact_qr_hook(super()._qr_hook_cls):
+    def _login_hook_cls(self):
+        cls = super()._login_hook_cls
+
+        class interact_qr_hook(cls._get_base(LoginMethod.qr)):
             def qr_markup(self):
                 btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
                 btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
                 return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
-        return interact_qr_hook
+        class interact_login_hook(cls):
+            @classmethod
+            def _get_base(cls, meth: LoginMethod):
+                if meth == LoginMethod.qr:
+                    return interact_qr_hook
+                return super()._get_base(meth)
+
+        return interact_login_hook
 
     @property
     def _feed_hook_cls(self):
-        class interact_feed_hook(super()._feed_hook_cls):
-            async def HeartbeatRefresh(hook, num: int):  # type: ignore
-                await DefaultFeedHook.HeartbeatRefresh(hook, num)
+        cls = super()._feed_hook_cls
+
+        class interact_feed_hook(cls):
+            async def HeartbeatRefresh(_self, num: int):
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
                     return
-                task = self.add_hook_ref("heartbeat", self.fetch(self.admin, is_period=True))
-                self.fetch_lock.acquire(task)
+                self.fetch_lock.acquire(await super().HeartbeatRefresh(num))  # type: ignore
 
         return interact_feed_hook
 
@@ -222,6 +232,42 @@ class InteractApp(BaseApp):
         echo(f"Customize emoji text: {eid}->{text}")
         self.add_hook_ref("storage", qe.set(eid, text))
 
+    async def like(self, update: Update, context: CallbackContext):
+        msg = update.effective_message
+        assert msg
+        reply = msg.reply_to_message
+        if not reply:
+            msg.reply_text("使用 /like 时，您需要回复一条消息。")
+            return
+
+        feed = await self.hook_store.Mid2Feed(reply.message_id)
+        if not feed:
+            msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
+            return
+
+        if feed.unikey is None:
+            msg.reply_text("该说说不支持点赞。")
+            return
+
+        likedata = LikeData(
+            unikey=str(feed.unikey),
+            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
+            appid=feed.appid,
+            typeid=feed.typeid,
+            fid=feed.fid,
+            abstime=feed.abstime,
+        )
+        task = self.add_hook_ref("button", self.qzone.like_app(likedata, True))
+        task.add_done_callback(lambda t: check_succ(t))
+
+        def check_succ(task: asyncio.Task[bool]):
+            try:
+                assert task.result()
+            except:
+                msg.reply_text("点赞失败")
+            else:
+                msg.reply_text("点赞成功")
+
     # --------------------------------
     #              query
     # --------------------------------
@@ -229,10 +275,10 @@ class InteractApp(BaseApp):
         query: CallbackQuery = update.callback_query
         data: str = query.data
         prefix, data = data.split(":", maxsplit=1)
-        switch = {"like": self.like, "qr": self.qr}
+        switch = {"like": self.btn_like, "qr": self.btn_qr}
         switch[prefix](query)
 
-    def like(self, query: CallbackQuery):
+    def btn_like(self, query: CallbackQuery):
         self.log.info(f"Like! query={query.data}")
         _, data = str.split(query.data, ":", maxsplit=1)
         if unlike := data.startswith("-"):
@@ -289,7 +335,7 @@ class InteractApp(BaseApp):
         task = self.add_hook_ref("storage", query_likedata(data))
         task.add_done_callback(lambda t: like_trans(t.result()))
 
-    def qr(self, query: CallbackQuery):
+    def btn_qr(self, query: CallbackQuery):
         self.log.info(f"QR! query={query.data}")
         _, command = str.split(query.data, ":", maxsplit=1)
         switch = {"refresh": self.hook_qr.resend, "cancel": self.hook_qr.cancel}

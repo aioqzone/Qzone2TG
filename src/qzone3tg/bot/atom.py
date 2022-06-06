@@ -1,8 +1,8 @@
 """This module split a feed into multiple atomic message."""
 
+import asyncio
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generic, Type, TypeVar
+from typing import Generic, Tuple, Type, overload
 
 from aiohttp import ClientSession
 from aioqzone.type.entity import AtEntity, ConEntity, TextEntity
@@ -13,49 +13,93 @@ from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
 from telegram import InputMediaVideo as Video
+from telegram import Message, ReplyMarkup
+from typing_extensions import Self
 
-from qzone3tg.utils.iter import split_by_len
+from . import MD, BotProtocol, InputMedia
 
-from . import InputMedia
-
-MD = TypeVar("MD", bound=InputMedia)
+PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[Type[InputMedia]]]
 LIM_TXT = 4096
 LIM_MD_TXT = 1024
 LIM_GROUP_MD = 10
 
 
-class MsgArg:
-    __slots__ = ("kw", "meth")
+class MsgPartial(ABC):
+    __slots__ = ("kwds", "meth")
     meth: str
 
     def __init__(self, **kw) -> None:
-        self.kw = kw
+        self.kwds = kw
+
+    @abstractmethod
+    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def pipeline(
+        cls,
+        txt: str,
+        metas: list[VisualMedia],
+        raws: list[bytes | None],
+        md_types: list[InputMedia],
+        **kwds,
+    ) -> Tuple[Self, PIPE_OBJS]:
+        return cls(**kwds), (txt, metas, raws, md_types)
+
+    @property
+    def timeout(self) -> float:
+        return self.kwds.get("timeout", 5.0)
+
+    @timeout.setter
+    def timeout(self, value: float):
+        self.kwds["timeout"] = value
+
+    @property
+    def reply_markup(self) -> ReplyMarkup | None:
+        return self.kwds.get("reply_markup")
+
+    @reply_markup.setter
+    def reply_markup(self, value: ReplyMarkup | None):
+        self.kwds["reply_markup"] = value
 
 
-@dataclass
-class TextMsg(MsgArg):
-    __slots__ = ("text",)
+class TextPartial(MsgPartial):
+    __slots__ = ("text", "kwds")
     meth = "message"
 
     def __init__(self, text: str, **kw) -> None:
         super().__init__(**kw)
         self.text = text
 
+    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+        return await bot.send_message(*args, text=self.text, **(self.kwds | kwds))
 
-@dataclass
-class MediaMsg(MsgArg, Generic[MD]):
+    @classmethod
+    def pipeline(
+        cls,
+        txt: str,
+        metas: list[VisualMedia],
+        raws: list[bytes | None],
+        md_types: list[Type[InputMedia]],
+        **kwds,
+    ) -> Tuple[Self, PIPE_OBJS]:
+        return cls(txt[:LIM_TXT], **kwds), (txt[LIM_TXT:], metas, raws, md_types)
+
+
+class MediaPartial(MsgPartial, Generic[MD]):
     __slots__ = ("meta", "_raw", "text")
 
     def __init__(
         self,
         media: VisualMedia,
-        raw: bytes | VisualMedia,
+        raw: bytes | None,
         text: str | None = None,
         **kw,
     ) -> None:
         super().__init__(**kw)
         self.meta = media
-        self._raw = raw if isinstance(raw, bytes) else None
+        self._raw = raw
         self.text = text
 
     @property
@@ -63,14 +107,54 @@ class MediaMsg(MsgArg, Generic[MD]):
         return self._raw or str(self.meta.raw)
 
     def wrap_media(self, **kw) -> MD:
-        return self.__orig_bases__[0].__args__[0](  # type: ignore
+        cls: Type[MD] = self.__orig_bases__[0].__args__[0]  # type: ignore
+        if self.text:
+            kw["caption"] = self.text
+        return cls(
             media=self.content,
-            caption=self.text,
             **kw,
         )
 
+    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+        f = getattr(bot, f"send_{self.meth}")
+        return await f(*args, media=self.content, text=self.text, **(self.kwds | kwds))
 
-class AnimMsg(MediaMsg[Anim]):
+    @classmethod
+    def pipeline(
+        cls,
+        txt: str,
+        metas: list[VisualMedia],
+        raws: list[bytes | None],
+        md_types: list[Type[InputMedia]],
+        **kwds,
+    ) -> Tuple["MediaPartial", PIPE_OBJS]:
+        cls = cls.query_subclass(md_types[0])
+        return (
+            cls(metas[0], raws[0], txt[:LIM_MD_TXT], **kwds),
+            (txt[LIM_MD_TXT:], metas[1:], raws[1:], md_types[1:]),
+        )
+
+    # fmt: off
+    @classmethod
+    @overload
+    def query_subclass(cls, ty: Type[Anim]) -> Type['AnimPartial']: ...
+    @classmethod
+    @overload
+    def query_subclass(cls, ty: Type[Doc]) -> Type['DocPartial']: ...
+    @classmethod
+    @overload
+    def query_subclass(cls, ty: Type[Pic]) -> Type['PicPartial']: ...
+    @classmethod
+    @overload
+    def query_subclass(cls, ty: Type[Video]) -> Type['VideoPartial']: ...
+    # fmt: on
+
+    @classmethod
+    def query_subclass(cls, ty):
+        return {Anim: AnimPartial, Doc: DocPartial, Pic: PicPartial, Video: VideoPartial}[ty]
+
+
+class AnimPartial(MediaPartial[Anim]):
     meth = "animation"
 
     @property
@@ -78,27 +162,91 @@ class AnimMsg(MediaMsg[Anim]):
         return str(self.meta.thumbnail)
 
 
-class DocMsg(MediaMsg[Doc]):
+class DocPartial(MediaPartial[Doc]):
     meth = "document"
 
 
-class PicMsg(MediaMsg[Pic]):
+class PicPartial(MediaPartial[Pic]):
     meth = "photo"
 
 
-class VideoMsg(MediaMsg[Video]):
+class VideoPartial(MediaPartial[Video]):
     meth = "video"
-
-    def wrap_media(self, **kw) -> Video:
-        return super().wrap_media(thumb=self.thumb, **kw)
 
     @property
     def thumb(self):
         return str(self.meta.thumbnail)
 
 
+class MediaGroupPartial(MsgPartial):
+    meth = "media_group"
+
+    def __init__(self, text: str | None = None, **kw) -> None:
+        super().__init__(**kw)
+        self.text = text
+        self.medias: list[InputMedia] = []
+
+    @property
+    def is_doc(self):
+        return isinstance(self.medias[0], Doc)
+
+    async def __call__(self, bot: BotProtocol, *args, **kwds) -> list[Message]:
+        assert self.medias
+        self.medias[0].caption = self.text  # type: ignore
+        return await bot.send_media_group(*args, media=self.medias, **(self.kwds | kwds))
+
+    def append(self, meta: VisualMedia, raw: bytes | None, cls: Type[InputMedia], **kw):
+        self.medias.append(cls(media=raw or str(meta.raw), **kw))
+
+    @classmethod
+    def pipeline(
+        cls,
+        txt: str,
+        metas: list[VisualMedia],
+        raws: list[bytes | None],
+        md_types: list[Type[InputMedia]],
+        **kwds,
+    ) -> Tuple[Self, PIPE_OBJS]:
+        self = cls(**kwds)
+        hint = ""
+        for i in range(LIM_GROUP_MD):
+            if not metas:
+                break
+            meta = metas.pop(0)
+            raw = raws.pop(0)
+            ty = md_types.pop(0)
+            if ty is Doc and self.medias and not self.is_doc:
+                if meta.is_video:
+                    hint += f"P{i}: 不支持的视频格式，点击查看{href('原视频', meta.raw)}\n"
+                else:
+                    hint += f"P{i}: 图片过大无法发送/显示，点击查看{href('原图', meta.raw)}\n"
+                continue
+            self.append(meta, raw, ty)
+
+        if hint:
+            hint = "\n\n" + hint
+        rest = LIM_MD_TXT - len(hint)
+
+        self.text = txt[:rest] + hint
+        return self, (txt[rest:], metas, raws, md_types)
+
+
 def href(txt: str | int, url: str):
     return f"<a href='{url}'>{txt}</a>"
+
+
+def stringify_entities(entities: list[ConEntity] | None) -> str:
+    if not entities:
+        return ""
+    s = ""
+    for e in entities:
+        if isinstance(e, TextEntity):
+            s += e.con
+        elif isinstance(e, AtEntity):
+            s += f"@{href(e.nick, f'user.qzone.qq.com/{e.uin}')}"
+        else:
+            s += str(e.dict(exclude={"type"}))
+    return s
 
 
 def supported_video(url: HttpUrl):
@@ -111,83 +259,54 @@ def is_gif(b: bytes):
 
 
 class Splitter(ABC):
+    """A splitter does the following jobs:
+
+    1. probe and transform `~aioqzone_feed.type.VisualMedia` into corresponding `~telegram.InputMedia`.
+    2. Split a feed (and its possible forwardee) into multiple `.MsgPartial` and assign contents
+    and medias into these partials according to telegram message size limit.
+
+    """
+
     @abstractmethod
-    async def split(self, feed: FeedContent) -> tuple[list[MsgArg], list[MsgArg]]:
+    async def split(self, feed: FeedContent) -> tuple[list[MsgPartial], list[MsgPartial]]:
         """:return: (forward msg list, feed msg list)"""
         pass
 
 
 class LocalSplitter(Splitter):
-    def stringify_entities(self, entities: list[ConEntity] | None) -> str:
-        if not entities:
-            return ""
-        s = ""
-        for e in entities:
-            if isinstance(e, TextEntity):
-                s += e.con
-            elif isinstance(e, AtEntity):
-                s += f"@{href(e.nick, f'user.qzone.qq.com/{e.uin}')}"
-            else:
-                s += str(e.dict(exclude={"type"}))
-        return s
+    """Local splitter do not due with network affairs. This means it cannot know what a media is exactly.
+    It will guess the media type using its metadata.
+    """
 
-    async def split(self, feed: FeedContent) -> tuple[list[MsgArg], list[MsgArg]]:
-        msgs: list[MsgArg] = []
+    async def split(self, feed: FeedContent) -> tuple[list[MsgPartial], list[MsgPartial]]:
+        msgs: list[MsgPartial] = []
         fmsg = []
         # send forward before stem message
         if isinstance(feed.forward, FeedContent):
             fmsg = (await self.split(feed.forward))[1]
 
-        alltext = self.header(feed) + self.stringify_entities(feed.entities)
+        txt = self.header(feed) + stringify_entities(feed.entities)
+        metas = feed.media or []
+        probe_media = list(await asyncio.gather(*(self.probe(i) for i in metas)))
+        md_types = [self.probe_md_type(i or m) for i, m in zip(probe_media, metas)]
 
-        # no media, send as text message
-        if not feed.media:
-            msgs += [TextMsg(i) for i in split_by_len(alltext, LIM_TXT)]
-            if isinstance(feed.forward, HttpUrl):
-                # override disable_web_page_preview if forwarding an app.
-                msgs[0].kw["disable_web_page_preview"] = False
-            return fmsg, msgs
+        pipe_objs = (txt, metas, probe_media, md_types)
 
-        media = [await self.probe(i) for i in feed.media]
-        first_md = media[0]
-        if len(media) == 1:
-            # only one media to be sent
-            cls = await self.probe_md_type(first_md)
-            msgs.append(cls(feed.media[0], first_md, alltext[:LIM_MD_TXT]))
-            msgs += [TextMsg(i) for i in split_by_len(alltext[LIM_MD_TXT:], LIM_TXT)]
-            return fmsg, msgs
-
-        cur = len(msgs)  # attach caption to this msg
-        md_clss = [await self.probe_md_type(i) for i in media]
-        # document must not mixed with other types
-        if all(i is DocMsg for i in md_clss) == any(i is DocMsg for i in md_clss):
-            msgs += [cls(vm, m) for cls, vm, m in zip(md_clss, feed.media, media)]
-            return fmsg, self.__merge_text_into_media_ls(msgs, alltext, cur)
-
-        alltext += "\n\n"
-        for i, (cls, vm, m) in enumerate(zip(md_clss, feed.media, media), start=1):
-            # attach link directly in text
-            if cls is DocMsg:
-                if vm.is_video:
-                    alltext += f"P{i}：不支持的视频格式，点击查看{href('原视频', vm.raw)}😅"
+        while pipe_objs[0] or pipe_objs[1]:
+            if pipe_objs[1]:
+                if len(metas) > 1:
+                    p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
                 else:
-                    alltext += f"P{i}：图片过大无法发送/显示，点击查看{href('原图', vm.raw)}😅"
-                continue
-            # otherwise send the media
-            msgs.append(cls(vm, m))
+                    p, pipe_objs = MediaPartial.pipeline(*pipe_objs)
+            else:
+                p, pipe_objs = TextPartial.pipeline(*pipe_objs)
+            msgs.append(p)
 
-        return fmsg, self.__merge_text_into_media_ls(msgs, alltext, cur)
+        if isinstance(feed.forward, HttpUrl):
+            # override disable_web_page_preview if forwarding an app.
+            msgs[0].kwds["disable_web_page_preview"] = False
 
-    def __merge_text_into_media_ls(self, msgs: list[MsgArg], text: str, start: int = 0):
-        # insert text into group heads
-        passages = split_by_len(text, LIM_MD_TXT)
-        for i in range(start, len(msgs), LIM_GROUP_MD):
-            if not passages:
-                continue
-            assert isinstance(a := msgs[i], MediaMsg)
-            a.text = passages.pop(0)
-        msgs += [TextMsg(i) for i in passages]
-        return msgs
+        return fmsg, msgs
 
     def header(self, feed: FeedContent) -> str:
         semt = sementic_time(feed.abstime)
@@ -209,26 +328,27 @@ class LocalSplitter(Splitter):
         # should not send in <a> since it is not a valid url
         return f"{nickname}{semt}分享了应用: ({feed.forward})：\n\n"
 
-    async def probe(self, media: VisualMedia, **kw) -> VisualMedia | bytes:
+    async def probe(self, media: VisualMedia, **kw) -> bytes | None:
         """`LocalSpliter` do not probe."""
-        return media
+        return
 
-    async def probe_md_type(self, media: VisualMedia | bytes) -> Type[MediaMsg]:
+    def probe_md_type(self, media: VisualMedia | bytes) -> Type[InputMedia]:
         assert isinstance(media, VisualMedia)
         if media.is_video:
             if supported_video(media.raw):
-                return VideoMsg
-            return DocMsg
+                return Video
+            return Doc
         if media.height + media.width > 1e4:
-            return DocMsg
+            return Doc
         if media.raw.path and media.raw.path.endswith(".gif"):
-            return AnimMsg
-        return PicMsg
+            return Anim
+        return Pic
 
 
 class FetchSplitter(LocalSplitter):
     """Fetch splitter has the right to fetch raw content of an url from network to make a
-    more precise predict."""
+    more precise predict.
+    """
 
     def __init__(self, sess: ClientSession) -> None:
         super().__init__()
@@ -244,17 +364,17 @@ class FetchSplitter(LocalSplitter):
         async with self.sess.get(str(media.raw)) as r:
             return await r.content.read()
 
-    async def probe_md_type(self, media: VisualMedia | bytes) -> Type[MediaMsg]:
+    def probe_md_type(self, media: VisualMedia | bytes) -> Type[InputMedia]:
         if isinstance(media, VisualMedia):
             # super class handles VisualMedia well
-            return await super().probe_md_type(media)
+            return super().probe_md_type(media)
 
         if len(media) > 5e7:
-            return DocMsg
+            return Doc
 
         if is_gif(media):
-            return AnimMsg
+            return Anim
 
         if len(media) > 1e7:
-            return DocMsg
-        return PicMsg
+            return Doc
+        return Pic

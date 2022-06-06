@@ -7,32 +7,26 @@ from aiohttp import ClientSession
 from qzemoji.utils import build_html
 from telegram import InputFile
 
-from qzone3tg.bot.atom import LIM_MD_TXT, LIM_TXT, LocalSplitter
+from qzone3tg.bot.atom import (
+    LIM_MD_TXT,
+    LIM_TXT,
+    LocalSplitter,
+    MediaGroupPartial,
+    PicPartial,
+    TextPartial,
+)
 from qzone3tg.bot.limitbot import BotTaskEditter as BTE
 from qzone3tg.bot.limitbot import BotTaskGenerator as BTG
 from qzone3tg.bot.limitbot import RelaxSemaphore, TaskerEvent
 
-from . import FakeBot, fake_feed, fake_media
+from . import fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture(scope="module")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="module")
-async def sess():
-    async with ClientSession() as sess:
-        yield sess
-
-
 @pytest.fixture(scope="class")
 def gen():
-    t = BTG(FakeBot(), LocalSplitter())  # type: ignore
+    t = BTG(LocalSplitter())
 
     class FakeMarkup(TaskerEvent):
         async def reply_markup(self, feed):
@@ -44,7 +38,7 @@ def gen():
 
 @pytest.fixture(scope="class")
 def edit(sess):
-    t = BTE(FakeBot(), LocalSplitter(), sess)  # type: ignore
+    t = BTE(LocalSplitter(), sess)
     t.register_hook(TaskerEvent())
     yield t
 
@@ -68,50 +62,50 @@ class TestGenerator:
         f = fake_feed(0)
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 1
-        assert ps[0].func.__name__ == "send_message"
-        assert ps[0].keywords["reply_markup"] == 1
+        assert isinstance(ps[0], TextPartial)
+        assert ps[0].reply_markup == 1
 
     async def test_msg_long(self, gen: BTG):
         f = fake_feed("a" * LIM_TXT)
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 2
-        assert ps[0].func.__name__ == "send_message"
-        assert ps[1].func.__name__ == "send_message"
-        assert ps[0].keywords["reply_markup"] == 1
-        assert ps[1].keywords.get("reply_markup") is None
+        assert isinstance(ps[0], TextPartial)
+        assert isinstance(ps[1], TextPartial)
+        assert ps[0].reply_markup == 1
+        assert ps[1].reply_markup is None
 
     async def test_media_norm(self, gen: BTG):
         f = fake_feed(0)
         f.media = [fake_media(build_html(100))]
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 1
-        assert ps[0].func.__name__ == "send_photo"
+        assert isinstance(ps[0], PicPartial)
 
     async def test_media_long(self, gen: BTG):
         f = fake_feed("a" * LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 2
-        assert ps[0].func.__name__ == "send_photo"
-        assert ps[1].func.__name__ == "send_message"
+        assert isinstance(ps[0], PicPartial)
+        assert isinstance(ps[1], TextPartial)
 
     async def test_media_group(self, gen: BTG):
         f = fake_feed(0)
         f.media = [fake_media(build_html(100))] * 2
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 1
-        assert ps[0].func.__name__ == "send_media_group"
-        assert ps[0].keywords.get("reply_markup") is None
+        assert isinstance(ps[0], MediaGroupPartial)
+        assert ps[0].reply_markup is None
 
     async def test_media_group_exd(self, gen: BTG):
         f = fake_feed("a" * LIM_MD_TXT)
         f.media = [fake_media(build_html(100))] * 11
         ps = [i async for i in gen.unify_send(f)]
         assert len(ps) == 2
-        assert ps[0].func.__name__ == "send_media_group"
-        assert ps[1].func.__name__ == "send_photo"
-        assert ps[1].keywords["caption"]
-        assert ps[1].keywords["reply_markup"] == 1
+        assert isinstance(ps[0], MediaGroupPartial)
+        assert isinstance(ps[1], PicPartial)
+        assert ps[1].text
+        assert ps[1].reply_markup == 1
 
 
 class TestEditter:
@@ -120,7 +114,8 @@ class TestEditter:
         f.media = [fake_media(build_html(100))] * 2
         ps = [i async for i in edit.unify_send(f)]
         p = ps[0]
-        ipm = await edit.force_bytes_inputmedia(p.keywords["media"][0])
+        assert isinstance(p, MediaGroupPartial)
+        ipm = await edit.force_bytes_inputmedia(p.medias[0])
         assert isinstance(ipm.media, InputFile)
         assert ipm.media.input_file_content
 
@@ -129,13 +124,13 @@ class TestEditter:
         f.media = [fake_media(build_html(100))] * 11
         ps = [i async for i in edit.unify_send(f)]
         assert len(ps) == 2
-        assert ps[0].func.__name__ == "send_media_group"
-        assert ps[1].func.__name__ == "send_photo"
+        assert isinstance(ps[0], MediaGroupPartial)
+        assert isinstance(ps[1], PicPartial)
 
-        p = await edit.force_bytes(ps[0])  # type: ignore
-        for i in p.keywords["media"]:
+        p = await edit.force_bytes(ps[0])
+        for i in p.medias:
             assert isinstance(i.media, InputFile)
             assert i.media.input_file_content
 
-        p = await edit.force_bytes(ps[1])  # type: ignore
-        assert isinstance(p.keywords["photo"], bytes)
+        p = await edit.force_bytes(ps[1])
+        assert isinstance(p.content, bytes)

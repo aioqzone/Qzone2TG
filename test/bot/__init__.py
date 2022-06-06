@@ -10,20 +10,32 @@ class FakeBot(BotProtocol):
     def __init__(self) -> None:
         self.log = []
 
-    def send_message(self, chat_id: ChatId, text: str, **kw):
-        self.log.append(("message", chat_id, text, kw))
+    async def send_message(self, to: ChatId, text: str, **kw):
+        self.log.append(("message", to, text, kw))
         return fake_message(len(self.log))
 
-    def send_photo(self, chat_id: ChatId, photo: str | bytes, caption: str, **kw):
-        self.log.append(("photo", chat_id, photo, caption, kw))
+    async def send_photo(self, to: ChatId, media: str | bytes, caption: str, **kw):
+        self.log.append(("photo", to, media, caption, kw))
         return fake_message(len(self.log))
 
-    def send_media_group(self, chat_id: ChatId, media: list, **kw):
-        self.log.append(("group", chat_id, media, kw))
+    async def send_media_group(self, to: ChatId, media: list, **kw):
+        self.log.append(("group", to, media, kw))
         return fake_message(len(self.log))
 
-    def edit_message_media(self, to: ChatId, mid: int, media):
+    async def edit_message_media(self, to: ChatId, mid: int, media):
         self.log.append(("edit_photo", to, mid, media))
+        return fake_message(len(self.log))
+
+    async def send_document(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
+        self.log.append(("document", to, media, text, kw))
+        return fake_message(len(self.log))
+
+    async def send_video(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
+        self.log.append(("video", to, media, text, kw))
+        return fake_message(len(self.log))
+
+    async def send_animation(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
+        self.log.append(("animation", to, media, text, kw))
         return fake_message(len(self.log))
 
 
@@ -38,7 +50,7 @@ def fake_message(id: int):
     return m
 
 
-def fake_feed(i: int | str):
+def fake_feed(i: int | str) -> FeedContent:
     return Feed4Test.construct(
         entities=[TextEntity(type=2, con=str(i))],
         appid=0,

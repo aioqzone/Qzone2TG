@@ -1,33 +1,43 @@
 import asyncio
 from pathlib import Path
+from time import time
 from typing import cast
 
 from aioqzone.type.resp import FeedRep
 from aioqzone_feed.type import BaseFeed
 from aioqzone_feed.utils.task import AsyncTimer
+from sqlalchemy.engine.result import Result
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 
 from ...bot.queue import QueueEvent
-from .orm import FeedOrm
+from .orm import FeedOrm, MessageOrm
 
 
 class StorageEvent(QueueEvent):
-    async def clean(self, seconds: float):
+    async def Clean(self, seconds: float):
         """clean feeds out of date, based on `abstime`.
 
         :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
         """
         return
 
-    async def exists(self, feed: FeedRep) -> bool:
+    async def Exists(self, feed: FeedRep) -> bool:
         """check if a feed exists in local storage.
 
         :param feed: feed to check
         :return: whether exists
         """
         return False
+
+    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
+        """query feed from message id.
+
+        :param mid: message id
+        :return: corresponding feed if exist, else None.
+        """
+        return
 
 
 class AsyncEnginew:
@@ -53,9 +63,7 @@ class AsyncEnginew:
         await self.engine.dispose()
 
 
-class DefaultStorageHook(StorageEvent):
-    # _sess: sessionmaker[AsyncSession]
-
+class StorageMan:
     def __init__(self, engine: AsyncEngine) -> None:
         self.engine = engine
         self._sess = sessionmaker(self.engine, class_=AsyncSession)
@@ -79,109 +87,181 @@ class DefaultStorageHook(StorageEvent):
         except AttributeError:
             return
 
-    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] | None = None, flush: bool = True):
-        """Add/Update an record by the given feed and messages id.
-
-        :param feed: feed
-        :param mid_ls: messages id list, defaults to None
-        :param flush: commit at once, defaults to True
-        """
-        async with self.sess() as sess:
-            async with sess.begin():
-                prev = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
-                if prev:
-                    # if exist: update
-                    FeedOrm.set_by(prev, feed, msgs_id)
-                else:
-                    # not exist: add
-                    sess.add(FeedOrm.from_base(feed, msgs_id))
-            if flush:
-                await sess.commit()
-
-    async def exists(self, feed: BaseFeed | FeedRep) -> bool:
-        """check if a feed exists in this database AND it has a message id.
+    async def exists(self, *pred) -> bool:
+        """check if a feed exists in this database _AND_ it has a message id.
 
         :param feed: feed to check
         :return: whether exists and is sent
         """
-        r: FeedOrm | None = await self.get_orm(*FeedOrm.primkey(cast(BaseFeed, feed)))
-        return bool(r and r.mids)
+        r: FeedOrm | None = await self.get_feed_orm(*pred)
+        if r is None:
+            return False
+        mids = await self.get_msg_orms(*MessageOrm.fkey(r))
+        return bool(mids)
 
-    async def get_orm(self, *where, sess: AsyncSession | None = None) -> FeedOrm | None:
-        """Get a feed orm from database, with given criteria.
+    async def get_feed_orm(self, *where, sess: AsyncSession | None = None) -> FeedOrm | None:
+        """Get a feed orm from ``feed`` table, with given criteria.
 
-        :return: :class:`.FeedOrm`
+        :return: a instance of :class:`.FeedOrm` if exist, else None.
         """
+        if sess is None:
+            async with self.sess() as newsess:
+                return await self.get_feed_orm(*where, sess=newsess)
+
         stmt = select(FeedOrm)
         if where:
             stmt = stmt.where(*where)
-        if sess:
-            return (await sess.execute(stmt)).scalar()
-        async with self.sess() as sess:
-            assert sess
-            return (await sess.execute(stmt)).scalar()
+        return (await sess.execute(stmt)).scalar()
+
+    async def get_msg_orms(
+        self, *where, sess: AsyncSession | None = None
+    ) -> list[MessageOrm] | None:
+        """Get all satisfying orms from ``message`` table, with given criteria.
+
+        :return: list of :class:`.MessageOrm`s if exist, else None.
+        """
+        if sess is None:
+            async with self.sess() as newsess:
+                return await self.get_msg_orms(*where, sess=newsess)
+
+        stmt = select(MessageOrm)
+        if where:
+            stmt = stmt.where(*where)
+        r: Result = await sess.execute(stmt)
+        return r.scalars().all() or None
 
     async def get(self, *pred) -> tuple[BaseFeed, list[int] | None] | None:
-        """Get a feed from database, with given criteria.
+        """Get a feed and its message ids from database, with given criteria.
         If multiple records satisfy the criteria, returns the first.
 
         :return: :external:class:`aioqzone_feed.type.BaseFeed` and message ids, optional
         """
-        if (orm := await self.get_orm(*pred)) is None:
+        if (orm := await self.get_feed_orm(*pred)) is None:
             return
-        mids = orm.mids
-        assert mids is None or isinstance(mids, list)
+
+        orms = await self.get_msg_orms(*MessageOrm.fkey(orm))
+        if orms is None:
+            mids = None
+        else:
+            mids = [cast(int, i.mid) for i in orms]
         return BaseFeed.from_orm(orm), mids
 
-    async def clean(self, seconds: float, timeout: float | None = None, flush: bool = True):
+    async def clean(self, seconds: float):
         """clean feeds out of date, based on `abstime`.
 
         :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
-        :param timeout: timeout as that in :external:meth:`asyncio.wait`, defaults to None
-        :param flush: commit at once, defaults to True
         :return: pending set is empty
         """
-        from time import time
 
         if seconds <= 0:
             seconds += time()
         async with self.sess() as sess:
+            sess: AsyncSession
             async with sess.begin():
-                result = await sess.execute(select(FeedOrm).where(FeedOrm.abstime < seconds))
-                tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
-                if not tasks:
-                    return False
-                _, pending = await asyncio.wait(tasks, timeout=timeout)
-            if flush:
+                result: Result = await sess.execute(
+                    select(FeedOrm).where(FeedOrm.abstime < seconds)
+                )
+                taskm, taskf = [], []
+                for mo in result.scalars().all():
+                    r: Result = await sess.execute(select(MessageOrm).where(*MessageOrm.fkey(mo)))
+                    taskm.extend(asyncio.create_task(sess.delete(i)) for i in r.scalars())
+                    taskf.append(asyncio.create_task(sess.delete(mo)))
+
+                if taskm:
+                    await asyncio.wait(taskm)
+                if taskf:
+                    await asyncio.wait(taskf)
+
                 await sess.commit()
-            return not pending
 
-    async def get_message_id(self, feed: BaseFeed) -> list[int] | None:
-        r = await self.get(*FeedOrm.primkey(feed))
-        return r and r[1]
 
-    async def update_message_id(self, feed: BaseFeed, mids: list[int], flush: bool = True):
+class DefaultStorageHook(StorageEvent):
+    def __init__(self, man: StorageMan) -> None:
+        super().__init__()
+        self.man = man
+
+    @property
+    def sess(self):
+        return self.man.sess
+
+    async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
+        """Add/Update an record by the given feed and messages id.
+
+        :param feed: feed
+        :param mids: message id list, defaults to None
+        """
+
+        async def update_feed(feed, sess: AsyncSession):
+            prev = await self.man.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
+            if prev:
+                # if exist: update
+                FeedOrm.set_by(prev, feed)
+            else:
+                # not exist: add
+                sess.add(FeedOrm.from_base(feed))
+
         async with self.sess() as sess:
-            orm = await self.get_orm(*FeedOrm.primkey(feed), sess=sess)
-            if orm is None:
-                return
-            orm.mids = mids
-            if flush:
+            sess: AsyncSession
+            async with sess.begin():
+                tasks = [
+                    self.UpdateMid(feed, mids, sess=sess, flush=False),
+                    update_feed(feed, sess=sess),
+                ]
+                await asyncio.wait([asyncio.create_task(i) for i in tasks])
                 await sess.commit()
 
-    def add_clean_task(self, keepdays: float, interval: float = 86400):
-        """
-        This function register a timer that calls `self.clean(-keepdays * 86400)`
-        every `interval` seconds.
+    async def GetMid(self, feed: BaseFeed) -> list[int] | None:
+        r = await self.man.get_msg_orms(*MessageOrm.fkey(feed))
+        if r is None:
+            return r
+        return [cast(int, i.mid) for i in r]
 
-        :param keepdays: Used to determine how many days worth of messages to keep.
-        :return: the clean Task
-        """
+    async def UpdateMid(
+        self,
+        feed: BaseFeed,
+        mids: list[int] | None,
+        sess: AsyncSession | None = None,
+        flush: bool = True,
+    ):
+        if sess is None:
+            async with self.sess() as newsess:
+                await self.UpdateMid(feed, mids, sess=newsess, flush=flush)
+                return
 
-        async def clean():
-            await self.clean(-keepdays * 86400)
-            return False
+        if flush:
+            async with sess.begin():
+                await self.UpdateMid(feed, mids, sess=sess, flush=False)
+                await sess.commit()
+                return
 
-        self.cl = AsyncTimer(interval, clean, name="clean")
-        self.cl()
-        return self.cl
+        # query existing mids
+        stmt = select(MessageOrm)
+        stmt = stmt.where(*MessageOrm.fkey(feed))
+        result: Result = await sess.execute(stmt)
+
+        # delete existing mids
+        tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
+        if tasks:
+            await asyncio.wait(tasks)
+
+        if mids is None:
+            return
+        for mid in mids:
+            sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
+
+    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
+        mo = await self.man.get_msg_orms(MessageOrm.mid == mid)
+        if not mo:
+            return
+        orm = await self.man.get_feed_orm(
+            FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
+        )
+        if orm is None:
+            return
+        return BaseFeed.from_orm(orm)
+
+    async def Exists(self, feed: FeedRep) -> bool:
+        return await self.man.exists(*FeedOrm.primkey(cast(BaseFeed, feed)))
+
+    async def Clean(self, seconds: float):
+        return await self.man.clean(seconds)

@@ -14,6 +14,7 @@ import telegram.ext as ext
 from aiohttp import ClientSession as Session
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
+from aioqzone.interface.login import LoginMethod
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from pydantic import AnyUrl
@@ -26,8 +27,8 @@ from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, Taske
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, NetworkConf, Settings
 
-from .hook import DefaultFeedHook, DefaultQrHook
-from .storage import AsyncEngine, DefaultStorageHook
+from .hook import DefaultFeedHook, DefaultLoginHook, DefaultQrHook
+from .storage import AsyncEngine, DefaultStorageHook, StorageMan
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
@@ -90,14 +91,26 @@ class BaseApp:
     #             hook init
     # --------------------------------
     @property
-    def _qr_hook_cls(self) -> Type[DefaultQrHook]:
+    def _login_hook_cls(self) -> Type[DefaultLoginHook]:
         class inner_qr_hook(DefaultQrHook):
-            async def LoginSuccess(hook):  # type: ignore
+            async def LoginSuccess(_self, meth):
+                assert self.qzone.hb_timer
                 if self.qzone.hb_timer.state != "PENDING":
                     self.qzone.hb_timer()
-                await DefaultQrHook.LoginSuccess(hook)
+                await super().LoginSuccess(meth)
 
-        return inner_qr_hook
+        class inner_login_hook(DefaultLoginHook):
+            def __init__(self, admin: ChatId, bot) -> None:
+                super().__init__(admin, bot)
+                inner_qr_hook.__init__(self)  # type: ignore
+
+            @classmethod
+            def _get_base(cls, meth: LoginMethod):
+                if meth == LoginMethod.qr:
+                    return inner_qr_hook
+                return super()._get_base(meth)
+
+        return inner_login_hook
 
     @property
     def _storage_hook_cls(self) -> Type[DefaultStorageHook]:
@@ -110,13 +123,13 @@ class BaseApp:
     @property
     def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
         class inner_feed_hook(DefaultFeedHook):
-            async def HeartbeatRefresh(_, num):  # type: ignore
+            async def HeartbeatRefresh(_self, num):
                 await super().HeartbeatRefresh(num)
                 return self.add_hook_ref(
                     "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
                 )
 
-            async def HeartbeatFailed(_, exc: BaseException | None):  # type: ignore
+            async def HeartbeatFailed(_self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
                 info = f"({exc})" if exc else ""
                 await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
@@ -126,7 +139,7 @@ class BaseApp:
     def init_hooks(self):
         sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.tgbot, sem)
-        self.hook_qr = self._qr_hook_cls(self.admin, self.bot)
+        self.hook_qr = self._login_hook_cls(self.admin, self.bot)
         block = self.conf.qzone.block or []
         block = block.copy()
         if self.conf.qzone.block_self:
@@ -134,8 +147,8 @@ class BaseApp:
 
         self.hook_feed = self._feed_hook_cls(
             EditableQueue(
+                self.bot,
                 BotTaskEditter(
-                    self.tgbot,
                     FetchSplitter(self.sess)
                     if self.conf.bot.send_gif_as_anim
                     else LocalSplitter(),
@@ -147,10 +160,11 @@ class BaseApp:
             block or [],
         )
         self.hook_tasker = self._tasker_hook_cls()
-        self.store = self._storage_hook_cls(self.engine)
+        self.store = StorageMan(self.engine)
+        self.hook_store = self._storage_hook_cls(self.store)
 
         self.qzone.register_hook(self.hook_feed)
-        self.hook_feed.queue.register_hook(self.store)
+        self.hook_feed.queue.register_hook(self.hook_store)
         self.hook_feed.queue.tasker.register_hook(self.hook_tasker)
         self.loginman.register_hook(self.hook_qr)
 
@@ -256,9 +270,35 @@ class BaseApp:
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
+        def ptb_error_handler(_, context: ext.CallbackContext):
+            self.log.fatal("Uncaught error caught by PTB error handler", exc_info=context.error)
+            exit(1)
+
+        self.updater.dispatcher.add_error_handler(ptb_error_handler)
+
     def stop(self):
         self.qzone.stop()
         self.updater.stop()
+
+    # --------------------------------
+    #              timer
+    # --------------------------------
+    def add_clean_task(self, keepdays: float, interval: float = 86400):
+        """
+        This function registers a timer that calls `self.clean(-keepdays * 86400)`
+        every `interval` seconds.
+
+        :param keepdays: Used to determine how many days worth of messages to keep.
+        :return: the clean Task
+        """
+
+        async def clean():
+            await self.hook_store.Clean(-keepdays * 86400)
+            return False  # never stop
+
+        self.cl = AsyncTimer(interval, clean, name="clean")
+        self.cl()
+        return self.cl
 
     # --------------------------------
     #          work logics
@@ -273,7 +313,7 @@ class BaseApp:
         self.log.info("注册心跳...")
         self.qzone.add_heartbeat()
         self.log.info("注册数据库清理任务...")
-        self.store.add_clean_task(self.conf.bot.storage.keepdays)
+        self.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
         qe.proxy = self.conf.bot.network.proxy and str(self.conf.bot.network.proxy)
         init_task = [qe.auto_update(), self.store.create(), self.loginman.load_cached_cookie()]
@@ -332,10 +372,11 @@ class BaseApp:
         # fetch feed
         try:
             got = await self.qzone.get_feeds_by_second(
-                self.conf.qzone.dayspac * 86400, exceed_pred=self.store.exists
+                self.conf.qzone.dayspac * 86400, exceed_pred=self.hook_store.Exists
             )
         except (UserBreak, LoginError):
-            self.qzone.hb_timer.stop()
+            if self.qzone.hb_timer:
+                self.qzone.hb_timer.stop()
             echo("命令已取消")
             return
 
@@ -383,9 +424,9 @@ class BaseApp:
         stat_dic = {
             "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
-            "心跳状态": "🟢" if self.qzone.hb_timer.state == "PENDING" else "🔴",
-            "上次心跳": ts2a(self.qzone.hb_timer.last_call),
-            "上次清理数据库": ts2a(self.store.cl.last_call),
+            "心跳状态": "🟢" if self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING" else "🔴",
+            "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
+            "上次清理数据库": ts2a(self.cl.last_call),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:
