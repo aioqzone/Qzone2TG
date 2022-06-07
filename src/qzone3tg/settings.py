@@ -1,7 +1,7 @@
 """This module read user config as a global object."""
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from aioqzone.api.loginman import QrStrategy
 from pydantic import (
@@ -197,24 +197,50 @@ class QzoneConf(BaseModel):
 class LogConf(BaseModel):
     """日志配置，对应配置文件中的 ``log`` 项。
 
-    .. seealso:: :external+python:mod:`logging 模块 <logging>`"""
+    .. seealso:: :external+python:mod:`logging 模块 <logging>`
+    """
 
     level: Optional[str] = "INFO"
     """日志等级。``NOTSET`` < ``DEBUG`` < ``INFO`` < ``WARNING`` < ``ERROR`` < ``FATAL``."""
-    format: Optional[str] = None
-    """格式字符串。
+    format: str = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    """日志格式。
 
-    .. seealso:: `Formatter Objects <https://docs.python.org/3.10/library/logging.html#formatter-objects>`_"""
+    .. seealso::
+
+        * :external+python:class:`logging.Formatter`
+        * `LogRecord attributes <https://docs.python.org/3/library/logging.html#logrecord-attributes>`_
+    """
+    style: Literal["%", "{", "$"] = "%"
+    """
+    :obj:`.format` 所使用的模板格式。可选值为 ``%``, ``{``, ``$``.
+    分别对应 `!%(message)`, `!{message}`, `!$message`.
+
+    .. versionadded:: 0.3.2
+    """
     datefmt: Optional[str] = None
-    conf: Optional[FilePath] = None
-    """日志配置文件，指定此项将导致其他配置被忽略，因为您可以在日志配置文件中指定更详细更复杂的配置。
+    """
+    .. seealso::
 
-    .. seealso:: `logging.config.fileConfig <https://docs.python.org/3.10/library/logging.config.html#logging.config.fileConfig>`_"""
+        :external+python:obj:`time.strftime`
+    """
+    conf: Optional[FilePath] = None
+    r"""日志配置文件，指定此项将导致其他配置被忽略，因为您可以在 `日志配置文件`_ 中指定更详细更复杂的配置。
+
+    .. versionchanged:: 0.3.2
+
+        更改为 yml 格式而非配置文件格式 (\*.ini, \*.conf)
+
+    .. seealso::
+
+        * `日志配置文件`_
+        * `Configuration dictionary schema <https://docs.python.org/3/library/logging.config.html#logging-config-dictschema>`_
+    """
 
     debug_status_interval: float = 0
-    """*用于开发人员检查程序状态*。每隔多长时间以 `!debug` 模式运行一次 ``/status`` 指令。小于等于0时不发送，默认为0。
+    """*用于开发人员检查程序状态*。每隔多长时间以 `!debug` 模式运行一次 :command:`/status` 指令。小于等于0时不发送，默认为0。
 
-    .. versionadded:: 0.2.8.dev1"""
+    .. versionadded:: 0.2.8.dev1
+    """
 
 
 class UserSecrets(BaseSettings):

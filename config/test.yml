@@ -6,8 +6,10 @@ bot: { admin: 456 }
 log:
   level: 'DEBUG'
   format: "%(message)s"
+  style: '%'
   datefmt: "%Y %b %d %H:%M:%S"
   debug_status_interval: 3600
+  conf: config/log.yml
 
 qzone:
   qq: 123

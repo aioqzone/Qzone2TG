@@ -35,10 +35,12 @@ FROM python:3.10-slim as release
 EXPOSE 80 88 443 8443
 ENV PATH="/app:$PATH"
 ENV PYTHONPATH="/app:$PYTHONPATH"
+# ENV FONTCONFIG_PATH="/etc/fonts"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         nodejs \
+        fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/run /app

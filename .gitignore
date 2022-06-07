@@ -23,6 +23,7 @@ tmp
 # personal info
 /config/*
 !/config/test*
+!/config/log.yml
 /docker/*.yml
 !/docker/docker-compose.yml
 
