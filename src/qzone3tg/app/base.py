@@ -175,31 +175,34 @@ class BaseApp:
     #           init logger
     # --------------------------------
     def _get_logger(self, conf: LogConf):
-        """(internal use only) Build a logger from given config.
+        """Build a logger from given config.
 
         :param conf: conf from settings.
         :return: the logger
+
+        .. deprecated:: 0.3.2
+
+            :obj:`conf` will be read as a yaml file.
+
+            .. seealso:: https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
         """
 
         if conf.conf:
-            while True:
-                try:
-                    logging.config.fileConfig(conf.conf, disable_existing_loggers=False)
-                except FileNotFoundError as e:
-                    if not (p := Path(e.filename).parent).exists():
-                        p.mkdir(parents=True)
-                    else:
-                        raise e
-                else:
-                    break
+            if not conf.conf.exists():
+                raise FileNotFoundError(conf.conf)
+            import yaml
+
+            with open(conf.conf, encoding="utf8") as f:
+                dic = yaml.safe_load(f)
+            dic["disable_existing_loggers"] = False
+            if "version" not in dic:
+                dic["version"] = 1
+            for hconf in dic.get("handlers", {}).values():
+                if "filename" in hconf:
+                    Path(hconf["filename"]).parent.mkdir(parents=True, exist_ok=True)
+            logging.config.dictConfig(dic)
         else:
-            default = {
-                "format": "[%(levelname)s] %(asctime)s %(name)s: %(message)s",
-                "datefmt": "%Y %b %d %H:%M:%S",
-                "level": "INFO",
-            }
-            default.update(conf.dict(include={"level", "format", "datefmt"}))
-            logging.basicConfig(**default)
+            logging.basicConfig(**conf.dict(include={"level", "format", "datefmt", "style"}))
 
         self.log = logging.getLogger(self.__class__.__name__)
 

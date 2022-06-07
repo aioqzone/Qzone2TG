@@ -43,7 +43,7 @@ Qzone3TG 支持且仅支持 docker 部署。当然，若您是 Python 开发者�
 -------------------------
 
 Qzone3TG 支持从环境变量中读取配置。:program:`docker-compose` 的配置文件可以很方便地配置容器环境变量。
-如果您的配置项较少，推荐使用这种写法。有关 :program:`docker-compose` 文件的语法，请参考
+如果您的配置项 **较少**，推荐使用这种写法。有关 :program:`docker-compose` 文件的语法，请参考
 `docker compose 文档 <https://docs.docker.com/compose/compose-file/compose-file-v3>`_ 。
 
 .. literalinclude:: ../../docker/docker-compose.yml

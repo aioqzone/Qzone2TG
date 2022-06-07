@@ -1,0 +1,29 @@
+formatters:
+  simple:
+    format: "{asctime} | {levelname} | {name} | {message}"
+    style: "{"
+
+handlers:
+  file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: ERROR
+    formatter: simple
+    filename: log/error.log
+    encoding: utf8
+    delay: True
+    when: D
+    backupCount: 7
+  console:
+    class : logging.StreamHandler
+    formatter: simple
+    level: DEBUG
+    stream: ext://sys.stdout
+
+root:
+  level: DEBUG
+  handlers:
+    - file
+    - console
+
+# filters:
+# loggers:
