@@ -37,9 +37,10 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: poetry
       - name: Get Package Version
         id: version_step
         run: |

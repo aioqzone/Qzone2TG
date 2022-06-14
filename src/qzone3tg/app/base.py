@@ -75,6 +75,7 @@ class BaseApp:
         self.init_hooks()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
+        self.timers: dict[str, AsyncTimer] = {}
 
     # --------------------------------
     #            properties
@@ -206,21 +207,25 @@ class BaseApp:
 
         self.log = logging.getLogger(self.__class__.__name__)
 
-        # register debug status timer
-        if conf.debug_status_interval <= 0:
-            self._dst = None
-            return
-
-        async def dst_forever():
-            await BaseApp.status(self, self.admin, debug=True)
+        async def lst_forever():
+            self.log.info(self._status_text(True))
             return False
 
-        self._dst = AsyncTimer(
-            conf.debug_status_interval,
-            dst_forever,
-            name="/status debug",
-            delay=conf.debug_status_interval,
-        )
+        self.timers["ls"] = AsyncTimer(3600, lst_forever, name="log status", delay=3600)
+
+        # register debug status timer
+        if conf.debug_status_interval > 0:
+
+            async def dst_forever():
+                await BaseApp.status(self, self.admin, debug=True)
+                return False
+
+            self.timers["ds"] = AsyncTimer(
+                conf.debug_status_interval,
+                dst_forever,
+                name="/status debug",
+                delay=conf.debug_status_interval,
+            )
 
     def silent_noisy_logger(self):
         """Silent some noisy logger in other packages."""
@@ -329,11 +334,13 @@ class BaseApp:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
             task = self.add_hook_ref("command", self.fetch(self.admin))
             self.fetch_lock.acquire(task)
-            task.add_done_callback(lambda _: self._dst and self._dst())
+            task.add_done_callback(lambda _: (ds := self.timers.get("ds")) and ds())
+            task.add_done_callback(lambda _: self.timers["ls"]())
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
-            if self._dst:
-                self._dst()
+            self.timers["ls"]()
+            if ds := self.timers.get("ds"):
+                ds()
 
         self.start_time = time()
 
@@ -420,28 +427,33 @@ class BaseApp:
         LICENSE_TEXT = """用户协议"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
-    async def status(self, to: ChatId, debug: bool = False):
+    def _status_text(self, debug: bool, *, hf: bool = False):
         from aioqzone.utils.time import sementic_time
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
+        friendly = lambda b: ["🔴", "🟢"][int(b)] if hf else str(b)
+        ds = self.timers.get("ds")
+
         stat_dic = {
             "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
-            "心跳状态": "🟢" if self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING" else "🔴",
+            "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
             "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(self.cl.last_call),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:
-            dbg_dic = {
-                "updater.running": repr(self.updater.running),
-                "/status timer": self._dst and self._dst.state,
+            add_dic = {
+                "updater.running": friendly(self.updater.running),
             }
-            stat_dic.update(dbg_dic)
-            # restart timer if stopped
-            if self._dst and self._dst.state != "PENDING":
-                self._dst()
+            if ds:
+                add_dic["/status timer"] = friendly(ds.state == "PENDING")
+            stat_dic.update(add_dic)
+        return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
 
-        statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
+    async def status(self, to: ChatId, debug: bool = False):
+        statm = self._status_text(debug, hf=True)
+        if debug and (ds := self.timers.get("ds")) and ds.state != "PENDING":
+            ds()
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
