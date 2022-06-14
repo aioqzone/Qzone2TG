@@ -11,6 +11,7 @@ on:
       - ".github/workflows/test.yml"
       - ".github/workflows/ci.yml"
       - "poetry.lock"
+      - "package-lock.json"
     branches:
       - dev
       - dev/**
@@ -19,7 +20,7 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
     with:
-      pytest_arg: test
+      PYTEST_ARGS: test
     secrets:
       TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
       TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
