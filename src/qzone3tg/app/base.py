@@ -51,6 +51,7 @@ class BaseApp:
         self.conf = conf
         self.sess = sess
         self.engine = engine
+        self.timers: dict[str, AsyncTimer] = {}
         self._get_logger(conf.log)
         self.silent_noisy_logger()
 
@@ -75,7 +76,6 @@ class BaseApp:
         self.init_hooks()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
-        self.timers: dict[str, AsyncTimer] = {}
 
     # --------------------------------
     #            properties
