@@ -38,6 +38,10 @@ Qzone3TG 支持且仅支持 docker 部署。当然，若您是 Python 开发者�
     您下载的 yaml 模板既包含最大配置，又包含最小配置，之间用 ``---`` 分割。这是出于展示和简化文件的目的。
     您编辑完成的配置文件不应当包含分割线 ``---``。
 
+.. hint::
+
+    当您更改了配置文件时，需要 **重启** 容器以应用更改。
+
 -------------------------
 使用环境变量配置
 -------------------------
@@ -45,6 +49,11 @@ Qzone3TG 支持且仅支持 docker 部署。当然，若您是 Python 开发者�
 Qzone3TG 支持从环境变量中读取配置。:program:`docker-compose` 的配置文件可以很方便地配置容器环境变量。
 如果您的配置项 **较少**，推荐使用这种写法。有关 :program:`docker-compose` 文件的语法，请参考
 `docker compose 文档 <https://docs.docker.com/compose/compose-file/compose-file-v3>`_ 。
+
+.. note::
+
+    如果使用 :program:`docker-compose` 中的环境变量来配置 Qzone3TG，当您更改配置时，需要 **重新创建**
+    容器以应用更改。
 
 .. literalinclude:: ../../docker/docker-compose.yml
     :language: yaml
