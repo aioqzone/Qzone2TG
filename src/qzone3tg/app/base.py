@@ -280,7 +280,7 @@ class BaseApp:
 
         def ptb_error_handler(_, context: ext.CallbackContext):
             self.log.fatal("Uncaught error caught by PTB error handler", exc_info=context.error)
-            exit(1)
+            self.stop()
 
         self.updater.dispatcher.add_error_handler(ptb_error_handler)
 
@@ -312,8 +312,7 @@ class BaseApp:
     #          work logics
     # --------------------------------
     async def run(self):
-        """Run the app. Current thread will be blocked until KeyboardInterrupt is raised
-        or `loop.stop()` is called."""
+        """Run the app. Current thread will be blocked until :obj:`.updater` is stopped."""
         self.check_node()
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")
@@ -343,9 +342,13 @@ class BaseApp:
                 ds()
 
         self.start_time = time()
+        return await self.idle()
 
-        # idle
-        while True:
+    async def idle(self):
+        """Idle. :exc:`asyncio.CancelledError` will be omitted.
+        Return when :obj:`.updater` is stopped.
+        """
+        while self.updater.running:
             try:
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
@@ -361,8 +364,8 @@ class BaseApp:
         if not which("node"):
             self.log.error("Node not available, qr strategy switched to `force`.")
             self.conf.qzone.qr_strategy = QrStrategy.force
-        elif not JSDOM(src="", ua="", location="", referrer="").check_jsdom():
-            self.log.warning("jsdom not available. Passing captcha will not work.")
+        elif not JSDOM.check_jsdom():
+            self.log.warning("jsdom not available. Passing captcha may not work.")
 
     async def fetch(self, to: Union[int, str], *, is_period: bool = False):
         """fetch feeds.
@@ -400,7 +403,7 @@ class BaseApp:
             await self.hook_feed.queue.send_all()
         except:
             self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
-            exit(1)
+            self.stop()
 
         if is_period:
             return  # skip summary if this is called by heartbeat

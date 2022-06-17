@@ -1,6 +1,7 @@
 """This module split a feed into multiple atomic message."""
 
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Generic, Tuple, Type, overload
 
@@ -22,6 +23,8 @@ PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[Type[InputMed
 LIM_TXT = 4096
 LIM_MD_TXT = 1024
 LIM_GROUP_MD = 10
+
+log = logging.getLogger(__name__)
 
 
 class MsgPartial(ABC):
@@ -312,7 +315,10 @@ class LocalSplitter(Splitter):
 
         if isinstance(feed.forward, HttpUrl):
             # override disable_web_page_preview if forwarding an app.
-            msgs[0].kwds["disable_web_page_preview"] = False
+            if isinstance(msgs[0], MediaGroupPartial):
+                log.warning(f"Forward url and media coexist: {feed}")
+            else:
+                msgs[0].kwds["disable_web_page_preview"] = False
 
         return fmsg, msgs
 
