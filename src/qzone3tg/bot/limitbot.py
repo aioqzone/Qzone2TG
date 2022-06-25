@@ -8,10 +8,10 @@ from itertools import chain
 from time import time
 from typing import Optional, Tuple, TypeVar, overload
 
-from aiohttp import ClientSession
-from aioqzone.interface.hook import Emittable, Event
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
+from qqqr.event import Emittable, Event
+from qqqr.utils.net import ClientAdapter
 from telegram import Bot, InputFile, Message, ReplyMarkup
 
 from qzone3tg.utils.iter import countif, split_by_len
@@ -99,9 +99,9 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
 
 
 class BotTaskEditter(BotTaskGenerator):
-    def __init__(self, splitter: Splitter, sess: ClientSession):
+    def __init__(self, splitter: Splitter, client: ClientAdapter):
         super().__init__(splitter)
-        self.sess = sess
+        self.client = client
 
     async def media_args(self, feed: FeedContent):
         """Get media atoms of a feed."""
@@ -129,8 +129,8 @@ class BotTaskEditter(BotTaskGenerator):
                     return call
                 assert isinstance(media, str)
                 logger.info(f"force fetch {call.meth}: {media}")
-                async with self.sess.get(media) as r:
-                    call._raw = await r.content.read()
+                async with await self.client.get(media) as r:
+                    call._raw = b"".join([i async for i in r.aiter_bytes()])
                 return call
             case "media_group":
                 assert isinstance(call, MediaGroupPartial)
@@ -146,8 +146,8 @@ class BotTaskEditter(BotTaskGenerator):
 
         assert isinstance(media.media, str)
         logger.info(f"force fetch {media.type}: {media.media}")
-        async with self.sess.get(media.media) as r:
-            media.media = InputFile(await r.content.read(), attach=True)
+        async with await self.client.get(media.media) as r:
+            media.media = InputFile(b"".join([i async for i in r.aiter_bytes()]), attach=True)
             return media
 
     def inc_timeout(self, call: MsgPartial) -> MsgPartial:

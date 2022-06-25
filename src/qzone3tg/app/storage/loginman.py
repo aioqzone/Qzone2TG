@@ -1,14 +1,14 @@
-from aiohttp import ClientSession
-from aioqzone.api.loginman import MixedLoginMan
+from aioqzone.api.loginman import MixedLoginMan, QrStrategy
+from qqqr.utils.net import ClientAdapter
+from qzemoji.base import AsyncSessionProvider
 from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker
 
 from .orm import CookieOrm
 
 
-class LoginMan(MixedLoginMan):
+class LoginMan(MixedLoginMan, AsyncSessionProvider):
     """Login manager with cookie caching.
 
     .. versionadded:: 0.1.3
@@ -16,31 +16,15 @@ class LoginMan(MixedLoginMan):
 
     def __init__(
         self,
-        sess: ClientSession,
+        client: ClientAdapter,
         engine: AsyncEngine,
         uin: int,
-        strategy: str,
+        strategy: QrStrategy,
         pwd: str | None = None,
         refresh_time: int = 6,
     ) -> None:
-        super().__init__(sess, uin, strategy, pwd, refresh_time)
-        self.engine = engine
-        self._sessmaker = sessionmaker(self.engine, class_=AsyncSession)
-
-    @property
-    def sessmaker(self):
-        self.__ensure_async_mutex()
-        return self._sessmaker
-
-    def __ensure_async_mutex(self):
-        """A temp fix to self.engine.pool.dispatch.connect._exec_once_mutex blocked"""
-        from _thread import LockType
-
-        try:
-            if isinstance(self.engine.pool.dispatch.connect._exec_once_mutex, LockType):
-                self.engine.pool.dispatch.connect._set_asyncio()
-        except AttributeError:
-            return
+        MixedLoginMan.__init__(self, client, uin, strategy, pwd, refresh_time)
+        AsyncSessionProvider.__init__(self, engine)
 
     async def table_exists(self):
         def sync(conn):
@@ -53,7 +37,7 @@ class LoginMan(MixedLoginMan):
             return await conn.run_sync(sync)
 
     async def load_cached_cookie(self):
-        async with self.sessmaker() as sess:
+        async with self.sess() as sess:
             stmt = select(CookieOrm).where(CookieOrm.uin == self.uin)
             result = await sess.execute(stmt)
         if (prev := result.scalar()) is None:
@@ -63,7 +47,7 @@ class LoginMan(MixedLoginMan):
 
     async def _new_cookie(self) -> dict[str, str]:
         r = await super()._new_cookie()
-        async with self.sessmaker() as sess:
+        async with self.sess() as sess:
             async with sess.begin():
                 result = await sess.execute(select(CookieOrm).where(CookieOrm.uin == self.uin))
                 if prev := result.scalar():

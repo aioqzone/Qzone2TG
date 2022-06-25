@@ -1,8 +1,5 @@
-import asyncio
-
 import pytest
-import pytest_asyncio
-from aiohttp import ClientSession
+from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 
 import qzone3tg.bot.atom as atom
@@ -18,8 +15,8 @@ def local():
 
 
 @pytest.fixture(scope="class")
-def fetch(sess):
-    return atom.FetchSplitter(sess)
+def fetch(client: ClientAdapter):
+    return atom.FetchSplitter(client)
 
 
 def test_media_arg():

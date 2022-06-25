@@ -5,7 +5,7 @@ from typing import cast
 
 from aioqzone.type.resp import FeedRep
 from aioqzone_feed.type import BaseFeed
-from aioqzone_feed.utils.task import AsyncTimer
+from qzemoji.base import AsyncSessionProvider
 from sqlalchemy.engine.result import Result
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.future import select
@@ -40,52 +40,10 @@ class StorageEvent(QueueEvent):
         return
 
 
-class AsyncEnginew:
-    @classmethod
-    def sqlite3(cls, path: Path | None, **kwds):
-        if path is None:
-            url = "sqlite+aiosqlite://"
-        else:
-            url = "sqlite+aiosqlite:///" + path.as_posix()
-        # make dir if parent not exist
-        if path:
-            path.parent.mkdir(parents=True, exist_ok=True)
-        engine = create_async_engine(url, **kwds)
-        return cls(engine)
-
-    def __init__(self, engine: AsyncEngine) -> None:
-        self.engine = engine
-
-    async def __aenter__(self):
-        return self.engine
-
-    async def __aexit__(self, *exc):
-        await self.engine.dispose()
-
-
-class StorageMan:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self.engine = engine
-        self._sess = sessionmaker(self.engine, class_=AsyncSession)
-
+class StorageMan(AsyncSessionProvider):
     async def create(self):
         async with self.engine.begin() as conn:
             await conn.run_sync(FeedOrm.metadata.create_all)
-
-    @property
-    def sess(self):
-        self.__ensure_async_mutex()
-        return self._sess
-
-    def __ensure_async_mutex(self):
-        """A temp fix to self.engine.pool.dispatch.connect._exec_once_mutex blocked"""
-        from _thread import LockType
-
-        try:
-            if isinstance(self.engine.pool.dispatch.connect._exec_once_mutex, LockType):
-                self.engine.pool.dispatch.connect._set_asyncio()
-        except AttributeError:
-            return
 
     async def exists(self, *pred) -> bool:
         """check if a feed exists in this database _AND_ it has a message id.

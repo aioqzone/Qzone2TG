@@ -1,11 +1,9 @@
-import asyncio
 from collections import defaultdict
 from typing import cast
 
 import pytest
-import pytest_asyncio
-from aiohttp import ClientSession
 from aioqzone_feed.type import FeedContent
+from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 from telegram.error import BadRequest, TimedOut
 
@@ -25,10 +23,10 @@ class Ihave0(QueueEvent):
 
 
 @pytest.fixture(scope="class")
-def ideal(sess):
+def ideal(client: ClientAdapter):
     sem = RelaxSemaphore(30)
     bot = FakeBot()
-    tasker = BotTaskEditter(FetchSplitter(sess), sess)
+    tasker = BotTaskEditter(FetchSplitter(client), client)
     q = EditableQueue(bot, tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
 
@@ -98,10 +96,10 @@ class RealBot(FakeBot):
 
 
 @pytest.fixture(scope="class")
-def real(sess):
+def real(client: ClientAdapter):
     sem = RelaxSemaphore(30)
     bot = RealBot()
-    tasker = BotTaskEditter(FetchSplitter(sess), sess)
+    tasker = BotTaskEditter(FetchSplitter(client), client)
     q = EditableQueue(bot, tasker, defaultdict(int), sem)
     q.register_hook(Ihave0())
     tasker.register_hook(TaskerEvent())

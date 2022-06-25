@@ -2,10 +2,11 @@ from os import environ as env
 from pathlib import Path
 
 import pytest
-import qzemoji
 import yaml
-from aiohttp import ClientSession
+from httpx import AsyncClient
 from pydantic import SecretStr
+from qqqr.utils.net import ClientAdapter
+from qzemoji.base import AsyncEngineFactory
 
 from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 
@@ -44,13 +45,13 @@ def test_webhook_url():
 @pytest.mark.asyncio
 async def test_init():
     from qzone3tg.app.interact import InteractApp
-    from qzone3tg.app.storage import AsyncEnginew
 
     with open("config/test.yml") as f:
         mind, maxd = yaml.safe_load_all(f)
 
     minc = Settings(**mind).load_secrets()
     maxc = Settings(**maxd).load_secrets()
-    async with ClientSession() as sess, AsyncEnginew.sqlite3(None) as engine:
-        InteractApp(sess, engine, conf=minc)
-        InteractApp(sess, engine, conf=maxc)
+    async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
+        client = ClientAdapter(sess)
+        InteractApp(client, engine, conf=minc)
+        InteractApp(client, engine, conf=maxc)

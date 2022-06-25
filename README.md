@@ -5,7 +5,7 @@ Forward Qzone feeds to telegram.
 [![Dev CI](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
-[![telegram](https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
+[![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
 
 > Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
@@ -35,6 +35,8 @@ Since environment variable style configuration is fully supported, one can merge
 
 - [Qzone3TG Documents][doc]
 - Author's blog: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
+
+> You can look for help at our [discussion group](https://t.me/qzone2tg_discuss).
 
 ## License
 
