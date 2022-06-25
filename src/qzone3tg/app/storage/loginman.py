@@ -2,7 +2,7 @@ from aioqzone.api.loginman import MixedLoginMan, QrStrategy
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncSessionProvider
 from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from sqlalchemy.future import select
 
 from .orm import CookieOrm
@@ -25,9 +25,10 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
     ) -> None:
         MixedLoginMan.__init__(self, client, uin, strategy, pwd, refresh_time)
         AsyncSessionProvider.__init__(self, engine)
+        self.client = client
 
     async def table_exists(self):
-        def sync(conn):
+        def sync(conn: AsyncConnection):
             exist = inspect(conn).has_table(CookieOrm.__tablename__)
             if not exist:
                 CookieOrm.metadata.create_all(conn)
@@ -43,7 +44,7 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
         if (prev := result.scalar()) is None:
             return
         self._cookie = prev.cookie
-        self.sess.cookie_jar.update_cookies(self._cookie)
+        self.client.client.cookies.update(self._cookie)
 
     async def _new_cookie(self) -> dict[str, str]:
         r = await super()._new_cookie()
