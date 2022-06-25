@@ -2,10 +2,9 @@
 import asyncio
 
 import qzemoji as qe
-from aiohttp import ClientSession as Session
-from aioqzone.interface.login import LoginMethod
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
+from qqqr.utils.net import ClientAdapter
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CallbackContext,
@@ -46,8 +45,8 @@ class InteractApp(BaseApp):
         "help": "帮助",
     }
 
-    def __init__(self, sess: Session, store: AsyncEngine, conf: Settings) -> None:
-        super().__init__(sess, store, conf)
+    def __init__(self, client: ClientAdapter, store: AsyncEngine, conf: Settings) -> None:
+        super().__init__(client, store, conf)
         self.fetch_lock = LockFilter()
 
     # --------------------------------
@@ -77,30 +76,21 @@ class InteractApp(BaseApp):
 
         return interact_tasker_hook
 
-    @property
-    def _login_hook_cls(self):
-        cls = super()._login_hook_cls
+    def _sub_defaultqrhook(self, base):
+        base = super()._sub_defaultqrhook(base)
 
-        class interact_qr_hook(cls._get_base(LoginMethod.qr)):
+        class has_markup(base):
             def qr_markup(self):
                 btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
                 btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
                 return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
-        class interact_login_hook(cls):
-            @classmethod
-            def _get_base(cls, meth: LoginMethod):
-                if meth == LoginMethod.qr:
-                    return interact_qr_hook
-                return super()._get_base(meth)
+        return has_markup
 
-        return interact_login_hook
+    def _sub_defaultfeedhook(self, base):
+        base = super()._sub_defaultfeedhook(base)
 
-    @property
-    def _feed_hook_cls(self):
-        cls = super()._feed_hook_cls
-
-        class interact_feed_hook(cls):
+        class interact_feed_hook(base):
             async def HeartbeatRefresh(_self, num: int):
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
@@ -168,7 +158,8 @@ class InteractApp(BaseApp):
         chat = update.effective_chat
         assert chat
         helpm = "\n".join(f"/{k} - {v}" for k, v in self.commands.items())
-        helpm += "\n\n讨论群：@qzone2tg_discuss"
+        helpm += "\n\n官方频道：@qzone2tg"
+        helpm += "\n讨论群：@qzone2tg_discuss"
         helpm += f"\n文档：{DOCUMENT}/usage.html"
         task = self.add_hook_ref("command", self.bot.send_message(chat.id, helpm))
 
@@ -215,11 +206,10 @@ class InteractApp(BaseApp):
             async def show_eid(eid: int):
                 msg = f'示例： /em {eid} {(await qe.query(eid)) or "😅"}'
                 for ext in ["gif", "png", "jpg"]:
-                    async with self.sess.get(qe.utils.build_html(eid, ext=ext)) as r:
-                        if r.status != 200:
+                    async with await self.client.get(qe.utils.build_html(eid, ext=ext)) as r:
+                        if r.status_code != 200:
                             continue
-                        b = await r.content.read()
-                        self.add_hook_ref("command", self.bot.send_photo(chat.id, b, msg))
+                        self.add_hook_ref("command", self.bot.send_photo(chat.id, r.content, msg))
                     return
                 else:
                     echo(f"eid={eid}不存在，请检查输入")
@@ -350,13 +340,14 @@ class InteractApp(BaseApp):
     def btn_qr(self, query: CallbackQuery):
         self.log.info(f"QR! query={query.data}")
         _, command = str.split(query.data, ":", maxsplit=1)
-        switch = {"refresh": self.hook_qr.resend, "cancel": self.hook_qr.cancel}
-        f = switch[command]
-        if f:
-            task = self.add_hook_ref("button", f())
-            if command == "cancel":
-                task.add_done_callback(
-                    lambda t: query.delete_message() and setattr(self.hook_qr, "qr_msg", None)
-                )
-        else:
-            query.delete_message()
+
+        match command:
+            case "refresh":
+                self.hook_qr.refresh_flag.set()
+            case "cancel":
+                self.hook_qr.cancel_flag.set()
+                query.delete_message()
+                self.hook_qr.qr_msg = None
+            case _:
+                self.log.warning(f"Unexpected qr button callback: {_}")
+                query.delete_message()

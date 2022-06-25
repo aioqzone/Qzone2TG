@@ -11,23 +11,23 @@ from typing import Type, Union
 import qzemoji as qe
 import telegram as tg
 import telegram.ext as ext
-from aiohttp import ClientSession as Session
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
-from aioqzone.interface.login import LoginMethod
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from pydantic import AnyUrl
+from qqqr.event import EventManager
 from qqqr.exception import UserBreak
+from qqqr.utils.net import ClientAdapter
 
 from qzone3tg import DISCUSS
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue
-from qzone3tg.settings import LogConf, NetworkConf, Settings
+from qzone3tg.settings import LogConf, NetworkConf, Settings, WebhookConf
 
-from .hook import DefaultFeedHook, DefaultLoginHook, DefaultQrHook
+from .hook import DefaultFeedHook, DefaultQrHook, DefaultUpHook
 from .storage import AsyncEngine, DefaultStorageHook, StorageMan
 from .storage.loginman import LoginMan
 
@@ -41,28 +41,29 @@ class FakeLock(object):
         pass
 
 
-class BaseApp:
+class BaseApp(
+    EventManager[DefaultFeedHook, DefaultQrHook, DefaultUpHook, DefaultStorageHook, TaskerEvent]
+):
     start_time = 0
 
-    def __init__(self, sess: Session, engine: AsyncEngine, conf: Settings) -> None:
-        super().__init__()
+    def __init__(self, client: ClientAdapter, engine: AsyncEngine, conf: Settings) -> None:
         assert conf.bot.token
         # init logger at first
         self.conf = conf
-        self.sess = sess
+        self.client = client
         self.engine = engine
         self.timers: dict[str, AsyncTimer] = {}
         self._get_logger(conf.log)
         self.silent_noisy_logger()
 
         self.loginman = LoginMan(
-            sess,
+            client,
             engine,
             conf.qzone.uin,
             conf.qzone.qr_strategy,
             conf.qzone.password.get_secret_value() if conf.qzone.password else None,
         )
-        self.qzone = FeedApi(sess, self.loginman)
+        self.qzone = FeedApi(client, self.loginman)
         self.log.info("Qzone端初始化完成")
 
         self.updater = ext.Updater(
@@ -76,6 +77,7 @@ class BaseApp:
         self.init_hooks()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
+        super().__init__()
 
     # --------------------------------
     #            properties
@@ -91,39 +93,18 @@ class BaseApp:
     # --------------------------------
     #             hook init
     # --------------------------------
-    @property
-    def _login_hook_cls(self) -> Type[DefaultLoginHook]:
-        class inner_qr_hook(DefaultQrHook):
+    def _sub_defaultqrhook(self, base: Type[DefaultQrHook]):
+        class restart_timer(base):
             async def LoginSuccess(_self, meth):
                 assert self.qzone.hb_timer
                 if self.qzone.hb_timer.state != "PENDING":
                     self.qzone.hb_timer()
                 await super().LoginSuccess(meth)
 
-        class inner_login_hook(DefaultLoginHook):
-            def __init__(self, admin: ChatId, bot) -> None:
-                super().__init__(admin, bot)
-                inner_qr_hook.__init__(self)  # type: ignore
+        return restart_timer
 
-            @classmethod
-            def _get_base(cls, meth: LoginMethod):
-                if meth == LoginMethod.qr:
-                    return inner_qr_hook
-                return super()._get_base(meth)
-
-        return inner_login_hook
-
-    @property
-    def _storage_hook_cls(self) -> Type[DefaultStorageHook]:
-        return DefaultStorageHook
-
-    @property
-    def _tasker_hook_cls(self) -> Type[TaskerEvent]:
-        return TaskerEvent
-
-    @property
-    def _feed_hook_cls(self) -> Type[DefaultFeedHook]:
-        class inner_feed_hook(DefaultFeedHook):
+    def _sub_defaultfeedhook(self, base: Type[DefaultFeedHook]):
+        class inner_feed_hook(base):
             async def HeartbeatRefresh(_self, num):
                 await super().HeartbeatRefresh(num)
                 return self.add_hook_ref(
@@ -140,34 +121,36 @@ class BaseApp:
     def init_hooks(self):
         sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.tgbot, sem)
-        self.hook_qr = self._login_hook_cls(self.admin, self.bot)
+        self.hook_qr = self.sub_of(DefaultQrHook)(self.admin, self.bot)
+        self.hook_up = self.sub_of(DefaultUpHook)(self.admin, self.bot)
         block = self.conf.qzone.block or []
         block = block.copy()
         if self.conf.qzone.block_self:
             block.append(self.conf.qzone.uin)
 
-        self.hook_feed = self._feed_hook_cls(
+        self.hook_feed = self.sub_of(DefaultFeedHook)(
             EditableQueue(
                 self.bot,
                 BotTaskEditter(
-                    FetchSplitter(self.sess)
+                    FetchSplitter(self.client)
                     if self.conf.bot.send_gif_as_anim
                     else LocalSplitter(),
-                    self.sess,
+                    self.client,
                 ),
                 defaultdict(lambda: self.admin),
                 sem,
             ),
             block or [],
         )
-        self.hook_tasker = self._tasker_hook_cls()
+        self.hook_tasker = self.sub_of(TaskerEvent)()
         self.store = StorageMan(self.engine)
-        self.hook_store = self._storage_hook_cls(self.store)
+        self.hook_store = self.sub_of(DefaultStorageHook)(self.store)
 
         self.qzone.register_hook(self.hook_feed)
         self.hook_feed.queue.register_hook(self.hook_store)
         self.hook_feed.queue.tasker.register_hook(self.hook_tasker)
         self.loginman.register_hook(self.hook_qr)
+        self.loginman.register_hook(self.hook_up)
 
         self.add_hook_ref = self.hook_feed.queue.add_hook_ref
         self.log.info("TG端初始化完成")
@@ -279,14 +262,26 @@ class BaseApp:
         signal.signal(signal.SIGTERM, sigterm_handler)
 
         def ptb_error_handler(_, context: ext.CallbackContext):
-            self.log.fatal("Uncaught error caught by PTB error handler", exc_info=context.error)
+            if isinstance(context.error, tg.error.NetworkError):
+                self.log.fatal(f"更新超时，请检查网络连接 ({context.error})")
+                if not self.conf.bot.network.proxy:
+                    self.log.warning("提示：您是否忘记了设置代理？")
+                if not isinstance(self.conf.bot.init_args, WebhookConf):
+                    self.log.info("提示：使用 webhook 能够减少向 Telegram 发起连接的次数，从而间接降低代理出错的频率。")
+            else:
+                self.log.fatal(
+                    "Uncaught error caught by PTB error handler", exc_info=context.error
+                )
             self.stop()
 
         self.updater.dispatcher.add_error_handler(ptb_error_handler)
 
     def stop(self):
+        self.log.warning("App stopping...")
         self.qzone.stop()
         self.updater.stop()
+        for t in self.timers.values():
+            t.stop()
 
     # --------------------------------
     #              timer
@@ -304,9 +299,9 @@ class BaseApp:
             await self.hook_store.Clean(-keepdays * 86400)
             return False  # never stop
 
-        self.cl = AsyncTimer(interval, clean, name="clean")
-        self.cl()
-        return self.cl
+        cl = AsyncTimer(interval, clean, name="clean")
+        cl()
+        self.timers["cl"] = cl
 
     # --------------------------------
     #          work logics
@@ -333,13 +328,13 @@ class BaseApp:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
             task = self.add_hook_ref("command", self.fetch(self.admin))
             self.fetch_lock.acquire(task)
-            task.add_done_callback(lambda _: (ds := self.timers.get("ds")) and ds())
-            task.add_done_callback(lambda _: self.timers["ls"]())
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
-            self.timers["ls"]()
-            if ds := self.timers.get("ds"):
-                ds()
+
+        self.log.info("启动所有定时器")
+        for t in self.timers.values():
+            t()
+            self.log.debug(f"{t} started.")
 
         self.start_time = time()
         return await self.idle()
@@ -427,7 +422,7 @@ class BaseApp:
     async def license(self, to: ChatId):
         from telegram.parsemode import ParseMode
 
-        LICENSE_TEXT = """用户协议"""
+        LICENSE_TEXT = """继续使用即代表您同意[用户协议]()。"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
     def _status_text(self, debug: bool, *, hf: bool = False):
@@ -442,7 +437,7 @@ class BaseApp:
             "上次登录": ts2a(self.loginman.last_login),
             "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
             "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
-            "上次清理数据库": ts2a(self.cl.last_call),
+            "上次清理数据库": ts2a(self.timers["cl"].last_call),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:

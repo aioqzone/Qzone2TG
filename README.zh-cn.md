@@ -5,7 +5,7 @@
 [![Dev CI](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
-[![telegram](https://img.shields.io/badge/dynamic/xml?label=telegram&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
+[![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
 
 > 注意：Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
 
@@ -34,6 +34,8 @@ Qzone3TG 使用 [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) �
 
 - [Qzone3TG 文档][doc]
 - 博客专题: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
+
+> 您可以在我们的 [讨论群](https://t.me/qzone2tg_discuss) 寻求帮助。
 
 ## License
 

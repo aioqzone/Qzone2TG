@@ -1,7 +1,8 @@
 import pytest
 import pytest_asyncio
+from qzemoji.base import AsyncEngineFactory
 
-from qzone3tg.app.storage import AsyncEnginew, DefaultStorageHook, FeedOrm, StorageMan
+from qzone3tg.app.storage import DefaultStorageHook, FeedOrm, StorageMan
 from qzone3tg.app.storage.orm import MessageOrm
 
 from . import fake_feed
@@ -17,7 +18,7 @@ def fixed():
 
 @pytest_asyncio.fixture(scope="module")
 async def store():
-    async with AsyncEnginew.sqlite3(None) as engine:
+    async with AsyncEngineFactory.sqlite3(None) as engine:
         yield StorageMan(engine)
 
 

@@ -5,11 +5,11 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Generic, Tuple, Type, overload
 
-from aiohttp import ClientSession
 from aioqzone.type.entity import AtEntity, ConEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
+from qqqr.utils.net import ClientAdapter
 from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
@@ -364,9 +364,9 @@ class FetchSplitter(LocalSplitter):
     more precise predict.
     """
 
-    def __init__(self, sess: ClientSession) -> None:
+    def __init__(self, client: ClientAdapter) -> None:
         super().__init__()
-        self.sess = sess
+        self.client = client
 
     async def probe(self, media: VisualMedia) -> VisualMedia | bytes:
         if media.is_video:
@@ -375,8 +375,9 @@ class FetchSplitter(LocalSplitter):
             return media  # media is too large, it will be sent as document/link
 
         # fetch the media to probe correctly
-        async with self.sess.get(str(media.raw)) as r:
-            return await r.content.read()
+        async with await self.client.get(str(media.raw)) as r:
+            r.content
+            return b"".join([i async for i in r.aiter_bytes()])
 
     def probe_md_type(self, media: VisualMedia | bytes) -> Type[InputMedia]:
         if isinstance(media, VisualMedia):

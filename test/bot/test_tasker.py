@@ -1,9 +1,7 @@
-import asyncio
 from time import time
 
 import pytest
-import pytest_asyncio
-from aiohttp import ClientSession
+from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 from telegram import InputFile
 
@@ -37,8 +35,8 @@ def gen():
 
 
 @pytest.fixture(scope="class")
-def edit(sess):
-    t = BTE(LocalSplitter(), sess)
+def edit(client: ClientAdapter):
+    t = BTE(LocalSplitter(), client)
     t.register_hook(TaskerEvent())
     yield t
 

@@ -1,15 +1,14 @@
 import asyncio as aio
 import logging
 from collections import defaultdict
-from functools import partial
-from typing import Mapping, cast
+from typing import Mapping
 
-from aioqzone.interface.hook import Emittable, Event
 from aioqzone_feed.type import BaseFeed, FeedContent
+from qqqr.event import Emittable, Event
 from telegram import Message, TelegramError
 from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.utils.iter import aenumerate, alist, countif
+from qzone3tg.utils.iter import alist, countif
 
 from . import BotProtocol, ChatId, InputMedia
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial

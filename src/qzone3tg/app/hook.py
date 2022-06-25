@@ -1,11 +1,13 @@
 """Defines all hooks used in Qzone3TG and implements some default hook.
 """
 
+import asyncio
 import logging
-from abc import ABC, abstractmethod
-from typing import Optional, Type
+from dataclasses import dataclass
+from typing import Optional
 
-from aioqzone.interface.login import LoginEvent, LoginMethod, QREvent, UPEvent
+import telegram
+from aioqzone.event.login import QREvent, UPEvent
 from aioqzone_feed.interface.hook import FeedContent, FeedEvent
 from telegram import InlineKeyboardMarkup, InputMediaPhoto, Message
 
@@ -15,16 +17,10 @@ from qzone3tg.bot.queue import EditableQueue
 log = logging.getLogger(__name__)
 
 
-class Sender(ABC):
-    @property
-    @abstractmethod
-    def admin(self) -> ChatId:
-        pass
-
-    @property
-    @abstractmethod
-    def bot(self) -> BotProtocol:
-        pass
+@dataclass
+class Sender:
+    admin: ChatId
+    bot: BotProtocol
 
     async def notify(self, text: str, **kw):
         """Shortcut to `.bot.send_message` with `to` set as `.admin`."""
@@ -32,13 +28,14 @@ class Sender(ABC):
 
 
 class DefaultQrHook(QREvent, Sender):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, admin: ChatId, bot: BotProtocol) -> None:
+        super().__init__(admin, bot)
         self.qr_msg: Message | None = None
-        self.qr_times: int = 0
         """qr sent counter"""
         self.qr_renew = False
         """qr renew status flag"""
+        self._refresh = asyncio.Event()
+        self._cancel = asyncio.Event()
 
     async def LoginFailed(self, meth, msg: Optional[str] = None):
         pmsg = f": {msg}" if msg else ""
@@ -54,7 +51,7 @@ class DefaultQrHook(QREvent, Sender):
     def qr_markup(self) -> InlineKeyboardMarkup | None:
         return
 
-    async def QrFetched(self, png: bytes, renew: bool = False):
+    async def QrFetched(self, png: bytes, times: int):
         if self.qr_msg is None:
             self.qr_msg = await self.bot.send_photo(
                 self.admin,
@@ -64,7 +61,7 @@ class DefaultQrHook(QREvent, Sender):
                 reply_markup=self.qr_markup(),
             )
         else:
-            text = "二维码已刷新:" if self.qr_renew else f"二维码已过期, 请重新扫描[{self.qr_times}]"
+            text = "二维码已刷新:" if self.qr_renew else f"二维码已过期, 请重新扫描[{times}]"
             msg = await self.bot.edit_message_media(
                 self.admin,
                 self.qr_msg.message_id,
@@ -72,13 +69,19 @@ class DefaultQrHook(QREvent, Sender):
             )
             if isinstance(msg, Message):
                 self.qr_msg = msg
-        self.qr_times += 1
 
     def cleanup(self):
-        self.qr_times = 0
         if self.qr_msg:
             self.qr_msg.delete()
             self.qr_msg = None
+
+    @property
+    def refresh_flag(self) -> asyncio.Event:
+        return self._refresh
+
+    @property
+    def cancel_flag(self) -> asyncio.Event:
+        return self._cancel
 
 
 class DefaultUpHook(UPEvent, Sender):
@@ -91,31 +94,13 @@ class DefaultUpHook(UPEvent, Sender):
         await self.notify("登录成功")
         return await super().LoginSuccess(meth)
 
-
-class DefaultLoginHook(DefaultQrHook, DefaultUpHook):
-    def __init__(self, admin: ChatId, bot: BotProtocol) -> None:
-        QREvent.__init__(self)
-        self._admin = admin
-        self._bot = bot
-
-    # fmt: off
-    @property
-    def admin(self): return self._admin
-    @property
-    def bot(self): return self._bot
-    # fmt: on
-
-    @classmethod
-    def _get_base(cls, meth: LoginMethod) -> Type[LoginEvent]:
-        return {LoginMethod.up: DefaultUpHook, LoginMethod.qr: DefaultQrHook}[meth]
-
-    async def LoginFailed(self, meth, msg: str | None = None):
-        cls = self._get_base(meth)
-        await cls.LoginFailed(self, meth, msg)
-
-    async def LoginSuccess(self, meth):
-        cls = self._get_base(meth)
-        await cls.LoginSuccess(self, meth)
+    async def GetSmsCode(self, phone: str, nickname: str) -> Optional[str]:
+        await self.notify(
+            f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
+            disable_notification=False,
+            reply_markup=telegram.ForceReply(input_field_placeholder="012345"),
+        )
+        return  # TODO: where can we get the response?
 
 
 class DefaultFeedHook(FeedEvent):

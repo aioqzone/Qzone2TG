@@ -16,10 +16,17 @@ Welcome to Qzone3TG's documentation!
    build
    reference
 
+.. toctree::
+   :hidden:
+   :caption: 相关链接
+
+   仓库 <https://github.com/aioqzone/Qzone2TG>
+   官方频道 <https://t.me/qzone2tg>
+   讨论群 <https://t.me/qzone2tg_discuss>
+
 
 索引 & 搜索
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* :ref:`<索引> genindex`
+* :ref:`<搜索> search`
