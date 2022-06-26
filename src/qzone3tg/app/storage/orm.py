@@ -15,11 +15,11 @@ class FeedOrm(Base):
     uin = sa.Column(sa.Integer, primary_key=True)
     abstime = sa.Column(sa.Integer, primary_key=True)
     appid = sa.Column(sa.Integer, nullable=False)
-    typeid = sa.Column(sa.Integer, nullable=True)
-    nickname = sa.Column(sa.VARCHAR, default="Unknown", nullable=False)
+    typeid = sa.Column(sa.Integer, nullable=False, default=0)
+    topicId = sa.Column(sa.VARCHAR, nullable=False, default="")
+    nickname = sa.Column(sa.VARCHAR, nullable=False, default="Unknown")
     curkey = sa.Column(sa.VARCHAR, nullable=True)
     unikey = sa.Column(sa.VARCHAR, nullable=True)
-    """message id list, as a pickle type"""
 
     @classmethod
     def from_base(cls, obj: BaseFeed):
@@ -29,6 +29,7 @@ class FeedOrm(Base):
             abstime=obj.abstime,
             appid=obj.appid,
             typeid=obj.typeid,
+            topicId=obj.topicId,
             nickname=obj.nickname,
             curkey=obj.curkey and str(obj.curkey),
             unikey=obj.unikey and str(obj.unikey),
@@ -42,6 +43,7 @@ class FeedOrm(Base):
         record.appid = obj.appid
         record.typeid = obj.typeid
         record.nickname = obj.nickname
+        record.topicId = obj.topicId
         record.curkey = obj.curkey and str(obj.curkey)
         record.unikey = obj.unikey and str(obj.unikey)
         return record
