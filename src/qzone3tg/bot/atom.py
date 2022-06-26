@@ -10,6 +10,7 @@ from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
+from telegram import InputMedia as _InputMedia
 from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
@@ -204,9 +205,11 @@ class MediaGroupPartial(MsgPartial):
     async def __call__(self, bot: BotProtocol, *args, **kwds) -> list[Message]:
         assert self.medias
         self.medias[0].caption = self.text  # type: ignore
+        assert all(isinstance(i, _InputMedia) for i in self.medias)
         return await bot.send_media_group(*args, media=self.medias, **(self.kwds | kwds))
 
     def append(self, meta: VisualMedia, raw: bytes | None, cls: Type[InputMedia], **kw):
+        assert issubclass(cls, _InputMedia)
         self.medias.append(cls(media=raw or str(meta.raw), **kw))
 
     @classmethod

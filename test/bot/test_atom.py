@@ -1,6 +1,7 @@
 import pytest
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
+from telegram import InputMedia
 
 import qzone3tg.bot.atom as atom
 
@@ -81,6 +82,9 @@ class TestLocal:
         assert len(a) == 1
         assert isinstance(a[0], atom.MediaGroupPartial)
 
+        medias = a[0].medias
+        assert all(isinstance(i, InputMedia) for i in medias)
+
     async def test_media_group_exd(self, local: atom.LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))] * 11
@@ -90,6 +94,9 @@ class TestLocal:
         assert isinstance(a[1], atom.PicPartial)
         assert a[0].text
         assert a[1].text
+
+        medias = a[0].medias
+        assert all(isinstance(i, InputMedia) for i in medias)
 
 
 class TestFetch:
