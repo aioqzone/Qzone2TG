@@ -1,5 +1,5 @@
-VERSION = "0.2.0.dev0"
-GITHUB = "https://github.com/aioqzone/Qzone2TG"
+REPO = "https://github.com/aioqzone/Qzone2TG"
 DISCUSS = "https://t.me/qzone2tg_discuss"
 CHANNEL = "https://t.me/qzone2tg"
 DOCUMENT = "https://aioqzone.github.io/Qzone2TG"
+LICENSE = "https://github.com/aioqzone/Qzone2TG"
