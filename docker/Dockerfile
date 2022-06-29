@@ -8,6 +8,8 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         git \
         curl \
+    && curl -fsSL https://deb.nodesource.com/setup_17.x | bash - \
+    && apt-get install --no-install-recommends -y \
         nodejs \
         npm \
     && rm -rf /var/lib/apt/lists/*
@@ -39,8 +41,11 @@ ENV PYTHONPATH="/app:$PYTHONPATH"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
-        nodejs \
+        curl \
         fontconfig \
+    && curl -fsSL https://deb.nodesource.com/setup_17.x | bash - \
+    && apt-get install --no-install-recommends -y \
+        nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/run /app
