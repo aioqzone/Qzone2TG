@@ -11,7 +11,6 @@ RUN apt-get update \
     && curl -fsSL https://deb.nodesource.com/setup_17.x | bash - \
     && apt-get install --no-install-recommends -y \
         nodejs \
-        npm \
     && rm -rf /var/lib/apt/lists/*
 
 # install and configure poetry
