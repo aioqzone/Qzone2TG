@@ -15,6 +15,7 @@ from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
+from httpx import URL
 from pydantic import AnyUrl
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
@@ -224,30 +225,29 @@ class BaseApp(
     # --------------------------------
     def _request_args(self, conf: NetworkConf) -> dict:
         """(internal use only) Build request_kwargs for PTB updater.
+        Set QzEmoji proxy as well.
 
         :param conf: NetworkConf from settings.
         :return: request_kwargs
         """
-
+        # TODO: change this function when update to PTB v20
         args = {}
         proxy = conf.proxy
-        if proxy and str.startswith(proxy.scheme, "socks"):
+        if proxy and proxy.scheme.startswith("socks"):
             if proxy.user:
                 args["urllib3_proxy_kwargs"] = {
                     "urllib3_proxy_kwargs": proxy.user,
                     "urllib3_proxy_kwargs": proxy.password,
                 }
-            proxy = AnyUrl.build(
-                scheme=proxy.scheme,
-                host=proxy.host or "",
-                tld=proxy.tld or "",
-                port=proxy.port,
-                path=proxy.path,
-                query=proxy.query,
-                fragment=proxy.fragment,
-            )
+
         if proxy:
-            args["proxy_url"] = proxy
+            args["proxy_url"] = str(URL(proxy).copy_with(username="", password=""))
+            if proxy.scheme == "socks5h":
+                # httpx resolves DNS at service-side by default. socks5h is not supported.
+                qe.proxy = str(URL(proxy).copy_with(scheme="socks5"))
+            else:
+                qe.proxy = str(proxy)
+
         return args
 
     # --------------------------------
@@ -317,7 +317,6 @@ class BaseApp(
         self.log.info("注册数据库清理任务...")
         self.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
-        qe.proxy = self.conf.bot.network.proxy and str(self.conf.bot.network.proxy)
         init_task = [qe.auto_update(), self.store.create(), self.loginman.load_cached_cookie()]
         await asyncio.wait(init_task)
 
