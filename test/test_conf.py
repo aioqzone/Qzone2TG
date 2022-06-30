@@ -88,4 +88,7 @@ async def test_hook_class():
         iapp = InteractApp(client, engine, conf=minc)
         assert iapp.sub_of(DefaultFeedHook).__qualname__.startswith(InteractApp.__qualname__)
         assert iapp.sub_of(DefaultQrHook).__qualname__.startswith(InteractApp.__qualname__)
+        assert iapp.sub_of(TaskerEvent).__qualname__.startswith(InteractApp.__qualname__)
         assert iapp.hook_qr.qr_markup.__qualname__.startswith(InteractApp.__qualname__)
+
+        assert iapp.hook_qr.qr_markup() is not None
