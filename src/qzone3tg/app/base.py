@@ -75,10 +75,10 @@ class BaseApp(
             request_kwargs=self._request_args(conf.bot.network),
             workers=0,
         )
+        super().__init__()  # update bases before instantiate hooks
         self.init_hooks()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
-        super().__init__()
 
     # --------------------------------
     #            properties
