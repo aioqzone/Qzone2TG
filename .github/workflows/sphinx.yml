@@ -8,6 +8,9 @@ on:
     paths:
       - doc/**
       - ".github/workflows/sphinx.yml"
+    branches:
+      - dev
+      - dev/**
 
 concurrency:
   group: doc-${{ github.ref }}

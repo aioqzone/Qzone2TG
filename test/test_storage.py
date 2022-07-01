@@ -48,7 +48,7 @@ async def test_update(store: StorageMan, hook: DefaultStorageHook, fixed: list):
     feed, mids = pack
     assert mids is None
 
-    await hook.UpdateMid(fixed[2], [1, 2])
+    await hook.update_feed(fixed[2], [1, 2])
     mids = await hook.GetMid(fixed[2])
     assert mids
     assert mids == [1, 2]
