@@ -162,7 +162,7 @@ class DefaultStorageHook(StorageEvent):
             sess: AsyncSession
             async with sess.begin():
                 tasks = [
-                    self.UpdateMid(feed, mids, sess=sess, flush=False),
+                    self.update_feed(feed, mids, sess=sess, flush=False),
                     update_feed(feed, sess=sess),
                 ]
                 await asyncio.wait([asyncio.create_task(i) for i in tasks])
@@ -174,7 +174,7 @@ class DefaultStorageHook(StorageEvent):
             return r
         return [cast(int, i.mid) for i in r]
 
-    async def UpdateMid(
+    async def update_feed(
         self,
         feed: BaseFeed,
         mids: list[int] | None,
@@ -183,12 +183,12 @@ class DefaultStorageHook(StorageEvent):
     ):
         if sess is None:
             async with self.sess() as newsess:
-                await self.UpdateMid(feed, mids, sess=newsess, flush=flush)
+                await self.update_feed(feed, mids, sess=newsess, flush=flush)
                 return
 
         if flush:
             async with sess.begin():
-                await self.UpdateMid(feed, mids, sess=sess, flush=False)
+                await self.update_feed(feed, mids, sess=sess, flush=False)
                 await sess.commit()
                 return
 

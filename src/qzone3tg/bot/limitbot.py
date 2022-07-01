@@ -1,20 +1,18 @@
 """Telegram API has many limits. This module detects and solve these conflicts."""
 
-import asyncio as aio
+import asyncio
 import logging
 from collections import deque
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Optional, Tuple, TypeVar, overload
+from typing import Optional, Tuple, overload
 
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
 from qqqr.event import Emittable, Event
 from qqqr.utils.net import ClientAdapter
 from telegram import Bot, InputFile, Message, ReplyMarkup
-
-from qzone3tg.utils.iter import countif, split_by_len
 
 from . import BotProtocol, ChatId, InputMedia
 from .atom import (
@@ -29,19 +27,27 @@ from .atom import (
     TextPartial,
 )
 
-logger = logging.getLogger(__name__)
-T = TypeVar("T")
+log = logging.getLogger(__name__)
 
 
 class TaskerEvent(Event):
     async def reply_markup(
         self, feed: FeedContent
     ) -> Tuple[Optional[ReplyMarkup], Optional[ReplyMarkup]]:
-        """:return: (forwardee reply_markup, feed reply_markup)."""
+        """Allow app to generate reply_markup according to its own policy.
+
+        :param feed: the feed to generate reply_markup
+        :return: (forwardee reply_markup, feed reply_markup)."""
         return None, None
 
 
 class BotTaskGenerator(Emittable[TaskerEvent]):
+    """:class:`BotTaskGenerator` is the middleware between Splitter and Sending Queue.
+    It will post-process partials from splitter and return them to the queue.
+
+    The post process includes estimating and adding timeout, adding reply_markup, etc.
+    """
+
     bps: float = 2e6  # 2Mbps
     eps = bps
 
@@ -69,6 +75,15 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
         return 2e7
 
     async def unify_send(self, feed: FeedContent):
+        """
+        The unify_send function is a unified function to generate atomic unit to be sent.
+        It will split the feed into multiple callable partials no matter
+        what kind of media(s) the feed contains.
+
+        :param feed:FeedContent: Pass the feed to the splitter
+        :return: Message Partials. Forwardee partials is prior to forwarder partials.
+        """
+
         tasks = await self.splitter.split(feed)
         for mkup, part in zip(await self.hook.reply_markup(feed), tasks):
             if mkup is None:
@@ -80,9 +95,14 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
                 break
 
         for part in chain(*tasks):
-            yield self._get_partial(part)
+            self._set_timeout(part)
+            yield part
 
-    def _get_partial(self, arg: MsgPartial) -> MsgPartial:
+    def _set_timeout(self, arg: MsgPartial) -> None:
+        """Estimate and set timeout for each partial that contains media.
+
+        :param arg: partial to be set timeout. :class:`TextPartial` will be returned unchanged.
+        :class:`MediaPartial` and :class:`MediaGroupPartial` will got a timeout keyword."""
         match arg.meth:
             case "message":
                 assert isinstance(arg, TextPartial)
@@ -95,16 +115,23 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
                 arg.timeout = max(len(arg.medias) * 5, size / self.bps)
             case _:
                 raise AttributeError(arg.meth)
-        return arg
 
 
 class BotTaskEditter(BotTaskGenerator):
+    """Besides processes mentioned in :class:`BotTaskGenerator`,
+    :class:`BotTaskEditter` includes methods to edit an existing partial if needed.
+    """
+
     def __init__(self, splitter: Splitter, client: ClientAdapter):
         super().__init__(splitter)
         self.client = client
 
     async def media_args(self, feed: FeedContent):
-        """Get media atoms of a feed."""
+        """Get media atoms of a feed.
+
+        :param feed: the feed
+        :return: media group partial or media partial.
+        """
         if isinstance(feed.forward, FeedContent):
             feed = feed.forward
         for group in (await self.splitter.split(feed))[1]:
@@ -121,17 +148,28 @@ class BotTaskEditter(BotTaskGenerator):
     # fmt: on
 
     async def force_bytes(self, call: MsgPartial) -> MsgPartial:
+        """This method will be called when a partial got :exc:`telegram.error.BadRequest` from telegram.
+        We will force fetch the url by ourself and send the raw data instead of the url to telegram.
+
+        :param call: the partial that its media should be fetched.
+        :return: The modified partial itself
+        """
         match call.meth:
             case "animation" | "document" | "photo" | "video":
                 assert isinstance(call, MediaPartial)
                 media = call.content
                 if isinstance(media, bytes):
+                    log.error("force fetch the raws")
                     return call
-                assert isinstance(media, str)
-                logger.info(f"force fetch {call.meth}: {media}")
-                async with await self.client.get(media) as r:
-                    call._raw = b"".join([i async for i in r.aiter_bytes()])
+
+                log.info(f"force fetch a {call.meth}: {media}")
+                try:
+                    async with await self.client.get(media) as r:
+                        call._raw = b"".join([i async for i in r.aiter_bytes()])
+                except:
+                    log.warning(f"force fetch error, skipped: {media}", exc_info=True)
                 return call
+
             case "media_group":
                 assert isinstance(call, MediaGroupPartial)
                 for i, im in enumerate(call.medias):
@@ -144,13 +182,29 @@ class BotTaskEditter(BotTaskGenerator):
         ):
             return media
 
-        assert isinstance(media.media, str)
-        logger.info(f"force fetch {media.type}: {media.media}")
-        async with await self.client.get(media.media) as r:
-            media.media = InputFile(b"".join([i async for i in r.aiter_bytes()]), attach=True)
+        if not isinstance(media.media, str):
+            log.warning(
+                f"InputMedia is called force_bytes but its media is not url: {media.media}"
+            )
             return media
 
+        log.info(f"force fetch {media.type}: {media.media}")
+        try:
+            async with await self.client.get(media.media) as r:
+                media.media = InputFile(b"".join([i async for i in r.aiter_bytes()]), attach=True)
+        except:
+            log.warning(f"force fetch error, skipped: {media.media}", exc_info=True)
+        return media
+
     def inc_timeout(self, call: MsgPartial) -> MsgPartial:
+        """
+        The inc_timeout function takes a atomic unit and increases its timeout
+        to account for network latency.
+
+        :param call: The partial which timeout is to be increase
+        :return: The modified partial itself
+        """
+
         org = call.timeout
         min_inc = 5
         match call.meth:
@@ -176,16 +230,31 @@ class BotTaskEditter(BotTaskGenerator):
 
 
 class RelaxSemaphore:
+    """A rate-limiter implemented just like :class:`asyncio.Semaphore`, except:
+
+    - You can :meth:`.acquire` or :meth:`.release` multiple times at the same time.
+    - :meth:`.release` will not "release" at once. It will delay one second.
+    """
+
     def __init__(self, max_val: int) -> None:
-        self.max = max_val
-        self._loop = aio.get_event_loop()
+        self.max = self._val = max_val
+        self._loop = asyncio.get_event_loop()
         self._waiters = deque(maxlen=max_val)
         self.reset()
 
     def reset(self):
+        """reset to initial state."""
         self._val = self.max
+        self._waiters.clear()
 
     async def acquire(self, times: int = 1, *, block: bool = True):
+        """Like :meth:`asyncio.Semaphore.acquire`. But can be acquired multiple times
+        in one call.
+
+        :param times: acquire times.
+        :param block: if False, will not block current coro. but returns False.
+        If True, block current coro. and always returns True. Default as True.
+        """
         if self._val >= times:
             # accept
             self._val -= times
@@ -201,14 +270,28 @@ class RelaxSemaphore:
         return True
 
     def release(self, times: int = 1) -> None:
+        """Release given times after one second."""
+
         async def delay_release(end_time: float):
-            await aio.sleep(end_time - time())
+            await asyncio.sleep(end_time - time())
             self._val += times
 
-        self._waiters.append(task := aio.create_task(delay_release(time() + 1)))
+        self._waiters.append(task := asyncio.create_task(delay_release(time() + 1)))
         task.add_done_callback(lambda t: self._waiters.remove(task))
 
     def context(self, times: int = 1):
+        """Returns a context manager which acquire semaphore `times` times when enter, and
+        release `times` times when exit. Example:
+
+        >>> await sem.acqure(times)
+        >>> try: ...
+        >>> except: sem.release(times)
+
+        Code above can be simplified as:
+
+        >>> async with sem.context(times): ...
+        """
+
         # fmt: off
         class ctx:
             __slots__ = ()
@@ -219,7 +302,8 @@ class RelaxSemaphore:
 
 
 class SemaBot(BotProtocol):
-    """A queue with convenient `send_*` methods for interacting purpose."""
+    """A implementation of :class:`BotProtocol` using :class:`telegram.Bot` with built-in
+    rate-limiter (:class:`RelaxSemaphore`)."""
 
     def __init__(self, bot: Bot, sem: RelaxSemaphore) -> None:
         self.bot = bot
@@ -266,6 +350,7 @@ class SemaBot(BotProtocol):
             return await self._loop.run_in_executor(None, f)
 
     async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw) -> list[Message]:
+        assert len(media) < LIM_GROUP_MD
         f = partial(self.bot.send_media_group, to, media=media, **kw)
         async with self.sem.context(len(media)):
             return await self._loop.run_in_executor(None, f)

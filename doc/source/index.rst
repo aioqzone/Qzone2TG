@@ -23,10 +23,11 @@ Welcome to Qzone3TG's documentation!
    仓库 <https://github.com/aioqzone/Qzone2TG>
    官方频道 <https://t.me/qzone2tg>
    讨论群 <https://t.me/qzone2tg_discuss>
+   Contributing <https://github.com/aioqzone/Qzone2TG/blob/beta/CONTRIBUTING.md>
 
 
 索引 & 搜索
 ==================
 
-* :ref:`<索引> genindex`
-* :ref:`<搜索> search`
+* :ref:`genindex`
+* :ref:`search`

@@ -1,4 +1,4 @@
-import asyncio as aio
+import asyncio
 import logging
 from collections import defaultdict
 from typing import Mapping
@@ -13,16 +13,16 @@ from qzone3tg.utils.iter import alist, countif
 from . import BotProtocol, ChatId, InputMedia
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial
 from .limitbot import BotTaskEditter as BTE
-from .limitbot import RelaxSemaphore, SemaBot
+from .limitbot import RelaxSemaphore
 
 SendFunc = MsgPartial
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class QueueEvent(Event):
     """Basic hook event for storage function."""
 
-    async def SaveFeed(self, feed: BaseFeed, msgs_id: list[int] | None = None):
+    async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
         """Add/Update an record by the given feed and messages id.
 
         :param feed: feed
@@ -36,9 +36,6 @@ class QueueEvent(Event):
         :param feed: feed
         :return: the list of message id associated with this feed, or None if not found.
         """
-        return
-
-    async def UpdateMid(self, feed: BaseFeed, mids: list[int]):
         return
 
 
@@ -58,7 +55,7 @@ class MsgQueue(Emittable[QueueEvent]):
         self.bot = bot
         self.tasker = tasker
         self.fwd2 = forward_map
-        self._loop = aio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
         self.sem = sem
         self.exc = defaultdict(list)
         self.max_retry = max_retry
@@ -67,7 +64,7 @@ class MsgQueue(Emittable[QueueEvent]):
 
     async def add(self, bid: int, feed: FeedContent):
         if bid != self.bid:
-            logger.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
+            log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
         ids = await self.hook.GetMid(feed)
         if ids:
@@ -110,10 +107,10 @@ class MsgQueue(Emittable[QueueEvent]):
         mids: list[int] = []
         if (v := self.q.get(feed)) is None:
             # BUG: why is KeyError?
-            logger.fatal(f"feed MISS!!! feed={feed}, q={self.q}")
+            log.fatal(f"feed MISS!!! feed={feed}, q={self.q}")
             return
         elif isinstance(v, int):
-            logger.debug(f"feed {feed} is sent before.")
+            log.debug(f"feed {feed} is sent before.")
             return
 
         for f in v:
@@ -129,10 +126,10 @@ class MsgQueue(Emittable[QueueEvent]):
                 break
 
         if not mids:
-            logger.error(f"feed {feed}, max retry exceeded: {self.exc[feed]}")
+            log.error(f"feed {feed}, max retry exceeded: {self.exc[feed]}")
             for i, e in enumerate(self.exc[feed], start=1):
                 if e:
-                    logger.debug("Retry %d", i, exc_info=e)
+                    log.debug("Retry %d", i, exc_info=e)
             # Save the feed even if send failed
             self.add_hook_ref("storage", self.hook.SaveFeed(feed))
             return
@@ -163,17 +160,17 @@ class MsgQueue(Emittable[QueueEvent]):
             if isinstance(f, (MediaPartial, MediaGroupPartial)):
                 tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
                 return True
-            logger.error("Got BadRequest from send_message!", exc_info=e)
+            log.error("Got BadRequest from send_message!", exc_info=e)
             # return False
         except TelegramError as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            logger.error("Uncaught telegram error in send_all.", exc_info=True)
+            log.error("Uncaught telegram error in send_all.", exc_info=True)
             return False
         except BaseException as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            logger.error("Uncaught error in send_all.", exc_info=True)
+            log.error("Uncaught error in send_all.", exc_info=True)
             return False
         return False
 
@@ -201,9 +198,9 @@ class EditableQueue(MsgQueue):
             except BadRequest:
                 media = await self.tasker.force_bytes_inputmedia(media)
             except TelegramError:
-                logger.error("Uncaught telegram error when editting media.", exc_info=True)
+                log.error("Uncaught telegram error when editting media.", exc_info=True)
             except BaseException:
-                logger.error("Uncaught error when editting media.", exc_info=True)
+                log.error("Uncaught error when editting media.", exc_info=True)
                 return
 
     async def edit(self, bid: int, feed: FeedContent):
@@ -211,7 +208,7 @@ class EditableQueue(MsgQueue):
             # this batch is sent and all info is cleared.
             return await self._edit_sent(feed)
         if not feed in self.q:
-            logger.warning("The feed to be update should have been in queue. Skipped.")
+            log.warning("The feed to be update should have been in queue. Skipped.")
             return
         if not self.sending or self.sending < feed:
             return await self._edit_pending(feed)
@@ -225,7 +222,7 @@ class EditableQueue(MsgQueue):
         await self.wait("storage")
         mids = await self.hook.GetMid(feed)
         if mids is None:
-            logger.error("Edit media wasn't sent before, skipped.")
+            log.error("Edit media wasn't sent before, skipped.")
             return
 
         args = await alist(self.tasker.unify_send(feed))
