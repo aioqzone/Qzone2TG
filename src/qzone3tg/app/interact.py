@@ -124,18 +124,29 @@ class InteractApp(BaseApp):
             self.log.error("Error in setting commands", exc_info=True)
 
     async def run(self):
-        if isinstance(self.conf.bot.init_args, PollingConf):
-            self.updater.start_polling(**self.conf.bot.init_args.dict())
+        """
+        :meth:`InteractApp.run` will start polling or webhook, run its own preparations,
+        and call :meth:`BaseApp.run`.
+
+        :return: None
+
+        .. versionchanged:: webhook listens to ``0.0.0.0`` instead of ``127.0.0.1``
+        """
+
+        conf = self.conf.bot.init_args
+        if isinstance(conf, PollingConf):
+            self.updater.start_polling(**conf.dict())
         else:
             token = self.conf.bot.token
             assert token
-            kw = self.conf.bot.init_args.dict(exclude={"destination", "cert", "key"})
+            kw = conf.dict(exclude={"destination", "cert", "key"})
             safe_asposix = lambda p: p and p.as_posix()
             self.updater.start_webhook(
+                listen="0.0.0.0",
                 url_path=token.get_secret_value(),
-                webhook_url=self.conf.bot.init_args.webhook_url(token).get_secret_value(),
-                cert=safe_asposix(self.conf.bot.init_args.cert),
-                key=safe_asposix(self.conf.bot.init_args.key),
+                webhook_url=conf.webhook_url(token).get_secret_value(),
+                cert=safe_asposix(conf.cert),
+                key=safe_asposix(conf.key),
                 **kw,
             )
         self.set_commands()

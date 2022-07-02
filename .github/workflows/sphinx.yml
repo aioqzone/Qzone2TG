@@ -12,10 +12,6 @@ on:
       - dev
       - dev/**
 
-concurrency:
-  group: doc-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   sphinx-build-deploy:
     uses: aioqzone/aioqzone/.github/workflows/sphinx.yml@beta
