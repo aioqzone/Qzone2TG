@@ -307,7 +307,12 @@ class BaseApp(
     #          work logics
     # --------------------------------
     async def run(self):
-        """Run the app. Current thread will be blocked until :obj:`.updater` is stopped."""
+        """
+        The run function is the main entry point for your bot.
+        It will be execute all async start-up preparation and finally call :meth:`.idle`.
+
+        :return: None
+        """
         self.check_node()
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")

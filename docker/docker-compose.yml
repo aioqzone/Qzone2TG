@@ -13,7 +13,7 @@ services:
       bot.admin: ${ADMIN}
       bot.storage.database: data/${UIN}.db
       # bot.network.proxy: socks5h://host.docker.internal:7890
-    network_mode: host
+    # network_mode: host
     volumes:
       # - ./log:/app/log
       - ./config:/app/config:ro
