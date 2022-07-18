@@ -277,7 +277,8 @@ class RelaxSemaphore:
             self._val += times
 
         self._waiters.append(task := asyncio.create_task(delay_release(time() + 1)))
-        task.add_done_callback(lambda t: self._waiters.remove(task))
+        # BUG: task not in waiters?
+        task.add_done_callback(lambda _: task in self._waiters and self._waiters.remove(task))
 
     def context(self, times: int = 1):
         """Returns a context manager which acquire semaphore `times` times when enter, and
