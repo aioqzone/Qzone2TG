@@ -370,7 +370,7 @@ class LocalSplitter(Splitter):
             # override disable_web_page_preview if forwarding an app.
             if isinstance(msgs[0], MediaGroupPartial):
                 log.warning(f"Forward url and media coexist: {feed}")
-            else:
+            elif isinstance(msgs[0], TextPartial):
                 msgs[0].kwds["disable_web_page_preview"] = False
 
         # send forward before stem message
