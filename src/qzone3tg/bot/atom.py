@@ -435,16 +435,16 @@ class FetchSplitter(LocalSplitter):
         super().__init__()
         self.client = client
 
-    async def probe(self, media: VisualMedia) -> VisualMedia | bytes:
+    async def probe(self, media: VisualMedia) -> bytes | None:
         """:meth:`FetchSplitter.probe` will fetch the media from remote.
 
         :param media: metadata to fetch
         """
 
         if media.is_video:
-            return media  # video is too large to get
+            return  # video is too large to get
         if media.height + media.width > 1e4:
-            return media  # media is too large, it will be sent as document/link
+            return  # media is too large, it will be sent as document/link
 
         try:
             # fetch the media to probe correctly
@@ -452,7 +452,7 @@ class FetchSplitter(LocalSplitter):
                 return b"".join([i async for i in r.aiter_bytes()])
         except:
             # give-up if error
-            return media
+            return
 
     def guess_md_type(self, media: VisualMedia | bytes) -> Type[InputMedia]:
         """Guess media type using media raw, otherwise by metadata.
