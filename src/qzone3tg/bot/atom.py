@@ -452,6 +452,7 @@ class FetchSplitter(LocalSplitter):
                 return b"".join([i async for i in r.aiter_bytes()])
         except:
             # give-up if error
+            log.warning("Error when probing", exc_info=True)
             return
 
     def guess_md_type(self, media: VisualMedia | bytes) -> Type[InputMedia]:

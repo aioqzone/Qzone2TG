@@ -20,7 +20,7 @@ def fetch(client: ClientAdapter):
     return atom.FetchSplitter(client)
 
 
-def test_media_arg():
+async def test_media_arg():
     vm = fake_media(build_html(100))
     d = {
         atom.PicPartial: atom.Pic,
