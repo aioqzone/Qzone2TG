@@ -312,34 +312,34 @@ class SemaBot(BotProtocol):
         self._loop = self.sem._loop
 
     async def send_message(self, to: ChatId, text: str, **kw):
-        assert len(text) < LIM_TXT
+        assert len(text) <= LIM_TXT
         f = partial(self.bot.send_message, to, text, **kw)
         async with self.sem.context():
             return await self._loop.run_in_executor(None, f)
 
     async def send_photo(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) < LIM_MD_TXT
+        assert len(text) <= LIM_MD_TXT
         photo = media if isinstance(media, bytes) else str(media)
         f = partial(self.bot.send_photo, to, photo, text, **kw)
         async with self.sem.context():
             return await self._loop.run_in_executor(None, f)
 
     async def send_animation(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) < LIM_MD_TXT
+        assert len(text) <= LIM_MD_TXT
         anim = media if isinstance(media, bytes) else str(media)
         f = partial(self.bot.send_animation, to, anim, caption=text, **kw)
         async with self.sem.context():
             return await self._loop.run_in_executor(None, f)
 
     async def send_video(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) < LIM_MD_TXT
+        assert len(text) <= LIM_MD_TXT
         video = media if isinstance(media, bytes) else str(media)
         f = partial(self.bot.send_video, to, video, caption=text, **kw)
         async with self.sem.context():
             return await self._loop.run_in_executor(None, f)
 
     async def send_document(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) < LIM_MD_TXT
+        assert len(text) <= LIM_MD_TXT
         doc = media if isinstance(media, bytes) else str(media)
         f = partial(self.bot.send_document, to, doc, caption=text, **kw)
         async with self.sem.context():
@@ -351,7 +351,7 @@ class SemaBot(BotProtocol):
             return await self._loop.run_in_executor(None, f)
 
     async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw) -> list[Message]:
-        assert len(media) < LIM_GROUP_MD
+        assert len(media) <= LIM_GROUP_MD
         f = partial(self.bot.send_media_group, to, media=media, **kw)
         async with self.sem.context(len(media)):
             return await self._loop.run_in_executor(None, f)

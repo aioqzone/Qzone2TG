@@ -6,6 +6,7 @@ from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
 from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import BadRequest
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -321,6 +322,8 @@ class InteractApp(BaseApp):
                     pass
                 try:
                     query.edit_message_reply_markup()
+                except BadRequest:
+                    pass
                 except:
                     self.log.error("Failed to change button", exc_info=True)
                 return
@@ -341,6 +344,8 @@ class InteractApp(BaseApp):
                 btn = InlineKeyboardButton("Unlike", callback_data="like:-" + data)
             try:
                 query.edit_message_reply_markup(InlineKeyboardMarkup([[btn]]))
+            except BadRequest:
+                pass
             except:
                 self.log.error("Failed to change button", exc_info=True)
 
