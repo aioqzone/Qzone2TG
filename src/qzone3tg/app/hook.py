@@ -24,7 +24,7 @@ class Sender:
 
     async def notify(self, text: str, **kw):
         """Shortcut to `.bot.send_message` with `to` set as `.admin`."""
-        await self.bot.send_message(self.admin, text, **kw)
+        return await self.bot.send_message(self.admin, text, **kw)
 
 
 class DefaultQrHook(QREvent, Sender):
@@ -85,6 +85,10 @@ class DefaultQrHook(QREvent, Sender):
 
 
 class DefaultUpHook(UPEvent, Sender):
+    def __init__(self, admin: ChatId, bot: BotProtocol, vcode_timeout: float = 10) -> None:
+        super().__init__(admin, bot)
+        self.vtimeout = vcode_timeout
+
     async def LoginFailed(self, meth, msg: Optional[str] = None):
         pmsg = f": {msg}" if msg else ""
         await super().LoginFailed(meth, msg)
@@ -95,12 +99,32 @@ class DefaultUpHook(UPEvent, Sender):
         return await super().LoginSuccess(meth)
 
     async def GetSmsCode(self, phone: str, nickname: str) -> Optional[str]:
-        await self.notify(
+        m = await self.notify(
             f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
             disable_notification=False,
             reply_markup=telegram.ForceReply(input_field_placeholder="012345"),
         )
-        return  # TODO: where can we get the response?
+        code = await self.force_reply_answer(m)
+        if code is None:
+            await self.notify("超时未回复")
+            m.edit_reply_markup(reply_markup=None)
+            return
+
+        if len(code) != 6:
+            await self.notify("应回复六位数字验证码")
+            m.edit_reply_markup(reply_markup=None)
+            return
+        return code
+
+    async def force_reply_answer(self, msg: Message) -> str | None:
+        """A hook cannot get answer from the user. This should be done by handler in app.
+        So this method should be implemented in app level.
+
+        :param msg: The force reply message to wait for the reply from user.
+        :param timeout: wait timeout
+        :return: None if timeout, else the reply string.
+        """
+        return
 
 
 class DefaultFeedHook(FeedEvent):
