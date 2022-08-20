@@ -41,16 +41,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: poetry
+          cache-dependency-path: poetry.lock
       - name: Get Package Version
         id: version_step
         run: |
-          poetry env use ${{ matrix.python-version }}
           echo "::set-output name=package::$(poetry version -s)"
       #----------------------------------------------
       #   install your root project, if required
       #----------------------------------------------
       - name: Install library
-        run: poetry install --no-interaction
+        run: poetry install -n
       #----------------------------------------------
       #    add matrix specifics and run test suite
       #----------------------------------------------

@@ -1,11 +1,19 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
+from typing import Type
 
 import qzemoji as qe
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
-from telegram import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    Update,
+)
 from telegram.error import BadRequest
 from telegram.ext import (
     CallbackContext,
@@ -14,8 +22,10 @@ from telegram.ext import (
     Dispatcher,
     Filters,
     MessageFilter,
+    MessageHandler,
 )
 
+from qzone3tg.app.hook import DefaultUpHook
 from qzone3tg.settings import PollingConf, Settings
 
 from .base import BaseApp
@@ -34,6 +44,22 @@ class LockFilter(MessageFilter):
     def acquire(self, task: asyncio.Task):
         self.locked = True
         task.add_done_callback(lambda _: setattr(self, "locked", False))
+
+
+class ReplyHandler(MessageHandler):
+    def __init__(self, filters, callback, reply: Message):
+        super().__init__(filters, callback)
+        self.reply = reply
+
+    def check_update(self, update: Update):
+        if super().check_update(update) is False:
+            return False
+        msg = update.effective_message
+        assert msg
+
+        if msg.reply_to_message and msg.reply_to_message.message_id == self.reply.message_id:
+            return
+        return False
 
 
 class InteractApp(BaseApp):
@@ -86,6 +112,32 @@ class InteractApp(BaseApp):
                 return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
         return has_markup
+
+    def _sub_defaultuphook(self, base: Type[DefaultUpHook]):
+        class get_reply(base):
+            async def force_reply_answer(_self, msg) -> str | None:
+                code = ""
+                evt = asyncio.Event()
+
+                def cb(update: Update, _):
+                    nonlocal code
+                    assert update.effective_message
+                    code = update.effective_message.text.strip()
+                    evt.set()
+
+                handler = ReplyHandler(Filters.regex(r"^\s*\d{6}\s*$"), cb, msg)
+                self.updater.dispatcher.add_handler(handler)
+
+                try:
+                    await asyncio.wait_for(evt.wait(), timeout=_self.vtimeout)
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    return
+                else:
+                    return code
+                finally:
+                    self.updater.dispatcher.remove_handler(handler)
+
+        return get_reply
 
     def _sub_defaultfeedhook(self, base):
         base = super()._sub_defaultfeedhook(base)
