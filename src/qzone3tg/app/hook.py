@@ -40,12 +40,12 @@ class DefaultQrHook(QREvent, Sender):
     async def LoginFailed(self, meth, msg: Optional[str] = None):
         pmsg = f": {msg}" if msg else ""
         await super().LoginFailed(meth, msg)
-        self.cleanup()
+        await self.cleanup()
         await self.notify("二维码登录失败" + pmsg)
 
     async def LoginSuccess(self, meth):
         await super().LoginSuccess(meth)
-        self.cleanup()
+        await self.cleanup()
         await self.notify("登录成功")
 
     def qr_markup(self) -> InlineKeyboardMarkup | None:
@@ -70,9 +70,9 @@ class DefaultQrHook(QREvent, Sender):
             if isinstance(msg, Message):
                 self.qr_msg = msg
 
-    def cleanup(self):
+    async def cleanup(self):
         if self.qr_msg:
-            self.qr_msg.delete()
+            await self.qr_msg.delete()
             self.qr_msg = None
 
     @property
@@ -107,12 +107,12 @@ class DefaultUpHook(UPEvent, Sender):
         code = await self.force_reply_answer(m)
         if code is None:
             await self.notify("超时未回复")
-            m.edit_reply_markup(reply_markup=None)
+            await m.edit_reply_markup(reply_markup=None)
             return
 
         if len(code) != 6:
             await self.notify("应回复六位数字验证码")
-            m.edit_reply_markup(reply_markup=None)
+            await m.edit_reply_markup(reply_markup=None)
             return
         return code
 

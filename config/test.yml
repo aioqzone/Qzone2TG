@@ -4,9 +4,9 @@ bot: { admin: 456 }
 ---
 # max config
 log:
-  level: 'DEBUG'
+  level: "DEBUG"
   format: "%(message)s"
-  style: '%'
+  style: "%"
   datefmt: "%Y %b %d %H:%M:%S"
   debug_status_interval: 3600
   conf: config/log.yml
@@ -34,6 +34,6 @@ bot:
   default:
     disable_notification: True
     disable_web_page_preview: False
-    timeout: 10
+    protect_content: True
   send_gif_as_anim: false
   auto_start: True

@@ -12,7 +12,7 @@ documentation = "https://aioqzone.github.io/Qzone2TG"
 [tool.poetry.dependencies]
 python = "~3.10.2"
 aioqzone-feed = {git = "https://github.com/aioqzone/aioqzone-feed.git", rev = "beta"}
-python-telegram-bot = {extras = ["socks"], version = "^20.0a4"}
+python-telegram-bot = {extras = ["socks", "rate-limiter"], version = "^20.0a4"}
 httpx = {version = "~0.23.0", extras = ["socks"]}
 # extras: dev
 pre-commit = {version = "^2.19.0", optional = true}

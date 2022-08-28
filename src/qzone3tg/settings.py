@@ -35,11 +35,16 @@ class StorageConfig(BaseModel):
 class BotDefaultConf(BaseModel):
     """对应 :obj:`bot.default <.BotConf.default>`. Bot 的一些默认值配置。包括禁止通知、禁止链接预览等.
 
-    .. seealso:: :external:class:`telegram.ext.Defaults`"""
+    .. seealso:: :external:class:`telegram.ext.Defaults`
+
+    .. versionchanged:: 0.5.0a1
+
+        Removed ``timeout``, added :obj:`.protect_content`
+    """
 
     disable_notification: Optional[bool] = None
     disable_web_page_preview: Optional[bool] = None
-    timeout: Optional[float] = None  # read timeout from the server
+    protect_content: Optional[bool] = False
 
 
 class PollingConf(BaseModel):

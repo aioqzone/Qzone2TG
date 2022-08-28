@@ -15,10 +15,10 @@ from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
 from telegram import InputMediaVideo as Video
-from telegram import Message, ReplyMarkup
+from telegram import Message
 from typing_extensions import Self
 
-from . import MD, BotProtocol, InputMedia
+from . import MD, BotProtocol, InputMedia, ReplyMarkup
 
 PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[Type[InputMedia]]]
 LIM_TXT: Final = 4096
