@@ -41,6 +41,7 @@ def edit(client: ClientAdapter):
     yield t
 
 
+@pytest.mark.skip  # Semaphore is deprecated in 0.5.0a1
 class TestSemaphore:
     async def test_acquire(self):
         sem = RelaxSemaphore(10)

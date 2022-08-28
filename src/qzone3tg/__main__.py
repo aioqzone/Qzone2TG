@@ -36,7 +36,7 @@ async def main(conf: Settings) -> int:
             app.log.error("Uncaught error in main.", exc_info=True)
             return 1
         finally:
-            app.stop()
+            await app.stop()
 
 
 if __name__ == "__main__":

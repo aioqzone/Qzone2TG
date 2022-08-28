@@ -5,8 +5,8 @@ from typing import Mapping
 
 from aioqzone_feed.type import BaseFeed, FeedContent
 from qqqr.event import Emittable, Event
-from telegram import Message, TelegramError
-from telegram.error import BadRequest, TimedOut
+from telegram import Message
+from telegram.error import BadRequest, TelegramError, TimedOut
 
 from qzone3tg.utils.iter import alist, countif
 

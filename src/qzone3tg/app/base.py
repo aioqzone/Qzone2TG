@@ -9,7 +9,6 @@ from time import time
 from typing import Type, Union
 
 import qzemoji as qe
-import telegram as tg
 import telegram.ext as ext
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
@@ -20,8 +19,11 @@ from pydantic import AnyUrl
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
+from telegram.constants import ParseMode
+from telegram.error import NetworkError
+from telegram.ext import AIORateLimiter, Application, ApplicationBuilder
 
-from qzone3tg import DISCUSS
+from qzone3tg import DISCUSS, LICENSE
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
@@ -54,6 +56,8 @@ class BaseApp(
         self.client = client
         self.engine = engine
         self.timers: dict[str, AsyncTimer] = {}
+        # init a fake lock since subclass impls this protocol but BaseApp needn't
+        self.fetch_lock = FakeLock()
         self._get_logger(conf.log)
         self.silent_noisy_logger()
 
@@ -67,18 +71,21 @@ class BaseApp(
         self.qzone = FeedApi(client, self.loginman)
         self.log.info("Qzone端初始化完成")
 
-        self.updater = ext.Updater(
-            token=conf.bot.token.get_secret_value(),
-            defaults=ext.Defaults(
-                parse_mode=tg.ParseMode.HTML, run_async=False, **conf.bot.default.dict()
-            ),
-            request_kwargs=self._request_args(conf.bot.network),
-            workers=0,
+        builder = Application.builder()
+        builder.rate_limiter(AIORateLimiter())
+        builder = builder.token(conf.bot.token.get_secret_value())
+        builder = builder.defaults(
+            ext.Defaults(parse_mode=ParseMode.HTML, **conf.bot.default.dict())
         )
+        builder = self._build_request(builder)
+
+        self.app = builder.build()
+        assert self.app.updater
+        self.updater = self.app.updater
+        self.log.info("Bot初始化完成")
+
         super().__init__()  # update bases before instantiate hooks
         self.init_hooks()
-        # init a fake lock since subclass impls this protocol but BaseApp needn't
-        self.fetch_lock = FakeLock()
 
     # --------------------------------
     #            properties
@@ -88,8 +95,8 @@ class BaseApp(
         return self.conf.bot.admin
 
     @property
-    def tgbot(self):
-        return self.updater.bot
+    def extbot(self):
+        return self.app.bot
 
     # --------------------------------
     #             hook init
@@ -121,7 +128,7 @@ class BaseApp(
 
     def init_hooks(self):
         sem = RelaxSemaphore(30)
-        self.bot = SemaBot(self.tgbot, sem)
+        self.bot = SemaBot(self.extbot)
         self.hook_qr = self.sub_of(DefaultQrHook)(self.admin, self.bot)
         self.hook_up = self.sub_of(DefaultUpHook)(self.admin, self.bot)
         block = self.conf.qzone.block or []
@@ -165,7 +172,7 @@ class BaseApp(
         :param conf: conf from settings.
         :return: the logger
 
-        .. deprecated:: 0.3.2
+        .. versionchanged:: 0.3.2
 
             :obj:`conf` will be read as a yaml file.
 
@@ -179,6 +186,7 @@ class BaseApp(
 
             with open(conf.conf, encoding="utf8") as f:
                 dic = yaml.safe_load(f)
+            assert isinstance(dic, dict)
             dic["disable_existing_loggers"] = False
             if "version" not in dic:
                 dic["version"] = 1
@@ -223,32 +231,32 @@ class BaseApp(
     # --------------------------------
     #          init network
     # --------------------------------
-    def _request_args(self, conf: NetworkConf) -> dict:
+    def _build_request(self, builder: ApplicationBuilder) -> ApplicationBuilder:
         """(internal use only) Build request_kwargs for PTB updater.
-        Set QzEmoji proxy as well.
+        This will Set QzEmoji proxy as well.
 
         :param conf: NetworkConf from settings.
         :return: request_kwargs
+
+        .. versionchanged:: 0.5.0a1
+
+            Pass in a builder instead of config. return the builder itself.
         """
-        # TODO: change this function when update to PTB v20
-        args = {}
+        conf = self.conf.bot.network
         proxy = conf.proxy
-        if proxy and proxy.scheme.startswith("socks"):
-            if proxy.user:
-                args["urllib3_proxy_kwargs"] = {
-                    "urllib3_proxy_kwargs": proxy.user,
-                    "urllib3_proxy_kwargs": proxy.password,
-                }
+
+        if proxy and proxy.scheme == "socks5h":
+            # httpx resolves DNS at service-side by default. socks5h is not supported.
+            proxy = URL(proxy).copy_with(scheme="socks5")
 
         if proxy:
-            args["proxy_url"] = str(URL(proxy).copy_with(username="", password=""))
-            if proxy.scheme == "socks5h":
-                # httpx resolves DNS at service-side by default. socks5h is not supported.
-                qe.proxy = str(URL(proxy).copy_with(scheme="socks5"))
-            else:
-                qe.proxy = str(proxy)
+            # expect to support https and socks
+            proxy = str(proxy)
+            builder = builder.proxy_url(proxy).get_updates_proxy_url(proxy)
+            qe.proxy = proxy
 
-        return args
+        # TODO: default timeouts
+        return builder
 
     # --------------------------------
     #          graceful stop
@@ -261,8 +269,8 @@ class BaseApp(
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
-        def ptb_error_handler(_, context: ext.CallbackContext):
-            if isinstance(context.error, tg.error.NetworkError):
+        async def ptb_error_handler(_, context: ext.CallbackContext):
+            if isinstance(context.error, NetworkError):
                 self.log.fatal(f"更新超时，请检查网络连接 ({context.error})")
                 if not self.conf.bot.network.proxy:
                     self.log.warning("提示：您是否忘记了设置代理？")
@@ -272,16 +280,23 @@ class BaseApp(
                 self.log.fatal(
                     "Uncaught error caught by PTB error handler", exc_info=context.error
                 )
-            self.stop()
+            await self.stop()
 
-        self.updater.dispatcher.add_error_handler(ptb_error_handler)
+        self.app.add_error_handler(ptb_error_handler)
 
-    def stop(self):
-        self.log.warning("App stopping...")
-        self.qzone.stop()
-        self.updater.stop()
-        for t in self.timers.values():
-            t.stop()
+    async def stop(self):
+        try:
+            self.log.warning("App stopping...")
+            self.qzone.stop()
+            await self.updater.stop()
+            for t in self.timers.values():
+                t.stop()
+        except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
+            self.log.error("Force stopping...", exc_info=True)
+            return
+        except:
+            self.log.error("Error when stopping.", exc_info=True)
+            return
 
     # --------------------------------
     #              timer
@@ -402,7 +417,7 @@ class BaseApp(
             await self.hook_feed.queue.send_all()
         except:
             self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
-            self.stop()
+            await self.stop()
 
         if is_period:
             return  # skip summary if this is called by heartbeat
@@ -424,9 +439,7 @@ class BaseApp(
         echo(summary)
 
     async def license(self, to: ChatId):
-        from telegram.parsemode import ParseMode
-
-        LICENSE_TEXT = """继续使用即代表您同意[用户协议]()。"""
+        LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({LICENSE})。"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
     def _status_text(self, debug: bool, *, hf: bool = False):

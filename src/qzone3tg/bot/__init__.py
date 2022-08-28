@@ -3,16 +3,19 @@
 from typing import Protocol, TypeVar
 
 from telegram import (
+    ForceReply,
     InputMediaAnimation,
     InputMediaDocument,
     InputMediaPhoto,
     InputMediaVideo,
     Message,
+    ReplyKeyboardMarkup,
 )
 
 ChatId = str | int
 InputMedia = InputMediaAnimation | InputMediaDocument | InputMediaPhoto | InputMediaVideo
 MD = TypeVar("MD", InputMediaAnimation, InputMediaDocument, InputMediaPhoto, InputMediaVideo)
+ReplyMarkup = ReplyKeyboardMarkup | ForceReply
 
 
 class BotProtocol(Protocol):

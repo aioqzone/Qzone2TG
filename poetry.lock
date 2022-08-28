@@ -7,6 +7,17 @@ optional = false
 python-versions = ">=3.6,<4.0"
 
 [[package]]
+name = "aiolimiter"
+version = "1.0.0"
+description = "asyncio rate limiter, a leaky bucket implementation"
+category = "main"
+optional = false
+python-versions = ">=3.6.1,<4.0.0"
+
+[package.extras]
+docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-autodoc-typehints (>=1.10.3,<2.0.0)", "sphinxcontrib-spelling (>=4.3,<8.0)", "toml (>=0.10.0,<0.11.0)"]
+
+[[package]]
 name = "aioqzone"
 version = "0.9.4a3.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
@@ -25,7 +36,7 @@ pytz = ">=2022.1,<2023.0"
 rsa = ">=4.8,<5.0"
 
 [package.extras]
-dev = ["pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
 doc = ["Sphinx (>=5.0.1,<6.0.0)", "autodoc-pydantic (>=1.7.1,<2.0.0)", "sphinx-autodoc-typehints (<1.16.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [[package]]
@@ -42,7 +53,7 @@ aioqzone = "^0.9.4a1.dev1"
 QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "beta"}
 
 [package.extras]
-dev = ["pre-commit (>=2.17.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
 doc = ["Sphinx (>=5.0.2,<6.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (>=1.18.3,<2.0.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [package.source]
@@ -83,32 +94,32 @@ idna = ">=2.8"
 sniffio = ">=1.1"
 
 [package.extras]
-doc = ["packaging", "sphinx-rtd-theme", "sphinx-autodoc-typehints (>=1.2.0)"]
-test = ["coverage[toml] (>=4.5)", "hypothesis (>=4.0)", "pytest (>=7.0)", "pytest-mock (>=3.6.1)", "trustme", "contextlib2", "uvloop (<0.15)", "mock (>=4)", "uvloop (>=0.15)"]
+doc = ["packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
+test = ["contextlib2", "coverage[toml] (>=4.5)", "hypothesis (>=4.0)", "mock (>=4)", "pytest (>=7.0)", "pytest-mock (>=3.6.1)", "trustme", "uvloop (<0.15)", "uvloop (>=0.15)"]
 trio = ["trio (>=0.16)"]
 
 [[package]]
 name = "apscheduler"
-version = "3.6.3"
+version = "3.9.1"
 description = "In-process task scheduler with Cron-like capabilities"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 
 [package.dependencies]
 pytz = "*"
 six = ">=1.4.0"
-tzlocal = ">=1.2"
+tzlocal = ">=2.0,<3.0.0 || >=4.0.0"
 
 [package.extras]
 asyncio = ["trollius"]
 doc = ["sphinx", "sphinx-rtd-theme"]
 gevent = ["gevent"]
-mongodb = ["pymongo (>=2.8)"]
+mongodb = ["pymongo (>=3.0)"]
 redis = ["redis (>=3.0)"]
 rethinkdb = ["rethinkdb (>=2.4.0)"]
 sqlalchemy = ["sqlalchemy (>=0.8)"]
-testing = ["pytest", "pytest-cov", "pytest-tornado5", "mock", "pytest-asyncio (<0.6)", "pytest-asyncio"]
+testing = ["mock", "pytest", "pytest-asyncio", "pytest-asyncio (<0.6)", "pytest-cov", "pytest-tornado5"]
 tornado = ["tornado (>=4.3)"]
 twisted = ["twisted"]
 zookeeper = ["kazoo"]
@@ -128,7 +139,7 @@ httpx = "^0.23.0"
 packaging = "^21.3"
 
 [package.extras]
-dev = ["pre-commit (>=2.20.0,<3.0.0)", "black (>=22.6.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+dev = ["black (>=22.6.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.20.0,<3.0.0)"]
 tui = ["rich (>=12.5.1,<13.0.0)"]
 
 [package.source]
@@ -154,10 +165,10 @@ optional = false
 python-versions = ">=3.5"
 
 [package.extras]
-dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit", "cloudpickle"]
-docs = ["furo", "sphinx", "zope.interface", "sphinx-notfound-page"]
-tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "zope.interface", "cloudpickle"]
-tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "cloudpickle"]
+dev = ["cloudpickle", "coverage[toml] (>=5.0.2)", "furo", "hypothesis", "mypy (>=0.900,!=0.940)", "pre-commit", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "sphinx", "sphinx-notfound-page", "zope.interface"]
+docs = ["furo", "sphinx", "sphinx-notfound-page", "zope.interface"]
+tests = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy (>=0.900,!=0.940)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "zope.interface"]
+tests_no_zope = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy (>=0.900,!=0.940)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins"]
 
 [[package]]
 name = "autodoc-pydantic"
@@ -172,9 +183,9 @@ pydantic = ">=1.5"
 Sphinx = ">=3.4"
 
 [package.extras]
-docs = ["sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinx-copybutton (>=0.4,<0.5)", "sphinxcontrib-mermaid (>=0.7,<0.8)"]
-dev = ["sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinx-copybutton (>=0.4,<0.5)", "sphinxcontrib-mermaid (>=0.7,<0.8)", "pytest (>=6,<7)", "coverage (>=5,<6)", "flake8 (>=3,<4)", "tox (>=3,<4)"]
-test = ["pytest (>=6,<7)", "coverage (>=5,<6)"]
+dev = ["coverage (>=5,<6)", "flake8 (>=3,<4)", "pytest (>=6,<7)", "sphinx-copybutton (>=0.4,<0.5)", "sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinxcontrib-mermaid (>=0.7,<0.8)", "tox (>=3,<4)"]
+docs = ["sphinx-copybutton (>=0.4,<0.5)", "sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinxcontrib-mermaid (>=0.7,<0.8)"]
+test = ["coverage (>=5,<6)", "pytest (>=6,<7)"]
 
 [[package]]
 name = "babel"
@@ -210,11 +221,11 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "cachetools"
-version = "4.2.2"
+version = "5.2.0"
 description = "Extensible memoizing collections and decorators"
 category = "main"
 optional = false
-python-versions = "~=3.5"
+python-versions = "~=3.7"
 
 [[package]]
 name = "certifi"
@@ -234,7 +245,7 @@ python-versions = ">=3.6.1"
 
 [[package]]
 name = "charset-normalizer"
-version = "2.1.0"
+version = "2.1.1"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 category = "main"
 optional = true
@@ -272,7 +283,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
 name = "distlib"
-version = "0.3.5"
+version = "0.3.6"
 description = "Distribution utilities"
 category = "main"
 optional = true
@@ -295,12 +306,12 @@ optional = true
 python-versions = ">=3.7"
 
 [package.extras]
-testing = ["pytest-timeout (>=2.1)", "pytest-cov (>=3)", "pytest (>=7.1.2)", "coverage (>=6.4.2)", "covdefaults (>=2.2)"]
-docs = ["sphinx-autodoc-typehints (>=1.19.1)", "sphinx (>=5.1.1)", "furo (>=2022.6.21)"]
+docs = ["furo (>=2022.6.21)", "sphinx (>=5.1.1)", "sphinx-autodoc-typehints (>=1.19.1)"]
+testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "pytest-timeout (>=2.1)"]
 
 [[package]]
 name = "greenlet"
-version = "1.1.2"
+version = "1.1.3"
 description = "Lightweight in-process concurrent programming"
 category = "main"
 optional = false
@@ -351,8 +362,8 @@ sniffio = "*"
 socksio = {version = ">=1.0.0,<2.0.0", optional = true, markers = "extra == \"socks\""}
 
 [package.extras]
-brotli = ["brotlicffi", "brotli"]
-cli = ["click (>=8.0.0,<9.0.0)", "rich (>=10,<13)", "pygments (>=2.0.0,<3.0.0)"]
+brotli = ["brotli", "brotlicffi"]
+cli = ["click (>=8.0.0,<9.0.0)", "pygments (>=2.0.0,<3.0.0)", "rich (>=10,<13)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (>=1.0.0,<2.0.0)"]
 
@@ -400,10 +411,10 @@ optional = true
 python-versions = ">=3.6.1,<4.0"
 
 [package.extras]
-pipfile_deprecated_finder = ["pipreqs", "requirementslib"]
-requirements_deprecated_finder = ["pipreqs", "pip-api"]
 colors = ["colorama (>=0.4.3,<0.5.0)"]
+pipfile_deprecated_finder = ["pipreqs", "requirementslib"]
 plugins = ["setuptools"]
+requirements_deprecated_finder = ["pip-api", "pipreqs"]
 
 [[package]]
 name = "jinja2"
@@ -509,8 +520,8 @@ optional = true
 python-versions = ">=3.7"
 
 [package.extras]
-docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx-autodoc-typehints (>=1.12)", "sphinx (>=4)"]
-test = ["appdirs (==1.4.4)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)", "pytest (>=6)"]
+docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx (>=4)", "sphinx-autodoc-typehints (>=1.12)"]
+test = ["appdirs (==1.4.4)", "pytest (>=6)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)"]
 
 [[package]]
 name = "pluggy"
@@ -591,15 +602,7 @@ optional = false
 python-versions = ">=3.6.8"
 
 [package.extras]
-diagrams = ["railroad-diagrams", "jinja2"]
-
-[[package]]
-name = "pysocks"
-version = "1.7.1"
-description = "A Python SOCKS client module. See https://github.com/Anorov/PySocks for more information."
-category = "main"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pytest"
@@ -634,28 +637,31 @@ python-versions = ">=3.7"
 pytest = ">=6.1.0"
 
 [package.extras]
-testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)", "flaky (>=3.5.0)", "mypy (>=0.931)", "pytest-trio (>=0.7.0)"]
+testing = ["coverage (>=6.2)", "flaky (>=3.5.0)", "hypothesis (>=5.7.1)", "mypy (>=0.931)", "pytest-trio (>=0.7.0)"]
 
 [[package]]
 name = "python-telegram-bot"
-version = "13.13"
+version = "20.0a4"
 description = "We have made you a wrapper you can't refuse"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-APScheduler = "3.6.3"
-cachetools = "4.2.2"
-certifi = "*"
-PySocks = {version = "*", optional = true, markers = "extra == \"socks\""}
+aiolimiter = {version = ">=1.0.0,<1.1.0", optional = true, markers = "extra == \"rate-limiter\""}
+APScheduler = ">=3.9.1,<3.10.0"
+cachetools = ">=5.2.0,<5.3.0"
+httpx = [
+    {version = ">=0.23.0,<0.24.0"},
+    {version = "*", extras = ["socks"], optional = true, markers = "extra == \"socks\""},
+]
 pytz = ">=2018.6"
-tornado = ">=6.1"
+tornado = ">=6.2,<7.0"
 
 [package.extras]
-json = ["ujson"]
-passport = ["cryptography (!=3.4,!=3.4.1,!=3.4.2,!=3.4.3)"]
-socks = ["pysocks"]
+passport = ["cryptography (>=3.0,!=3.4,!=3.4.1,!=3.4.2,!=3.4.3)"]
+rate-limiter = ["aiolimiter (>=1.0.0,<1.1.0)"]
+socks = ["httpx"]
 
 [[package]]
 name = "pytz"
@@ -700,7 +706,7 @@ PyYAML = "^6.0"
 SQLAlchemy = {version = "^1.4.32", extras = ["asyncio"]}
 
 [package.extras]
-dev = ["pre-commit (>=2.20.0,<3.0.0)", "black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)"]
+dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.20.0,<3.0.0)"]
 
 [package.source]
 type = "git"
@@ -811,8 +817,8 @@ sphinxcontrib-serializinghtml = ">=1.1.5"
 
 [package.extras]
 docs = ["sphinxcontrib-websupport"]
-lint = ["flake8 (>=3.5.0)", "flake8-comprehensions", "flake8-bugbear", "isort", "mypy (>=0.971)", "sphinx-lint", "docutils-stubs", "types-typed-ast", "types-requests"]
-test = ["pytest (>=4.6)", "html5lib", "cython", "typed-ast"]
+lint = ["docutils-stubs", "flake8 (>=3.5.0)", "flake8-bugbear", "flake8-comprehensions", "isort", "mypy (>=0.971)", "sphinx-lint", "types-requests", "types-typed-ast"]
+test = ["cython", "html5lib", "pytest (>=4.6)", "typed-ast"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
@@ -826,8 +832,8 @@ python-versions = ">=3.7"
 Sphinx = ">=5.1.1"
 
 [package.extras]
+testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "diff-cover (>=6.5.1)", "nptyping (>=2.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "sphobjinv (>=2.2.2)", "typing-extensions (>=4.3)"]
 type_comments = ["typed-ast (>=1.5.4)"]
-testing = ["typing-extensions (>=4.3)", "sphobjinv (>=2.2.2)", "pytest-cov (>=3)", "pytest (>=7.1.2)", "nptyping (>=2.2)", "diff-cover (>=6.5.1)", "coverage (>=6.4.2)", "covdefaults (>=2.2)"]
 
 [[package]]
 name = "sphinx-rtd-theme"
@@ -842,7 +848,7 @@ docutils = "<0.18"
 sphinx = ">=1.6"
 
 [package.extras]
-dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version"]
+dev = ["bump2version", "sphinxcontrib-httpdomain", "transifex-client"]
 
 [[package]]
 name = "sphinx-tabs"
@@ -860,7 +866,7 @@ sphinx = ">=2,<6"
 
 [package.extras]
 code_style = ["pre-commit (==2.13.0)"]
-testing = ["coverage", "pytest (>=7.1,<8)", "pytest-cov", "pytest-regressions", "pygments", "sphinx-testing", "bs4", "rinohtype"]
+testing = ["bs4", "coverage", "pygments", "pytest (>=7.1,<8)", "pytest-cov", "pytest-regressions", "rinohtype", "sphinx-testing"]
 
 [[package]]
 name = "sphinxcontrib-applehelp"
@@ -871,7 +877,7 @@ optional = true
 python-versions = ">=3.5"
 
 [package.extras]
-lint = ["flake8", "mypy", "docutils-stubs"]
+lint = ["docutils-stubs", "flake8", "mypy"]
 test = ["pytest"]
 
 [[package]]
@@ -883,7 +889,7 @@ optional = true
 python-versions = ">=3.5"
 
 [package.extras]
-lint = ["flake8", "mypy", "docutils-stubs"]
+lint = ["docutils-stubs", "flake8", "mypy"]
 test = ["pytest"]
 
 [[package]]
@@ -895,8 +901,8 @@ optional = true
 python-versions = ">=3.6"
 
 [package.extras]
-lint = ["flake8", "mypy", "docutils-stubs"]
-test = ["pytest", "html5lib"]
+lint = ["docutils-stubs", "flake8", "mypy"]
+test = ["html5lib", "pytest"]
 
 [[package]]
 name = "sphinxcontrib-jsmath"
@@ -907,7 +913,7 @@ optional = true
 python-versions = ">=3.5"
 
 [package.extras]
-test = ["pytest", "flake8", "mypy"]
+test = ["flake8", "mypy", "pytest"]
 
 [[package]]
 name = "sphinxcontrib-qthelp"
@@ -918,7 +924,7 @@ optional = true
 python-versions = ">=3.5"
 
 [package.extras]
-lint = ["flake8", "mypy", "docutils-stubs"]
+lint = ["docutils-stubs", "flake8", "mypy"]
 test = ["pytest"]
 
 [[package]]
@@ -930,7 +936,7 @@ optional = true
 python-versions = ">=3.5"
 
 [package.extras]
-lint = ["flake8", "mypy", "docutils-stubs"]
+lint = ["docutils-stubs", "flake8", "mypy"]
 test = ["pytest"]
 
 [[package]]
@@ -945,24 +951,24 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 greenlet = {version = "!=0.4.17", markers = "python_version >= \"3\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"}
 
 [package.extras]
-aiomysql = ["greenlet (!=0.4.17)", "aiomysql"]
-aiosqlite = ["typing_extensions (!=3.10.0.1)", "greenlet (!=0.4.17)", "aiosqlite"]
+aiomysql = ["aiomysql", "greenlet (!=0.4.17)"]
+aiosqlite = ["aiosqlite", "greenlet (!=0.4.17)", "typing_extensions (!=3.10.0.1)"]
 asyncio = ["greenlet (!=0.4.17)"]
-asyncmy = ["greenlet (!=0.4.17)", "asyncmy (>=0.2.3,!=0.2.4)"]
+asyncmy = ["asyncmy (>=0.2.3,!=0.2.4)", "greenlet (!=0.4.17)"]
 mariadb_connector = ["mariadb (>=1.0.1,!=1.1.2)"]
 mssql = ["pyodbc"]
 mssql_pymssql = ["pymssql"]
 mssql_pyodbc = ["pyodbc"]
-mypy = ["sqlalchemy2-stubs", "mypy (>=0.910)"]
-mysql = ["mysqlclient (>=1.4.0,<2)", "mysqlclient (>=1.4.0)"]
+mypy = ["mypy (>=0.910)", "sqlalchemy2-stubs"]
+mysql = ["mysqlclient (>=1.4.0)", "mysqlclient (>=1.4.0,<2)"]
 mysql_connector = ["mysql-connector-python"]
-oracle = ["cx_oracle (>=7,<8)", "cx_oracle (>=7)"]
+oracle = ["cx_oracle (>=7)", "cx_oracle (>=7,<8)"]
 postgresql = ["psycopg2 (>=2.7)"]
-postgresql_asyncpg = ["greenlet (!=0.4.17)", "asyncpg"]
+postgresql_asyncpg = ["asyncpg", "greenlet (!=0.4.17)"]
 postgresql_pg8000 = ["pg8000 (>=1.16.6,!=1.29.0)"]
 postgresql_psycopg2binary = ["psycopg2-binary"]
 postgresql_psycopg2cffi = ["psycopg2cffi"]
-pymysql = ["pymysql (<1)", "pymysql"]
+pymysql = ["pymysql", "pymysql (<1)"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
@@ -1019,19 +1025,19 @@ tzdata = {version = "*", markers = "platform_system == \"Windows\""}
 
 [package.extras]
 devenv = ["black", "pyroma", "pytest-cov", "zest.releaser"]
-test = ["pytest-mock (>=3.3)", "pytest (>=4.3)"]
+test = ["pytest (>=4.3)", "pytest-mock (>=3.3)"]
 
 [[package]]
 name = "urllib3"
-version = "1.26.11"
+version = "1.26.12"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "main"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <4"
 
 [package.extras]
-brotli = ["brotlicffi (>=0.8.0)", "brotli (>=1.0.9)", "brotlipy (>=0.6.0)"]
-secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
+brotli = ["brotli (>=1.0.9)", "brotlicffi (>=0.8.0)", "brotlipy (>=0.6.0)"]
+secure = ["certifi", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "ipaddress", "pyOpenSSL (>=0.14)", "urllib3-secure-extra"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
@@ -1048,8 +1054,8 @@ filelock = ">=3.4.1,<4"
 platformdirs = ">=2.4,<3"
 
 [package.extras]
-testing = ["pytest-timeout (>=2.1)", "pytest-randomly (>=3.10.3)", "pytest-mock (>=3.6.1)", "pytest-freezegun (>=0.4.2)", "pytest-env (>=0.6.2)", "pytest (>=7.0.1)", "packaging (>=21.3)", "flaky (>=3.7)", "coverage-enable-subprocess (>=1)", "coverage (>=6.2)"]
-docs = ["towncrier (>=21.9)", "sphinx-rtd-theme (>=1)", "sphinx-argparse (>=0.3.1)", "sphinx (>=5.1.1)", "proselint (>=0.13)"]
+docs = ["proselint (>=0.13)", "sphinx (>=5.1.1)", "sphinx-argparse (>=0.3.1)", "sphinx-rtd-theme (>=1)", "towncrier (>=21.9)"]
+testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7)", "packaging (>=21.3)", "pytest (>=7.0.1)", "pytest-env (>=0.6.2)", "pytest-freezegun (>=0.4.2)", "pytest-mock (>=3.6.1)", "pytest-randomly (>=3.10.3)", "pytest-timeout (>=2.1)"]
 
 [extras]
 dev = ["pre-commit", "black", "isort"]
@@ -1058,33 +1064,104 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "26203499e639e04d4c02c37a6d458b96465fbd7ce0b08f2450a0466a4e7ae224"
+content-hash = "1876cd3adac8492788ade4df3f1d7582ca551d4ba0d892567fc626af6c34b262"
 
 [metadata.files]
 aiofiles = []
+aiolimiter = [
+    {file = "aiolimiter-1.0.0-py3-none-any.whl", hash = "sha256:f1c5ba2a2861cd4a126c1294f5282208383e67d5b128a4f32def0c702cae8039"},
+    {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
+]
 aioqzone = []
 aioqzone-feed = []
 aiosqlite = []
 alabaster = []
 anyio = []
-apscheduler = []
+apscheduler = [
+    {file = "APScheduler-3.9.1-py2.py3-none-any.whl", hash = "sha256:ddc25a0ddd899de44d7f451f4375fb971887e65af51e41e5dcf681f59b8b2c9a"},
+    {file = "APScheduler-3.9.1.tar.gz", hash = "sha256:65e6574b6395498d371d045f2a8a7e4f7d50c6ad21ef7313d15b1c7cf20df1e3"},
+]
 assetsupdater = []
 atomicwrites = []
 attrs = []
 autodoc-pydantic = []
 babel = []
 black = []
-cachetools = []
+cachetools = [
+    {file = "cachetools-5.2.0-py3-none-any.whl", hash = "sha256:f9f17d2aec496a9aa6b76f53e3b614c965223c061982d434d160f930c698a9db"},
+    {file = "cachetools-5.2.0.tar.gz", hash = "sha256:6a94c6402995a99c3970cc7e4884bb60b4a8639938157eeed436098bf9831757"},
+]
 certifi = []
 cfgv = []
-charset-normalizer = []
+charset-normalizer = [
+    {file = "charset-normalizer-2.1.1.tar.gz", hash = "sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845"},
+    {file = "charset_normalizer-2.1.1-py3-none-any.whl", hash = "sha256:83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f"},
+]
 click = []
 colorama = []
 cssselect = []
-distlib = []
+distlib = [
+    {file = "distlib-0.3.6-py2.py3-none-any.whl", hash = "sha256:f35c4b692542ca110de7ef0bea44d73981caeb34ca0b9b6b2e6d7790dda8f80e"},
+    {file = "distlib-0.3.6.tar.gz", hash = "sha256:14bad2d9b04d3a36127ac97f30b12a19268f211063d8f8ee4f47108896e11b46"},
+]
 docutils = []
 filelock = []
-greenlet = []
+greenlet = [
+    {file = "greenlet-1.1.3-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:8c287ae7ac921dfde88b1c125bd9590b7ec3c900c2d3db5197f1286e144e712b"},
+    {file = "greenlet-1.1.3-cp27-cp27m-manylinux1_x86_64.whl", hash = "sha256:870a48007872d12e95a996fca3c03a64290d3ea2e61076aa35d3b253cf34cd32"},
+    {file = "greenlet-1.1.3-cp27-cp27m-manylinux2010_x86_64.whl", hash = "sha256:7c5227963409551ae4a6938beb70d56bf1918c554a287d3da6853526212fbe0a"},
+    {file = "greenlet-1.1.3-cp27-cp27m-win32.whl", hash = "sha256:9fae214f6c43cd47f7bef98c56919b9222481e833be2915f6857a1e9e8a15318"},
+    {file = "greenlet-1.1.3-cp27-cp27m-win_amd64.whl", hash = "sha256:de431765bd5fe62119e0bc6bc6e7b17ac53017ae1782acf88fcf6b7eae475a49"},
+    {file = "greenlet-1.1.3-cp27-cp27mu-manylinux1_x86_64.whl", hash = "sha256:510c3b15587afce9800198b4b142202b323bf4b4b5f9d6c79cb9a35e5e3c30d2"},
+    {file = "greenlet-1.1.3-cp27-cp27mu-manylinux2010_x86_64.whl", hash = "sha256:9951dcbd37850da32b2cb6e391f621c1ee456191c6ae5528af4a34afe357c30e"},
+    {file = "greenlet-1.1.3-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:07c58e169bbe1e87b8bbf15a5c1b779a7616df9fd3e61cadc9d691740015b4f8"},
+    {file = "greenlet-1.1.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:df02fdec0c533301497acb0bc0f27f479a3a63dcdc3a099ae33a902857f07477"},
+    {file = "greenlet-1.1.3-cp310-cp310-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:9c88e134d51d5e82315a7c32b914a58751b7353eb5268dbd02eabf020b4c4700"},
+    {file = "greenlet-1.1.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7b41d19c0cfe5c259fe6c539fd75051cd39a5d33d05482f885faf43f7f5e7d26"},
+    {file = "greenlet-1.1.3-cp310-cp310-win_amd64.whl", hash = "sha256:6f5d4b2280ceea76c55c893827961ed0a6eadd5a584a7c4e6e6dd7bc10dfdd96"},
+    {file = "greenlet-1.1.3-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:184416e481295832350a4bf731ba619a92f5689bf5d0fa4341e98b98b1265bd7"},
+    {file = "greenlet-1.1.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:dd0404d154084a371e6d2bafc787201612a1359c2dee688ae334f9118aa0bf47"},
+    {file = "greenlet-1.1.3-cp311-cp311-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:7a43bbfa9b6cfdfaeefbd91038dde65ea2c421dc387ed171613df340650874f2"},
+    {file = "greenlet-1.1.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ce5b64dfe8d0cca407d88b0ee619d80d4215a2612c1af8c98a92180e7109f4b5"},
+    {file = "greenlet-1.1.3-cp35-cp35m-macosx_10_14_x86_64.whl", hash = "sha256:903fa5716b8fbb21019268b44f73f3748c41d1a30d71b4a49c84b642c2fed5fa"},
+    {file = "greenlet-1.1.3-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:0118817c9341ef2b0f75f5af79ac377e4da6ff637e5ee4ac91802c0e379dadb4"},
+    {file = "greenlet-1.1.3-cp35-cp35m-manylinux2010_x86_64.whl", hash = "sha256:466ce0928e33421ee84ae04c4ac6f253a3a3e6b8d600a79bd43fd4403e0a7a76"},
+    {file = "greenlet-1.1.3-cp35-cp35m-win32.whl", hash = "sha256:65ad1a7a463a2a6f863661329a944a5802c7129f7ad33583dcc11069c17e622c"},
+    {file = "greenlet-1.1.3-cp35-cp35m-win_amd64.whl", hash = "sha256:7532a46505470be30cbf1dbadb20379fb481244f1ca54207d7df3bf0bbab6a20"},
+    {file = "greenlet-1.1.3-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:caff52cb5cd7626872d9696aee5b794abe172804beb7db52eed1fd5824b63910"},
+    {file = "greenlet-1.1.3-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:db41f3845eb579b544c962864cce2c2a0257fe30f0f1e18e51b1e8cbb4e0ac6d"},
+    {file = "greenlet-1.1.3-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:e8533f5111704d75de3139bf0b8136d3a6c1642c55c067866fa0a51c2155ee33"},
+    {file = "greenlet-1.1.3-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9537e4baf0db67f382eb29255a03154fcd4984638303ff9baaa738b10371fa57"},
+    {file = "greenlet-1.1.3-cp36-cp36m-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:f8bfd36f368efe0ab2a6aa3db7f14598aac454b06849fb633b762ddbede1db90"},
+    {file = "greenlet-1.1.3-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b0877a9a2129a2c56a2eae2da016743db7d9d6a05d5e1c198f1b7808c602a30e"},
+    {file = "greenlet-1.1.3-cp36-cp36m-win32.whl", hash = "sha256:88b04e12c9b041a1e0bcb886fec709c488192638a9a7a3677513ac6ba81d8e79"},
+    {file = "greenlet-1.1.3-cp36-cp36m-win_amd64.whl", hash = "sha256:4f166b4aca8d7d489e82d74627a7069ab34211ef5ebb57c300ec4b9337b60fc0"},
+    {file = "greenlet-1.1.3-cp37-cp37m-macosx_10_15_x86_64.whl", hash = "sha256:cd16a89efe3a003029c87ff19e9fba635864e064da646bc749fc1908a4af18f3"},
+    {file = "greenlet-1.1.3-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:5b756e6730ea59b2745072e28ad27f4c837084688e6a6b3633c8b1e509e6ae0e"},
+    {file = "greenlet-1.1.3-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:9b2f7d0408ddeb8ea1fd43d3db79a8cefaccadd2a812f021333b338ed6b10aba"},
+    {file = "greenlet-1.1.3-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:44b4817c34c9272c65550b788913620f1fdc80362b209bc9d7dd2f40d8793080"},
+    {file = "greenlet-1.1.3-cp37-cp37m-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:d58a5a71c4c37354f9e0c24c9c8321f0185f6945ef027460b809f4bb474bfe41"},
+    {file = "greenlet-1.1.3-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1dd51d2650e70c6c4af37f454737bf4a11e568945b27f74b471e8e2a9fd21268"},
+    {file = "greenlet-1.1.3-cp37-cp37m-win32.whl", hash = "sha256:048d2bed76c2aa6de7af500ae0ea51dd2267aec0e0f2a436981159053d0bc7cc"},
+    {file = "greenlet-1.1.3-cp37-cp37m-win_amd64.whl", hash = "sha256:77e41db75f9958f2083e03e9dd39da12247b3430c92267df3af77c83d8ff9eed"},
+    {file = "greenlet-1.1.3-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:1626185d938d7381631e48e6f7713e8d4b964be246073e1a1d15c2f061ac9f08"},
+    {file = "greenlet-1.1.3-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:1ec2779774d8e42ed0440cf8bc55540175187e8e934f2be25199bf4ed948cd9e"},
+    {file = "greenlet-1.1.3-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:f2f908239b7098799b8845e5936c2ccb91d8c2323be02e82f8dcb4a80dcf4a25"},
+    {file = "greenlet-1.1.3-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0b181e9aa6cb2f5ec0cacc8cee6e5a3093416c841ba32c185c30c160487f0380"},
+    {file = "greenlet-1.1.3-cp38-cp38-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:2cf45e339cabea16c07586306a31cfcc5a3b5e1626d365714d283732afed6809"},
+    {file = "greenlet-1.1.3-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6200a11f003ec26815f7e3d2ded01b43a3810be3528dd760d2f1fa777490c3cd"},
+    {file = "greenlet-1.1.3-cp38-cp38-win32.whl", hash = "sha256:db5b25265010a1b3dca6a174a443a0ed4c4ab12d5e2883a11c97d6e6d59b12f9"},
+    {file = "greenlet-1.1.3-cp38-cp38-win_amd64.whl", hash = "sha256:095a980288fe05adf3d002fbb180c99bdcf0f930e220aa66fcd56e7914a38202"},
+    {file = "greenlet-1.1.3-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:cbc1eb55342cbac8f7ec159088d54e2cfdd5ddf61c87b8bbe682d113789331b2"},
+    {file = "greenlet-1.1.3-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:694ffa7144fa5cc526c8f4512665003a39fa09ef00d19bbca5c8d3406db72fbe"},
+    {file = "greenlet-1.1.3-cp39-cp39-manylinux2010_x86_64.whl", hash = "sha256:aa741c1a8a8cc25eb3a3a01a62bdb5095a773d8c6a86470bde7f607a447e7905"},
+    {file = "greenlet-1.1.3-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a3a669f11289a8995d24fbfc0e63f8289dd03c9aaa0cc8f1eab31d18ca61a382"},
+    {file = "greenlet-1.1.3-cp39-cp39-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:76a53bfa10b367ee734b95988bd82a9a5f0038a25030f9f23bbbc005010ca600"},
+    {file = "greenlet-1.1.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2fb0aa7f6996879551fd67461d5d3ab0c3c0245da98be90c89fcb7a18d437403"},
+    {file = "greenlet-1.1.3-cp39-cp39-win32.whl", hash = "sha256:5fbe1ab72b998ca77ceabbae63a9b2e2dc2d963f4299b9b278252ddba142d3f1"},
+    {file = "greenlet-1.1.3-cp39-cp39-win_amd64.whl", hash = "sha256:ffe73f9e7aea404722058405ff24041e59d31ca23d1da0895af48050a07b6932"},
+    {file = "greenlet-1.1.3.tar.gz", hash = "sha256:bcb6c6dd1d6be6d38d6db283747d07fda089ff8c559a835236560a4410340455"},
+]
 h11 = []
 httpcore = []
 httpx = []
@@ -1110,10 +1187,12 @@ pyasn1 = []
 pydantic = []
 pygments = []
 pyparsing = []
-pysocks = []
 pytest = []
 pytest-asyncio = []
-python-telegram-bot = []
+python-telegram-bot = [
+    {file = "python-telegram-bot-20.0a4.tar.gz", hash = "sha256:3ec10b5169d40697aba77f245538ecdf989e9ae429fcaddc69a202579b4a6dcb"},
+    {file = "python_telegram_bot-20.0a4-py3-none-any.whl", hash = "sha256:79ce5a179017baeae362382c86c19951413a277ac8dd3f736824da36432ed2e9"},
+]
 pytz = []
 pytz-deprecation-shim = []
 pyyaml = []
@@ -1142,5 +1221,8 @@ tornado = []
 typing-extensions = []
 tzdata = []
 tzlocal = []
-urllib3 = []
+urllib3 = [
+    {file = "urllib3-1.26.12-py2.py3-none-any.whl", hash = "sha256:b930dd878d5a8afb066a637fbb35144fe7901e3b209d1cd4f524bd0e9deee997"},
+    {file = "urllib3-1.26.12.tar.gz", hash = "sha256:3fa96cf423e6987997fc326ae8df396db2a8b7c667747d47ddd8ecba91f4a74e"},
+]
 virtualenv = []
