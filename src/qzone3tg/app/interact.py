@@ -185,13 +185,13 @@ class InteractApp(BaseApp):
 
         conf = self.conf.bot.init_args
         if isinstance(conf, PollingConf):
-            await self.updater.start_polling(**conf.dict())
+            self.app.run_polling(**conf.dict())
         else:
             token = self.conf.bot.token
             assert token
             kw = conf.dict(exclude={"destination", "cert", "key"})
             safe_asposix = lambda p: p and p.as_posix()
-            await self.updater.start_webhook(
+            self.app.run_webhook(
                 listen="0.0.0.0",
                 url_path=token.get_secret_value(),
                 webhook_url=conf.webhook_url(token).get_secret_value(),
