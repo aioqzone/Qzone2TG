@@ -13,22 +13,20 @@ import telegram.ext as ext
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
-from aioqzone_feed.utils.task import AsyncTimer
 from httpx import URL
-from pydantic import AnyUrl
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
-from telegram.ext import AIORateLimiter, Application, ApplicationBuilder
+from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, Job, JobQueue
 
 from qzone3tg import DISCUSS, LICENSE
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue
-from qzone3tg.settings import LogConf, NetworkConf, Settings, WebhookConf
+from qzone3tg.settings import LogConf, Settings, WebhookConf
 
 from .hook import DefaultFeedHook, DefaultQrHook, DefaultUpHook
 from .storage import AsyncEngine, DefaultStorageHook, StorageMan
@@ -55,7 +53,7 @@ class BaseApp(
         self.conf = conf
         self.client = client
         self.engine = engine
-        self.timers: dict[str, AsyncTimer] = {}
+        self.timers: dict[str, Job] = {}
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
         self._get_logger(conf.log)
@@ -82,6 +80,7 @@ class BaseApp(
         self.app = builder.build()
         assert self.app.updater
         self.updater = self.app.updater
+        self._set_timers()
         self.log.info("Bot初始化完成")
 
         super().__init__()  # update bases before instantiate hooks
@@ -97,6 +96,10 @@ class BaseApp(
     @property
     def extbot(self):
         return self.app.bot
+
+    @property
+    def queue(self) -> JobQueue:
+        return self.app.job_queue
 
     # --------------------------------
     #             hook init
@@ -199,24 +202,27 @@ class BaseApp(
 
         self.log = logging.getLogger(self.__class__.__name__)
 
-        async def lst_forever():
+    def _set_timers(self):
+        conf = self.conf.log
+
+        async def lst_forever(_):
             self.log.info(self._status_text(True))
             return False
 
-        self.timers["ls"] = AsyncTimer(3600, lst_forever, name="log status", delay=3600)
+        self.timers["ls"] = self.queue.run_repeating(lst_forever, 3600, 3600, name="log status")
 
         # register debug status timer
         if conf.debug_status_interval > 0:
 
-            async def dst_forever():
+            async def dst_forever(_):
                 await BaseApp.status(self, self.admin, debug=True)
                 return False
 
-            self.timers["ds"] = AsyncTimer(
-                conf.debug_status_interval,
+            self.timers["ds"] = self.queue.run_repeating(
                 dst_forever,
+                conf.debug_status_interval,
+                conf.debug_status_interval,
                 name="/status debug",
-                delay=conf.debug_status_interval,
             )
 
     def silent_noisy_logger(self):
@@ -280,17 +286,24 @@ class BaseApp(
                 self.log.fatal(
                     "Uncaught error caught by PTB error handler", exc_info=context.error
                 )
-            await self.stop()
+            await self.shutdown()
 
         self.app.add_error_handler(ptb_error_handler)
 
-    async def stop(self):
+    async def shutdown(self):
+        """Shutdown App. `@noexcept`
+
+        .. versionchanged:: 0.5.0a2
+
+            renamed to ``shutdown``
+        """
         try:
             self.log.warning("App stopping...")
             self.qzone.stop()
-            await self.updater.stop()
-            for t in self.timers.values():
-                t.stop()
+            await self.app.stop()
+            await self.app.shutdown()
+            # for t in self.timers.values():
+            #     t.schedule_removal()
         except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
             self.log.error("Force stopping...", exc_info=True)
             return
@@ -310,13 +323,10 @@ class BaseApp(
         :return: the clean Task
         """
 
-        async def clean():
+        async def clean(_):
             await self.hook_store.Clean(-keepdays * 86400)
-            return False  # never stop
 
-        cl = AsyncTimer(interval, clean, name="clean")
-        cl()
-        self.timers["cl"] = cl
+        self.timers["cl"] = self.queue.run_repeating(clean, interval, 0, name="clean")
 
     # --------------------------------
     #          work logics
@@ -337,7 +347,11 @@ class BaseApp(
         self.log.info("注册数据库清理任务...")
         self.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
-        init_task = [qe.auto_update(), self.store.create(), self.loginman.load_cached_cookie()]
+        init_task = [
+            qe.auto_update(),
+            self.store.create(),
+            self.loginman.load_cached_cookie(),
+        ]
         await asyncio.wait(init_task)
 
         if first_run:
@@ -352,7 +366,7 @@ class BaseApp(
 
         self.log.info("启动所有定时器")
         for t in self.timers.values():
-            t()
+            t.enabled = True
             self.log.debug(f"{t} started.")
 
         self.start_time = time()
@@ -417,7 +431,7 @@ class BaseApp(
             await self.hook_feed.queue.send_all()
         except:
             self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
-            await self.stop()
+            await self.shutdown()
 
         if is_period:
             return  # skip summary if this is called by heartbeat
@@ -461,14 +475,10 @@ class BaseApp(
             add_dic = {
                 "updater.running": friendly(self.updater.running),
             }
-            if ds:
-                add_dic["/status timer"] = friendly(ds.state == "PENDING")
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
 
     async def status(self, to: ChatId, debug: bool = False):
         statm = self._status_text(debug, hf=True)
-        if debug and (ds := self.timers.get("ds")) and ds.state != "PENDING":
-            ds()
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
