@@ -113,7 +113,7 @@ class WebhookConf(BaseModel):
     """
 
     @validator("destination")
-    def force_https(cls, v):
+    def force_https(cls, v: HttpUrl):
         """webhook 地址强制启用 SSL"""
         assert v.scheme == "https", "webhook needs a https server"
         return v
@@ -128,10 +128,10 @@ class WebhookConf(BaseModel):
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
 
     @validator("port")
-    def port_choice(cls, v):
+    def port_choice(cls, v: int):
         from telegram.constants import SUPPORTED_WEBHOOK_PORTS
 
-        assert v.port in SUPPORTED_WEBHOOK_PORTS
+        assert v in SUPPORTED_WEBHOOK_PORTS
         return v
 
 
