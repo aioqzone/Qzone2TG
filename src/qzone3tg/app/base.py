@@ -70,7 +70,7 @@ class BaseApp(
         self.log.info("Qzone端初始化完成")
 
         builder = Application.builder()
-        builder.rate_limiter(AIORateLimiter())
+        # builder.rate_limiter(AIORateLimiter())
         builder = builder.token(conf.bot.token.get_secret_value())
         builder = builder.defaults(
             ext.Defaults(parse_mode=ParseMode.HTML, **conf.bot.default.dict())
@@ -253,6 +253,7 @@ class BaseApp(
 
         if proxy and proxy.scheme == "socks5h":
             # httpx resolves DNS at service-side by default. socks5h is not supported.
+            self.log.warning("socks5h协议不受支持，已替换为socks5")
             proxy = URL(proxy).copy_with(scheme="socks5")
 
         if proxy:
@@ -300,7 +301,8 @@ class BaseApp(
         try:
             self.log.warning("App stopping...")
             self.qzone.stop()
-            await self.app.stop()
+            if self.app.running:
+                await self.app.stop()
             await self.app.shutdown()
             # for t in self.timers.values():
             #     t.schedule_removal()
@@ -352,6 +354,8 @@ class BaseApp(
             self.store.create(),
             self.loginman.load_cached_cookie(),
         ]
+        if not self.app._initialized:
+            init_task.append(self.app.initialize())
         await asyncio.wait(init_task)
 
         if first_run:

@@ -60,7 +60,13 @@ class PollingConf(BaseModel):
     """查询超时."""
 
     bootstrap_retries: int = -1
-    read_latency: float = 2.0
+    read_timeout: float = 2.0
+    """Timeout when reading from telegram.
+
+    .. versionchanged:: 0.5.0a3
+
+        renamed to `read_timeout`
+    """
     drop_pending_updates: bool = False
     """Bot 启动后不响应启动前等待的命令. """
 
@@ -84,7 +90,9 @@ class WebhookConf(BaseModel):
 
     port: int = 443
     """webhook 端口. :abbr:`PTB (Python Telgram Bot)` 会在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
-    或经反向代理等中间环节间接访问此端口."""
+    或经反向代理等中间环节间接访问此端口.
+
+    受PTB:obj:`<限制> telegram.constants.SUPPORTED_WEBHOOK_PORTS`，端口只能在 443, 80, 88, 8443 中选择。"""
 
     cert: Optional[FilePath] = None
     """证书. 用于开启 SSL 认证. 若您使用反向代理，则应该在反向代理服务器设置证书，此处留空即可."""
@@ -97,9 +105,15 @@ class WebhookConf(BaseModel):
     """Bot 启动后不响应启动前等待的命令. """
     max_connections: int = 40
     """服务器最大连接数"""
+    secret_token: Optional[str] = None
+    """用于确保 webhook 请求确实是您所设置的。实际上是校验每个请求头的``X-Telegram-Bot-Api-Secret-Token``字段。
+    默认为 None, 不校验。
+
+    .. versionadded:: 0.5.0a3
+    """
 
     @validator("destination")
-    def force_https(cls, v):
+    def force_https(cls, v: HttpUrl):
         """webhook 地址强制启用 SSL"""
         assert v.scheme == "https", "webhook needs a https server"
         return v
@@ -112,6 +126,13 @@ class WebhookConf(BaseModel):
             return SecretStr(self.destination)
         urljoin = lambda u, p: str(u) + ("" if str.endswith(u, "/") else "/") + p
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
+
+    @validator("port")
+    def port_choice(cls, v: int):
+        from telegram.constants import SUPPORTED_WEBHOOK_PORTS
+
+        assert v in SUPPORTED_WEBHOOK_PORTS
+        return v
 
 
 class NetworkConf(BaseModel):
@@ -126,8 +147,11 @@ class NetworkConf(BaseModel):
 
     - `!http://127.0.0.1:1234`
     - `!https://username:password@your.proxy.com:1234`
-    - `!socks5://localhost:7890`
-    - `!socks5h://username:password@your.proxy.com:7890`
+    - `!socks5://user:pass@host:port`
+
+    .. versionchanged:: 0.5.0a3
+
+        PTB v20.0 使用 httpx 作为后端，httpx 默认在（代理）服务器端解析 DNS，且 httpx 不支持 socks5h 协议。
     """
 
     @validator("proxy")

@@ -66,7 +66,7 @@ default_role = "any"
 
 # external inventory
 intersphinx_mapping = {
-    "telegram": ("https://python-telegram-bot.readthedocs.io/en/stable/", None),
+    "telegram": ("https://python-telegram-bot.readthedocs.io/en/latest/", None),
     "python": ("https://docs.python.org/3.10/", None),
 }
 
