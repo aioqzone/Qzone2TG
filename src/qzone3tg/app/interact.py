@@ -162,6 +162,7 @@ class InteractApp(BaseApp):
                     command,
                     getattr(self, command, self.help),
                     filters=(CA | self.fetch_lock) if command in has_fetch else CA,
+                    block=False,
                 )
             )
         self.app.add_handler(CallbackQueryHandler(self.btn_dispatch))
@@ -184,14 +185,15 @@ class InteractApp(BaseApp):
         """
 
         conf = self.conf.bot.init_args
+        await self.app.initialize()
         if isinstance(conf, PollingConf):
-            self.app.run_polling(**conf.dict())
+            await self.updater.start_polling(**conf.dict())
         else:
             token = self.conf.bot.token
             assert token
             kw = conf.dict(exclude={"destination", "cert", "key"})
             safe_asposix = lambda p: p and p.as_posix()
-            self.app.run_webhook(
+            await self.updater.start_webhook(
                 listen="0.0.0.0",
                 url_path=token.get_secret_value(),
                 webhook_url=conf.webhook_url(token).get_secret_value(),
