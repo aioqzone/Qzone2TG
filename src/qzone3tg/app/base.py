@@ -19,7 +19,7 @@ from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
-from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, Job, JobQueue
+from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job, JobQueue
 
 from qzone3tg import DISCUSS, LICENSE
 from qzone3tg.bot import ChatId
@@ -70,7 +70,7 @@ class BaseApp(
         self.log.info("Qzone端初始化完成")
 
         builder = Application.builder()
-        # builder.rate_limiter(AIORateLimiter())
+        builder.rate_limiter(AIORateLimiter())
         builder = builder.token(conf.bot.token.get_secret_value())
         builder = builder.defaults(
             ext.Defaults(parse_mode=ParseMode.HTML, **conf.bot.default.dict())
@@ -78,8 +78,6 @@ class BaseApp(
         builder = self._build_request(builder)
 
         self.app = builder.build()
-        assert self.app.updater
-        self.updater = self.app.updater
         self._set_timers()
         self.log.info("Bot初始化完成")
 
@@ -94,7 +92,7 @@ class BaseApp(
         return self.conf.bot.admin
 
     @property
-    def extbot(self):
+    def extbot(self) -> ExtBot:
         return self.app.bot
 
     @property
@@ -238,7 +236,7 @@ class BaseApp(
     #          init network
     # --------------------------------
     def _build_request(self, builder: ApplicationBuilder) -> ApplicationBuilder:
-        """(internal use only) Build request_kwargs for PTB updater.
+        """(internal use only) Build netowrk args for PTB app.
         This will Set QzEmoji proxy as well.
 
         :param conf: NetworkConf from settings.
@@ -379,9 +377,9 @@ class BaseApp(
 
     async def idle(self):
         """Idle. :exc:`asyncio.CancelledError` will be omitted.
-        Return when :obj:`.updater` is stopped.
+        Return when :obj:`.app` is stopped.
         """
-        while self.updater.running:
+        while self.app._running:
             try:
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
@@ -466,19 +464,20 @@ class BaseApp(
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
         friendly = lambda b: ["🔴", "🟢"][int(b)] if hf else str(b)
-        ds = self.timers.get("ds")
 
         stat_dic = {
             "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
             "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
             "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
-            "上次清理数据库": ts2a(self.timers["cl"].last_call),
+            "上次清理数据库": ts2a(
+                self.timers["cl"].next_t and self.timers["cl"].next_t.timestamp() - 86400
+            ),
             "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
         }
         if debug:
             add_dic = {
-                "updater.running": friendly(self.updater.running),
+                "app.running": friendly(self.app.running),
             }
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())

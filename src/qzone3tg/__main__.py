@@ -23,7 +23,7 @@ async def main(conf: Settings) -> int:
     ):
         # this client is used for QzoneApi/BotFetcher. So set the ssl context, unset the proxy.
         # UA will be set by qqqr once this client is used for login.
-        # telegram proxy will be set by App._request_args, through PTB updater.
+        # telegram proxy will be set by App._request_args, through PTB app.
         app = InteractApp(ClientAdapter(client), engine, conf)
         try:
             await app.run()
@@ -31,9 +31,12 @@ async def main(conf: Settings) -> int:
         except (KeyboardInterrupt, asyncio.CancelledError):
             return 0
         except SystemExit as e:
-            return e.code
+            if isinstance(e.code, int):
+                return e.code
+            app.log.fatal(f"Uncaught error in main: {e.code}")
+            return 1
         except:
-            app.log.error("Uncaught error in main.", exc_info=True)
+            app.log.fatal("Uncaught error in main.", exc_info=True)
             return 1
         finally:
             await app.shutdown()
