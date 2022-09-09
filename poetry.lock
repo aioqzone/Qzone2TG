@@ -127,7 +127,7 @@ zookeeper = ["kazoo"]
 
 [[package]]
 name = "assetsupdater"
-version = "1.3.1.post1"
+version = "1.3.2"
 description = "Update assets from network."
 category = "main"
 optional = false
@@ -136,18 +136,19 @@ develop = false
 
 [package.dependencies]
 aiofiles = "^22.1.0"
-httpx = "^0.23.0"
+httpx = "~0.23.0"
 packaging = "^21.3"
+socksio = {git = "https://github.com/JamzumSum/socksio.git", rev = "master"}
 
 [package.extras]
-dev = ["black (>=22.8.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.20.0,<3.0.0)"]
-tui = ["rich (>=12.5.1,<13.0.0)"]
+dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
+tui = ["rich (>=12.4.1,<13.0.0)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/JamzumSum/AssetsUpdater.git"
 reference = "release"
-resolved_reference = "9a522bd328b7179b465d1dc7b1181dde28549d92"
+resolved_reference = "50d78bcbc3cfee6e6c0f31bf4d2cb9245b2e4572"
 
 [[package]]
 name = "attrs"
@@ -687,7 +688,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "qzemoji"
-version = "3.3.1b1.dev1"
+version = "3.3.2"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
@@ -707,7 +708,7 @@ dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.2
 type = "git"
 url = "https://github.com/aioqzone/QzEmoji.git"
 reference = "beta"
-resolved_reference = "9c7b3bc66505cbc2dbb8ec0c4d0da33277c7460a"
+resolved_reference = "b675a5db103347614efd8afd43b07648cc4544b7"
 
 [[package]]
 name = "requests"
@@ -1057,7 +1058,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
 name = "virtualenv"
-version = "20.16.4"
+version = "20.16.5"
 description = "Virtual Python Environment builder"
 category = "main"
 optional = true
@@ -1732,6 +1733,6 @@ urllib3 = [
     {file = "urllib3-1.26.12.tar.gz", hash = "sha256:3fa96cf423e6987997fc326ae8df396db2a8b7c667747d47ddd8ecba91f4a74e"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.16.4-py3-none-any.whl", hash = "sha256:035ed57acce4ac35c82c9d8802202b0e71adac011a511ff650cbcf9635006a22"},
-    {file = "virtualenv-20.16.4.tar.gz", hash = "sha256:014f766e4134d0008dcaa1f95bafa0fb0f575795d07cae50b1bee514185d6782"},
+    {file = "virtualenv-20.16.5-py3-none-any.whl", hash = "sha256:d07dfc5df5e4e0dbc92862350ad87a36ed505b978f6c39609dc489eadd5b0d27"},
+    {file = "virtualenv-20.16.5.tar.gz", hash = "sha256:227ea1b9994fdc5ea31977ba3383ef296d7472ea85be9d6732e42a91c04e80da"},
 ]
