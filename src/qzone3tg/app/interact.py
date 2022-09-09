@@ -165,7 +165,7 @@ class InteractApp(BaseApp):
                     block=False,
                 )
             )
-        self.app.add_handler(CallbackQueryHandler(self.btn_dispatch))
+        self.app.add_handler(CallbackQueryHandler(self.btn_dispatch, block=False))
 
         try:
             await self.updater.bot.set_my_commands(
@@ -311,26 +311,21 @@ class InteractApp(BaseApp):
                 abstime=feed.abstime,
             )
 
-        def like_trans(task: asyncio.Task[LikeData | None]):
+        async def like_trans(task: asyncio.Task[LikeData | None]):
             try:
                 likedata = task.result()
             except:
                 return
             if likedata is None:
                 return
-            like = self.add_hook_ref("command", self.qzone.like_app(likedata, True))
-            like.add_done_callback(lambda t: check_succ(t))
 
-        async def check_succ(task: asyncio.Task[bool]):
-            try:
-                assert task.result()
-            except:
+            if await self.qzone.like_app(likedata, True):
                 await msg.reply_text("点赞失败")
             else:
                 await msg.reply_text("点赞成功")
 
-        task = self.add_hook_ref("command", query_likedata(reply.message_id))
-        task.add_done_callback(lambda t: like_trans(t))
+        task = self.add_hook_ref("storage", query_likedata(reply.message_id))
+        task.add_done_callback(lambda t: self.add_hook_ref("command", like_trans(t)))
 
     # --------------------------------
     #              query
@@ -379,13 +374,7 @@ class InteractApp(BaseApp):
                     self.log.error("Failed to change button", exc_info=True)
                 return
 
-            task = self.add_hook_ref("button", self.qzone.like_app(likedata, not unlike))
-            task.add_done_callback(check_succ)
-
-        async def check_succ(succ: asyncio.Task[bool]):
-            try:
-                assert succ.result()
-            except:
+            if not await self.qzone.like_app(likedata, not unlike):
                 await query.answer(text="点赞失败")
                 return
 
@@ -401,7 +390,7 @@ class InteractApp(BaseApp):
                 self.log.error("Failed to change button", exc_info=True)
 
         task = self.add_hook_ref("storage", query_likedata(data))
-        task.add_done_callback(lambda t: like_trans(t.result()))
+        task.add_done_callback(lambda t: self.add_hook_ref("button", like_trans(t.result())))
 
     async def btn_qr(self, query: CallbackQuery):
         self.log.info(f"QR! query={query.data}")

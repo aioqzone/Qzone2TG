@@ -357,6 +357,7 @@ class BaseApp(
         if not self.app._initialized:
             init_task.append(self.app.initialize())
         await asyncio.wait(init_task)
+        await self.app.start()
 
         if first_run:
             await self.license(self.conf.bot.admin)
