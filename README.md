@@ -7,7 +7,7 @@ Forward Qzone feeds to telegram.
 [![ghcr.io](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
 [![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
 
-> Warning: Qzone3TG is still under active development. Features and configurations may be changed in future releases.
+> 1. ⚠️ Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
 [简体中文](README.zh-cn.md)
 

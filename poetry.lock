@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.4a3.dev1"
+version = "0.9.4a4.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -1092,8 +1092,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.4a3.dev1-py3-none-any.whl", hash = "sha256:36c9215e38050be932b161a4e872fa953b3fecad36dd53c29393ce8534e9d980"},
-    {file = "aioqzone-0.9.4a3.dev1.tar.gz", hash = "sha256:4f617afa8b2e5dcf27e505cbb8ca0ee2bdb8c29eeaf30053498c7c9472b1200f"},
+    {file = "aioqzone-0.9.4a4.dev1-py3-none-any.whl", hash = "sha256:8b485e661bb0d8ed884531c2be2db7427031007a870f15978081c57bdd6e501d"},
+    {file = "aioqzone-0.9.4a4.dev1.tar.gz", hash = "sha256:5a0332833e33cd90e71130ab5e25d353e4882b5fb8da095139309b56ba9349d0"},
 ]
 aioqzone-feed = []
 aiosqlite = [

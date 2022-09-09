@@ -19,7 +19,7 @@ from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
-from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, Job, JobQueue
+from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job, JobQueue
 
 from qzone3tg import DISCUSS, LICENSE
 from qzone3tg.bot import ChatId
@@ -70,7 +70,7 @@ class BaseApp(
         self.log.info("Qzone端初始化完成")
 
         builder = Application.builder()
-        # builder.rate_limiter(AIORateLimiter())
+        builder.rate_limiter(AIORateLimiter())
         builder = builder.token(conf.bot.token.get_secret_value())
         builder = builder.defaults(
             ext.Defaults(parse_mode=ParseMode.HTML, **conf.bot.default.dict())
@@ -78,8 +78,6 @@ class BaseApp(
         builder = self._build_request(builder)
 
         self.app = builder.build()
-        assert self.app.updater
-        self.updater = self.app.updater
         self._set_timers()
         self.log.info("Bot初始化完成")
 
@@ -94,7 +92,7 @@ class BaseApp(
         return self.conf.bot.admin
 
     @property
-    def extbot(self):
+    def extbot(self) -> ExtBot:
         return self.app.bot
 
     @property
@@ -238,7 +236,7 @@ class BaseApp(
     #          init network
     # --------------------------------
     def _build_request(self, builder: ApplicationBuilder) -> ApplicationBuilder:
-        """(internal use only) Build request_kwargs for PTB updater.
+        """(internal use only) Build netowrk args for PTB app.
         This will Set QzEmoji proxy as well.
 
         :param conf: NetworkConf from settings.
@@ -379,7 +377,7 @@ class BaseApp(
 
     async def idle(self):
         """Idle. :exc:`asyncio.CancelledError` will be omitted.
-        Return when :obj:`.updater` is stopped.
+        Return when :obj:`.app` is stopped.
         """
         while self.app._running:
             try:
@@ -479,7 +477,7 @@ class BaseApp(
         }
         if debug:
             add_dic = {
-                "updater.running": friendly(self.updater.running),
+                "app.running": friendly(self.app.running),
             }
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
