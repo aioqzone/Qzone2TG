@@ -299,11 +299,15 @@ class BaseApp(
         try:
             self.log.warning("App stopping...")
             self.qzone.stop()
+            for t in self.timers.values():
+                if not t.removed:
+                    t.schedule_removal()
             if self.app.running:
                 await self.app.stop()
+            if self.app.updater and self.app.updater.running:
+                await self.app.updater.stop()
             await self.app.shutdown()
-            # for t in self.timers.values():
-            #     t.schedule_removal()
+
         except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
             self.log.error("Force stopping...", exc_info=True)
             return
