@@ -41,27 +41,23 @@ doc = ["Sphinx (>=5.0.1,<6.0.0)", "autodoc-pydantic (>=1.7.1,<2.0.0)", "sphinx-a
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.9.3a3"
+version = "0.9.3a4.dev2"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.11"
-develop = false
 
 [package.dependencies]
-aioqzone = "^0.9.4a3.dev1"
-QzEmoji = {git = "https://github.com/aioqzone/QzEmoji.git", branch = "beta"}
+aioqzone = ">=0.9.4a3.dev1,<0.10.0"
+qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/3.3.3/qzemoji-3.3.3-py3-none-any.whl"}
 
 [package.extras]
 dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
 doc = ["Sphinx (>=5.0.2,<6.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (>=1.18.3,<2.0.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [package.source]
-type = "git"
-url = "https://github.com/aioqzone/aioqzone-feed.git"
-reference = "beta"
-resolved_reference = "e3489e6e4d47d1cefd558027ca5b73a791a11dd3"
-
+type = "url"
+url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.3a4.dev2/aioqzone_feed-0.9.3a4.dev2-py3-none-any.whl"
 [[package]]
 name = "aiosqlite"
 version = "0.17.0"
@@ -127,17 +123,16 @@ zookeeper = ["kazoo"]
 
 [[package]]
 name = "assetsupdater"
-version = "1.3.2"
+version = "1.4.0"
 description = "Update assets from network."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
-develop = false
 
 [package.dependencies]
-aiofiles = "^22.1.0"
-httpx = "~0.23.0"
-packaging = "^21.3"
+aiofiles = ">=22.1.0,<23.0.0"
+httpx = ">=0.23.0,<0.24.0"
+packaging = ">=21.3,<22.0"
 socksio = {git = "https://github.com/JamzumSum/socksio.git", rev = "master"}
 
 [package.extras]
@@ -145,10 +140,8 @@ dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.1
 tui = ["rich (>=12.4.1,<13.0.0)"]
 
 [package.source]
-type = "git"
-url = "https://github.com/JamzumSum/AssetsUpdater.git"
-reference = "release"
-resolved_reference = "50d78bcbc3cfee6e6c0f31bf4d2cb9245b2e4572"
+type = "url"
+url = "https://github.com/JamzumSum/AssetsUpdater/releases/download/1.4.0/assetsupdater-1.4.0-py3-none-any.whl"
 
 [[package]]
 name = "attrs"
@@ -688,27 +681,24 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "qzemoji"
-version = "3.3.2"
+version = "3.3.3"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
-python-versions = "^3.7"
-develop = false
+python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-aiosqlite = "~0.17.0"
-assetsupdater = {git = "https://github.com/JamzumSum/AssetsUpdater.git", rev = "release"}
-PyYAML = "^6.0"
-SQLAlchemy = {version = "^1.4.32", extras = ["asyncio"]}
+aiosqlite = ">=0.17.0,<0.18.0"
+assetsupdater = {url = "https://github.com/JamzumSum/AssetsUpdater/releases/download/1.4.0/assetsupdater-1.4.0-py3-none-any.whl"}
+PyYAML = ">=6.0,<7.0"
+SQLAlchemy = {version = ">=1.4.32,<2.0.0", extras = ["asyncio"]}
 
 [package.extras]
 dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.20.0,<3.0.0)"]
 
 [package.source]
-type = "git"
-url = "https://github.com/aioqzone/QzEmoji.git"
-reference = "beta"
-resolved_reference = "b675a5db103347614efd8afd43b07648cc4544b7"
+type = "url"
+url = "https://github.com/aioqzone/QzEmoji/releases/download/3.3.3/qzemoji-3.3.3-py3-none-any.whl"
 
 [[package]]
 name = "requests"
@@ -1080,7 +1070,7 @@ doc = ["Sphinx", "autodoc-pydantic", "sphinx-autodoc-typehints", "sphinx-rtd-the
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "c9eeee9e5de874adebd1df5fc79fc9e95c57907310811dc98d4fa4a833c20263"
+content-hash = "a5210b3b1a5e960ffa62932542cf35058393d5fe97ed67cb6701ba330309da4f"
 
 [metadata.files]
 aiofiles = [
