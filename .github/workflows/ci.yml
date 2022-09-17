@@ -31,15 +31,33 @@ jobs:
       TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
 
   merge:
+    if: "!contains(github.event.head_commit.message, '@no-pr')"
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: beta
+      - name: Get SHA
+        id: sha
+        run: echo "::set-output name=sha::$(git rev-parse --short HEAD)"
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v1
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: -t ${{ needs.test.outputs.package-version }} ${{ steps.sha.outputs.sha }}..HEAD
+        env:
+          OUTPUT: CHANGELOG.md
+
       - name: Create Pull Request
         uses: repo-sync/pull-request@v2
-        if: "!contains(github.event.head_commit.message, '@no-pr')"
         with:
           destination_branch: beta
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: ${{ needs.test.outputs.package-version }}
-          pr_body: ${{ github.event.head_commit.message }} # only push event has head_commit
+          pr_template: CHANGELOG.md
