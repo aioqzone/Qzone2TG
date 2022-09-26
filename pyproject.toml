@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.5.0a5.dev4"
+version = "0.5.0a6.dev1"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -15,30 +15,33 @@ aioqzone-feed = { url = "https://github.com/aioqzone/aioqzone-feed/releases/down
 python-telegram-bot = { extras = ["socks", "rate-limiter"], version = "^20.0a4" }
 httpx = { version = "~0.23.0" }
 socksio = { git = "https://github.com/JamzumSum/socksio.git", rev = "master" }
-# extras: dev
-pre-commit = { version = "^2.19.0", optional = true }
-black = { version = "^22.1.0", optional = true }
-isort = { version = "^5.10.1", optional = true }
-# extras: doc
-Sphinx = { version = "^5.1.1", optional = true }
-autodoc-pydantic = { version = "^1.7.0", optional = true }
-sphinx-autodoc-typehints = { version = "^1.18.2", optional = true }
-sphinx-rtd-theme = { version = "^1.0.0", optional = true }
-sphinx-tabs = { version = "^3.4.0", optional = true }
 
-[tool.poetry.dev-dependencies]
+
+# dependency groups
+[tool.poetry.group.test]
+optional = false
+
+[tool.poetry.group.test.dependencies]
 pytest = "^7.1.2"
 pytest-asyncio = "~0.19.0"
 
-[tool.poetry.extras]
-dev = ["pre-commit", "black", "isort"]
-doc = [
-    "Sphinx",
-    "autodoc-pydantic",
-    "sphinx-autodoc-typehints",
-    "sphinx-rtd-theme",
-    "sphinx-tabs",
-]
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^2.19.0"
+black = "^22.1.0"
+isort = "^5.10.1"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "^5.1.1"
+autodoc-pydantic = "^1.7.0"
+sphinx-autodoc-typehints = "^1.18.2"
+sphinx-rtd-theme = "^1.0.0"
+sphinx-tabs = "^3.4.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
