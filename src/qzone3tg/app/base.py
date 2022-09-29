@@ -59,14 +59,22 @@ class TimeoutLoginman(LoginMan):
         self.up_suppress_sec = min_up_interval
         self.suppress_qr_till = 0
         self.suppress_up_till = 0
+        self.force_login = False
 
     async def _new_cookie(self) -> dict[str, str]:
+        if self.force_login:
+            self.suppress_qr_till = time() + self.qr_suppress_sec
+            self.suppress_up_till = time() + self.up_suppress_sec
+            return await super()._new_cookie()
+
         from aioqzone.api.loginman import QRLoginMan, UPLoginMan
 
         backup = self._order.copy()
         if self.strategy != QrStrategy.forbid and self.qr_suppressed:
+            self.suppress_qr_till = time() + self.qr_suppress_sec
             self._order = [i for i in self._order if not isinstance(i, QRLoginMan)]
         if self.strategy != QrStrategy.force and self.up_suppressed:
+            self.suppress_up_till = time() + self.up_suppress_sec
             self._order = [i for i in self._order if isinstance(i, UPLoginMan)]
 
         try:
@@ -83,6 +91,16 @@ class TimeoutLoginman(LoginMan):
     @property
     def up_suppressed(self):
         return time() < self.suppress_up_till
+
+    def disable_suppress(self):
+        class ctx:
+            def __enter__(_self):
+                self.force_login = True
+
+            def __exit__(_self, *exc):
+                self.force_login = False
+
+        return ctx()
 
 
 class BaseApp(
@@ -291,7 +309,7 @@ class BaseApp(
         This will Set QzEmoji proxy as well.
 
         :param conf: NetworkConf from settings.
-        :return: request_kwargs
+        :return: application builder
 
         .. versionchanged:: 0.5.0a1
 
@@ -461,9 +479,13 @@ class BaseApp(
 
         :raises `SystemExist`: unexpected error
         """
+        if not is_period:
+            with self.loginman.disable_suppress():
+                return await self.fetch(to, is_period=False)
+
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
-        # NOTE: subclass must handle async/threading lock here
+        # NOTE: subclass must handle async lock here
         self.log.info(f"Start fetch with period={is_period}")
         echo = lambda m: self.add_hook_ref("command", self.bot.send_message(to, m))
         # start a new batch
