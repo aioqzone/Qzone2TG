@@ -57,6 +57,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
 
+- Qzone2TG 是由 aioqzone 开发的应用程序。在不产生冲突的前提下，我们遵循 aioqzone 的[免责声明](https://aioqzone.github.io/aioqzone/disclaimers.html)。
+- 在使用 Qzone2TG 之前，用户必须阅读并同意我们的[用户协议](https://aioqzone.github.io/Qzone2TG/disclaimers.html)。
 
 [doc]: https://aioqzone.github.io/Qzone2TG
 [ghcr]: https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg/latest

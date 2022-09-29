@@ -92,7 +92,9 @@ class WebhookConf(BaseModel):
     """webhook 端口. :abbr:`PTB (Python Telgram Bot)` 会在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
     或经反向代理等中间环节间接访问此端口.
 
-    受PTB:obj:`<限制> telegram.constants.SUPPORTED_WEBHOOK_PORTS`，端口只能在 443, 80, 88, 8443 中选择。"""
+    受 :abbr:`PTB`:external:data:`限制 <telegram.constants.SUPPORTED_WEBHOOK_PORTS>`,
+    端口只能在 443, 80, 88, 8443 中选择。
+    """
 
     cert: Optional[FilePath] = None
     """证书. 用于开启 SSL 认证. 若您使用反向代理，则应该在反向代理服务器设置证书，此处留空即可."""
@@ -210,10 +212,20 @@ class QzoneConf(BaseModel):
     qr_strategy: QrStrategy = QrStrategy.allow
     """二维码策略. 枚举类型，可选值为 ``force``, ``prefer``, ``allow``, ``forbid``
 
-    - ``force``：强制二维码登录，不使用密码登录. **如果您没有安装 :program:`Node.js <node>`，则仅此模式可用**.
+    - ``force``：强制二维码登录，不使用密码登录. **如果环境中没有安装 :program:`<node>`，则仅此模式可用**.
     - ``prefer``：二维码优先于密码登录. 当二维码登陆失败（包括未得到用户响应时）尝试密码登录.
     - ``allow``：密码优先于二维码登录. 当密码登陆失败（通常是在新设备上登录触发了保护）时使用二维码登录. **推荐普通用户使用**.
     - ``forbid``：禁止二维码登录. 通常用于自动测试."""
+    min_qr_interval: float = 7200
+    """最短的二维码登录时间间隔，单位为秒，默认7200（两小时）
+
+    .. versionadded:: 0.5.0a7
+    """
+    min_up_interval: float = 3600
+    """最短的密码登录时间间隔，单位为秒，默认3600
+
+    .. versionadded:: 0.5.0a7
+    """
     vcode_timeout: float = 30
     """等待动态验证码的超时时间，单位秒，默认30。
 
