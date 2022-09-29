@@ -25,7 +25,7 @@
 
     查询 Bot 状态，附加调试信息。额外包含的信息有：
 
-    * updater.running: :external:obj:`telegram.ext.Updater.running`
+    * updater.running: :external:obj:`telegram.ext.Application.running`
     * /status timer: :command:`/status debug` 定时任务状态。
 
     .. hint::

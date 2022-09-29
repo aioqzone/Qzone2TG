@@ -57,6 +57,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
 
+- Qzone2TG is an aioqzone application and respects aioqzone's [disclaimer](https://aioqzone.github.io/aioqzone/disclaimers.html) if it has no conflict with our User Agreement.
+- Users should accept our [User Agreement](https://aioqzone.github.io/Qzone2TG/agreement.html) before using Qzone2TG.
 
 [doc]: https://aioqzone.github.io/Qzone2TG
 [ghcr]: https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg/latest

@@ -20,6 +20,7 @@ Welcome to Qzone3TG's documentation!
    :hidden:
    :caption: 相关链接
 
+   agreement
    仓库 <https://github.com/aioqzone/Qzone2TG>
    官方频道 <https://t.me/qzone2tg>
    讨论群 <https://t.me/qzone2tg_discuss>

@@ -92,11 +92,11 @@ class DefaultUpHook(UPEvent, Sender):
     async def LoginFailed(self, meth, msg: Optional[str] = None):
         pmsg = f": {msg}" if msg else ""
         await super().LoginFailed(meth, msg)
-        await self.notify("密码登陆失败" + pmsg)
+        await self.notify("密码登录失败" + pmsg)
 
     async def LoginSuccess(self, meth):
-        await self.notify("登录成功")
-        return await super().LoginSuccess(meth)
+        await self.notify("登录成功", disable_notification=True)
+        await super().LoginSuccess(meth)
 
     async def GetSmsCode(self, phone: str, nickname: str) -> Optional[str]:
         m = await self.notify(

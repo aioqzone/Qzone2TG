@@ -21,7 +21,7 @@ from telegram.constants import ParseMode
 from telegram.error import NetworkError
 from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job, JobQueue
 
-from qzone3tg import DISCUSS, LICENSE
+from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
@@ -42,6 +42,49 @@ class FakeLock(object):
         pass
 
 
+class TimeoutLoginman(LoginMan):
+    def __init__(
+        self,
+        client: ClientAdapter,
+        engine: AsyncEngine,
+        uin: int,
+        strategy: QrStrategy,
+        pwd: str | None = None,
+        refresh_time: int = 6,
+        min_qr_interval: float = 7200,
+        min_up_interval: float = 3600,
+    ) -> None:
+        super().__init__(client, engine, uin, strategy, pwd, refresh_time)
+        self.qr_suppress_sec = min_qr_interval
+        self.up_suppress_sec = min_up_interval
+        self.suppress_qr_till = 0
+        self.suppress_up_till = 0
+
+    async def _new_cookie(self) -> dict[str, str]:
+        from aioqzone.api.loginman import QRLoginMan, UPLoginMan
+
+        backup = self._order.copy()
+        if self.strategy != QrStrategy.forbid and self.qr_suppressed:
+            self._order = [i for i in self._order if not isinstance(i, QRLoginMan)]
+        if self.strategy != QrStrategy.force and self.up_suppressed:
+            self._order = [i for i in self._order if isinstance(i, UPLoginMan)]
+
+        try:
+            if not self._order:
+                raise UserBreak
+            return await super()._new_cookie()
+        finally:
+            self._order = backup
+
+    @property
+    def qr_suppressed(self):
+        return time() < self.suppress_qr_till
+
+    @property
+    def up_suppressed(self):
+        return time() < self.suppress_up_till
+
+
 class BaseApp(
     EventManager[DefaultFeedHook, DefaultQrHook, DefaultUpHook, DefaultStorageHook, TaskerEvent]
 ):
@@ -59,12 +102,14 @@ class BaseApp(
         self._get_logger(conf.log)
         self.silent_noisy_logger()
 
-        self.loginman = LoginMan(
+        self.loginman = TimeoutLoginman(
             client,
             engine,
             conf.qzone.uin,
             conf.qzone.qr_strategy,
             conf.qzone.password.get_secret_value() if conf.qzone.password else None,
+            min_qr_interval=conf.qzone.min_qr_interval,
+            min_up_interval=conf.qzone.min_up_interval,
         )
         self.qzone = FeedApi(client, self.loginman)
         self.log.info("Qzone端初始化完成")
@@ -123,7 +168,13 @@ class BaseApp(
             async def HeartbeatFailed(_self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
                 info = f"({exc})" if exc else ""
-                await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
+                lm = self.loginman
+                qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
+                up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
+                if qr_avil or up_avil:
+                    await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
+                else:
+                    self.log.warning("heartbeat fails cuz all login method suppressed.")
 
         return inner_feed_hook
 
@@ -460,7 +511,7 @@ class BaseApp(
         echo(summary)
 
     async def license(self, to: ChatId):
-        LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({LICENSE})。"""
+        LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({AGREEMENT})。"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
     def _status_text(self, debug: bool, *, hf: bool = False):

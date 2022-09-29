@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.5.dev2"
+version = "0.9.5.dev3"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -37,23 +37,19 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.9.3a4.dev2"
+version = "0.9.4a1.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.11"
 
 [package.dependencies]
-aioqzone = ">=0.9.4a3.dev1,<0.10.0"
+aioqzone = ">=0.9.5.dev3,<0.10.0"
 qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/3.3.3/qzemoji-3.3.3-py3-none-any.whl"}
-
-[package.extras]
-dev = ["black (>=22.1.0,<23.0.0)", "isort (>=5.10.1,<6.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
-doc = ["Sphinx (>=5.0.2,<6.0.0)", "autodoc-pydantic (>=1.6.1,<2.0.0)", "sphinx-autodoc-typehints (>=1.18.3,<2.0.0)", "sphinx-rtd-theme (>=1.0.0,<2.0.0)"]
 
 [package.source]
 type = "url"
-url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.3a4.dev2/aioqzone_feed-0.9.3a4.dev2-py3-none-any.whl"
+url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.4a1.dev1/aioqzone_feed-0.9.4a1.dev1-py3-none-any.whl"
 [[package]]
 name = "aiosqlite"
 version = "0.17.0"
@@ -793,7 +789,7 @@ resolved_reference = "9f992b32be9856ec5975d21f8296f5f1936d091a"
 
 [[package]]
 name = "Sphinx"
-version = "5.2.1"
+version = "5.2.2"
 description = "Python documentation generator"
 category = "dev"
 optional = false
@@ -819,23 +815,24 @@ sphinxcontrib-serializinghtml = ">=1.1.5"
 
 [package.extras]
 docs = ["sphinxcontrib-websupport"]
-lint = ["docutils-stubs", "flake8 (>=3.5.0)", "flake8-bugbear", "flake8-comprehensions", "flake8-simplify", "isort", "mypy (>=0.971)", "sphinx-lint", "types-requests", "types-typed-ast"]
+lint = ["docutils-stubs", "flake8 (>=3.5.0)", "flake8-bugbear", "flake8-comprehensions", "flake8-simplify", "isort", "mypy (>=0.981)", "sphinx-lint", "types-requests", "types-typed-ast"]
 test = ["cython", "html5lib", "pytest (>=4.6)", "typed_ast"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.19.2"
+version = "1.19.4"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-Sphinx = ">=5.1.1"
+sphinx = ">=5.2.1"
 
 [package.extras]
-testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "diff-cover (>=6.5.1)", "nptyping (>=2.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "sphobjinv (>=2.2.2)", "typing-extensions (>=4.3)"]
-type_comments = ["typed-ast (>=1.5.4)"]
+docs = ["furo (>=2022.9.15)", "sphinx (>=5.2.1)", "sphinx-autodoc-typehints (>=1.19.3)"]
+testing = ["covdefaults (>=2.2)", "coverage (>=6.4.4)", "diff-cover (>=7.0.1)", "nptyping (>=2.3.1)", "pytest (>=7.1.3)", "pytest-cov (>=3)", "sphobjinv (>=2.2.2)", "typing-extensions (>=4.3)"]
+type-comment = ["typed-ast (>=1.5.4)"]
 
 [[package]]
 name = "sphinx-rtd-theme"
@@ -1007,7 +1004,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "tzdata"
-version = "2022.2"
+version = "2022.4"
 description = "Provider of IANA time zone data"
 category = "main"
 optional = false
@@ -1062,7 +1059,7 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "fb5dc57f1035ace8a6a2dd6a26ed805f3d16c6a791a58b1ef03980e69286bba8"
+content-hash = "292e14d0f994cc3c8e7847b71837344edcbe3c21aa69a5c65421d0bd75a8b79d"
 
 [metadata.files]
 aiofiles = [
@@ -1074,8 +1071,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.5.dev2-py3-none-any.whl", hash = "sha256:93fcd5f9506450f9a8bcb90ed7f291a7ca38da571388abe8c6959026b6da2ba1"},
-    {file = "aioqzone-0.9.5.dev2.tar.gz", hash = "sha256:28c5d84dfc8f96e7d133d586b6d45c7cf2acfa32b7599f35c3a3bc271b83603c"},
+    {file = "aioqzone-0.9.5.dev3-py3-none-any.whl", hash = "sha256:c3534edb5323ae9712de0e05cbfc9ae7f2bab9e981caefca4b845f3def5412a3"},
+    {file = "aioqzone-0.9.5.dev3.tar.gz", hash = "sha256:4d9c2f1f221fc0d142d21499f2d5730d8151003c82dc401c9b2111f0fcf322a6"},
 ]
 aioqzone-feed = []
 aiosqlite = [
@@ -1596,12 +1593,12 @@ snowballstemmer = [
 ]
 socksio = []
 Sphinx = [
-    {file = "Sphinx-5.2.1.tar.gz", hash = "sha256:c009bb2e9ac5db487bcf53f015504005a330ff7c631bb6ab2604e0d65bae8b54"},
-    {file = "sphinx-5.2.1-py3-none-any.whl", hash = "sha256:3dcf00fcf82cf91118db9b7177edea4fc01998976f893928d0ab0c58c54be2ca"},
+    {file = "Sphinx-5.2.2.tar.gz", hash = "sha256:7225c104dc06169eb73b061582c4bc84a9594042acae6c1582564de274b7df2f"},
+    {file = "sphinx-5.2.2-py3-none-any.whl", hash = "sha256:9150a8ed2e98d70e778624373f183c5498bf429dd605cf7b63e80e2a166c35a5"},
 ]
 sphinx-autodoc-typehints = [
-    {file = "sphinx_autodoc_typehints-1.19.2-py3-none-any.whl", hash = "sha256:3d761de928d5a86901331133d6d4a2552afa2e798ebcfc0886791792aeb4dd9a"},
-    {file = "sphinx_autodoc_typehints-1.19.2.tar.gz", hash = "sha256:872fb2d7b3d794826c28e36edf6739e93549491447dcabeb07c58855e9f914de"},
+    {file = "sphinx_autodoc_typehints-1.19.4-py3-none-any.whl", hash = "sha256:e190d8ee8204c3de05a64f41cf10e592e987e4063c8ec0de7e4b11f6e036b2e2"},
+    {file = "sphinx_autodoc_typehints-1.19.4.tar.gz", hash = "sha256:ffd8e710f6757471b5c831c7ece88f52a9ff15f27836f4ef1c8695a64f8dcca8"},
 ]
 sphinx-rtd-theme = [
     {file = "sphinx_rtd_theme-1.0.0-py2.py3-none-any.whl", hash = "sha256:4d35a56f4508cfee4c4fb604373ede6feae2a306731d533f409ef5c3496fdbd8"},
@@ -1703,8 +1700,8 @@ typing-extensions = [
     {file = "typing_extensions-4.3.0.tar.gz", hash = "sha256:e6d2677a32f47fc7eb2795db1dd15c1f34eff616bcaf2cfb5e997f854fa1c4a6"},
 ]
 tzdata = [
-    {file = "tzdata-2022.2-py2.py3-none-any.whl", hash = "sha256:c3119520447d68ef3eb8187a55a4f44fa455f30eb1b4238fa5691ba094f2b05b"},
-    {file = "tzdata-2022.2.tar.gz", hash = "sha256:21f4f0d7241572efa7f7a4fdabb052e61b55dc48274e6842697ccdf5253e5451"},
+    {file = "tzdata-2022.4-py2.py3-none-any.whl", hash = "sha256:74da81ecf2b3887c94e53fc1d466d4362aaf8b26fc87cda18f22004544694583"},
+    {file = "tzdata-2022.4.tar.gz", hash = "sha256:ada9133fbd561e6ec3d1674d3fba50251636e918aa97bd59d63735bef5a513bb"},
 ]
 tzlocal = [
     {file = "tzlocal-4.2-py3-none-any.whl", hash = "sha256:89885494684c929d9191c57aa27502afc87a579be5cdd3225c77c463ea043745"},

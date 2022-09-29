@@ -147,6 +147,12 @@ class InteractApp(BaseApp):
                     return
                 self.fetch_lock.acquire(await super().HeartbeatRefresh(num))  # type: ignore
 
+            async def HeartbeatFailed(_self, exc: BaseException | None):
+                await super().HeartbeatFailed(exc)
+                await self.bot.send_message(
+                    self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
+                )
+
         return interact_feed_hook
 
     async def set_commands(self):
