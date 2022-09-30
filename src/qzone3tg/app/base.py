@@ -71,11 +71,13 @@ class TimeoutLoginman(LoginMan):
 
         backup = self._order.copy()
         if self.strategy != QrStrategy.forbid and self.qr_suppressed:
-            self.suppress_qr_till = time() + self.qr_suppress_sec
             self._order = [i for i in self._order if not isinstance(i, QRLoginMan)]
+        else:
+            self.suppress_qr_till = time() + self.qr_suppress_sec
         if self.strategy != QrStrategy.force and self.up_suppressed:
+            self._order = [i for i in self._order if not isinstance(i, UPLoginMan)]
+        else:
             self.suppress_up_till = time() + self.up_suppress_sec
-            self._order = [i for i in self._order if isinstance(i, UPLoginMan)]
 
         try:
             if not self._order:
