@@ -1,4 +1,3 @@
-from http import client
 from os import environ as env
 from pathlib import Path
 
