@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 from aioqzone.api.loginman import QrStrategy
-from qqqr.exception import UserBreak
+from aioqzone.exception import SkipLoginInterrupt
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -23,17 +23,17 @@ class mock_trigger(RuntimeError):
 async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
     lm = TimeoutLoginman(client, engine, 1, QrStrategy.allow, "pwd")
 
-    with mock.patch("aioqzone.api.loginman.MixedLoginMan._new_cookie", side_effect=mock_trigger()):
+    with mock.patch("aioqzone.api.loginman.UPLoginMan._new_cookie", side_effect=mock_trigger()):
         with pytest.raises(mock_trigger):
             await lm.new_cookie()
-        with pytest.raises(UserBreak):
+        with pytest.raises(SkipLoginInterrupt):
             await lm.new_cookie()
 
 
 async def test_force(client: ClientAdapter, engine: AsyncEngine):
     lm = TimeoutLoginman(client, engine, 1, QrStrategy.allow, "pwd")
 
-    with mock.patch("aioqzone.api.loginman.MixedLoginMan._new_cookie", side_effect=mock_trigger()):
+    with mock.patch("aioqzone.api.loginman.UPLoginMan._new_cookie", side_effect=mock_trigger()):
         with pytest.raises(mock_trigger):
             await lm.new_cookie()
         with lm.disable_suppress():
