@@ -3,6 +3,7 @@ import asyncio
 from typing import Type
 
 import qzemoji as qe
+from aioqzone.api.loginman import QrStrategy
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
@@ -149,9 +150,13 @@ class InteractApp(BaseApp):
 
             async def HeartbeatFailed(_self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
-                await self.bot.send_message(
-                    self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
-                )
+                lm = self.loginman
+                qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
+                up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
+                if qr_avil or up_avil:
+                    await self.bot.send_message(
+                        self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
+                    )
 
         return interact_feed_hook
 
@@ -245,7 +250,19 @@ class InteractApp(BaseApp):
     async def relogin(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
-        task = self.add_hook_ref("command", self.qzone.api.login.new_cookie())
+        with self.loginman.disable_suppress():
+            try:
+                await self.qzone.api.login.new_cookie()
+            except:
+                return
+
+        assert self.qzone.hb_timer
+        if self.qzone.hb_timer.state != "PENDING":
+            self.qzone.hb_timer()
+            self.log.info("heartbeat restarted")
+            self.log.debug("heartbeat state: %s", self.qzone.hb_timer.state)
+            if self.qzone.hb_timer.state == "PENDING":
+                await self.bot.send_message(self.admin, "心跳已重启")
 
     async def em(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
@@ -327,7 +344,9 @@ class InteractApp(BaseApp):
             if likedata is None:
                 return
 
-            if await self.qzone.like_app(likedata, True):
+            with self.loginman.disable_suppress():
+                succ = await self.qzone.like_app(likedata, True)
+            if succ:
                 await msg.reply_text("点赞失败")
             else:
                 await msg.reply_text("点赞成功")
@@ -382,7 +401,9 @@ class InteractApp(BaseApp):
                     self.log.error("Failed to change button", exc_info=True)
                 return
 
-            if not await self.qzone.like_app(likedata, not unlike):
+            with self.loginman.disable_suppress():
+                succ = await self.qzone.like_app(likedata, not unlike)
+            if not succ:
                 await query.answer(text="点赞失败")
                 return
 

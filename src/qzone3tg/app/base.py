@@ -80,8 +80,6 @@ class TimeoutLoginman(LoginMan):
             self.suppress_up_till = time() + self.up_suppress_sec
 
         try:
-            if not self._order:
-                raise UserBreak
             return await super()._new_cookie()
         finally:
             self._order = backup
@@ -481,7 +479,7 @@ class BaseApp(
 
         :raises `SystemExist`: unexpected error
         """
-        if not is_period:
+        if not is_period and not self.loginman.force_login:
             with self.loginman.disable_suppress():
                 return await self.fetch(to, is_period=False)
 

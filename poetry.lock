@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.5.dev3"
+version = "0.9.6.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -44,7 +44,7 @@ optional = false
 python-versions = ">=3.7,<3.11"
 
 [package.dependencies]
-aioqzone = ">=0.9.5.dev3,<0.10.0"
+aioqzone = ">=0.9.6.dev1,<0.10.0"
 qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/3.3.3/qzemoji-3.3.3-py3-none-any.whl"}
 
 [package.source]
@@ -646,7 +646,7 @@ socks = ["httpx[socks]"]
 
 [[package]]
 name = "pytz"
-version = "2022.2.1"
+version = "2022.4"
 description = "World timezone definitions, modern and historical"
 category = "main"
 optional = false
@@ -737,14 +737,14 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "setuptools"
-version = "65.4.0"
+version = "65.4.1"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx", "sphinx-favicon", "sphinx-hoverxref (<2)", "sphinx-inline-tabs", "sphinx-notfound-page (==0.8.3)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
+docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-hoverxref (<2)", "sphinx-inline-tabs", "sphinx-notfound-page (==0.8.3)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
 testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8 (<5)", "flake8-2020", "ini2toml[lite] (>=0.9)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "mock", "pip (>=19.1)", "pip-run (>=8.8)", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)", "pytest-perf", "pytest-xdist", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
 testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
@@ -789,7 +789,7 @@ resolved_reference = "9f992b32be9856ec5975d21f8296f5f1936d091a"
 
 [[package]]
 name = "Sphinx"
-version = "5.2.2"
+version = "5.2.3"
 description = "Python documentation generator"
 category = "dev"
 optional = false
@@ -1071,8 +1071,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.5.dev3-py3-none-any.whl", hash = "sha256:c3534edb5323ae9712de0e05cbfc9ae7f2bab9e981caefca4b845f3def5412a3"},
-    {file = "aioqzone-0.9.5.dev3.tar.gz", hash = "sha256:4d9c2f1f221fc0d142d21499f2d5730d8151003c82dc401c9b2111f0fcf322a6"},
+    {file = "aioqzone-0.9.6.dev1-py3-none-any.whl", hash = "sha256:62d591f46f0c559d1217b1366ba474573f19527fc627021f77ce55fa01238ecb"},
+    {file = "aioqzone-0.9.6.dev1.tar.gz", hash = "sha256:c165161117a44da29b6714f32eba8a01df2d93a21286c56b4461ebb763364d9f"},
 ]
 aioqzone-feed = []
 aiosqlite = [
@@ -1520,8 +1520,8 @@ python-telegram-bot = [
     {file = "python_telegram_bot-20.0a4-py3-none-any.whl", hash = "sha256:79ce5a179017baeae362382c86c19951413a277ac8dd3f736824da36432ed2e9"},
 ]
 pytz = [
-    {file = "pytz-2022.2.1-py2.py3-none-any.whl", hash = "sha256:220f481bdafa09c3955dfbdddb7b57780e9a94f5127e35456a48589b9e0c0197"},
-    {file = "pytz-2022.2.1.tar.gz", hash = "sha256:cea221417204f2d1a2aa03ddae3e867921971d0d76f14d87abb4414415bbdcf5"},
+    {file = "pytz-2022.4-py2.py3-none-any.whl", hash = "sha256:2c0784747071402c6e99f0bafdb7da0fa22645f06554c7ae06bf6358897e9c91"},
+    {file = "pytz-2022.4.tar.gz", hash = "sha256:48ce799d83b6f8aab2020e369b627446696619e79645419610b9facd909b3174"},
 ]
 pytz-deprecation-shim = [
     {file = "pytz_deprecation_shim-0.1.0.post0-py2.py3-none-any.whl", hash = "sha256:8314c9692a636c8eb3bda879b9f119e350e93223ae83e70e80c31675a0fdc1a6"},
@@ -1576,8 +1576,8 @@ rsa = [
     {file = "rsa-4.9.tar.gz", hash = "sha256:e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21"},
 ]
 setuptools = [
-    {file = "setuptools-65.4.0-py3-none-any.whl", hash = "sha256:c2d2709550f15aab6c9110196ea312f468f41cd546bceb24127a1be6fdcaeeb1"},
-    {file = "setuptools-65.4.0.tar.gz", hash = "sha256:a8f6e213b4b0661f590ccf40de95d28a177cd747d098624ad3f69c40287297e9"},
+    {file = "setuptools-65.4.1-py3-none-any.whl", hash = "sha256:1b6bdc6161661409c5f21508763dc63ab20a9ac2f8ba20029aaaa7fdb9118012"},
+    {file = "setuptools-65.4.1.tar.gz", hash = "sha256:3050e338e5871e70c72983072fe34f6032ae1cdeeeb67338199c2f74e083a80e"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
@@ -1593,8 +1593,8 @@ snowballstemmer = [
 ]
 socksio = []
 Sphinx = [
-    {file = "Sphinx-5.2.2.tar.gz", hash = "sha256:7225c104dc06169eb73b061582c4bc84a9594042acae6c1582564de274b7df2f"},
-    {file = "sphinx-5.2.2-py3-none-any.whl", hash = "sha256:9150a8ed2e98d70e778624373f183c5498bf429dd605cf7b63e80e2a166c35a5"},
+    {file = "Sphinx-5.2.3.tar.gz", hash = "sha256:5b10cb1022dac8c035f75767799c39217a05fc0fe2d6fe5597560d38e44f0363"},
+    {file = "sphinx-5.2.3-py3-none-any.whl", hash = "sha256:7abf6fabd7b58d0727b7317d5e2650ef68765bbe0ccb63c8795fa8683477eaa2"},
 ]
 sphinx-autodoc-typehints = [
     {file = "sphinx_autodoc_typehints-1.19.4-py3-none-any.whl", hash = "sha256:e190d8ee8204c3de05a64f41cf10e592e987e4063c8ec0de7e4b11f6e036b2e2"},
