@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.5.0a7.dev4"
+version = "0.5.0a7.dev5"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
 python = "~3.10.2"
-aioqzone-feed = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.4a1.dev1/aioqzone_feed-0.9.4a1.dev1-py3-none-any.whl" }
+aioqzone-feed = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.4a2.dev1/aioqzone_feed-0.9.4a2.dev1-py3-none-any.whl" }
 python-telegram-bot = { extras = ["socks", "rate-limiter"], version = "^20.0a4" }
 httpx = { version = "~0.23.0" }
 socksio = { git = "https://github.com/JamzumSum/socksio.git", rev = "master" }
