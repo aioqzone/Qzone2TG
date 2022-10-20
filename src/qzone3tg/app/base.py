@@ -471,7 +471,7 @@ class BaseApp(
         elif not JSDOM.check_jsdom():
             self.log.warning("jsdom not available. Passing captcha may not work.")
 
-    async def fetch(self, to: Union[int, str], *, is_period: bool = False):
+    async def fetch(self, to: Union[int, str], *, is_period: bool = False) -> None:
         """fetch feeds.
 
         :param reload: dismiss existing records in database
@@ -495,11 +495,22 @@ class BaseApp(
             got = await self.qzone.get_feeds_by_second(
                 self.conf.qzone.dayspac * 86400, exceed_pred=self.hook_store.Exists
             )
-        except (UserBreak, LoginError):
-            if self.qzone.hb_timer:
-                self.qzone.hb_timer.stop()
-            echo("命令已取消")
+        except UserBreak:
+            self.log.debug("Fetch stopped because UserBreak.")
+            echo("命令已取消：用户取消了登录")
             return
+        except LoginError:
+            # LoginFailed hook will show reason to user
+            self.log.debug("Fetch stopped because LoginError.")
+            if self.qzone.hb_timer:
+                self.log.debug("Stop heartbeat because LoginError.")
+                self.qzone.hb_timer.stop()
+            else:
+                self.log.debug("Should stop HB because LoginError, but it has already stopped.")
+            return
+        except:
+            self.log.fatal("Unexpected exception in get_feeds_by_second", exc_info=True)
+            return await self.shutdown()
 
         if got == 0:
             echo("您已跟上时代🎉")
@@ -511,7 +522,7 @@ class BaseApp(
             await self.hook_feed.queue.send_all()
         except:
             self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
-            await self.shutdown()
+            return await self.shutdown()
 
         if is_period:
             return  # skip summary if this is called by heartbeat

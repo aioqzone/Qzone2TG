@@ -1,6 +1,6 @@
 # IDE, local settings
 .vscode
-.env
+*.env
 poetry.toml
 
 # build, metadata and distribution
