@@ -4,6 +4,7 @@ import asyncio
 import logging
 import logging.config
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from time import time
 from typing import Type, Union
@@ -13,6 +14,9 @@ import telegram.ext as ext
 from aioqzone.api.loginman import QrStrategy
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
+from aioqzone_feed.utils.task import AsyncTimer
+from apscheduler.job import Job as APSJob
+from apscheduler.triggers.interval import IntervalTrigger
 from httpx import URL
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
@@ -466,10 +470,10 @@ class BaseApp(
         from jssupport.jsdom import JSDOM
 
         if not which("node"):
-            self.log.error("Node not available, qr strategy switched to `force`.")
+            self.log.error("Node 不可用，二维码策略切换至 `force`.")
             self.conf.qzone.qr_strategy = QrStrategy.force
         elif not JSDOM.check_jsdom():
-            self.log.warning("jsdom not available. Passing captcha may not work.")
+            self.log.warning("jsdom 不可用，可能无法提交验证码。")
 
     async def fetch(self, to: Union[int, str], *, is_period: bool = False) -> None:
         """fetch feeds.
@@ -501,36 +505,39 @@ class BaseApp(
             return
         except LoginError:
             # LoginFailed hook will show reason to user
-            self.log.debug("Fetch stopped because LoginError.")
+            self.log.warning("由于发生了登录错误，爬取未开始。")
             if self.qzone.hb_timer:
-                self.log.debug("Stop heartbeat because LoginError.")
                 self.qzone.hb_timer.stop()
+                self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
             else:
                 self.log.debug("Should stop HB because LoginError, but it has already stopped.")
             return
         except:
-            self.log.fatal("Unexpected exception in get_feeds_by_second", exc_info=True)
+            self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
             return await self.shutdown()
 
         if got == 0:
-            echo("您已跟上时代🎉")
+            if not is_period:
+                echo("您已跟上时代🎉")
+            return
+
+        # wait for all hook to finish
+        await self.qzone.wait()
+        got -= self.hook_feed.queue.skip_num
+        if got == 0:
+            if not is_period:
+                echo("您已跟上时代🎉")
             return
 
         # forward
         try:
-            await self.qzone.wait()
             await self.hook_feed.queue.send_all()
         except:
-            self.log.fatal("Unexpected exception in queue.send_all", exc_info=True)
+            self.log.fatal("queue.send_all：未捕获的异常", exc_info=True)
             return await self.shutdown()
 
         if is_period:
             return  # skip summary if this is called by heartbeat
-
-        got -= self.hook_feed.queue.skip_num
-        if got == 0:
-            echo("您已跟上时代🎉")
-            return
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
         errs = self.hook_feed.queue.exc_num
@@ -558,13 +565,11 @@ class BaseApp(
             "上次登录": ts2a(self.loginman.last_login),
             "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
             "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
-            "上次清理数据库": ts2a(
-                self.timers["cl"].next_t and self.timers["cl"].next_t.timestamp() - 86400
-            ),
-            "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
+            "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
         }
         if debug:
             add_dic = {
+                "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
                 "app.running": friendly(self.app.running),
             }
             stat_dic.update(add_dic)
@@ -574,3 +579,22 @@ class BaseApp(
         statm = self._status_text(debug, hf=True)
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
+
+
+def get_last_call(timer: AsyncTimer | Job | APSJob | None) -> float:
+    if timer is None:
+        return 0.0
+    if isinstance(timer, AsyncTimer):
+        return timer.last_call
+    if isinstance(timer, Job):
+        timer = timer.job
+
+    if not hasattr(timer, "next_run_time"):
+        return 0.0
+    if timer.next_run_time is None:
+        return 0.0
+    assert isinstance(timer.next_run_time, datetime)
+
+    if not isinstance(timer.trigger, IntervalTrigger):
+        return 0.0
+    return (timer.next_run_time - timer.trigger.interval).timestamp()

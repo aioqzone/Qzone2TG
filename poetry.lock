@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.7.dev1"
+version = "0.9.8.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -37,19 +37,19 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.9.4a2.dev1"
+version = "0.9.5.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.11"
 
 [package.dependencies]
-aioqzone = ">=0.9.6.dev1,<0.10.0"
+aioqzone = ">=0.9.8.dev1,<0.10.0"
 qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/3.4.0/qzemoji-3.4.0-py3-none-any.whl"}
 
 [package.source]
 type = "url"
-url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.4a2.dev1/aioqzone_feed-0.9.4a2.dev1-py3-none-any.whl"
+url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.9.5.dev1/aioqzone_feed-0.9.5.dev1-py3-none-any.whl"
 [[package]]
 name = "aiosqlite"
 version = "0.17.0"
@@ -1056,7 +1056,7 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.10.2"
-content-hash = "3d481d262c02739ad2b4b5954e2a8b55b88be2d993288c810461279eac3ee0a1"
+content-hash = "c97755d99fc7155e230c88d9979678e639376f7271cae2d363f26ac0d16e2064"
 
 [metadata.files]
 aiofiles = [
@@ -1068,8 +1068,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.7.dev1-py3-none-any.whl", hash = "sha256:7d19661af19580e5d97a3706380c840e0e4d634e338169f84046cd6d211083d0"},
-    {file = "aioqzone-0.9.7.dev1.tar.gz", hash = "sha256:40fcd918b85c8318fb3b389a9049cada88537777a651e0f5be6d9e9aa11cd5b2"},
+    {file = "aioqzone-0.9.8.dev1-py3-none-any.whl", hash = "sha256:55c7d24afa81b68b4000deb134687dc64e7f0c75ecf9da99e0114b7a7c797926"},
+    {file = "aioqzone-0.9.8.dev1.tar.gz", hash = "sha256:6198f2a64dae6da70e9f951aee1bb35694db9fc98edd46a9d0bda2d6c8e2ec67"},
 ]
 aioqzone-feed = []
 aiosqlite = [

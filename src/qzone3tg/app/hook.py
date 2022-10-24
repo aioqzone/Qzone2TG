@@ -10,6 +10,7 @@ import telegram
 from aioqzone.event.login import QREvent, UPEvent
 from aioqzone_feed.interface.hook import FeedContent, FeedEvent
 from telegram import InlineKeyboardMarkup, InputMediaPhoto, Message
+from telegram.error import BadRequest
 
 from qzone3tg.bot import BotProtocol, ChatId
 from qzone3tg.bot.queue import EditableQueue
@@ -66,14 +67,19 @@ class DefaultQrHook(QREvent, Sender):
                 self.admin,
                 self.qr_msg.message_id,
                 InputMediaPhoto(png, text),
+                reply_markup=self.qr_markup(),
             )
             if isinstance(msg, Message):
                 self.qr_msg = msg
 
     async def cleanup(self):
         if self.qr_msg:
-            await self.qr_msg.delete()
-            self.qr_msg = None
+            try:
+                await self.qr_msg.delete()
+            except BadRequest as e:
+                log.warning(e)
+            finally:
+                self.qr_msg = None
 
     @property
     def refresh_flag(self) -> asyncio.Event:

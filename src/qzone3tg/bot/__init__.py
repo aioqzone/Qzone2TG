@@ -42,7 +42,9 @@ class BotProtocol(Protocol):
         """A bot can send video."""
         ...
 
-    async def edit_message_media(self, to: ChatId, mid: int, media: InputMedia) -> Message | bool:
+    async def edit_message_media(
+        self, to: ChatId, mid: int, media: InputMedia, **kw
+    ) -> Message | bool:
         """A bot can edit the media it has sent before."""
         ...
 
