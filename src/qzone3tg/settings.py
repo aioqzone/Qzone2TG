@@ -162,6 +162,12 @@ class NetworkConf(BaseModel):
         assert v.scheme in ("http", "https", "socks", "socks5", "socks5h")
         return v
 
+    connect_timeout: Optional[float] = 20
+    """服务器向 telegram 发起连接的最长耗时。单位为秒，默认为20
+
+    .. versionadded:: 0.5.0a8
+    """
+
 
 class BotConf(BaseModel):
     """对应配置文件中的 :obj:`bot <.Settings.bot>` 项。"""

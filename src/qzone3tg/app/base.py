@@ -334,6 +334,7 @@ class BaseApp(
             qe.proxy = proxy
 
         # TODO: default timeouts
+        builder = builder.connect_timeout(20)
         return builder
 
     # --------------------------------
