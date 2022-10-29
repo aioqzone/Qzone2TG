@@ -1,4 +1,4 @@
-FROM python:3.10-slim as build
+FROM python:3.11.0-slim as build
 
 LABEL org.opencontainers.image.url=https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg
 LABEL org.opencontainers.image.documentation=https://aioqzone.github.io/Qzone2TG
@@ -30,7 +30,7 @@ RUN python src/pack.py . --clean
 #                 Runtime Stage
 # ==============================================
 
-FROM python:3.10-slim as release
+FROM python:3.11.0-slim as release
 # use slim since opencv-python doesn't offically support alpine.
 
 EXPOSE 80 88 443 8443
