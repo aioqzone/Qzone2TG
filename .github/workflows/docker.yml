@@ -47,4 +47,4 @@ jobs:
           file: ./docker/Dockerfile
           tags: |
             ghcr.io/aioqzone/qzone3tg:${{ inputs.VERSION_TAG || github.event.inputs.VERSION_TAG || github.event.pull_request.title }}
-            ghcr.io/aioqzone/qzone3tg:latest
+            ghcr.io/aioqzone/qzone3tg:latest-beta
