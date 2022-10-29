@@ -14,7 +14,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # since we use pip to pack pyz, the poetry install step can be removed.
-ENV PATH="/root/.local/bin:$PATH"
 COPY . /app
 WORKDIR /app
 
