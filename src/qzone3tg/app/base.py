@@ -431,7 +431,7 @@ class BaseApp(
         ]
         if not self.app._initialized:
             init_task.append(self.app.initialize())
-        await asyncio.wait(init_task)
+        await asyncio.wait([asyncio.create_task(i) for i in init_task])
         await self.app.start()
 
         if first_run:
