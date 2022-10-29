@@ -28,7 +28,7 @@ from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, SemaBot, TaskerEvent
+from qzone3tg.bot.limitbot import BotTaskEditter, SemaBot, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, Settings, WebhookConf
 
@@ -201,7 +201,6 @@ class BaseApp(
         return inner_feed_hook
 
     def init_hooks(self):
-        sem = RelaxSemaphore(30)
         self.bot = SemaBot(self.extbot)
         self.hook_qr = self.sub_of(DefaultQrHook)(self.admin, self.bot)
         self.hook_up = self.sub_of(DefaultUpHook)(self.admin, self.bot)
@@ -220,7 +219,6 @@ class BaseApp(
                     self.client,
                 ),
                 defaultdict(lambda: self.admin),
-                sem,
             ),
             block or [],
         )
@@ -334,7 +332,7 @@ class BaseApp(
             qe.proxy = proxy
 
         # TODO: default timeouts
-        builder = builder.connect_timeout(20)
+        builder = builder.connect_timeout(conf.connect_timeout).read_timeout(20).write_timeout(20)
         return builder
 
     # --------------------------------

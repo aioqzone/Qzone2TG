@@ -8,7 +8,7 @@ from qzemoji.utils import build_html
 from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, RelaxSemaphore, TaskerEvent
+from qzone3tg.bot.limitbot import BotTaskEditter, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue, QueueEvent
 
 from . import FakeBot, fake_feed, fake_media
@@ -24,10 +24,9 @@ class Ihave0(QueueEvent):
 
 @pytest.fixture(scope="class")
 def ideal(client: ClientAdapter):
-    sem = RelaxSemaphore(30)
     bot = FakeBot()
     tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(bot, tasker, defaultdict(int), sem)
+    q = EditableQueue(bot, tasker, defaultdict(int))
     q.register_hook(Ihave0())
 
     class FakeMarkup(TaskerEvent):
@@ -97,10 +96,9 @@ class RealBot(FakeBot):
 
 @pytest.fixture(scope="class")
 def real(client: ClientAdapter):
-    sem = RelaxSemaphore(30)
     bot = RealBot()
     tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(bot, tasker, defaultdict(int), sem)
+    q = EditableQueue(bot, tasker, defaultdict(int))
     q.register_hook(Ihave0())
     tasker.register_hook(TaskerEvent())
     return q
