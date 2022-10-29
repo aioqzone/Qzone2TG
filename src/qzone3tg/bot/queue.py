@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Mapping
 
 from aioqzone_feed.type import BaseFeed, FeedContent
+from httpx import TimeoutException
 from qqqr.event import Emittable, Event
 from telegram import Message
 from telegram.error import BadRequest, TelegramError, TimedOut
@@ -113,14 +114,14 @@ class MsgQueue(Emittable[QueueEvent]):
             f.kwds.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
                 if (r := await self._send_one_atom(f, feed)) is True:
-                    log.debug('Send atom suggest to resend, resend at once.')
+                    log.debug("Send atom suggest to resend, resend at once.")
                     continue
                 if isinstance(r, list):
                     mids += r
                     reply = r[-1]
                 if retry == 0:
                     self.tasker.bps += self.tasker.eps
-                    log.debug(f'increased bps to {self.tasker.bps:.2f}')
+                    log.debug(f"increased bps to {self.tasker.bps:.2f}")
                 break
 
         if mids:
@@ -151,11 +152,17 @@ class MsgQueue(Emittable[QueueEvent]):
                     return [r.message_id]
                 case list():
                     return [i.message_id for i in r]
+                case _:
+                    log.fatal(f"Unexpected send return type: {type(r)}")
         except TimedOut as e:
+            log.debug(f"current timeout={f.timeout:.2f}")
             self.exc[feed].append(e)
             self.tasker.bps /= 2
             self.tasker.inc_timeout(f)
-            log.info('发送超时：等待重发')
+            log.info("发送超时：等待重发")
+            log.debug(f"increased timeout={f.timeout:.2f}")
+            if isinstance(e.__cause__, TimeoutException):
+                log.debug("the timeout request is:", e.__cause__.request)
             return True
         except BadRequest as e:
             self.exc[feed].append(e)
@@ -164,17 +171,14 @@ class MsgQueue(Emittable[QueueEvent]):
                 tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
                 return True
             log.error("Got BadRequest from send_%s!", f.meth, exc_info=e)
-            # return False
         except TelegramError as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught telegram error in send_%s.", f.meth, exc_info=True)
-            # return False
+            log.error("Uncaught telegram error in send_%s.", f.meth, exc_info=e)
         except BaseException as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught error in send_%s.", f.meth, exc_info=True)
-            # return False
+            log.error("Uncaught error in send_%s.", f.meth, exc_info=e)
         return False
 
 

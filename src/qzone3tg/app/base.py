@@ -17,7 +17,7 @@ from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
-from httpx import URL
+from httpx import URL, Timeout
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
@@ -332,6 +332,7 @@ class BaseApp(
             qe.proxy = proxy
 
         # TODO: default timeouts
+        self.client.client.timeout = Timeout(20, connect=conf.connect_timeout)
         builder = builder.connect_timeout(conf.connect_timeout).read_timeout(20).write_timeout(20)
         return builder
 

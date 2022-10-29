@@ -163,9 +163,12 @@ class NetworkConf(BaseModel):
         return v
 
     connect_timeout: Optional[float] = 20
-    """服务器向 telegram 发起连接的最长耗时。单位为秒，默认为20
+    """服务器向 telegram 和 Qzone 发起连接的最长耗时。单位为秒，默认为20
 
     .. versionadded:: 0.5.0a8
+
+    .. versionchanged:: 0.5.1a1
+        此参数也控制与 Qzone 连接的超时。
     """
 
 
