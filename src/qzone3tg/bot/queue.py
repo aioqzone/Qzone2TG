@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Mapping
 
 from aioqzone_feed.type import BaseFeed, FeedContent
+from httpx import TimeoutException
 from qqqr.event import Emittable, Event
 from telegram import Message
 from telegram.error import BadRequest, TelegramError, TimedOut
@@ -13,9 +14,8 @@ from qzone3tg.utils.iter import alist, countif
 from . import BotProtocol, ChatId, InputMedia
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial
 from .limitbot import BotTaskEditter as BTE
-from .limitbot import RelaxSemaphore
 
-SendFunc = MsgPartial
+SendFunc = MediaGroupPartial | MsgPartial
 log = logging.getLogger(__name__)
 
 
@@ -47,7 +47,6 @@ class MsgQueue(Emittable[QueueEvent]):
         bot: BotProtocol,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
-        sem: RelaxSemaphore,
         max_retry: int = 2,
     ) -> None:
         super().__init__()
@@ -56,7 +55,6 @@ class MsgQueue(Emittable[QueueEvent]):
         self.tasker = tasker
         self.fwd2 = forward_map
         self._loop = asyncio.get_event_loop()
-        self.sem = sem
         self.exc = defaultdict(list)
         self.max_retry = max_retry
         self.sending = None
@@ -88,7 +86,6 @@ class MsgQueue(Emittable[QueueEvent]):
         self.skip_num = 0
         self.q.clear()
         self.exc.clear()
-        self.sem.reset()
         self.bid = bid
 
     async def send_all(self):
@@ -117,15 +114,19 @@ class MsgQueue(Emittable[QueueEvent]):
             f.kwds.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
                 if (r := await self._send_one_atom(f, feed)) is True:
+                    log.debug("Send atom suggest to resend, resend at once.")
                     continue
                 if isinstance(r, list):
                     mids += r
                     reply = r[-1]
                 if retry == 0:
                     self.tasker.bps += self.tasker.eps
+                    log.debug(f"increased bps to {self.tasker.bps:.2f}")
                 break
 
-        if not mids:
+        if mids:
+            log.info(f"发送成功：{feed.uin}({feed.nickname}){feed.abstime}")
+        else:
             log.error(f"feed {feed}, max retry exceeded: {self.exc[feed]}")
             for i, e in enumerate(self.exc[feed], start=1):
                 if e:
@@ -139,20 +140,29 @@ class MsgQueue(Emittable[QueueEvent]):
         self.add_hook_ref("storage", self.hook.SaveFeed(feed, mids))
 
     async def _send_one_atom(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
+        """
+        :param f: a :class:`MsgPartial` object
+        :param feed: the feed to be sent
+        :return: a list of message id if success, otherwise whether to resend
+        """
         try:
-            t = len(f.medias) if isinstance(f, MediaGroupPartial) else 1
-            async with self.sem.context(t):
-                # minimize semaphore context
-                r = await f(self.bot)
-            if isinstance(r, Message):
-                return [r.message_id]
-            if isinstance(r, list):
-                return [i.message_id for i in r]
+            r = await f(self.bot)
+            match r:
+                case Message():
+                    return [r.message_id]
+                case list():
+                    return [i.message_id for i in r]
+                case _:
+                    log.fatal(f"Unexpected send return type: {type(r)}")
         except TimedOut as e:
+            log.debug(f"current timeout={f.timeout:.2f}")
             self.exc[feed].append(e)
             self.tasker.bps /= 2
             self.tasker.inc_timeout(f)
-            # TODO: more operations
+            log.info("发送超时：等待重发")
+            log.debug(f"increased timeout={f.timeout:.2f}")
+            if isinstance(e.__cause__, TimeoutException):
+                log.debug("the timeout request is:", e.__cause__.request)
             return True
         except BadRequest as e:
             self.exc[feed].append(e)
@@ -160,18 +170,15 @@ class MsgQueue(Emittable[QueueEvent]):
             if isinstance(f, (MediaPartial, MediaGroupPartial)):
                 tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
                 return True
-            log.error("Got BadRequest from send_message!", exc_info=e)
-            # return False
+            log.error("Got BadRequest from send_%s!", f.meth, exc_info=e)
         except TelegramError as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught telegram error in send_all.", exc_info=True)
-            return False
+            log.error("Uncaught telegram error in send_%s.", f.meth, exc_info=e)
         except BaseException as e:
             self.exc[feed].append(e)
             self.exc[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught error in send_all.", exc_info=True)
-            return False
+            log.error("Uncaught error in send_%s.", f.meth, exc_info=e)
         return False
 
 
@@ -183,10 +190,9 @@ class EditableQueue(MsgQueue):
         bot: BotProtocol,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
-        sem: RelaxSemaphore,
         max_retry: int = 2,
     ) -> None:
-        super().__init__(bot, tasker, forward_map, sem, max_retry)
+        super().__init__(bot, tasker, forward_map, max_retry)
 
     async def edit_media(self, to: ChatId, mid: int, media: InputMedia):
         kw = {}

@@ -70,11 +70,12 @@ class MsgPartial(ABC):
         """Partial timeout. Since one partial is the atomic unit to send/retry in sending progress,
         every partial has its own timeout.
         """
-        return self.kwds.get("write_timeout", 5.0)
+        return self.kwds.get("read_timeout", 5.0)
 
     @timeout.setter
     def timeout(self, value: float):
         self.kwds["write_timeout"] = value
+        self.kwds["read_timeout"] = value
 
     @property
     def reply_markup(self) -> ReplyMarkup | None:
