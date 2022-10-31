@@ -1,5 +1,6 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
+from pathlib import Path
 from typing import Type
 
 import qzemoji as qe
@@ -284,7 +285,7 @@ class InteractApp(BaseApp):
                 eid = int(context.args[0])
             except ValueError:
                 if context.args[0] == "export":
-                    task = self.add_hook_ref("command", qe.export())
+                    task = self.add_hook_ref("command", qe.export(Path("data/emoji.yml")))
                     task.add_done_callback(lambda t: echo(f"已导出到{t.result().as_posix()}."))
                 else:
                     echo("错误的输入格式。示例：\n/em 400343，展示图片\n/em export，导出自定义表情")
@@ -340,16 +341,23 @@ class InteractApp(BaseApp):
             try:
                 likedata = task.result()
             except:
+                await msg.reply_text("点赞失败")
+                self.log.error("Caught error when querying LikeData", exc_info=True)
                 return
+
             if likedata is None:
                 return
 
             with self.loginman.disable_suppress():
-                succ = await self.qzone.like_app(likedata, True)
+                try:
+                    succ = await self.qzone.like_app(likedata, True)
+                except:
+                    self.log.error("点赞失败", exc_info=True)
+                    succ = False
             if succ:
-                await msg.reply_text("点赞失败")
-            else:
                 await msg.reply_text("点赞成功")
+            else:
+                await msg.reply_text("点赞失败")
 
         task = self.add_hook_ref("storage", query_likedata(reply.message_id))
         task.add_done_callback(lambda t: self.add_hook_ref("command", like_trans(t)))
@@ -402,7 +410,11 @@ class InteractApp(BaseApp):
                 return
 
             with self.loginman.disable_suppress():
-                succ = await self.qzone.like_app(likedata, not unlike)
+                try:
+                    succ = await self.qzone.like_app(likedata, not unlike)
+                except:
+                    self.log.error("点赞失败", exc_info=True)
+                    succ = False
             if not succ:
                 await query.answer(text="点赞失败")
                 return

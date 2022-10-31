@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.9.dev3"
+version = "0.9.10.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -981,7 +981,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "tzdata"
-version = "2022.5"
+version = "2022.6"
 description = "Provider of IANA time zone data"
 category = "main"
 optional = false
@@ -1048,8 +1048,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.9.dev3-py3-none-any.whl", hash = "sha256:5fb9b21090bb3afdb10d1edc9366bb5233b0a492a32ebc9f81e73e58a71877bc"},
-    {file = "aioqzone-0.9.9.dev3.tar.gz", hash = "sha256:879804c36835c6950b9cc76ebd1c6157d7cc0344ff9478abf6fcee023c17a96a"},
+    {file = "aioqzone-0.9.10.dev1-py3-none-any.whl", hash = "sha256:2cc282407ce143a99efa6e41eb3421d261ed8ba23387ebda8c798d085e98a228"},
+    {file = "aioqzone-0.9.10.dev1.tar.gz", hash = "sha256:0b6a81fa6a42abff0f33ef5698e1b292176b0bf53883978445a200ec21efdf2e"},
 ]
 aioqzone-feed = []
 aiosqlite = [
@@ -1676,8 +1676,8 @@ typing-extensions = [
     {file = "typing_extensions-4.4.0.tar.gz", hash = "sha256:1511434bb92bf8dd198c12b1cc812e800d4181cfcb867674e0f8279cc93087aa"},
 ]
 tzdata = [
-    {file = "tzdata-2022.5-py2.py3-none-any.whl", hash = "sha256:323161b22b7802fdc78f20ca5f6073639c64f1a7227c40cd3e19fd1d0ce6650a"},
-    {file = "tzdata-2022.5.tar.gz", hash = "sha256:e15b2b3005e2546108af42a0eb4ccab4d9e225e2dfbf4f77aad50c70a4b1f3ab"},
+    {file = "tzdata-2022.6-py2.py3-none-any.whl", hash = "sha256:04a680bdc5b15750c39c12a448885a51134a27ec9af83667663f0b3a1bf3f342"},
+    {file = "tzdata-2022.6.tar.gz", hash = "sha256:91f11db4503385928c15598c98573e3af07e7229181bee5375bd30f1695ddcae"},
 ]
 tzlocal = [
     {file = "tzlocal-4.2-py3-none-any.whl", hash = "sha256:89885494684c929d9191c57aa27502afc87a579be5cdd3225c77c463ea043745"},
