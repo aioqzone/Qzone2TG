@@ -221,7 +221,7 @@ class InteractApp(BaseApp):
     # --------------------------------
     #            command
     # --------------------------------
-    def start(self, update: Update, context: CallbackContext):
+    async def start(self, update: Update, context: CallbackContext):
         chat = update.effective_chat
         assert chat
         self.log.info("Start! chat=%d", chat.id)
