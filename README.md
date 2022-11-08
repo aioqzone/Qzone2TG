@@ -1,42 +1,42 @@
 # Qzone3TG
 
-Forward Qzone feeds to telegram.
+转发说说到 Telegram.
 
 [![Dev CI](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/pages%20build%20and%20deployment/gh-pages?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/workflow/status/aioqzone/Qzone2TG/Build%20Docker%20Image?label=ghcr.io&logo=docker)][ghcr]
 [![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
 
-> 1. ⚠️ Qzone3TG is still under active development. Features and configurations may be changed in future releases.
+> 1. ⚠️ Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
+> 2. 🆘 **欢迎有意协助开发/维护的中文开发者**。不仅限于`Qzone3TG`，[aioqzone][org] 所属的任何仓库都需要您的帮助。
 
-[简体中文](README.zh-cn.md)
+[English](README.md)
 
-## Deployment
+## 部署
 
-We support and only support docker deployment. Currently we have published our pre-built image
-to [ghcr.io][ghcr].
+我们仅支持 docker 部署。目前我们在 [ghcr.io][ghcr] 发布了镜像。
 
 ``` sh
-# you may save a copy of this file and modify it.
+# 或许您应该复制一份文件，并对其中的配置做一些修改。
 docker-compose -f docker/docker-compose.yml up -d
 ```
 
-> If you'd like build a image by yourself, see documentation: [build](https://aioqzone.github.io/Qzone2TG/build.html#docker)
+> 如果您想要自行构建镜像，请查看文档：[build](https://aioqzone.github.io/Qzone2TG/build.html#docker)
 
-## Configuration
+## 配置
 
-> See: [Quick Start](https://aioqzone.github.io/Qzone2TG/quickstart.html#id3)
+> 文档：[快速上手](https://aioqzone.github.io/Qzone2TG/quickstart.html#id3)
 
-Qzone3TG uses [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) to manage user settings. YAML config file (like that in v2) and environment variables are __both__ supported. See [config/test.yml](config/test.yml) for an example of (the minimal and maximal) configurations.
+Qzone3TG 使用 [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) 管理用户配置。我们同时支持 yaml 文件配置（和v2几乎一致）和环境变量配置。前往 [config/test.yml](config/test.yml) 查看最小配置和最大（全）配置。
 
-Since environment variable style configuration is fully supported, one can merge configs into `docker-compose.yml`. See [docker/docker-compose.yml](docker/docker-compose.yml) for an example.
+得益于我们支持从环境变量中读取配置，您可以把不太复杂的配置文件直接写入 `docker-compose.yml` 的环境变量部分。[docker/docker-compose.yml](docker/docker-compose.yml) 为您提供了范例。
 
-## Documentations and Tutorials
+## 文档和教程
 
-- [Qzone3TG Documents][doc]
-- Author's blog: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
+- [Qzone3TG 文档][doc]
+- 博客专题: [Qzone3TG Topic](https://zzsblog.top/Products/Qzone3TG/index.html)
 
-> You can look for help at our [discussion group](https://t.me/qzone2tg_discuss).
+> 您可以在我们的 [讨论群](https://t.me/qzone2tg_discuss) 寻求帮助。
 
 ## License
 
@@ -57,8 +57,9 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
 
-- Qzone2TG is an aioqzone application and respects aioqzone's [disclaimer](https://aioqzone.github.io/aioqzone/disclaimers.html) if it has no conflict with our User Agreement.
-- Users should accept our [User Agreement](https://aioqzone.github.io/Qzone2TG/agreement.html) before using Qzone2TG.
+- Qzone2TG 是由 aioqzone 开发的应用程序。在不产生冲突的前提下，我们遵循 aioqzone 的[免责声明](https://aioqzone.github.io/aioqzone/disclaimers.html)。
+- 在使用 Qzone2TG 之前，用户必须阅读并同意我们的[用户协议](https://aioqzone.github.io/Qzone2TG/disclaimers.html)。
 
 [doc]: https://aioqzone.github.io/Qzone2TG
 [ghcr]: https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg/latest
+[org]: https://github.com/orgs/aioqzone/repositories

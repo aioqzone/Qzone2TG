@@ -31,7 +31,9 @@ def check_tools():
 def inst_pip_deps():
     """Install dependencies in `workdir`/.venv"""
     DEPDIR.mkdir(exist_ok=True, parents=True)
-    sp_retval(f"pip install {CONTEXT.as_posix()} -t {DEPDIR.as_posix()} -i {INDEX}")
+    sp_retval(
+        f"pip install {CONTEXT.as_posix()} -t {DEPDIR.as_posix()} -i {INDEX}" " --progress-bar off"
+    )
 
     for p in DEPDIR.iterdir():
         if p.is_dir() and p.stem == ".dist-info":

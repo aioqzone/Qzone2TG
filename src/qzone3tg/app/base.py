@@ -480,8 +480,6 @@ class BaseApp(
 
         :param reload: dismiss existing records in database
         :param is_period: triggered by heartbeat, defaults to False
-
-        :raises `SystemExist`: unexpected error
         """
         if not is_period and not self.loginman.force_login:
             with self.loginman.disable_suppress():
