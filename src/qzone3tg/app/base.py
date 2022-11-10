@@ -17,7 +17,7 @@ from aioqzone_feed.api.feed import FeedApi
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
-from httpx import URL, Timeout
+from httpx import URL, HTTPError, Timeout
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
@@ -332,8 +332,8 @@ class BaseApp(
             qe.proxy = proxy
 
         # TODO: default timeouts
-        self.client.client.timeout = Timeout(20, connect=conf.connect_timeout)
-        builder = builder.connect_timeout(conf.connect_timeout).read_timeout(20).write_timeout(20)
+        self.client.client.timeout = Timeout(60, connect=conf.connect_timeout)
+        builder = builder.connect_timeout(conf.connect_timeout).read_timeout(60).write_timeout(60)
         return builder
 
     # --------------------------------
@@ -510,9 +510,16 @@ class BaseApp(
             else:
                 self.log.debug("Should stop HB because LoginError, but it has already stopped.")
             return
+        except HTTPError as e:
+            self.log.error(e)
+            self.log.debug(e.request)
+            echo(f"发生了网络错误: {e}")
+            return
+        except SystemError:
+            return await self.shutdown()
         except:
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            return await self.shutdown()
+            return
 
         if got == 0:
             if not is_period:
@@ -530,9 +537,11 @@ class BaseApp(
         # forward
         try:
             await self.hook_feed.queue.send_all()
+        except SystemError:
+            return await self.shutdown()
         except:
             self.log.fatal("queue.send_all：未捕获的异常", exc_info=True)
-            return await self.shutdown()
+            return
 
         if is_period:
             return  # skip summary if this is called by heartbeat
