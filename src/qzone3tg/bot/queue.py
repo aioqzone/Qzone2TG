@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from aioqzone_feed.type import BaseFeed, FeedContent
 from httpx import TimeoutException
@@ -30,13 +30,13 @@ class QueueEvent(Event):
         """
         return
 
-    async def GetMid(self, feed: BaseFeed) -> list[int] | None:
+    async def GetMid(self, feed: BaseFeed) -> Sequence[int]:
         """Get a list of message id from storage.
 
         :param feed: feed
         :return: the list of message id associated with this feed, or None if not found.
         """
-        return
+        return ()
 
 
 class MsgQueue(Emittable[QueueEvent]):
@@ -227,7 +227,8 @@ class EditableQueue(MsgQueue):
     async def _edit_sent(self, feed: FeedContent):
         await self.wait("storage")
         mids = await self.hook.GetMid(feed)
-        if mids is None:
+        mids = list(mids)
+        if not mids:
             log.error("Edit media wasn't sent before, skipped.")
             return
 

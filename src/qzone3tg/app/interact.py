@@ -8,6 +8,7 @@ from aioqzone.api.loginman import QrStrategy
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
+from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram import (
     BotCommand,
     CallbackQuery,
@@ -29,7 +30,6 @@ from qzone3tg.app.hook import DefaultUpHook
 from qzone3tg.settings import PollingConf, Settings
 
 from .base import BaseApp
-from .storage import AsyncEngine
 from .storage.orm import FeedOrm
 
 

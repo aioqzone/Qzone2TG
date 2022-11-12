@@ -21,6 +21,7 @@ from httpx import URL, HTTPError, Timeout
 from qqqr.event import EventManager
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
+from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
 from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job, JobQueue
@@ -33,7 +34,7 @@ from qzone3tg.bot.queue import EditableQueue
 from qzone3tg.settings import LogConf, Settings, WebhookConf
 
 from .hook import DefaultFeedHook, DefaultQrHook, DefaultUpHook
-from .storage import AsyncEngine, DefaultStorageHook, StorageMan
+from .storage import DefaultStorageHook, StorageMan
 from .storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
