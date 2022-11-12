@@ -1,15 +1,12 @@
 import asyncio
-from pathlib import Path
 from time import time
-from typing import cast
+from typing import Sequence, cast
 
 from aioqzone.type.resp import FeedRep
 from aioqzone_feed.type import BaseFeed
 from qzemoji.base import AsyncSessionProvider
-from sqlalchemy.engine.result import Result
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...bot.queue import QueueEvent
 from .orm import FeedOrm, MessageOrm
@@ -69,11 +66,9 @@ class StorageMan(AsyncSessionProvider):
         stmt = select(FeedOrm)
         if where:
             stmt = stmt.where(*where)
-        return (await sess.execute(stmt)).scalar()
+        return await sess.scalar(stmt)
 
-    async def get_msg_orms(
-        self, *where, sess: AsyncSession | None = None
-    ) -> list[MessageOrm] | None:
+    async def get_msg_orms(self, *where, sess: AsyncSession | None = None) -> Sequence[MessageOrm]:
         """Get all satisfying orms from ``message`` table, with given criteria.
 
         :return: list of :class:`.MessageOrm`s if exist, else None.
@@ -85,10 +80,10 @@ class StorageMan(AsyncSessionProvider):
         stmt = select(MessageOrm)
         if where:
             stmt = stmt.where(*where)
-        r: Result = await sess.execute(stmt)
-        return r.scalars().all() or None
+        r = await sess.scalars(stmt)
+        return r.all()
 
-    async def get(self, *pred) -> tuple[BaseFeed, list[int] | None] | None:
+    async def get(self, *pred) -> tuple[BaseFeed, list[int]] | None:
         """Get a feed and its message ids from database, with given criteria.
         If multiple records satisfy the criteria, returns the first.
 
@@ -98,10 +93,7 @@ class StorageMan(AsyncSessionProvider):
             return
 
         orms = await self.get_msg_orms(*MessageOrm.fkey(orm))
-        if orms is None:
-            mids = None
-        else:
-            mids = [cast(int, i.mid) for i in orms]
+        mids = [i.mid for i in orms]
         return BaseFeed.from_orm(orm), mids
 
     async def clean(self, seconds: float):
@@ -114,15 +106,12 @@ class StorageMan(AsyncSessionProvider):
         if seconds <= 0:
             seconds += time()
         async with self.sess() as sess:
-            sess: AsyncSession
             async with sess.begin():
-                result: Result = await sess.execute(
-                    select(FeedOrm).where(FeedOrm.abstime < seconds)
-                )
+                result = await sess.scalars(select(FeedOrm).where(FeedOrm.abstime < seconds))
                 taskm, taskf = [], []
-                for mo in result.scalars().all():
-                    r: Result = await sess.execute(select(MessageOrm).where(*MessageOrm.fkey(mo)))
-                    taskm.extend(asyncio.create_task(sess.delete(i)) for i in r.scalars())
+                for mo in result:
+                    r = await sess.scalars(select(MessageOrm).where(*MessageOrm.fkey(mo)))
+                    taskm.extend(asyncio.create_task(sess.delete(i)) for i in r)
                     taskf.append(asyncio.create_task(sess.delete(mo)))
 
                 if taskm:
@@ -159,7 +148,6 @@ class DefaultStorageHook(StorageEvent):
                 sess.add(FeedOrm.from_base(feed))
 
         async with self.sess() as sess:
-            sess: AsyncSession
             async with sess.begin():
                 tasks = [
                     self.update_feed(feed, mids, sess=sess, flush=False),
@@ -168,11 +156,9 @@ class DefaultStorageHook(StorageEvent):
                 await asyncio.wait([asyncio.create_task(i) for i in tasks])
                 await sess.commit()
 
-    async def GetMid(self, feed: BaseFeed) -> list[int] | None:
+    async def GetMid(self, feed: BaseFeed) -> list[int]:
         r = await self.man.get_msg_orms(*MessageOrm.fkey(feed))
-        if r is None:
-            return r
-        return [cast(int, i.mid) for i in r]
+        return [i.mid for i in r]
 
     async def update_feed(
         self,
@@ -184,21 +170,21 @@ class DefaultStorageHook(StorageEvent):
         if sess is None:
             async with self.sess() as newsess:
                 await self.update_feed(feed, mids, sess=newsess, flush=flush)
-                return
+            return
 
         if flush:
             async with sess.begin():
                 await self.update_feed(feed, mids, sess=sess, flush=False)
                 await sess.commit()
-                return
+            return
 
         # query existing mids
         stmt = select(MessageOrm)
         stmt = stmt.where(*MessageOrm.fkey(feed))
-        result: Result = await sess.execute(stmt)
+        result = await sess.scalars(stmt)
 
         # delete existing mids
-        tasks = [asyncio.create_task(sess.delete(i)) for i in result.scalars()]
+        tasks = [asyncio.create_task(sess.delete(i)) for i in result]
         if tasks:
             await asyncio.wait(tasks)
 

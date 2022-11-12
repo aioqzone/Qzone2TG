@@ -1,9 +1,8 @@
 from aioqzone.api.loginman import MixedLoginMan, QrStrategy
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncSessionProvider
-from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
-from sqlalchemy.future import select
+from sqlalchemy import Connection, inspect, select
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .orm import CookieOrm
 
@@ -28,7 +27,7 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
         self.client = client
 
     async def table_exists(self):
-        def sync(conn: AsyncConnection):
+        def sync(conn: Connection):
             exist = inspect(conn).has_table(CookieOrm.__tablename__)
             if not exist:
                 CookieOrm.metadata.create_all(conn)
@@ -40,22 +39,25 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
     async def load_cached_cookie(self):
         async with self.sess() as sess:
             stmt = select(CookieOrm).where(CookieOrm.uin == self.uin)
-            result = await sess.execute(stmt)
-        if (prev := result.scalar()) is None:
+            prev = await sess.scalar(stmt)
+        if prev is None:
             return
-        self._cookie = prev.cookie
+        self._cookie = dict(p_skey=prev.p_skey)
         self.client.client.cookies.update(self._cookie)
 
     async def _new_cookie(self) -> dict[str, str]:
         r = await super()._new_cookie()
+        if "p_skey" not in r:
+            return r
+
         async with self.sess() as sess:
             async with sess.begin():
-                result = await sess.execute(select(CookieOrm).where(CookieOrm.uin == self.uin))
-                if prev := result.scalar():
+                prev = await sess.scalar(select(CookieOrm).where(CookieOrm.uin == self.uin))
+                if prev:
                     # if exist: update
-                    prev.cookie = r
+                    prev.p_skey = r["p_skey"]
                 else:
                     # not exist: add
-                    sess.add(CookieOrm(uin=self.uin, cookie=r))
+                    sess.add(CookieOrm(uin=self.uin, p_skey=r["p_skey"]))
             await sess.commit()
         return r
