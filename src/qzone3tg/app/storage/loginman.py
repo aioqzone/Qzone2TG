@@ -1,7 +1,9 @@
+from typing import cast
+
 from aioqzone.api.loginman import MixedLoginMan, QrStrategy
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncSessionProvider
-from sqlalchemy import Connection, inspect, select
+from sqlalchemy import Connection, Table, inspect, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .orm import CookieOrm
@@ -27,14 +29,29 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
         self.client = client
 
     async def table_exists(self):
-        def sync(conn: Connection):
-            exist = inspect(conn).has_table(CookieOrm.__tablename__)
+        def ensure_table(conn: Connection):
+            """
+            .. versionchanged:: 0.6.0.dev2
+
+                check if the ``cookie`` table has a ``p_skey`` column. If not, replace the schema.
+            """
+            nsp = inspect(conn)
+            exist = nsp.has_table(CookieOrm.__tablename__)
             if not exist:
                 CookieOrm.metadata.create_all(conn)
-            return exist
+                return False
+
+            cols = nsp.get_columns("cookie")
+            if any(col["name"] == "p_skey" for col in cols):
+                return True
+
+            # drop table
+            cast(Table, CookieOrm.__table__).drop(conn)
+            CookieOrm.metadata.create_all(conn)
+            return True
 
         async with self.engine.begin() as conn:
-            return await conn.run_sync(sync)
+            return await conn.run_sync(ensure_table)
 
     async def load_cached_cookie(self):
         async with self.sess() as sess:
@@ -59,5 +76,4 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
                 else:
                     # not exist: add
                     sess.add(CookieOrm(uin=self.uin, p_skey=r["p_skey"]))
-            await sess.commit()
         return r

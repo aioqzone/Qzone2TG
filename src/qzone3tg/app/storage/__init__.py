@@ -119,8 +119,6 @@ class StorageMan(AsyncSessionProvider):
                 if taskf:
                     await asyncio.wait(taskf)
 
-                await sess.commit()
-
 
 class DefaultStorageHook(StorageEvent):
     def __init__(self, man: StorageMan) -> None:
@@ -154,7 +152,6 @@ class DefaultStorageHook(StorageEvent):
                     update_feed(feed, sess=sess),
                 ]
                 await asyncio.wait([asyncio.create_task(i) for i in tasks])
-                await sess.commit()
 
     async def GetMid(self, feed: BaseFeed) -> list[int]:
         r = await self.man.get_msg_orms(*MessageOrm.fkey(feed))
@@ -175,7 +172,6 @@ class DefaultStorageHook(StorageEvent):
         if flush:
             async with sess.begin():
                 await self.update_feed(feed, mids, sess=sess, flush=False)
-                await sess.commit()
             return
 
         # query existing mids
