@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -25,13 +26,17 @@ def fixed():
 
 @pytest_asyncio.fixture(scope="class")
 async def engine():
-    async with AsyncEngineFactory.sqlite3(None) as engine:
+    db = Path("tmp/tmp.db")
+    async with AsyncEngineFactory.sqlite3(db) as engine:
         yield engine
+    db.unlink(missing_ok=True)
 
 
 @pytest_asyncio.fixture(scope="class")
 async def store(engine: AsyncEngine):
-    yield StorageMan(engine)
+    s = StorageMan(engine)
+    await s.create()
+    yield s
 
 
 @pytest_asyncio.fixture(scope="class")
@@ -58,7 +63,7 @@ class TestFeedStore:
         feed, mids = pack
         assert not mids
 
-        await hook.update_feed(fixed[2], [1, 2])
+        await hook.update_message_ids(fixed[2], [1, 2])
         mids = await hook.GetMid(fixed[2])
         assert mids
         assert mids == [1, 2]
