@@ -136,7 +136,7 @@ class DefaultStorageHook(StorageEvent):
         :param mids: message id list, defaults to None
         """
 
-        async def update_feed(feed, sess: AsyncSession):
+        async def _update_feed(feed, sess: AsyncSession):
             prev = await self.man.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
             if prev:
                 # if exist: update
@@ -147,17 +147,15 @@ class DefaultStorageHook(StorageEvent):
 
         async with self.sess() as sess:
             async with sess.begin():
-                tasks = [
-                    self.update_feed(feed, mids, sess=sess, flush=False),
-                    update_feed(feed, sess=sess),
-                ]
-                await asyncio.wait([asyncio.create_task(i) for i in tasks])
+                # BUG: asyncio.wait/gather raises error at the end of a transaction
+                await self.update_message_ids(feed, mids, sess=sess, flush=False)
+                await _update_feed(feed, sess=sess)
 
     async def GetMid(self, feed: BaseFeed) -> list[int]:
         r = await self.man.get_msg_orms(*MessageOrm.fkey(feed))
         return [i.mid for i in r]
 
-    async def update_feed(
+    async def update_message_ids(
         self,
         feed: BaseFeed,
         mids: list[int] | None,
@@ -166,12 +164,12 @@ class DefaultStorageHook(StorageEvent):
     ):
         if sess is None:
             async with self.sess() as newsess:
-                await self.update_feed(feed, mids, sess=newsess, flush=flush)
+                await self.update_message_ids(feed, mids, sess=newsess, flush=flush)
             return
 
         if flush:
-            async with sess.begin():
-                await self.update_feed(feed, mids, sess=sess, flush=False)
+            await self.update_message_ids(feed, mids, sess=sess, flush=False)
+            await sess.commit()
             return
 
         # query existing mids
