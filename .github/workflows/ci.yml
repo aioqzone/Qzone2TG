@@ -60,4 +60,4 @@ jobs:
           destination_branch: beta
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr_title: ${{ needs.test.outputs.package-version }}
-          pr_template: CHANGELOG.md
+          pr_template: ${{ steps.git-cliff.outputs.changelog }}
