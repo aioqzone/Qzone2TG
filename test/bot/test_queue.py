@@ -9,7 +9,7 @@ from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
 from qzone3tg.bot.limitbot import BotTaskEditter, TaskerEvent
-from qzone3tg.bot.queue import EditableQueue, QueueEvent
+from qzone3tg.bot.queue import EditableQueue, MsgQueue, QueueEvent
 
 from . import FakeBot, fake_feed, fake_media
 
@@ -22,7 +22,7 @@ class Ihave0(QueueEvent):
             return [0]
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 def ideal(client: ClientAdapter):
     bot = FakeBot()
     tasker = BotTaskEditter(FetchSplitter(client), client)
@@ -38,7 +38,7 @@ def ideal(client: ClientAdapter):
 
 
 class TestIdeal:
-    async def test_add(self, ideal: EditableQueue):
+    async def test_add(self, ideal: MsgQueue):
         ideal.new_batch(0)
         f = fake_feed(0)
         await ideal.add(0, f)
@@ -51,11 +51,11 @@ class TestIdeal:
         assert len(ideal.q) == 2
         assert isinstance(ideal.q[f], list)
 
-    async def test_send_norm(self, ideal: EditableQueue):
+    async def test_send_norm(self, ideal: MsgQueue):
         ideal.new_batch(1)
         for i in range(3):
             f = fake_feed(i + 1)
-            f.abstime = i
+            f.abstime = i * 1000
             await ideal.add(1, f)
         await ideal.send_all()
         assert ideal.sending is None
@@ -63,7 +63,31 @@ class TestIdeal:
         assert len(bot.log) == 3
         assert "".join(i[2][-1] for i in bot.log) == "123"
 
-    async def test_reply_markup(self, ideal: EditableQueue):
+    async def test_drop_dup_feed(self, ideal: MsgQueue):
+        ideal.new_batch(3)
+
+        f = fake_feed(1)
+        await ideal.add(3, f)
+
+        f = fake_feed(1)
+        f.abstime = 1
+        await ideal.add(3, f)
+
+        f = fake_feed(1)
+        f.uin = f.abstime = 2
+        await ideal.add(3, f)
+
+        f = fake_feed(1)
+        f.abstime = 3
+        await ideal.add(3, f)
+
+        await ideal.send_all()
+        bot = cast(FakeBot, ideal.bot)
+        assert len(bot.log) == 2
+
+        assert list(ideal.q.values()) == [1, 1, 2, 1]
+
+    async def test_reply_markup(self, ideal: MsgQueue):
         ideal.new_batch(2)
         f = fake_feed(2)
         f.forward = fake_feed(1)
@@ -94,7 +118,7 @@ class RealBot(FakeBot):
         return super().send_photo(to, media, text, **kw)
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 def real(client: ClientAdapter):
     bot = RealBot()
     tasker = BotTaskEditter(FetchSplitter(client), client)

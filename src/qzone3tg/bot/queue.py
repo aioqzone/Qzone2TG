@@ -97,26 +97,25 @@ class MsgQueue(Emittable[QueueEvent]):
             self.sending = None
 
     async def _send_all_unsafe(self):
+        uin2lastfeed: dict[int, FeedContent] = {}
         for k in sorted(self.q):
             if (
-                self.sending
-                and isinstance(last_mid := self.q[self.sending], int)
-                and self.sending.uin == k.uin
-                and k.abstime - self.sending.abstime < 1000
+                (last_feed := uin2lastfeed.get(k.uin))
+                and isinstance(last_mid := self.q[last_feed], int)
+                and k.abstime - last_feed.abstime < 1000
             ):
                 # compare with last feed
-                if self.sending.entities == k.entities:
-                    log.info(
-                        f"Feed {self.sending} and {k} has the same content. Skip the last one."
-                    )
+                if last_feed.entities == k.entities:
+                    log.info(f"Feed {last_feed} and {k} has the same content. Skip the last one.")
                     # if all entities are the same, save the last mid and continue.
-                    self.sending = k  # step the pointer
                     self.q[k] = last_mid
                     self.add_hook_ref("storage", self.hook.SaveFeed(k, [last_mid]))
+                    uin2lastfeed[k.uin] = k
                     continue
 
             self.sending = k
             await self._send_one_feed(k)
+            uin2lastfeed[k.uin] = k
 
     async def _send_one_feed(self, feed: FeedContent):
         reply: int | None = None
