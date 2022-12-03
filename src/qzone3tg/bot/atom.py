@@ -33,8 +33,9 @@ class MsgPartial(ABC):
     One feed can be seperated into more than one partials. One partial corresponds
     to one function call in aspect of behavior."""
 
-    __slots__ = ("kwds", "meth")
+    __slots__ = ("kwds", "meth", "text")
     meth: str
+    text: str | None
 
     def __init__(self, **kw) -> None:
         self.kwds = kw
@@ -92,7 +93,6 @@ class TextPartial(MsgPartial):
     Calling this will trigger :meth:`BotProtocol.send_message`.
     """
 
-    __slots__ = ("text", "kwds")
     meth = "message"
 
     def __init__(self, text: str, **kw) -> None:
@@ -100,6 +100,7 @@ class TextPartial(MsgPartial):
         self.text = text
 
     async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+        assert self.text
         return await bot.send_message(*args, text=self.text, **(self.kwds | kwds))
 
     @classmethod
@@ -120,7 +121,7 @@ class MediaPartial(MsgPartial, Generic[MD]):
     when MediaPartial is called. Thus "send_{meth}" must be a callable in :class:`BotProtocol`.
     """
 
-    __slots__ = ("meta", "_raw", "text")
+    __slots__ = ("meta", "_raw")
 
     def __init__(
         self,

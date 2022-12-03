@@ -12,7 +12,7 @@ from telegram.error import BadRequest, TelegramError, TimedOut
 from qzone3tg.utils.iter import alist, countif
 
 from . import BotProtocol, ChatId, InputMedia
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial
+from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial, stringify_entities
 from .limitbot import BotTaskEditter as BTE
 
 SendFunc = MediaGroupPartial | MsgPartial
@@ -64,8 +64,10 @@ class MsgQueue(Emittable[QueueEvent]):
         if bid != self.bid:
             log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
+        await self.wait("storage")  # wait for all pending storage tasks
         ids = await self.hook.GetMid(feed)
         if ids:
+            log.info(f"Feed {feed} is sent, use existing message id: {ids[-1]}")
             self.q[feed] = ids[-1]
             return  # needn't send again. refer to the message is okay.
 
@@ -95,9 +97,25 @@ class MsgQueue(Emittable[QueueEvent]):
             self.sending = None
 
     async def _send_all_unsafe(self):
+        uin2lastfeed: dict[int, FeedContent] = {}
         for k in sorted(self.q):
+            if (
+                (last_feed := uin2lastfeed.get(k.uin))
+                and isinstance(last_mid := self.q[last_feed], int)
+                and k.abstime - last_feed.abstime < 1000
+            ):
+                # compare with last feed
+                if last_feed.entities == k.entities:
+                    log.info(f"Feed {last_feed} and {k} has the same content. Skip the last one.")
+                    # if all entities are the same, save the last mid and continue.
+                    self.q[k] = last_mid
+                    self.add_hook_ref("storage", self.hook.SaveFeed(k, [last_mid]))
+                    uin2lastfeed[k.uin] = k
+                    continue
+
             self.sending = k
             await self._send_one_feed(k)
+            uin2lastfeed[k.uin] = k
 
     async def _send_one_feed(self, feed: FeedContent):
         reply: int | None = None
@@ -163,6 +181,8 @@ class MsgQueue(Emittable[QueueEvent]):
             log.debug(f"increased timeout={f.timeout:.2f}")
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
+            if f.text and len(f.text) < LIM_TXT:
+                f.text = "🔁" + f.text
             return True
         except BadRequest as e:
             self.exc[feed].append(e)
