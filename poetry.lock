@@ -19,7 +19,7 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.9.10.dev3"
+version = "0.9.11.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
@@ -27,7 +27,7 @@ python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
 cssselect = ">=1.1.0,<2.0.0"
-httpx = ">=0.23.0,<0.24.0"
+httpx = ">=0.23.1,<0.24.0"
 lxml = ">=4.9.1,<5.0.0"
 numpy = {version = ">=1.22.3,<2.0.0", markers = "python_version >= \"3.8\" and python_version < \"4.0\""}
 opencv-python-headless = ">=4.5.5,<5.0.0"
@@ -1048,8 +1048,8 @@ aiolimiter = [
     {file = "aiolimiter-1.0.0.tar.gz", hash = "sha256:9d40767e4476048145dfa9f61948445168d6e63cf42c95785a20b9aaff2e4564"},
 ]
 aioqzone = [
-    {file = "aioqzone-0.9.10.dev3-py3-none-any.whl", hash = "sha256:edf3ad7e70220b8e6548303583296bb91f5db19f06745e084b279d7a49336fb0"},
-    {file = "aioqzone-0.9.10.dev3.tar.gz", hash = "sha256:8c256e0d342ec6e28ce6a5d256922783109a09570f3471e86137ab3b9303ffa1"},
+    {file = "aioqzone-0.9.11.dev1-py3-none-any.whl", hash = "sha256:b7b57f77dc3b61109119763585aa7bc71779f5f9f0884b86f24b0d9f52bb6945"},
+    {file = "aioqzone-0.9.11.dev1.tar.gz", hash = "sha256:1392aba4f810fc4f71e39c8e88784dc550a3d9caa2329e64afbf7f851cf84445"},
 ]
 aioqzone-feed = []
 aiosqlite = [

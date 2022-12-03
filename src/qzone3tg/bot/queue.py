@@ -12,7 +12,7 @@ from telegram.error import BadRequest, TelegramError, TimedOut
 from qzone3tg.utils.iter import alist, countif
 
 from . import BotProtocol, ChatId, InputMedia
-from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial
+from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial, stringify_entities
 from .limitbot import BotTaskEditter as BTE
 
 SendFunc = MediaGroupPartial | MsgPartial
@@ -98,6 +98,23 @@ class MsgQueue(Emittable[QueueEvent]):
 
     async def _send_all_unsafe(self):
         for k in sorted(self.q):
+            if (
+                self.sending
+                and isinstance(last_mid := self.q[self.sending], int)
+                and self.sending.uin == k.uin
+                and k.abstime - self.sending.abstime < 1000
+            ):
+                # compare with last feed
+                if self.sending.entities == k.entities:
+                    log.info(
+                        f"Feed {self.sending} and {k} has the same content. Skip the last one."
+                    )
+                    # if all entities are the same, save the last mid and continue.
+                    self.sending = k  # step the pointer
+                    self.q[k] = last_mid
+                    self.add_hook_ref("storage", self.hook.SaveFeed(k, [last_mid]))
+                    continue
+
             self.sending = k
             await self._send_one_feed(k)
 
