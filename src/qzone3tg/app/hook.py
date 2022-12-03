@@ -143,7 +143,7 @@ class DefaultFeedHook(FeedEvent):
     async def FeedProcEnd(self, bid: int, feed: FeedContent):
         log.debug(f"bid={bid}: {feed}")
         if feed.uin in self.block:
-            log.info(f"Block hit: {feed.uin}")
+            log.info(f"Blocklist hit: {feed.uin}({feed.nickname})")
             return await self.FeedDropped(bid, feed)
         await self.queue.add(bid, feed)
 

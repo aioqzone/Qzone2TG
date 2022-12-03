@@ -12,7 +12,7 @@ from telegram.error import BadRequest, TelegramError, TimedOut
 from qzone3tg.utils.iter import alist, countif
 
 from . import BotProtocol, ChatId, InputMedia
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial
+from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial
 from .limitbot import BotTaskEditter as BTE
 
 SendFunc = MediaGroupPartial | MsgPartial
@@ -64,8 +64,10 @@ class MsgQueue(Emittable[QueueEvent]):
         if bid != self.bid:
             log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
+        await self.wait("storage")  # wait for all pending storage tasks
         ids = await self.hook.GetMid(feed)
         if ids:
+            log.info(f"Feed {feed} is sent, use existing message id: {ids[-1]}")
             self.q[feed] = ids[-1]
             return  # needn't send again. refer to the message is okay.
 
@@ -163,6 +165,8 @@ class MsgQueue(Emittable[QueueEvent]):
             log.debug(f"increased timeout={f.timeout:.2f}")
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
+            if f.text and len(f.text) < LIM_TXT:
+                f.text = "🔁" + f.text
             return True
         except BadRequest as e:
             self.exc[feed].append(e)
