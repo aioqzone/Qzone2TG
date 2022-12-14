@@ -4,7 +4,7 @@
 import sqlalchemy as sa
 from aioqzone.type.resp import FeedRep
 from aioqzone_feed.type import BaseFeed
-from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 
 
 class Base(MappedAsDataclass, DeclarativeBase):
@@ -23,6 +23,7 @@ class FeedOrm(Base):
     typeid: Mapped[int] = mapped_column(sa.Integer, default=0)
     topicId: Mapped[str] = mapped_column(sa.VARCHAR, default="")
     nickname: Mapped[str] = mapped_column(sa.VARCHAR, default="Unknown")
+    # mids: Mapped["MessageOrm"] = relationship()
 
     @classmethod
     def from_base(cls, obj: BaseFeed):
