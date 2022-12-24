@@ -450,7 +450,7 @@ class FetchSplitter(LocalSplitter):
 
         try:
             # fetch the media to probe correctly
-            async with await self.client.get(str(media.raw)) as r:
+            async with self.client.get(str(media.raw)) as r:
                 return b"".join([i async for i in r.aiter_bytes()])
         except:
             # give-up if error

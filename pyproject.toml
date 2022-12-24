@@ -12,7 +12,7 @@ documentation = "https://aioqzone.github.io/Qzone2TG"
 [tool.poetry.dependencies]
 python = "~3.11.0"
 aioqzone-feed = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.10.1.dev1/aioqzone_feed-0.10.1.dev1-py3-none-any.whl" }
-python-telegram-bot = { extras = ["socks", "rate-limiter", "webhooks", "job-queue"], version = "^20.0a6" }
+python-telegram-bot = { extras = ["socks", "rate-limiter", "webhooks", "job-queue"], version = "^20.0b0" }
 socksio = { git = "https://github.com/JamzumSum/socksio.git", rev = "master" }
 
 

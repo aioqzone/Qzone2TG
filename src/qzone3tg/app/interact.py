@@ -294,7 +294,7 @@ class InteractApp(BaseApp):
             async def show_eid(eid: int):
                 msg = f'示例： /em {eid} {(await qe.query(eid)) or "😅"}'
                 for ext in ["gif", "png", "jpg"]:
-                    async with await self.client.get(qe.utils.build_html(eid, ext=ext)) as r:
+                    async with self.client.get(qe.utils.build_html(eid, ext=ext)) as r:
                         if r.status_code != 200:
                             continue
                         self.add_hook_ref("command", self.bot.send_photo(chat.id, r.content, msg))
