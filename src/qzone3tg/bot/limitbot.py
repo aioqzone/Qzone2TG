@@ -164,7 +164,7 @@ class BotTaskEditter(BotTaskGenerator):
 
                 log.info(f"force fetch a {call.meth}: {media}")
                 try:
-                    async with await self.client.get(media) as r:
+                    async with self.client.get(media) as r:
                         call._raw = b"".join([i async for i in r.aiter_bytes()])
                 except:
                     log.warning(f"force fetch error, skipped: {media}", exc_info=True)
@@ -190,8 +190,8 @@ class BotTaskEditter(BotTaskGenerator):
 
         log.info(f"force fetch {media.type}: {media.media}")
         try:
-            async with await self.client.get(media.media) as r:
-                media.media = InputFile(b"".join([i async for i in r.aiter_bytes()]), attach=True)
+            async with self.client.get(media.media) as r:
+                media = media.__class__(media=b"".join([i async for i in r.aiter_bytes()]))
         except:
             log.warning(f"force fetch error, skipped: {media.media}", exc_info=True)
         return media
