@@ -55,7 +55,7 @@ jobs:
           OUTPUT: CHANGELOG.md
 
       - name: Create Pull Request
-        uses: repo-sync/pull-request@v2.9
+        uses: repo-sync/pull-request@v2.10
         with:
           destination_branch: beta
           github_token: ${{ secrets.GITHUB_TOKEN }}
