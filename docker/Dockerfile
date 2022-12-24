@@ -8,6 +8,7 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         git \
         curl \
+        build-essential \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install --no-install-recommends -y \
         nodejs \
