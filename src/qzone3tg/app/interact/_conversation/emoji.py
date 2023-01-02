@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import re
-from typing import TYPE_CHECKING, Awaitable
+from typing import TYPE_CHECKING
 
+import cv2 as cv
+import numpy as np
 import qzemoji as qe
 from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
 from qzemoji.utils import build_html
-from telegram import ForceReply, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 if TYPE_CHECKING:
@@ -20,9 +21,16 @@ async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
     for ext in ("gif", "jpg", "png"):
         try:
             async with self.client.get(build_html(eid, ext=ext)) as r:
-                return r.content
+                return upsample(r.content, ext)
         except:
             pass
+
+
+def upsample(content: bytes, ext: str, f=2.0) -> bytes:
+    img = cv.imdecode(np.frombuffer(content, dtype=np.uint8), cv.IMREAD_UNCHANGED)
+    img = cv.resize(img, None, fx=f, fy=f, interpolation=cv.INTER_CUBIC)  # type: ignore
+    _, content = cv.imencode(".jpg", img)
+    return content
 
 
 async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,9 +43,10 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
     success. It will transmit the state graph to `ConversationHandler.END`.
 
     """
+    self.log.debug(context.args)
 
     match context.args:
-        case None:
+        case None | []:
             await update.message.reply_markdown_v2("usage: `/em eid [name]`")
             return ConversationHandler.END
         case [eid]:
@@ -150,13 +159,11 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
     chat_id = update.message.chat_id
     name = update.message.text.strip()
 
-    message_id: int = context.user_data["mid"]
-
     to_del: list[int] = context.user_data["to_delete"]
-
     bot = update.get_bot()
 
     if "text" in context.user_data:
+        message_id: int = context.user_data["mid"]
         text: str = context.user_data["text"]
         new_text = text.replace(
             f"[em]e{eid}[/em]",
@@ -193,3 +200,10 @@ async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
     )
     return ConversationHandler.END
+
+
+if __name__ == "__main__":
+    with open("tmp/e10274.gif", "rb") as f:
+        b = upsample(f.read(), "gif")
+    with open("tmp/e10274.jpg", "wb") as f:
+        f.write(b)
