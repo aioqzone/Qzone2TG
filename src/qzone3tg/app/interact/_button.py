@@ -51,7 +51,7 @@ def hook_taskerevent(self: InteractApp, base):
             else:
                 markup.append(None)
             markup.append(self._reply_markup_one_feed(feed))
-            return InlineKeyboardMarkup([])
+            return markup
 
     return interact_tasker_hook
 
