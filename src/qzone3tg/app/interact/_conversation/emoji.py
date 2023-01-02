@@ -35,8 +35,6 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
     success. It will transmit the state graph to `ConversationHandler.END`.
 
     """
-    assert context.user_data
-    assert update.effective_user
 
     match context.args:
         case None:
@@ -53,6 +51,7 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
                 f"Input your customize text for e{eid}",
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
+            assert context.user_data is not None
             context.user_data["eid"] = eid
             context.user_data["to_delete"] = [msg.id, update.message.id]
             return ASK_CUSTOM
@@ -76,7 +75,7 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
     This method will transmit the state graph to `CHOOSE_EID`.
     """
     query = update.callback_query
-    assert context.user_data
+    assert context.user_data is not None
     if query.message.text:
         context.user_data["tattr"] = "text"
         text = query.message.text
@@ -114,7 +113,7 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
 
     This method will transmit the state graph to `ASK_CUSTOM`.
     """
-    assert context.user_data
+    assert context.user_data is not None
     eid = int(update.message.text)
     content = await _get_eid_bytes(self, eid)
     if content is None:
@@ -145,7 +144,7 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
-    assert context.user_data
+    assert context.user_data is not None
 
     eid: int = context.user_data["eid"]
     chat_id = update.message.chat_id
@@ -188,7 +187,7 @@ async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
-    assert context.user_data
+    assert context.user_data is not None
     context.user_data.clear()
     await update.message.reply_text(
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
