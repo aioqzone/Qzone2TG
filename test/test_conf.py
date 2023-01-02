@@ -64,15 +64,9 @@ async def test_init():
 @if_conf_exist
 @pytest.mark.asyncio
 async def test_hook_class():
-    from qzone3tg.app.base import (
-        BaseApp,
-        DefaultFeedHook,
-        DefaultQrHook,
-        DefaultStorageHook,
-        DefaultUpHook,
-        TaskerEvent,
-    )
+    from qzone3tg.app.base import BaseApp, DefaultFeedHook, DefaultQrHook, TaskerEvent
     from qzone3tg.app.interact import InteractApp
+    from qzone3tg.app.interact._button import hook_defaultqr, hook_taskerevent
 
     with open("config/test.yml") as f:
         mind, _ = yaml.safe_load_all(f)
@@ -86,8 +80,8 @@ async def test_hook_class():
 
         iapp = InteractApp(client, engine, conf=minc)
         assert iapp.sub_of(DefaultFeedHook).__qualname__.startswith(InteractApp.__qualname__)
-        assert iapp.sub_of(DefaultQrHook).__qualname__.startswith(InteractApp.__qualname__)
-        assert iapp.sub_of(TaskerEvent).__qualname__.startswith(InteractApp.__qualname__)
-        assert iapp.hook_qr.qr_markup.__qualname__.startswith(InteractApp.__qualname__)
+        assert iapp.sub_of(DefaultQrHook).__qualname__.startswith(hook_defaultqr.__qualname__)
+        assert iapp.sub_of(TaskerEvent).__qualname__.startswith(hook_taskerevent.__qualname__)
+        assert iapp.hook_qr.qr_markup.__qualname__.startswith(hook_defaultqr.__qualname__)
 
         assert iapp.hook_qr.qr_markup() is not None
