@@ -11,7 +11,7 @@ from telegram.error import BadRequest, TelegramError, TimedOut
 
 from qzone3tg.utils.iter import alist, countif
 
-from . import BotProtocol, ChatId, InputMedia
+from . import BotProtocol, ChatId, GroupMedia
 from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial, stringify_entities
 from .limitbot import BotTaskEditter as BTE
 
@@ -214,7 +214,7 @@ class EditableQueue(MsgQueue):
     ) -> None:
         super().__init__(bot, tasker, forward_map, max_retry)
 
-    async def edit_media(self, to: ChatId, mid: int, media: InputMedia):
+    async def edit_media(self, to: ChatId, mid: int, media: GroupMedia):
         kw = {}
         for _ in range(self.max_retry):
             try:

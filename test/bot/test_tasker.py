@@ -1,5 +1,3 @@
-from time import time
-
 import pytest
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
@@ -15,7 +13,7 @@ from qzone3tg.bot.atom import (
 )
 from qzone3tg.bot.limitbot import BotTaskEditter as BTE
 from qzone3tg.bot.limitbot import BotTaskGenerator as BTG
-from qzone3tg.bot.limitbot import RelaxSemaphore, TaskerEvent
+from qzone3tg.bot.limitbot import TaskerEvent
 
 from . import fake_feed, fake_media
 
@@ -39,21 +37,6 @@ def edit(client: ClientAdapter):
     t = BTE(LocalSplitter(), client)
     t.register_hook(TaskerEvent())
     yield t
-
-
-@pytest.mark.skip  # Semaphore is deprecated in 0.5.0a1
-class TestSemaphore:
-    async def test_acquire(self):
-        sem = RelaxSemaphore(10)
-        async with sem.context(10):
-            assert not await sem.acquire(1, block=False)
-
-    async def test_time(self):
-        sem = RelaxSemaphore(10)
-        async with sem.context(10):
-            start = time()
-        async with sem.context(1):
-            assert time() - start > 1
 
 
 class TestGenerator:

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import logging.config
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from time import time
@@ -97,15 +98,11 @@ class TimeoutLoginman(LoginMan):
     def up_suppressed(self):
         return time() < self.suppress_up_till
 
+    @contextmanager
     def disable_suppress(self):
-        class ctx:
-            def __enter__(_self):
-                self.force_login = True
-
-            def __exit__(_self, *exc):
-                self.force_login = False
-
-        return ctx()
+        self.force_login = True
+        yield self
+        self.force_login = False
 
 
 class BaseApp(
@@ -165,6 +162,7 @@ class BaseApp(
 
     @property
     def queue(self) -> JobQueue:
+        assert self.app.job_queue
         return self.app.job_queue
 
     # --------------------------------
