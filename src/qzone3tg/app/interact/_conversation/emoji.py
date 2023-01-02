@@ -29,8 +29,8 @@ async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
 def upsample(content: bytes, ext: str, f=2.0) -> bytes:
     img = cv.imdecode(np.frombuffer(content, dtype=np.uint8), cv.IMREAD_UNCHANGED)
     img = cv.resize(img, None, fx=f, fy=f, interpolation=cv.INTER_CUBIC)  # type: ignore
-    _, content = cv.imencode(".jpg", img)
-    return content
+    _, arr = cv.imencode(".jpg", img)
+    return arr.tobytes()
 
 
 async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,7 +68,7 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             await asyncio.gather(
                 qe.set(int(eid), name),
                 update.message.delete(),
-                update.message.reply_text(f"You have set {eid} to {name}."),
+                update.message.reply_markdown_v2(f"You have set `{eid}` to {name}."),
             )
             return ConversationHandler.END
 
@@ -179,7 +179,7 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
 
     await asyncio.gather(
         qe.set(eid, name),
-        update.message.reply_text(f"You have set {eid} to {name}."),
+        update.message.reply_markdown_v2(f"You have set `{eid}` to {name}."),
         bot.delete_message(chat_id, to_del[0]),
         bot.delete_message(chat_id, update.message.id),
     )
@@ -200,10 +200,3 @@ async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
     )
     return ConversationHandler.END
-
-
-if __name__ == "__main__":
-    with open("tmp/e10274.gif", "rb") as f:
-        b = upsample(f.read(), "gif")
-    with open("tmp/e10274.jpg", "wb") as f:
-        f.write(b)
