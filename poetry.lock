@@ -51,22 +51,22 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.10.1.dev1"
+version = "0.10.2.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "aioqzone_feed-0.10.1.dev1-py3-none-any.whl", hash = "sha256:8d82b1995ff155c249e2521ee8962d07e38cd9d9e5b380001eaef11e51b51b32"},
+    {file = "aioqzone_feed-0.10.2.dev1-py3-none-any.whl", hash = "sha256:5a09af9899163a926f7a3e94af76b56a1a155ccf94558643c50531d90f1f4ea4"},
 ]
 
 [package.dependencies]
 aioqzone = ">=0.10.1.dev1,<0.11.0"
-qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/4.1.0.dev2/qzemoji-4.1.0.dev2-py3-none-any.whl"}
+qzemoji = {url = "https://github.com/aioqzone/QzEmoji/releases/download/4.1.1.dev1/qzemoji-4.1.1.dev1-py3-none-any.whl"}
 
 [package.source]
 type = "url"
-url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.10.1.dev1/aioqzone_feed-0.10.1.dev1-py3-none-any.whl"
+url = "https://github.com/aioqzone/aioqzone-feed/releases/download/0.10.2.dev1/aioqzone_feed-0.10.2.dev1-py3-none-any.whl"
 [[package]]
 name = "aiosqlite"
 version = "0.18.0"
@@ -151,7 +151,7 @@ category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "assetsupdater-1.5.1-py3-none-any.whl", hash = "sha256:bacc47b2ca9d6b7b2596002e266dbd4b674473d154c8e88a8d108f8ba838e0f2"},
+    {file = "assetsupdater-1.5.1-py3-none-any.whl", hash = "sha256:e36dc870ef58ac8b8e72e2f85da8526f9bfe825134a2a4d12d3eb56dcb2f1e47"},
 ]
 
 [package.dependencies]
@@ -481,14 +481,14 @@ socks = ["socksio (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "httpx"
-version = "0.23.1"
+version = "0.23.2"
 description = "The next generation HTTP client."
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "httpx-0.23.1-py3-none-any.whl", hash = "sha256:0b9b1f0ee18b9978d637b0776bfd7f54e2ca278e063e3586d8f01cda89e042a8"},
-    {file = "httpx-0.23.1.tar.gz", hash = "sha256:202ae15319be24efe9a8bd4ed4360e68fde7b38bcc2ce87088d416f026667d19"},
+    {file = "httpx-0.23.2-py3-none-any.whl", hash = "sha256:106cded342a44e443060fab70ef327139248c61939e77d73964560c8d8b57069"},
+    {file = "httpx-0.23.2.tar.gz", hash = "sha256:e824a6fa18ffaa6423c6f3a32d5096fc15bd8dff43663a223f06242fc69451a8"},
 ]
 
 [package.dependencies]
@@ -1140,13 +1140,13 @@ files = [
 
 [[package]]
 name = "qzemoji"
-version = "4.1.0.dev2"
+version = "4.1.1.dev1"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "qzemoji-4.1.0.dev2-py3-none-any.whl", hash = "sha256:5e6fff9d7b79359b6f574ff80bf6d4713ff29cbef1e4050c5fdf0b0bf58a78dc"},
+    {file = "qzemoji-4.1.1.dev1-py3-none-any.whl", hash = "sha256:43849cf1cfb1d35ba4b4230775bb3a3666d5f3e689f264328a4a89355adaece9"},
 ]
 
 [package.dependencies]
@@ -1156,7 +1156,7 @@ SQLAlchemy = {version = ">=2.0.0b4,<3.0.0", extras = ["aiosqlite", "asyncio"]}
 
 [package.source]
 type = "url"
-url = "https://github.com/aioqzone/QzEmoji/releases/download/4.1.0.dev2/qzemoji-4.1.0.dev2-py3-none-any.whl"
+url = "https://github.com/aioqzone/QzEmoji/releases/download/4.1.1.dev1/qzemoji-4.1.1.dev1-py3-none-any.whl"
 
 [[package]]
 name = "requests"
@@ -1661,4 +1661,4 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "8032149477f68e7d7da447dd491ec1d3bb744eb341d8ac0fee93cd68e396ae9d"
+content-hash = "71de7507ac427eff3bdc9f20cefed9287894168248adf55bd6f4adf5982c867c"

@@ -146,7 +146,10 @@ class InteractApp(BaseApp):
 
         self.app.add_handler(
             ConversationHandler(
-                entry_points=[CallbackQueryHandler(self.btn_emoji, r"^emoji:$")],
+                entry_points=[
+                    CallbackQueryHandler(self.btn_emoji, r"^emoji:$"),
+                    CommandHandler("em", self.command_em, CA),
+                ],
                 states={
                     CHOOSE_EID: [MessageHandler(filters.Regex(r"^\d+$"), self.input_eid)],
                     ASK_CUSTOM: [
@@ -290,4 +293,4 @@ class InteractApp(BaseApp):
     #              query
     # --------------------------------
     from ._button import btn_like, btn_qr
-    from ._conversation.emoji import btn_emoji, cancel_custom, input_eid, update_eid
+    from ._conversation.emoji import btn_emoji, cancel_custom, command_em, input_eid, update_eid

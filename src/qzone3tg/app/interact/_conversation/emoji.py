@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable
 
 import qzemoji as qe
-from aioqzone_feed.api.emoji import TAG_RE
+from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
 from qzemoji.utils import build_html
-from telegram import CallbackQuery, ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ForceReply, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 if TYPE_CHECKING:
@@ -16,7 +16,25 @@ if TYPE_CHECKING:
 CHOOSE_EID, ASK_CUSTOM = range(2)
 
 
+async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
+    for ext in ("gif", "jpg", "png"):
+        try:
+            async with self.client.get(build_html(eid, ext=ext)) as r:
+                return r.content
+        except:
+            pass
+
+
 async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """This method is the callback when user sends ``/em eid [name]`` command.
+
+    - If ``/em`` received, this method replys a help message and ends the conversation.
+    - If ``/em eid`` received, this method replys the emoji photo and waits for the name.
+    It will save the eid into `contenxt.user_data`. It will transmit the state graph to `ASK_CUSTOM`.
+    - If ``/em eid name`` received, this method will save the name to database directly and notify
+    success. It will transmit the state graph to `ConversationHandler.END`.
+
+    """
     assert context.user_data
     assert update.effective_user
 
@@ -25,14 +43,18 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             await update.message.reply_markdown_v2("usage: `/em eid [name]`")
             return ConversationHandler.END
         case [eid]:
-            context.user_data["eid"] = eid
-            context.user_data["to_delete"] = [update.message.id]
+            content = await _get_eid_bytes(self, int(eid))
+            if content is None:
+                await update.message.reply_text(f"未查询到eid={eid}")
+                return ConversationHandler.END
+
             msg = await update.message.reply_photo(
-                build_html(int(eid)),
+                content,
                 f"Input your customize text for e{eid}",
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
-            context.user_data["to_delete"] = [msg.id]
+            context.user_data["eid"] = eid
+            context.user_data["to_delete"] = [msg.id, update.message.id]
             return ASK_CUSTOM
         case [eid, name]:
             await asyncio.gather(
@@ -87,21 +109,25 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
 
     This method will save the emoji id into `context.user_data`.
 
-    This method will send the emoji photo to the user, asking for its customized name.
+    This method will send the emoji photo to the user, asking for its customized name. If failed to get the
+    emoji photo contents, the conversation will be terminated.
 
     This method will transmit the state graph to `ASK_CUSTOM`.
     """
+    assert context.user_data
     eid = int(update.message.text)
+    content = await _get_eid_bytes(self, eid)
+    if content is None:
+        await update.message.reply_text(f"未查询到eid={eid}")
+        return ConversationHandler.END
+
     msg = await update.message.reply_photo(
         build_html(eid),
         f"Input your customize text for e{eid}",
         reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
     )
-    assert context.user_data
     context.user_data["eid"] = eid
-    if not isinstance(context.user_data.get("to_delete"), list):
-        context.user_data["to_delete"] = []
-    context.user_data["to_delete"] += [msg.id]
+    context.user_data["to_delete"] = [msg.id]
     return ASK_CUSTOM
 
 
@@ -135,7 +161,7 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
         text: str = context.user_data["text"]
         new_text = text.replace(
             f"[em]e{eid}[/em]",
-            name if re.fullmatch(r"[^\u0000-\uFFFF]*", name) else f"[/{name}]",
+            wrap_plain_text(name),
         )
         match context.user_data.get("tattr"):
             case "text":
