@@ -7,13 +7,40 @@ from typing import TYPE_CHECKING
 import qzemoji as qe
 from aioqzone_feed.api.emoji import TAG_RE
 from qzemoji.utils import build_html
-from telegram import ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import CallbackQuery, ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 if TYPE_CHECKING:
     from qzone3tg.app.interact import InteractApp
 
 CHOOSE_EID, ASK_CUSTOM = range(2)
+
+
+async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    assert context.user_data
+    assert update.effective_user
+
+    match context.args:
+        case None:
+            await update.message.reply_markdown_v2("usage: `/em eid [name]`")
+            return ConversationHandler.END
+        case [eid]:
+            context.user_data["eid"] = eid
+            context.user_data["to_delete"] = [update.message.id]
+            msg = await update.message.reply_photo(
+                build_html(int(eid)),
+                f"Input your customize text for e{eid}",
+                reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
+            )
+            context.user_data["to_delete"] = [msg.id]
+            return ASK_CUSTOM
+        case [eid, name]:
+            await asyncio.gather(
+                qe.set(int(eid), name),
+                update.message.delete(),
+                update.message.reply_text(f"You have set {eid} to {name}."),
+            )
+            return ConversationHandler.END
 
 
 async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,7 +99,9 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
     )
     assert context.user_data
     context.user_data["eid"] = eid
-    context.user_data["to_delete"] = [msg.id]
+    if not isinstance(context.user_data.get("to_delete"), list):
+        context.user_data["to_delete"] = []
+    context.user_data["to_delete"] += [msg.id]
     return ASK_CUSTOM
 
 
@@ -94,27 +123,31 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
 
     eid: int = context.user_data["eid"]
     chat_id = update.message.chat_id
-    message_id: int = context.user_data["mid"]
-
-    text: str = context.user_data["text"]
     name = update.message.text.strip()
-    new_text = text.replace(
-        f"[em]e{eid}[/em]",
-        name if re.fullmatch(r"[^\u0000-\uFFFF]*", name) else f"[/{name}]",
-    )
+
+    message_id: int = context.user_data["mid"]
 
     to_del: list[int] = context.user_data["to_delete"]
 
     bot = update.get_bot()
-    f = dict(
-        text=lambda t: bot.edit_message_text(t, chat_id, message_id),
-        caption=lambda t: bot.edit_message_caption(chat_id, message_id, caption=t),
-    )[context.user_data["tattr"]]
+
+    if "text" in context.user_data:
+        text: str = context.user_data["text"]
+        new_text = text.replace(
+            f"[em]e{eid}[/em]",
+            name if re.fullmatch(r"[^\u0000-\uFFFF]*", name) else f"[/{name}]",
+        )
+        match context.user_data.get("tattr"):
+            case "text":
+                await bot.edit_message_text(new_text, chat_id, message_id)
+            case "caption":
+                await bot.edit_message_caption(chat_id, message_id, caption=new_text)
+            case None:
+                pass
 
     await asyncio.gather(
         qe.set(eid, name),
         update.message.reply_text(f"You have set {eid} to {name}."),
-        f(new_text),
         bot.delete_message(chat_id, to_del[0]),
         bot.delete_message(chat_id, update.message.id),
     )
