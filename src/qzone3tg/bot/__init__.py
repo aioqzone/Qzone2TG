@@ -13,7 +13,8 @@ from telegram import (
 )
 
 ChatId = str | int
-InputMedia = InputMediaAnimation | InputMediaDocument | InputMediaPhoto | InputMediaVideo
+SupportMedia = InputMediaAnimation | InputMediaDocument | InputMediaPhoto | InputMediaVideo
+GroupMedia = InputMediaDocument | InputMediaPhoto | InputMediaVideo
 MD = TypeVar("MD", InputMediaAnimation, InputMediaDocument, InputMediaPhoto, InputMediaVideo)
 ReplyMarkup = ReplyKeyboardMarkup | ForceReply
 
@@ -43,11 +44,13 @@ class BotProtocol(Protocol):
         ...
 
     async def edit_message_media(
-        self, to: ChatId, mid: int, media: InputMedia, **kw
+        self, to: ChatId, mid: int, media: GroupMedia, **kw
     ) -> Message | bool:
         """A bot can edit the media it has sent before."""
         ...
 
-    async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw) -> list[Message]:
+    async def send_media_group(
+        self, to: ChatId, media: list[GroupMedia], caption: str | None, **kw
+    ) -> list[Message]:
         """A bot can send a group of media."""
         ...

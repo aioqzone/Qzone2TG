@@ -53,7 +53,7 @@ def inst_node_deps():
     print(f"$ cp {PACKAGE.as_posix()} {WORKDIR.as_posix()}")
     copy(PACKAGE, WORKDIR)
 
-    sp_retval("npm install --no-optional --no-fund", cwd=WORKDIR)
+    sp_retval("npm install --omit optional --omit dev --no-fund", cwd=WORKDIR)
     (tp := WORKDIR / PACKAGE.name).unlink()
     (tpl := tp.with_stem("package-lock")).unlink()
     print(f"$ rm {tp.as_posix()} {tpl.as_posix()}")

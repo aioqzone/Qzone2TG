@@ -2,19 +2,16 @@
 
 import asyncio
 import logging
-from collections import deque
 from itertools import chain
-from time import time
 from typing import Optional, Tuple, overload
 
 from aioqzone_feed.type import FeedContent
 from pydantic import HttpUrl
 from qqqr.event import Emittable, Event
 from qqqr.utils.net import ClientAdapter
-from telegram import InputFile, Message
-from telegram.ext import ExtBot
+from telegram import Bot, InputFile, Message
 
-from . import BotProtocol, ChatId, InputMedia, ReplyMarkup
+from . import BotProtocol, ChatId, GroupMedia, ReplyMarkup, SupportMedia
 from .atom import (
     LIM_GROUP_MD,
     LIM_MD_TXT,
@@ -64,7 +61,7 @@ class BotTaskGenerator(Emittable[TaskerEvent]):
             size = len(arg.content)
         return max(min_timeout, size / self.bps)
 
-    def estim_size_inputmedia(self, media: InputMedia) -> float:
+    def estim_size_inputmedia(self, media: SupportMedia) -> float:
         if isinstance(media.media, InputFile) and isinstance(
             media.media.input_file_content, bytes
         ):
@@ -176,7 +173,7 @@ class BotTaskEditter(BotTaskGenerator):
                     call.medias[i] = await self.force_bytes_inputmedia(im)
         return call
 
-    async def force_bytes_inputmedia(self, media: InputMedia):
+    async def force_bytes_inputmedia(self, media: GroupMedia):
         if isinstance(media.media, InputFile) and isinstance(
             media.media.input_file_content, bytes
         ):
@@ -229,93 +226,15 @@ class BotTaskEditter(BotTaskGenerator):
         return call
 
 
-class RelaxSemaphore:
-    """A rate-limiter implemented just like :class:`asyncio.Semaphore`, except:
-
-    - You can :meth:`.acquire` or :meth:`.release` multiple times at the same time.
-    - :meth:`.release` will not "release" at once. It will delay one second.
-
-    .. deprecated:: 0.5.0a1
-
-        Use :class:`telegram.ext.BaseRateLimiter` instead.
-    """
-
-    def __init__(self, max_val: int) -> None:
-        self.max = self._val = max_val
-        self._loop = asyncio.get_event_loop()
-        self._waiters = deque(maxlen=max_val)
-        self.reset()
-
-    def reset(self):
-        """reset to initial state."""
-        self._val = self.max
-        self._waiters.clear()
-
-    async def acquire(self, times: int = 1, *, block: bool = True):
-        """Like :meth:`asyncio.Semaphore.acquire`. But can be acquired multiple times
-        in one call.
-
-        :param times: acquire times.
-        :param block: if False, will not block current coro. but returns False.
-        If True, block current coro. and always returns True. Default as True.
-        """
-        if self._val >= times:
-            # accept
-            self._val -= times
-            return True
-        if not block:
-            return False
-        assert self.max >= times
-        while self._val < times:
-            # wait for release
-            task = self._waiters.popleft()
-            await task
-        self._val -= times
-        return True
-
-    def release(self, times: int = 1) -> None:
-        """Release given times after one second."""
-
-        async def delay_release(end_time: float):
-            await asyncio.sleep(end_time - time())
-            self._val += times
-
-        self._waiters.append(task := asyncio.create_task(delay_release(time() + 1)))
-        # BUG: task not in waiters?
-        task.add_done_callback(lambda _: task in self._waiters and self._waiters.remove(task))
-
-    def context(self, times: int = 1):
-        """Returns a context manager which acquire semaphore `times` times when enter, and
-        release `times` times when exit. Example:
-
-        >>> await sem.acqure(times)
-        >>> try: ...
-        >>> except: sem.release(times)
-
-        Code above can be simplified as:
-
-        >>> async with sem.context(times): ...
-        """
-
-        # fmt: off
-        class ctx:
-            __slots__ = ()
-            async def __aenter__(*_): await self.acquire(times)
-            async def __aexit__(*_): self.release(times)
-        # fmt: on
-        return ctx()
-
-
 class SemaBot(BotProtocol):
-    """A implementation of :class:`BotProtocol` using :class:`telegram.Bot` with built-in
-    rate-limiter (:class:`RelaxSemaphore`).
+    """A implementation of :class:`BotProtocol` with content limitation checking and some type-casting.
 
     .. versionchanged:: 0.5.0a1
 
-        removed internal Semaphore.
+        Removed internal Semaphore. Use :class:`telegram.ext.BaseRateLimiter` instead.
     """
 
-    def __init__(self, bot: ExtBot) -> None:
+    def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
     async def send_message(self, to: ChatId, text: str, **kw):
@@ -342,9 +261,12 @@ class SemaBot(BotProtocol):
         doc = media if isinstance(media, bytes) else str(media)
         return await self.bot.send_document(to, doc, text, **kw)
 
-    async def edit_message_media(self, to: ChatId, mid: int, media: InputMedia, **kw):
+    async def edit_message_media(self, to: ChatId, mid: int, media: GroupMedia, **kw):
         return await self.bot.edit_message_media(media, to, mid, **kw)
 
-    async def send_media_group(self, to: ChatId, media: list[InputMedia], **kw) -> list[Message]:
-        assert len(media) <= LIM_GROUP_MD
-        return await self.bot.send_media_group(to, media, **kw)  # type: ignore # BUG: upstream typing bug
+    async def send_media_group(
+        self, to: ChatId, media: list[GroupMedia], caption: str | None, **kw
+    ) -> list[Message]:
+        assert 0 < len(media) <= LIM_GROUP_MD
+        assert len(getattr(media[0], "caption", None) or "") < LIM_MD_TXT
+        return list(await self.bot.send_media_group(to, media, caption=caption, **kw))

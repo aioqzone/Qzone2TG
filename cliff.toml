@@ -38,6 +38,7 @@ commit_parsers = [
     { message = "^ci", group = "CI/CD"},
     { message = "^feat", group = "Features"},
     { message = "^fix", group = "Bug Fixes"},
+    { message = "^docker", group = "Docker"},
     { message = "^doc", group = "Documentation"},
     { message = "^perf", group = "Performance"},
     { message = "^proj", group = "Project"},
