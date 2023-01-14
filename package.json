@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "canvas": "^2.11.0",
-    "jsdom": "^20.0.3",
+    "jsdom": "^21.0.0",
     "sleep": "^6.3.0"
   }
 }
