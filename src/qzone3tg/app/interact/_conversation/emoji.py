@@ -68,7 +68,7 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             await asyncio.gather(
                 qe.set(int(eid), name),
                 update.message.delete(),
-                update.message.reply_markdown_v2(f"You have set `{eid}` to {name}."),
+                update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
             )
             return ConversationHandler.END
 
@@ -179,7 +179,7 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
 
     await asyncio.gather(
         qe.set(eid, name),
-        update.message.reply_markdown_v2(f"You have set `{eid}` to {name}."),
+        update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
         bot.delete_message(chat_id, to_del[0]),
         bot.delete_message(chat_id, update.message.id),
     )
