@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cv2 as cv
@@ -48,6 +49,9 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
     match context.args:
         case None | []:
             await update.message.reply_markdown_v2("usage: `/em eid [name]`")
+            return ConversationHandler.END
+        case ["export"]:
+            await qe.export(Path("data/emoji.yml"))
             return ConversationHandler.END
         case [eid]:
             content = await _get_eid_bytes(self, int(eid))
