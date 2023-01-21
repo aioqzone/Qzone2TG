@@ -2,61 +2,51 @@
 name: Test
 
 on:
-  workflow_call:
-    inputs:
-      PYTEST_ARGS:
-        required: true
-        type: string
-    secrets:
-      TEST_TOKEN:
-        required: true
-      TEST_PASSWORD:
-        required: true
-    outputs:
-      package-version:
-        description: version of this python package output by poetry
-        value: ${{ jobs.install-test.outputs.package-version }}
+  pull_request:
+    types:
+      - review_requested
+    branches:
+      - beta
+      - release
 
+concurrency:
+  group: test-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   install-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
-    outputs:
-      package-version:
-        ${{ steps.version_step.outputs.package }}
-
+        python-version: ["3.11", "3.7"]
     steps:
-      #----------------------------------------------
-      #   check-out repo and set-up node & python
-      #----------------------------------------------
       - uses: actions/checkout@v3
       - uses: bahmutov/npm-install@v1
-      - name: Install Poetry
-        run: pipx install poetry
+      - run: pipx install poetry
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: poetry
-          cache-dependency-path: poetry.lock
-      - name: Get Package Version
-        id: version_step
-        run: |
-          echo "package=$(poetry version -s)" >> $GITHUB_OUTPUT
-      #----------------------------------------------
-      #   install your root project, if required
-      #----------------------------------------------
-      - name: Install library
-        run: poetry install -n
-      #----------------------------------------------
-      #    add matrix specifics and run test suite
-      #----------------------------------------------
-      - name: Test with pytest
+
+      - name: Install and Test
         env:
-          TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
         run: |
-          poetry run python -m pytest ${{ inputs.PYTEST_ARGS }}
+          echo "::group::Install Dependencies"
+          poetry install -n -vv
+          echo "::endgroup::"
+
+          echo "::group::pytest outputs"
+          poetry run pytest -m "not needuser and not upstream" test
+          echo "::endgroup::"
+
+      - name: Request Changes
+        env:
+          GH_TOKEN: ${{ secrets.COMMENT_PAT }} # the reviewer PAT
+        run: |
+          if [[ $GH_TOKEN != "" ]]; then
+              gh pr review ${{ github.event.pull_request.number }} -r -b "Some test(s) failed."
+          fi

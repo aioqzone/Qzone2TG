@@ -20,10 +20,10 @@ on:
       - "test/**"
       - ".github/workflows/codeql-analysis.yml"
   schedule:
-    - cron: "31 23 * * 0"
+    - cron: "31 23 * * 0/2"
 
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: codeql-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
