@@ -16,18 +16,15 @@ concurrency:
 jobs:
   install-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.7"]
     steps:
       - uses: actions/checkout@v3
       - uses: bahmutov/npm-install@v1
       - run: pipx install poetry
 
-      - name: Setup Python ${{ matrix.python-version }}
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
           cache: poetry
 
       - name: Install and Test
