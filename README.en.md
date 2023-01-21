@@ -2,7 +2,6 @@
 
 Forward Qzone feeds to telegram.
 
-[![Dev CI](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml/badge.svg?branch=v3%2Fdev)](https://github.com/aioqzone/Qzone2TG/actions/workflows/ci.yml)
 [![Sphinx](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/sphinx.yml?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/docker.yml?label=ghcr.io&logo=docker)][ghcr]
 [![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
