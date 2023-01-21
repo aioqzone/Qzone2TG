@@ -3,7 +3,7 @@
 fail_fast: true
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v4.4.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -17,11 +17,6 @@ repos:
         pass_filenames: false
         language: system
         files: "pyproject.toml"
-      - id: poetry
-        name: poetry lock
-        entry: poetry lock -v
-        pass_filenames: false
-        language: system
       - id: isort
         name: isort (python)
         entry: poetry run isort .
@@ -34,11 +29,11 @@ repos:
         pass_filenames: false
         language: system
         types: [python]
-      # - id: pytest
-      #   name: pytest-check
-      #   entry: poetry run pytest test
-      #   language: system
-      #   pass_filenames: false
-      #   types: [python]
+      - id: pytest
+        name: pytest-check
+        entry: poetry run pytest test
+        language: system
+        pass_filenames: false
+        types: [python]
 default_language_version:
   python: python3
