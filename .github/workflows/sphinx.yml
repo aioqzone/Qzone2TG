@@ -1,17 +1,66 @@
-# This workflow builds sphinx documents and deploy it.
 name: Sphinx Build and Deploy
 
 on:
-  workflow_dispatch:
-  workflow_call:
+  pull_request:
+    types:
+      - ready_for_review
+    branches:
+      - beta
   push:
+    branches:
+      - beta
     paths:
       - doc/**
-      - ".github/workflows/sphinx.yml"
-    branches:
-      - dev
-      - dev/**
+      - .github/workflows/sphinx.yml
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  sphinx-build-deploy:
-    uses: aioqzone/aioqzone/.github/workflows/sphinx.yml@beta
+  sphinx-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/configure-pages@v2
+      - run: pipx install poetry
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: poetry
+
+      - name: Install Library and Build HTML
+        run: |
+          echo "::group::Install Library"
+          poetry install --with docs --without test
+          echo "::endgroup::"
+
+          echo "::group::Build HTML"
+          poetry run sphinx-build doc/source doc/build/html -D release=$(poetry version -s)
+          echo "::endgroup::"
+
+      - name: Upload artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: doc/build/html
+
+  deploy:
+    if: github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    needs: sphinx-build
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
