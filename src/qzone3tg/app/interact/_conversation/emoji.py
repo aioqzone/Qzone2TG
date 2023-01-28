@@ -9,7 +9,7 @@ import numpy as np
 import qzemoji as qe
 from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
 from qzemoji.utils import build_html
-from telegram import ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ForceReply, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 if TYPE_CHECKING:
@@ -80,23 +80,18 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
 async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
     """This is the callback when user clicks the "Customize Emoji" button.
 
-    This method will save message text, message text attribute name, message id into `context.user_data`.
+    This method will save the :class:`~telegram.Message` object into `context.user_data`.
 
     It will parse the message text for at most 9 unique emoji ids and arrange them into a button array.
-    Then it will reply to the message with the `ReplyKeyboardMarkup`, waiting for user's choice.
+    Then it will reply to the message with the :class:`ReplyKeyboardMarkup`, waiting for user's choice.
 
     This method will transmit the state graph to `CHOOSE_EID`.
     """
     query = update.callback_query
     assert context.user_data is not None
-    if query.message.text:
-        context.user_data["tattr"] = "text"
-        text = query.message.text
-    elif query.message.caption:
-        context.user_data["tattr"] = "caption"
-        text = query.message.caption
-    else:
-        return ConversationHandler.END
+
+    context.user_data["message"] = query.message
+    text = query.message.text or query.message.caption
 
     eids = TAG_RE.findall(text)
     if not eids:
@@ -110,8 +105,6 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
             rows, one_time_keyboard=True, input_field_placeholder="/cancel", selective=True
         ),
     )
-    context.user_data["mid"] = query.message.id
-    context.user_data["text"] = text
     return CHOOSE_EID
 
 
@@ -163,28 +156,23 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
     chat_id = update.message.chat_id
     name = update.message.text.strip()
 
-    to_del: list[int] = context.user_data["to_delete"]
+    to_del: list[int] = context.user_data.get("to_delete", [])
     bot = update.get_bot()
 
-    if "text" in context.user_data:
-        message_id: int = context.user_data["mid"]
-        text: str = context.user_data["text"]
-        new_text = text.replace(
-            f"[em]e{eid}[/em]",
-            wrap_plain_text(name),
-        )
-        match context.user_data.get("tattr"):
-            case "text":
-                await bot.edit_message_text(new_text, chat_id, message_id)
-            case "caption":
-                await bot.edit_message_caption(chat_id, message_id, caption=new_text)
-            case None:
-                pass
+    if "message" in context.user_data:
+        message: Message = context.user_data["message"]
+        text = message.text or message.caption
+        new_text = text.replace(f"[em]e{eid}[/em]", wrap_plain_text(name))
+
+        if message.text:
+            await message.edit_text(new_text)
+        elif message.caption:
+            await bot.edit_message_caption(new_text)
 
     await asyncio.gather(
         qe.set(eid, name),
         update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
-        bot.delete_message(chat_id, to_del[0]),
+        *(bot.delete_message(chat_id, i) for i in to_del),
         bot.delete_message(chat_id, update.message.id),
     )
     context.user_data.clear()
