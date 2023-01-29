@@ -12,6 +12,7 @@ RUN apt-get update \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install --no-install-recommends -y \
         nodejs \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # since we use pip to pack pyz, the poetry install step can be removed.
@@ -19,7 +20,9 @@ COPY . /app
 WORKDIR /app
 
 # package the package
-RUN python src/pack.py --clean
+RUN bash src/zipapp.sh ./run \
+    && npm install --omit optional --omit dev --no-fund \
+    && mv ./node_modules ./run/
 
 # ==============================================
 #                 Runtime Stage
@@ -39,6 +42,7 @@ RUN apt-get update \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install --no-install-recommends -y \
         nodejs \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/run /app

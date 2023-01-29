@@ -9,6 +9,7 @@ pyrightconfig.json
 *.egg-info
 /dist
 /build
+/run
 
 # venv, node modules
 /venv
