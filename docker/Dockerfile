@@ -19,7 +19,7 @@ COPY . /app
 WORKDIR /app
 
 # package the package
-RUN python src/pack.py . --clean
+RUN python src/pack.py --clean
 
 # ==============================================
 #                 Runtime Stage

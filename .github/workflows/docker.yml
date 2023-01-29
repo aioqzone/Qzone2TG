@@ -35,7 +35,7 @@ jobs:
       - id: match
         run: |
           version=$(sed -nr "s/^\s*version\s*=\s*\"(.*)\"/\1/p" pyproject.toml)
-          echo "tag=$version" >> $GITHUB_ENV
+          echo "tag=$version" >> $GITHUB_OUTPUT
 
       - uses: docker/setup-qemu-action@v2
       - uses: docker/setup-buildx-action@v2
@@ -48,10 +48,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: export requirements
+        run: |
+          pipx install poetry
+          poetry export -o requirements.txt --without-hashes
+          cp docker/.dockerignore .dockerignore
+
       - name: Build and push Docker images
         id: docker-build-push
         uses: docker/build-push-action@v3
         with:
+          context: "."
           push: ${{ env.push }}
           file: ./docker/Dockerfile
           tags: |

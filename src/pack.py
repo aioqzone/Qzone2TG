@@ -3,8 +3,9 @@
 
 import argparse as ap
 import subprocess as sp
+from os import environ as env
 from pathlib import Path
-from shutil import copy, move, rmtree, which
+from shutil import copy, copytree, move, rmtree, which
 
 
 def sp_retval(cmd: str, **kw) -> str:
@@ -32,12 +33,36 @@ def inst_pip_deps():
     """Install dependencies in `workdir`/.venv"""
     DEPDIR.mkdir(exist_ok=True, parents=True)
     sp_retval(
-        f"pip install {CONTEXT.as_posix()} -t {DEPDIR.as_posix()} -i {INDEX}" " --progress-bar off"
+        f"pip install -r {LOCK.as_posix()} -t {DEPDIR.as_posix()}"
+        " --compile"
+        " --no-cache-dir"
+        " --progress-bar off",
+        env=env | dict(CFLAGS="-Os -g0 -WI,--strip-all"),
     )
+    print(f"$ cp src/{SRC} {(DEPDIR / SRC).as_posix()}")
+    copytree(Path("src") / SRC, DEPDIR / SRC)
 
+
+def refine_pip_deps():
     for p in DEPDIR.iterdir():
         if p.is_dir() and p.stem == ".dist-info":
             rmtree(p, ignore_errors=True)
+
+    rmtree(DEPDIR / SRC / "__pycache__", ignore_errors=True)
+
+    for pyc in DEPDIR.rglob("*.pyc"):
+        v = pyc.parent.parent / pyc.name.split(".")[0]
+        if v.with_suffix(".py").exists():
+            move(pyc, v.with_suffix(".pyc"))
+            v.with_suffix(".py").unlink()
+
+    for pycache in DEPDIR.rglob("__pycache__"):
+        print(f"$ rm -r {pycache.as_posix()}")
+        rmtree(pycache, ignore_errors=True)
+
+    for pyi in DEPDIR.rglob("*.pyi"):
+        print(f"$ rm {pyi.as_posix()}")
+        pyi.unlink()
 
     main = DEPDIR / SRC / "__main__.py"
     dest = DEPDIR / "__main__.py"
@@ -106,15 +131,18 @@ def zip_workdir(outpath: Path):
 
 
 def main(stage: int, clean: bool = False, _zip: Path | None = None):
+    check_tools()
     if stage < 1:
-        check_tools()
         inst_node_deps()
 
     if stage < 2:
         inst_pip_deps()
-        mv_binary()
 
     if stage < 3:
+        refine_pip_deps()
+        mv_binary()
+
+    if stage < 4:
         pack_app()
 
     if clean or _zip:
@@ -126,8 +154,7 @@ def main(stage: int, clean: bool = False, _zip: Path | None = None):
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description=__doc__)
-    parser.add_argument("context", type=Path, default=Path("."))
-    parser.add_argument("-i", "--index", type=str, default="https://pypi.org/simple")
+    parser.add_argument("lockfile", type=Path, nargs="?", default=Path("requirements.txt"))
     parser.add_argument("-n", "--package-json", type=Path, default=Path("package.json"))
     parser.add_argument("-o", "--outname", type=str, default="app.pyz")
     parser.add_argument("-p", "--python", type=str)
@@ -138,10 +165,9 @@ if __name__ == "__main__":
     parser.add_argument("--stage", type=int, default=0)
 
     args = parser.parse_args()
-    INDEX: str = args.index
     PACKAGE: Path = args.package_json
     OUTNAME: str = args.outname
-    CONTEXT: Path = args.context
+    LOCK: Path = args.lockfile
     INTERPRETER: str | None = args.python
     SRC: str = args.src
     WORKDIR: Path = args.workdir

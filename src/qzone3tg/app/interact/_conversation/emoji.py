@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import cv2 as cv
@@ -8,7 +10,14 @@ import numpy as np
 import qzemoji as qe
 from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
 from qzemoji.utils import build_html
-from telegram import ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    ForceReply,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
 from telegram.ext import ContextTypes, ConversationHandler
 
 if TYPE_CHECKING:
@@ -49,7 +58,10 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
         case None | []:
             await update.message.reply_markdown_v2("usage: `/em eid [name]`")
             return ConversationHandler.END
-        case [eid]:
+        case ["export"]:
+            await qe.export(Path("data/emoji.yml"))
+            return ConversationHandler.END
+        case [eid] if str.isdigit(eid):
             content = await _get_eid_bytes(self, int(eid))
             if content is None:
                 await update.message.reply_text(f"未查询到eid={eid}")
@@ -64,35 +76,41 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             context.user_data["eid"] = eid
             context.user_data["to_delete"] = [msg.id, update.message.id]
             return ASK_CUSTOM
-        case [eid, name]:
+        case [eid, name] if str.isdigit(eid):
             await asyncio.gather(
                 qe.set(int(eid), name),
                 update.message.delete(),
                 update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
             )
             return ConversationHandler.END
+        case _:
+            await update.message.reply_text(
+                dedent(
+                    """Usage:
+                1. /em
+                2. /em <eid>
+                3. /em export
+                4. /em <eid> <name>
+            """
+                )
+            )
 
 
 async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
     """This is the callback when user clicks the "Customize Emoji" button.
 
-    This method will save message text, message text attribute name, message id into `context.user_data`.
+    This method will save the :class:`~telegram.Message` object into `context.user_data`.
 
     It will parse the message text for at most 9 unique emoji ids and arrange them into a button array.
-    Then it will reply to the message with the `ReplyKeyboardMarkup`, waiting for user's choice.
+    Then it will reply to the message with the :class:`ReplyKeyboardMarkup`, waiting for user's choice.
 
     This method will transmit the state graph to `CHOOSE_EID`.
     """
     query = update.callback_query
     assert context.user_data is not None
-    if query.message.text:
-        context.user_data["tattr"] = "text"
-        text = query.message.text
-    elif query.message.caption:
-        context.user_data["tattr"] = "caption"
-        text = query.message.caption
-    else:
-        return ConversationHandler.END
+
+    context.user_data["message"] = query.message
+    text = query.message.text or query.message.caption or ""
 
     eids = TAG_RE.findall(text)
     if not eids:
@@ -103,11 +121,14 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
     await query.message.reply_text(
         "Choose a emoji id",
         reply_markup=ReplyKeyboardMarkup(
-            rows, one_time_keyboard=True, input_field_placeholder="/cancel", selective=True
+            rows,
+            resize_keyboard=True,
+            one_time_keyboard=True,
+            input_field_placeholder="/cancel",
+            selective=True,
+            is_persistent=True,
         ),
     )
-    context.user_data["mid"] = query.message.id
-    context.user_data["text"] = text
     return CHOOSE_EID
 
 
@@ -123,7 +144,13 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
     This method will transmit the state graph to `ASK_CUSTOM`.
     """
     assert context.user_data is not None
-    eid = int(update.message.text)
+    assert isinstance(update.message.text, str)
+    try:
+        eid = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text(f"请输入数字（当前输入{update.message.text}）")
+        return CHOOSE_EID
+
     content = await _get_eid_bytes(self, eid)
     if content is None:
         await update.message.reply_text(f"未查询到eid={eid}")
@@ -154,33 +181,36 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
     This method will transmit the state graph to `ConversationHandler.END`.
     """
     assert context.user_data is not None
+    assert isinstance(update.message.text, str)
 
     eid: int = context.user_data["eid"]
     chat_id = update.message.chat_id
     name = update.message.text.strip()
 
-    to_del: list[int] = context.user_data["to_delete"]
+    to_del: list[int] = context.user_data.get("to_delete", [])
     bot = update.get_bot()
 
-    if "text" in context.user_data:
-        message_id: int = context.user_data["mid"]
-        text: str = context.user_data["text"]
-        new_text = text.replace(
-            f"[em]e{eid}[/em]",
-            wrap_plain_text(name),
-        )
-        match context.user_data.get("tattr"):
-            case "text":
-                await bot.edit_message_text(new_text, chat_id, message_id)
-            case "caption":
-                await bot.edit_message_caption(chat_id, message_id, caption=new_text)
-            case None:
-                pass
+    if "message" in context.user_data:
+        message: Message = context.user_data["message"]
+        text = message.text or message.caption or ""
+        new_text = text.replace(f"[em]e{eid}[/em]", wrap_plain_text(name))
+
+        reply_markup = message.reply_markup
+        if reply_markup and TAG_RE.search(new_text) is None:
+            # remove emoji inline button
+            row = reply_markup.inline_keyboard[0]
+            row = row[1:]
+            reply_markup = InlineKeyboardMarkup([row]) if row else None
+
+        if message.text:
+            await message.edit_text(new_text, reply_markup=reply_markup)
+        elif message.caption:
+            await bot.edit_message_caption(new_text, reply_markup=reply_markup)
 
     await asyncio.gather(
         qe.set(eid, name),
         update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
-        bot.delete_message(chat_id, to_del[0]),
+        *(bot.delete_message(chat_id, i) for i in to_del),
         bot.delete_message(chat_id, update.message.id),
     )
     context.user_data.clear()
@@ -194,8 +224,8 @@ async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
-    assert context.user_data is not None
-    context.user_data.clear()
+    if context.user_data is not None:
+        context.user_data.clear()
     await update.message.reply_text(
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
     )
