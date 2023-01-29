@@ -24,8 +24,7 @@ pip3 install -r ${PIP_LOCK} -t ${PIP_TARG} \
 cp -r src/qzone3tg ${PIP_TARG}
 cp ${PIP_TARG}/"qzone3tg/__main__.py" ${PIP_TARG}
 
-# remove dist info
-rm -r ${PIP_TARG}/*.dist-info
+# remove requirements.txt
 rm ${PIP_LOCK}
 
 for unittest in $(find ${PIP_TARG} -name "test*"); do
