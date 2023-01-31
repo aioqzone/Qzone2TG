@@ -42,7 +42,8 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
                 return False
 
             cols = nsp.get_columns("cookie")
-            if any(col["name"] == "p_skey" for col in cols):
+            names = set(col["name"] for col in cols)
+            if all(k in names for k in ("p_skey", "pt4_token")):
                 return True
 
             # drop table
@@ -59,12 +60,16 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
             prev = await sess.scalar(stmt)
         if prev is None:
             return
-        self._cookie = dict(p_skey=prev.p_skey)
+        self._cookie = dict(
+            p_uin="o" + str(self.uin).zfill(10),
+            p_skey=prev.p_skey,
+            pt4_token=prev.pt4_token,
+        )
         self.client.client.cookies.update(self._cookie)
 
     async def _new_cookie(self) -> dict[str, str]:
         r = await super()._new_cookie()
-        if "p_skey" not in r:
+        if not all(k in r for k in ("p_skey", "pt4_token")):
             return r
 
         async with self.sess() as sess:
@@ -73,7 +78,8 @@ class LoginMan(MixedLoginMan, AsyncSessionProvider):
                 if prev:
                     # if exist: update
                     prev.p_skey = r["p_skey"]
+                    prev.pt4_token = r["pt4_token"]
                 else:
                     # not exist: add
-                    sess.add(CookieOrm(uin=self.uin, p_skey=r["p_skey"]))
+                    sess.add(CookieOrm(uin=self.uin, p_skey=r["p_skey"], pt4_token=r["pt4_token"]))
         return r

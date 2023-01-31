@@ -94,17 +94,18 @@ class TestCookieStore:
         assert r is None
 
     async def test_loginman_hit(self, engine: AsyncEngine, client: ClientAdapter):
-        cookie = dict(p_skey="thisispskey")
+        cookie = dict(p_skey="thisispskey", pt4_token="token")
         async with engine.begin() as conn:
             await conn.run_sync(CookieOrm.metadata.create_all)
 
         async with AsyncSession(engine) as sess:
-            sess.add(CookieOrm(uin=123, p_skey="expiredpskey"))
+            sess.add(CookieOrm(uin=123, p_skey="expiredpskey", pt4_token="expiredtoken"))
             await sess.commit()
 
         man = LoginMan(client, engine, 123, "forbid", "pwd")  # type: ignore
         await man.load_cached_cookie()
         assert man._cookie["p_skey"] == "expiredpskey"
+        assert man._cookie["pt4_token"] == "expiredtoken"
 
         with mock.patch.object(MixedLoginMan, "_new_cookie", return_value=cookie):
             await man.new_cookie()
@@ -114,3 +115,4 @@ class TestCookieStore:
             r = await sess.scalar(stmt)
         assert r
         assert r.p_skey == cookie["p_skey"]
+        assert r.pt4_token == cookie["pt4_token"]
