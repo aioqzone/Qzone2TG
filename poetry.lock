@@ -39,19 +39,19 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.10.2.dev2"
+version = "0.10.3.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "aioqzone_feed-0.10.2.dev2-py3-none-any.whl", hash = "sha256:13fec823374ad517b7eb8d50a649e943000ec2a789de426fded8dc0d16f5ac1a"},
-    {file = "aioqzone_feed-0.10.2.dev2.tar.gz", hash = "sha256:c9e6222769287686852bc1bfea5d768a39afc4edced8c676ec7900771e4b4785"},
+    {file = "aioqzone_feed-0.10.3.dev1-py3-none-any.whl", hash = "sha256:3eb34537f6c0dffafd5de2847bbf33c9649e960e81fb8c3b055c3383e584b69b"},
+    {file = "aioqzone_feed-0.10.3.dev1.tar.gz", hash = "sha256:47cccf9e7102e8e94b24ca5a723dd8a5614f8692799676565bd46d784f18bc30"},
 ]
 
 [package.dependencies]
 aioqzone = ">=0.10.2.dev2,<0.11.0"
-QzEmoji = ">=4.2.0.dev1,<5.0.0"
+QzEmoji = ">=5.0.0.dev3,<6.0.0"
 
 [package.source]
 type = "legacy"
@@ -1195,14 +1195,14 @@ files = [
 
 [[package]]
 name = "qzemoji"
-version = "5.0.0.dev1"
+version = "5.0.0.dev3"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "qzemoji-5.0.0.dev1-py3-none-any.whl", hash = "sha256:4eb0b083ca57764b41a6f9be663a9c4ab4ecf594a633e856d903b26a396d047b"},
-    {file = "qzemoji-5.0.0.dev1.tar.gz", hash = "sha256:bc9415417d1317ed7d122c0d6d56e3ec914a981c4de70281f5bd6a9a158938b8"},
+    {file = "qzemoji-5.0.0.dev3-py3-none-any.whl", hash = "sha256:88fde93f06234c9c43c9fd6eabbf05dd9c683900910ffee3bbd04fccdc0ecc4e"},
+    {file = "qzemoji-5.0.0.dev3.tar.gz", hash = "sha256:262c5a7e7294fefd8d25fc255cd1b58699b56644318cdf02a43f4c1147bc697c"},
 ]
 
 [package.dependencies]
@@ -1708,4 +1708,4 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "60c7b36abf58810fc247ab5862650b7ed98b2c04fcff027ba59aab7c2776962d"
+content-hash = "fa32e371dcc3e7952d73f90af273b2b16f60be92b3b0f30bb4c906fc7a6339b5"
