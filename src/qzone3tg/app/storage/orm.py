@@ -81,3 +81,4 @@ class CookieOrm(Base):
 
     uin: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
     p_skey: Mapped[str] = mapped_column(sa.VARCHAR)
+    pt4_token: Mapped[str] = mapped_column(sa.VARCHAR)
