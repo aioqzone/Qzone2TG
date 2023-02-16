@@ -179,7 +179,7 @@ class BaseApp(
         return restart_timer
 
     def _sub_defaultfeedhook(self, base: Type[DefaultFeedHook]):
-        class inner_feed_hook(base):
+        class baseapp_feedhook(base):
             async def HeartbeatRefresh(_self, num):
                 await super().HeartbeatRefresh(num)
                 return self.add_hook_ref(
@@ -193,11 +193,18 @@ class BaseApp(
                 qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
                 up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
                 if qr_avil or up_avil:
-                    await self.bot.send_message(self.admin, "您的登录已过期，定时抓取功能暂时不可用" + info)
-                else:
-                    self.log.warning("heartbeat fails cuz all login method suppressed.")
+                    try:
+                        await self.loginman.new_cookie()
+                    except:
+                        return
+                    else:
+                        await self.restart_heartbeat()
+                    return
 
-        return inner_feed_hook
+                self.log.warning("heartbeat failed because all login methods suppressed.")
+                await self.bot.send_message(self.admin, "由于距上次登录的时间间隔少于您所指定的最小值，自动登录已暂停。" + info)
+
+        return baseapp_feedhook
 
     def init_hooks(self):
         self.bot = SemaBot(self.extbot)
@@ -507,7 +514,9 @@ class BaseApp(
                 self.qzone.hb_timer.stop()
                 self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
             else:
-                self.log.debug("Should stop HB because LoginError, but it has already stopped.")
+                self.log.warning(
+                    "Should stop heartbeat because LoginError, but it has already stopped."
+                )
             return
         except HTTPError as e:
             self.log.error(e)
@@ -569,14 +578,17 @@ class BaseApp(
         stat_dic = {
             "启动时间": ts2a(self.start_time),
             "上次登录": ts2a(self.loginman.last_login),
+            "PTB应用状态": friendly(self.app.running),
+            "PTB更新状态": friendly(self.app.updater and self.app.updater.running),
             "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
             "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
+            "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
+            "密码登录暂停至": ts2a(self.loginman.suppress_up_till),
         }
         if debug:
             add_dic = {
-                "网速估计(Mbps)": round(self.hook_feed.queue.tasker.bps / 1e6, 2),
-                "app.running": friendly(self.app.running),
+                "网速估计": f"{self.hook_feed.queue.tasker.bps / 1e6:.2f}M/s",
             }
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
@@ -585,6 +597,24 @@ class BaseApp(
         statm = self._status_text(debug, hf=True)
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
+
+    async def restart_heartbeat(self):
+        """
+        :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
+        """
+        if self.qzone.hb_timer is None:
+            self.log.warning("heartbeat not initialized")
+            return False
+
+        self.log.debug("heartbeat state before restart: %s", self.qzone.hb_timer.state)
+        if self.qzone.hb_timer.state != "PENDING":
+            self.log.debug("heartbeat stopped. restarting...")
+            self.qzone.hb_timer()
+            self.log.debug("heartbeat state after restart: %s", self.qzone.hb_timer.state)
+            if self.qzone.hb_timer.state == "PENDING":
+                self.log.info("heartbeat restart success")
+                return True
+        return False
 
 
 def get_last_call(timer: AsyncTimer | Job | APSJob | None) -> float:
