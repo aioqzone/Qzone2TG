@@ -84,7 +84,8 @@ class InteractApp(BaseApp):
                 def cb(update: Update, _):
                     nonlocal code
                     assert update.effective_message
-                    code = update.effective_message.text.strip()
+                    code = update.effective_message.text or ""
+                    code = code.strip()
                     evt.set()
 
                 handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
@@ -104,7 +105,7 @@ class InteractApp(BaseApp):
     def _sub_defaultfeedhook(self, base):
         base = super()._sub_defaultfeedhook(base)
 
-        class interact_feed_hook(base):
+        class interactapp_feedhook(base):
             async def HeartbeatRefresh(_self, num: int):
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
@@ -121,7 +122,7 @@ class InteractApp(BaseApp):
                         self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
                     )
 
-        return interact_feed_hook
+        return interactapp_feedhook
 
     def register_handlers(self):
         # build chat filters
@@ -237,13 +238,8 @@ class InteractApp(BaseApp):
             except:
                 return
 
-        assert self.qzone.hb_timer
-        if self.qzone.hb_timer.state != "PENDING":
-            self.qzone.hb_timer()
-            self.log.info("heartbeat restarted")
-            self.log.debug("heartbeat state: %s", self.qzone.hb_timer.state)
-            if self.qzone.hb_timer.state == "PENDING":
-                await self.bot.send_message(self.admin, "心跳已重启")
+        if await self.restart_heartbeat():
+            await self.bot.send_message(self.admin, "心跳已重启")
 
     async def like(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = update.effective_message
