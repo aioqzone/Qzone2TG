@@ -4,8 +4,7 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
-      day: saturday
+      interval: daily
 
   - package-ecosystem: pip
     directory: "/"
@@ -17,12 +16,10 @@ updates:
   - package-ecosystem: npm
     directory: "/"
     schedule:
-      interval: weekly
-      day: saturday
+      interval: daily
     versioning-strategy: increase-if-necessary
 
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
-      interval: weekly
-      day: saturday
+      interval: daily

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.6.4.dev1"
+version = "0.6.4.dev2"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -26,7 +26,7 @@ socksio = { git = "https://github.com/JamzumSum/socksio.git", rev = "master" }
 optional = false
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.2.0"
+pytest = "^7.2.1"
 pytest-asyncio = "~0.20.1"
 
 [tool.poetry.group.dev]
