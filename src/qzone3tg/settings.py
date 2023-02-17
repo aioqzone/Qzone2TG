@@ -42,9 +42,9 @@ class BotDefaultConf(BaseModel):
         Removed ``timeout``, added :obj:`.protect_content`
     """
 
-    disable_notification: Optional[bool] = None
-    disable_web_page_preview: Optional[bool] = None
-    protect_content: Optional[bool] = False
+    disable_notification: bool = False
+    disable_web_page_preview: bool = False
+    protect_content: bool = False
 
 
 class PollingConf(BaseModel):
@@ -231,9 +231,13 @@ class QzoneConf(BaseModel):
     .. versionadded:: 0.5.0a7
     """
     min_up_interval: float = 3600
-    """最短的密码登录时间间隔，单位为秒，默认3600
+    """密码登录发生错误后，距下次密码登录的最短时间间隔，单位为秒，默认3600
 
     .. versionadded:: 0.5.0a7
+
+    .. versionchanged:: 0.6.5
+
+        密码登录成功不会触发暂停机制。
     """
     vcode_timeout: float = 30
     """等待动态验证码的超时时间，单位秒，默认30。

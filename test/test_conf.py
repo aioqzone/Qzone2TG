@@ -2,13 +2,20 @@ from os import environ as env
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 import qzemoji as qe
 import yaml
+from aioqzone.event.login import QREvent, UPEvent
+from aioqzone_feed.event import FeedEvent
 from httpx import AsyncClient
 from pydantic import SecretStr
+from qqqr.event import Event
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from qzone3tg.app.base import BaseApp, TaskerEvent
+from qzone3tg.app.interact import InteractApp
 from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 
 if_conf_exist = pytest.mark.skipif(
@@ -16,20 +23,34 @@ if_conf_exist = pytest.mark.skipif(
 )
 
 
-@if_conf_exist
-def test_load():
+@pytest.fixture(scope="module")
+def minc():
     with open("config/test.yml") as f:
-        mind, maxd = yaml.safe_load_all(f)
-    minc = Settings(**mind)
-    maxc = Settings(**maxd)
+        mind, _ = yaml.safe_load_all(f)
+    return Settings(**mind).load_secrets()
+
+
+@pytest_asyncio.fixture(scope="module")
+async def engine():
+    async with AsyncEngineFactory.sqlite3(None) as engine:
+        yield engine
+
+
+@if_conf_exist
+def test_load(minc: Settings):
     assert minc
+
+    with open("config/test.yml") as f:
+        _, maxd = yaml.safe_load_all(f)
+    maxc = Settings(**maxd)
     assert maxc
 
 
 @pytest.mark.skipif("TEST_TOKEN" not in env, reason="test env not exist")
 def test_secrets():
     sc = UserSecrets()  # type: ignore
-    assert sc
+    assert sc.token
+    assert sc.password
 
 
 def test_webhook_url():
@@ -46,13 +67,12 @@ def test_webhook_url():
 
 @if_conf_exist
 @pytest.mark.asyncio
-async def test_init():
+async def test_init(minc: Settings):
     from qzone3tg.app.interact import InteractApp
 
     with open("config/test.yml") as f:
-        mind, maxd = yaml.safe_load_all(f)
+        _, maxd = yaml.safe_load_all(f)
 
-    minc = Settings(**mind).load_secrets()
     maxc = Settings(**maxd).load_secrets()
     async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
         client = ClientAdapter(sess)
@@ -63,25 +83,25 @@ async def test_init():
 
 @if_conf_exist
 @pytest.mark.asyncio
-async def test_hook_class():
-    from qzone3tg.app.base import BaseApp, DefaultFeedHook, DefaultQrHook, TaskerEvent
-    from qzone3tg.app.interact import InteractApp
-    from qzone3tg.app.interact._button import hook_defaultqr, hook_taskerevent
+@pytest.mark.parametrize(
+    ["app_cls", "evt_cls"],
+    [
+        (BaseApp, FeedEvent),
+        (BaseApp, QREvent),
+        (BaseApp, UPEvent),
+        (InteractApp, FeedEvent),
+        (InteractApp, QREvent),
+        (InteractApp, UPEvent),
+        (InteractApp, TaskerEvent),
+    ],
+)
+async def test_hook_class(
+    minc: Settings,
+    client: ClientAdapter,
+    engine: AsyncEngine,
+    app_cls: type[BaseApp],
+    evt_cls: type[Event],
+):
 
-    with open("config/test.yml") as f:
-        mind, _ = yaml.safe_load_all(f)
-
-    minc = Settings(**mind).load_secrets()
-    async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
-        client = ClientAdapter(sess)
-        bapp = BaseApp(client, engine, conf=minc)
-        assert bapp.sub_of(DefaultFeedHook).__qualname__.startswith(BaseApp.__qualname__)
-        assert bapp.sub_of(DefaultQrHook).__qualname__.startswith(BaseApp.__qualname__)
-
-        iapp = InteractApp(client, engine, conf=minc)
-        assert iapp.sub_of(DefaultFeedHook).__qualname__.startswith(InteractApp.__qualname__)
-        assert iapp.sub_of(DefaultQrHook).__qualname__.startswith(hook_defaultqr.__qualname__)
-        assert iapp.sub_of(TaskerEvent).__qualname__.startswith(hook_taskerevent.__qualname__)
-        assert iapp.hook_qr.qr_markup.__qualname__.startswith(hook_defaultqr.__qualname__)
-
-        assert iapp.hook_qr.qr_markup() is not None
+    app = app_cls(client, engine, conf=minc)
+    assert app.sub_of(evt_cls).__name__ == (app_cls.__name__ + "_" + evt_cls.__name__).lower()

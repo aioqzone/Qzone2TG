@@ -5,39 +5,41 @@ from aioqzone_feed.type import FeedContent, VisualMedia
 from pydantic import BaseModel, HttpUrl
 from telegram import Chat, Message
 
-from qzone3tg.bot import BotProtocol, ChatId
+from qzone3tg.bot import ChatId
 
 
-class FakeBot(BotProtocol):
+class FakeBot:
     def __init__(self) -> None:
         self.log = []
 
-    async def send_message(self, to: ChatId, text: str, **kw):
-        self.log.append(("message", to, text, kw))
+    async def send_message(self, chat_id: ChatId, text: str, **kw):
+        self.log.append(("message", chat_id, text, kw))
         return fake_message(len(self.log))
 
-    async def send_photo(self, to: ChatId, media: str | bytes, caption: str, **kw):
-        self.log.append(("photo", to, media, caption, kw))
+    async def send_photo(self, chat_id: ChatId, media: str | bytes, caption: str, **kw):
+        self.log.append(("photo", chat_id, media, caption, kw))
         return fake_message(len(self.log))
 
-    async def send_media_group(self, to: ChatId, media: list, **kw):
-        self.log.append(("group", to, media, kw))
+    async def send_media_group(self, chat_id: ChatId, media: list, **kw):
+        self.log.append(("group", chat_id, media, kw))
         return fake_message(len(self.log))
 
-    async def edit_message_media(self, to: ChatId, mid: int, media):
-        self.log.append(("edit_photo", to, mid, media))
+    async def edit_message_media(self, chat_id: ChatId, mid: int, media):
+        self.log.append(("edit_photo", chat_id, mid, media))
         return fake_message(len(self.log))
 
-    async def send_document(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
-        self.log.append(("document", to, media, text, kw))
+    async def send_document(self, chat_id: ChatId, media: str | bytes, text: str, **kw) -> Message:
+        self.log.append(("document", chat_id, media, text, kw))
         return fake_message(len(self.log))
 
-    async def send_video(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
-        self.log.append(("video", to, media, text, kw))
+    async def send_video(self, chat_id: ChatId, media: str | bytes, text: str, **kw) -> Message:
+        self.log.append(("video", chat_id, media, text, kw))
         return fake_message(len(self.log))
 
-    async def send_animation(self, to: ChatId, media: str | bytes, text: str, **kw) -> Message:
-        self.log.append(("animation", to, media, text, kw))
+    async def send_animation(
+        self, chat_id: ChatId, media: str | bytes, text: str, **kw
+    ) -> Message:
+        self.log.append(("animation", chat_id, media, text, kw))
         return fake_message(len(self.log))
 
 

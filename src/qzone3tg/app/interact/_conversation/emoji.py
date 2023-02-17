@@ -53,6 +53,7 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
 
     """
     self.log.debug(context.args)
+    assert update.message is not None
 
     match context.args:
         case None | []:
@@ -108,6 +109,11 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
     """
     query = update.callback_query
     assert context.user_data is not None
+    assert query is not None
+
+    if query.message is None:
+        await query.answer("null query message", show_alert=True)
+        return
 
     context.user_data["message"] = query.message
     text = query.message.text or query.message.caption or ""
@@ -144,6 +150,8 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
     This method will transmit the state graph to `ASK_CUSTOM`.
     """
     assert context.user_data is not None
+    assert update.message is not None
+
     assert isinstance(update.message.text, str)
     try:
         eid = int(update.message.text)
@@ -181,6 +189,8 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
     This method will transmit the state graph to `ConversationHandler.END`.
     """
     assert context.user_data is not None
+    assert update.message is not None
+
     assert isinstance(update.message.text, str)
 
     eid: int = context.user_data["eid"]
@@ -224,6 +234,8 @@ async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
+    assert update.message is not None
+
     if context.user_data is not None:
         context.user_data.clear()
     await update.message.reply_text(
