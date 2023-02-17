@@ -6,12 +6,12 @@ from typing import Mapping, Sequence
 from aioqzone_feed.type import BaseFeed, FeedContent
 from httpx import TimeoutException
 from qqqr.event import Emittable, Event
-from telegram import Message
+from telegram import Bot, Message
 from telegram.error import BadRequest, TelegramError, TimedOut
 
 from qzone3tg.utils.iter import alist, countif
 
-from . import BotProtocol, ChatId, GroupMedia
+from . import ChatId, GroupMedia
 from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial, stringify_entities
 from .limitbot import BotTaskEditter as BTE
 
@@ -44,7 +44,7 @@ class MsgQueue(Emittable[QueueEvent]):
 
     def __init__(
         self,
-        bot: BotProtocol,
+        bot: Bot,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
         max_retry: int = 2,
@@ -74,7 +74,7 @@ class MsgQueue(Emittable[QueueEvent]):
         # add a sending task
         tasks = await alist(self.tasker.unify_send(feed))
         for p in tasks:
-            p.kwds.update(to=self.fwd2[feed.uin])
+            p.kwds.update(chat_id=self.fwd2[feed.uin])
 
         self.q[feed] = tasks
 
@@ -207,7 +207,7 @@ class EditableQueue(MsgQueue):
 
     def __init__(
         self,
-        bot: BotProtocol,
+        bot: Bot,
         tasker: BTE,
         forward_map: Mapping[int, ChatId],
         max_retry: int = 2,
@@ -218,7 +218,7 @@ class EditableQueue(MsgQueue):
         kw = {}
         for _ in range(self.max_retry):
             try:
-                return await self.bot.edit_message_media(to, mid, media, **kw)
+                return await self.bot.edit_message_media(media, to, mid, **kw)
             except TimedOut:
                 kw["timeout"] = kw.get("timeout", 5) * 2  # TODO
             except BadRequest:
@@ -270,6 +270,6 @@ class EditableQueue(MsgQueue):
         # replace the kwarg with new content
         tasks = await alist(self.tasker.unify_send(feed))
         for p in tasks:
-            p.kwds.update(to=self.fwd2[feed.uin])
+            p.kwds.update(chat_id=self.fwd2[feed.uin])
 
         self.q[feed] = tasks

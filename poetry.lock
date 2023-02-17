@@ -17,14 +17,14 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.10.2.dev2"
+version = "0.11.1.dev2"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "aioqzone-0.10.2.dev2-py3-none-any.whl", hash = "sha256:4ccbd6fb2eb8b0acdd9d0ce886fde3f4019194f9639d25065632fee788e7c792"},
-    {file = "aioqzone-0.10.2.dev2.tar.gz", hash = "sha256:653f4dc6b94825b25d0155db07542e36cd3cc5ef27dde10ad9184877807b4594"},
+    {file = "aioqzone-0.11.1.dev2-py3-none-any.whl", hash = "sha256:39c70175bd094c8e6a9e1431bae42fc674c5b6c64d193d5be899149aabacf76b"},
+    {file = "aioqzone-0.11.1.dev2.tar.gz", hash = "sha256:1e446f872577ce865a81bea458d5a0dce1aab4225f5301b9315a268929dd07e7"},
 ]
 
 [package.dependencies]
@@ -39,18 +39,18 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.10.3.dev1"
+version = "0.11.1.dev2"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "aioqzone_feed-0.10.3.dev1-py3-none-any.whl", hash = "sha256:3eb34537f6c0dffafd5de2847bbf33c9649e960e81fb8c3b055c3383e584b69b"},
-    {file = "aioqzone_feed-0.10.3.dev1.tar.gz", hash = "sha256:47cccf9e7102e8e94b24ca5a723dd8a5614f8692799676565bd46d784f18bc30"},
+    {file = "aioqzone_feed-0.11.1.dev2-py3-none-any.whl", hash = "sha256:c63274d725df2ac9ea253f813525c103ed671e7364c1aa7c71c6324f2ec7919f"},
+    {file = "aioqzone_feed-0.11.1.dev2.tar.gz", hash = "sha256:d8eca0e274b2c7625526948c3f98b9b661478497e3b228b864a8bf1c00b1eb34"},
 ]
 
 [package.dependencies]
-aioqzone = ">=0.10.2.dev2,<0.11.0"
+aioqzone = ">=0.11.1.dev1,<0.12.0"
 QzEmoji = ">=5.0.0.dev3,<6.0.0"
 
 [package.source]
@@ -1773,4 +1773,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "40b818a1563e712f9d3ac2ce9e8640b82a556a9497486fb37cd50857ab8d41bf"
+content-hash = "046f4c84018f6163fcbc0f39afe8f9c952e59ece6322ee6d3fd533a206776656"

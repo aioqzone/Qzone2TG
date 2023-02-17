@@ -11,7 +11,7 @@ from qqqr.event import Emittable, Event
 from qqqr.utils.net import ClientAdapter
 from telegram import Bot, InputFile, Message
 
-from . import BotProtocol, ChatId, GroupMedia, ReplyMarkup, SupportMedia
+from . import ChatId, GroupMedia, ReplyMarkup, SupportMedia
 from .atom import (
     LIM_GROUP_MD,
     LIM_MD_TXT,
@@ -224,49 +224,3 @@ class BotTaskEditter(BotTaskGenerator):
         timeout = max(org + min_inc, size / self.bps)
         call.timeout = timeout
         return call
-
-
-class SemaBot(BotProtocol):
-    """A implementation of :class:`BotProtocol` with content limitation checking and some type-casting.
-
-    .. versionchanged:: 0.5.0a1
-
-        Removed internal Semaphore. Use :class:`telegram.ext.BaseRateLimiter` instead.
-    """
-
-    def __init__(self, bot: Bot) -> None:
-        self.bot = bot
-
-    async def send_message(self, to: ChatId, text: str, **kw):
-        assert len(text) <= LIM_TXT
-        return await self.bot.send_message(to, text, **kw)
-
-    async def send_photo(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) <= LIM_MD_TXT
-        photo = media if isinstance(media, bytes) else str(media)
-        return await self.bot.send_photo(to, photo, text, **kw)
-
-    async def send_animation(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) <= LIM_MD_TXT
-        anim = media if isinstance(media, bytes) else str(media)
-        return await self.bot.send_animation(to, anim, caption=text, **kw)
-
-    async def send_video(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) <= LIM_MD_TXT
-        video = media if isinstance(media, bytes) else str(media)
-        return await self.bot.send_video(to, video, caption=text, **kw)
-
-    async def send_document(self, to: ChatId, media: HttpUrl | bytes, text: str, **kw):
-        assert len(text) <= LIM_MD_TXT
-        doc = media if isinstance(media, bytes) else str(media)
-        return await self.bot.send_document(to, doc, text, **kw)
-
-    async def edit_message_media(self, to: ChatId, mid: int, media: GroupMedia, **kw):
-        return await self.bot.edit_message_media(media, to, mid, **kw)
-
-    async def send_media_group(
-        self, to: ChatId, media: list[GroupMedia], caption: str | None, **kw
-    ) -> list[Message]:
-        assert 0 < len(media) <= LIM_GROUP_MD
-        assert len(getattr(media[0], "caption", None) or "") < LIM_MD_TXT
-        return list(await self.bot.send_media_group(to, media, caption=caption, **kw))

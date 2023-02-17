@@ -8,13 +8,15 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from time import time
-from typing import Type, Union
+from typing import Union
 
 import qzemoji as qe
 import telegram.ext as ext
-from aioqzone.api.loginman import QrStrategy
+from aioqzone.api.loginman import QRLoginMan, QrStrategy, UPLoginMan
+from aioqzone.event.login import QREvent, UPEvent
 from aioqzone.exception import LoginError
 from aioqzone_feed.api.feed import FeedApi
+from aioqzone_feed.event import FeedEvent
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
@@ -25,18 +27,17 @@ from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
-from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job, JobQueue
+from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, SemaBot, TaskerEvent
+from qzone3tg.bot.limitbot import BotTaskEditter, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue
-from qzone3tg.settings import LogConf, Settings, WebhookConf
+from qzone3tg.settings import Settings, WebhookConf
 
-from .hook import DefaultFeedHook, DefaultQrHook, DefaultUpHook
-from .storage import DefaultStorageHook, StorageMan
-from .storage.loginman import LoginMan
+from ..storage import DefaultStorageHook, StorageMan
+from ..storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
 
@@ -57,38 +58,32 @@ class TimeoutLoginman(LoginMan):
         strategy: QrStrategy,
         pwd: str | None = None,
         refresh_time: int = 6,
-        min_qr_interval: float = 7200,
-        min_up_interval: float = 3600,
+        min_qr_interval: float = 0,
+        min_up_interval: float = 0,
     ) -> None:
         super().__init__(client, engine, uin, strategy, pwd, refresh_time)
         self.qr_suppress_sec = min_qr_interval
         self.up_suppress_sec = min_up_interval
-        self.suppress_qr_till = 0
-        self.suppress_up_till = 0
+        self.suppress_qr_till = 0.0
+        self.suppress_up_till = 0.0
         self.force_login = False
 
-    async def _new_cookie(self) -> dict[str, str]:
+    def ordered_methods(self):
         if self.force_login:
-            self.suppress_qr_till = time() + self.qr_suppress_sec
-            self.suppress_up_till = time() + self.up_suppress_sec
-            return await super()._new_cookie()
+            return super().ordered_methods()
 
-        from aioqzone.api.loginman import QRLoginMan, UPLoginMan
-
-        backup = self._order.copy()
-        if self.strategy != QrStrategy.forbid and self.qr_suppressed:
-            self._order = [i for i in self._order if not isinstance(i, QRLoginMan)]
-        else:
-            self.suppress_qr_till = time() + self.qr_suppress_sec
-        if self.strategy != QrStrategy.force and self.up_suppressed:
-            self._order = [i for i in self._order if not isinstance(i, UPLoginMan)]
-        else:
-            self.suppress_up_till = time() + self.up_suppress_sec
-
-        try:
-            return await super()._new_cookie()
-        finally:
-            self._order = backup
+        lmls = []
+        for man in super().ordered_methods():
+            match man:
+                case UPLoginMan():
+                    if not self.up_suppressed:
+                        lmls.append(man)
+                case QRLoginMan():
+                    if not self.qr_suppressed:
+                        lmls.append(man)
+                case _:
+                    lmls.append(man)
+        return lmls
 
     @property
     def qr_suppressed(self):
@@ -105,49 +100,45 @@ class TimeoutLoginman(LoginMan):
         self.force_login = False
 
 
-class BaseApp(
-    EventManager[DefaultFeedHook, DefaultQrHook, DefaultUpHook, DefaultStorageHook, TaskerEvent]
-):
+class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, TaskerEvent]):
     start_time = 0
 
-    def __init__(self, client: ClientAdapter, engine: AsyncEngine, conf: Settings) -> None:
+    def __init__(
+        self,
+        client: ClientAdapter,
+        engine: AsyncEngine,
+        conf: Settings,
+        *,
+        init_qzone=True,
+        init_ptb=True,
+        init_queue=True,
+        init_hooks=True,
+    ) -> None:
         assert conf.bot.token
         # init logger at first
         self.conf = conf
         self.client = client
         self.engine = engine
-        self.timers: dict[str, Job] = {}
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
-        self._get_logger(conf.log)
+
+        self.log = self._get_logger()
         self.silent_noisy_logger()
 
-        self.loginman = TimeoutLoginman(
-            client,
-            engine,
-            conf.qzone.uin,
-            conf.qzone.qr_strategy,
-            conf.qzone.password.get_secret_value() if conf.qzone.password else None,
-            min_qr_interval=conf.qzone.min_qr_interval,
-            min_up_interval=conf.qzone.min_up_interval,
-        )
-        self.qzone = FeedApi(client, self.loginman)
-        self.log.info("Qzone端初始化完成")
+        if init_qzone:
+            self.init_qzone()
 
-        builder = Application.builder()
-        builder.rate_limiter(AIORateLimiter())
-        builder = builder.token(conf.bot.token.get_secret_value())
-        builder = builder.defaults(
-            ext.Defaults(parse_mode=ParseMode.HTML, **conf.bot.default.dict())
-        )
-        builder = self._build_request(builder)
+        if init_ptb:
+            self.init_ptb()
+            self.init_timers()
 
-        self.app = builder.build()
-        self._set_timers()
-        self.log.info("Bot初始化完成")
+        if init_queue:
+            self.init_queue()
 
         super().__init__()  # update bases before instantiate hooks
-        self.init_hooks()
+
+        if init_hooks:
+            self.init_hooks()
 
     # --------------------------------
     #            properties
@@ -157,94 +148,114 @@ class BaseApp(
         return self.conf.bot.admin
 
     @property
-    def extbot(self) -> ExtBot:
+    def bot(self) -> ExtBot:
         return self.app.bot
-
-    @property
-    def queue(self) -> JobQueue:
-        assert self.app.job_queue
-        return self.app.job_queue
 
     # --------------------------------
     #             hook init
     # --------------------------------
-    def _sub_defaultqrhook(self, base: Type[DefaultQrHook]):
-        class restart_timer(base):
-            async def LoginSuccess(_self, meth):
-                assert self.qzone.hb_timer
-                if self.qzone.hb_timer.state != "PENDING":
-                    self.qzone.hb_timer()
-                await super().LoginSuccess(meth)
+    from ._hook import feedevent_hook as _sub_feedevent
+    from ._hook import qrevent_hook as _sub_qrevent
+    from ._hook import upevent_hook as _sub_upevent
 
-        return restart_timer
+    def init_qzone(self):
+        conf = self.conf.qzone
+        self.loginman = TimeoutLoginman(
+            self.client,
+            self.engine,
+            conf.uin,
+            conf.qr_strategy,
+            conf.password.get_secret_value() if conf.password else None,
+            min_qr_interval=conf.min_qr_interval,
+            min_up_interval=conf.min_up_interval,
+        )
+        self.qzone = FeedApi(self.client, self.loginman)
+        self.log.debug("init_qzone done")
 
-    def _sub_defaultfeedhook(self, base: Type[DefaultFeedHook]):
-        class baseapp_feedhook(base):
-            async def HeartbeatRefresh(_self, num):
-                await super().HeartbeatRefresh(num)
-                return self.add_hook_ref(
-                    "heartbeat", self.fetch(self.conf.bot.admin, is_period=True)
-                )
+    def init_ptb(self):
+        conf = self.conf.bot
+        assert conf.token
 
-            async def HeartbeatFailed(_self, exc: BaseException | None):
-                await super().HeartbeatFailed(exc)
-                info = f"({exc})" if exc else ""
-                lm = self.loginman
-                qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
-                up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
-                if qr_avil or up_avil:
-                    try:
-                        await self.loginman.new_cookie()
-                    except:
-                        return
-                    else:
-                        await self.restart_heartbeat()
-                    return
+        builder = Application.builder()
+        builder.rate_limiter(AIORateLimiter())
+        builder = builder.token(conf.token.get_secret_value())
+        builder = builder.defaults(ext.Defaults(parse_mode=ParseMode.HTML, **conf.default.dict()))
+        builder = self._build_request(builder)
 
-                self.log.warning("heartbeat failed because all login methods suppressed.")
-                await self.bot.send_message(self.admin, "由于距上次登录的时间间隔少于您所指定的最小值，自动登录已暂停。" + info)
+        self.app = builder.build()
+        self.log.debug("init_ptb done")
 
-        return baseapp_feedhook
+    def init_queue(self):
+        self.queue = EditableQueue(
+            self.bot,
+            BotTaskEditter(
+                FetchSplitter(self.client) if self.conf.bot.send_gif_as_anim else LocalSplitter(),
+                self.client,
+            ),
+            defaultdict(lambda: self.admin),
+        )
+        self.add_hook_ref = self.queue.add_hook_ref
+
+    def init_timers(self):
+        assert self.app.job_queue
+        self.timers: dict[str, Job] = {}
+        conf = self.conf.log
+
+        # clean database
+        async def clean(_):
+            await self.hook_store.Clean(-self.conf.bot.storage.keepdays * 86400)
+
+        self.timers["cl"] = self.app.job_queue.run_repeating(clean, 86400, 0, name="clean")
+
+        async def lst_forever(_):
+            self.log.info(self._status_text(True))
+            return False
+
+        self.timers["ls"] = self.app.job_queue.run_repeating(
+            lst_forever, 3600, 3600, name="log status"
+        )
+
+        # register debug status timer
+        if conf.debug_status_interval > 0:
+
+            async def dst_forever(_):
+                await BaseApp.status(self, self.admin, debug=True)
+                return False
+
+            self.timers["ds"] = self.app.job_queue.run_repeating(
+                dst_forever,
+                conf.debug_status_interval,
+                conf.debug_status_interval,
+                name="/status debug",
+            )
+
+        self.log.debug("init_timers done")
 
     def init_hooks(self):
-        self.bot = SemaBot(self.extbot)
-        self.hook_qr = self.sub_of(DefaultQrHook)(self.admin, self.bot)
-        self.hook_up = self.sub_of(DefaultUpHook)(self.admin, self.bot)
+        self.hook_qr = self.sub_of(QREvent)()
+        self.hook_up = self.sub_of(UPEvent)()
         block = self.conf.qzone.block or []
         block = block.copy()
         if self.conf.qzone.block_self:
             block.append(self.conf.qzone.uin)
 
-        self.hook_feed = self.sub_of(DefaultFeedHook)(
-            EditableQueue(
-                self.bot,
-                BotTaskEditter(
-                    FetchSplitter(self.client)
-                    if self.conf.bot.send_gif_as_anim
-                    else LocalSplitter(),
-                    self.client,
-                ),
-                defaultdict(lambda: self.admin),
-            ),
-            block or [],
-        )
+        self.hook_feed = self.sub_of(FeedEvent)()
         self.hook_tasker = self.sub_of(TaskerEvent)()
         self.store = StorageMan(self.engine)
         self.hook_store = self.sub_of(DefaultStorageHook)(self.store)
 
         self.qzone.register_hook(self.hook_feed)
-        self.hook_feed.queue.register_hook(self.hook_store)
-        self.hook_feed.queue.tasker.register_hook(self.hook_tasker)
+        self.queue.register_hook(self.hook_store)
+        self.queue.tasker.register_hook(self.hook_tasker)
         self.loginman.register_hook(self.hook_qr)
         self.loginman.register_hook(self.hook_up)
 
-        self.add_hook_ref = self.hook_feed.queue.add_hook_ref
         self.log.info("TG端初始化完成")
 
     # --------------------------------
     #           init logger
     # --------------------------------
-    def _get_logger(self, conf: LogConf):
+    def _get_logger(self):
         """Build a logger from given config.
 
         :param conf: conf from settings.
@@ -256,6 +267,7 @@ class BaseApp(
 
             .. seealso:: https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
         """
+        conf = self.conf.log
 
         if conf.conf:
             if not conf.conf.exists():
@@ -275,30 +287,7 @@ class BaseApp(
         else:
             logging.basicConfig(**conf.dict(include={"level", "format", "datefmt", "style"}))
 
-        self.log = logging.getLogger(self.__class__.__name__)
-
-    def _set_timers(self):
-        conf = self.conf.log
-
-        async def lst_forever(_):
-            self.log.info(self._status_text(True))
-            return False
-
-        self.timers["ls"] = self.queue.run_repeating(lst_forever, 3600, 3600, name="log status")
-
-        # register debug status timer
-        if conf.debug_status_interval > 0:
-
-            async def dst_forever(_):
-                await BaseApp.status(self, self.admin, debug=True)
-                return False
-
-            self.timers["ds"] = self.queue.run_repeating(
-                dst_forever,
-                conf.debug_status_interval,
-                conf.debug_status_interval,
-                name="/status debug",
-            )
+        return logging.getLogger(self.__class__.__name__)
 
     def silent_noisy_logger(self):
         """Silent some noisy logger in other packages."""
@@ -395,23 +384,6 @@ class BaseApp(
             return
 
     # --------------------------------
-    #              timer
-    # --------------------------------
-    def add_clean_task(self, keepdays: float, interval: float = 86400):
-        """
-        This function registers a timer that calls `self.clean(-keepdays * 86400)`
-        every `interval` seconds.
-
-        :param keepdays: Used to determine how many days worth of messages to keep.
-        :return: the clean Task
-        """
-
-        async def clean(_):
-            await self.hook_store.Clean(-keepdays * 86400)
-
-        self.timers["cl"] = self.queue.run_repeating(clean, interval, 0, name="clean")
-
-    # --------------------------------
     #          work logics
     # --------------------------------
     async def run(self):
@@ -427,8 +399,6 @@ class BaseApp(
         self.register_signal()
         self.log.info("注册心跳...")
         self.qzone.add_heartbeat()
-        self.log.info("注册数据库清理任务...")
-        self.add_clean_task(self.conf.bot.storage.keepdays)
         self.log.info("等待异步初始化任务...")
         init_task = [
             qe.auto_update(),
@@ -497,7 +467,7 @@ class BaseApp(
         self.log.info(f"Start fetch with period={is_period}")
         echo = lambda m: self.add_hook_ref("command", self.bot.send_message(to, m))
         # start a new batch
-        self.hook_feed.new_batch(self.qzone.new_batch())
+        self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
         try:
             got = await self.qzone.get_feeds_by_second(
@@ -536,7 +506,7 @@ class BaseApp(
 
         # wait for all hook to finish
         await self.qzone.wait()
-        got -= self.hook_feed.queue.skip_num
+        got -= self.queue.skip_num
         if got == 0:
             if not is_period:
                 echo("您已跟上时代🎉")
@@ -544,7 +514,7 @@ class BaseApp(
 
         # forward
         try:
-            await self.hook_feed.queue.send_all()
+            await self.queue.send_all()
         except SystemError:
             return await self.shutdown()
         except:
@@ -555,7 +525,7 @@ class BaseApp(
             return  # skip summary if this is called by heartbeat
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
-        errs = self.hook_feed.queue.exc_num
+        errs = self.queue.exc_num
         log_level_helper = (
             f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ""
         )
@@ -588,7 +558,7 @@ class BaseApp(
         }
         if debug:
             add_dic = {
-                "网速估计": f"{self.hook_feed.queue.tasker.bps / 1e6:.2f}M/s",
+                "网速估计": f"{self.queue.tasker.bps / 1e6:.2f}M/s",
             }
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())

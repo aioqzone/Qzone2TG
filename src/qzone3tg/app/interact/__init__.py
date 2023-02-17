@@ -1,10 +1,10 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
-from pathlib import Path
-from typing import Type
 
 from aioqzone.api.loginman import QrStrategy
+from aioqzone.event.login import QREvent, UPEvent
 from aioqzone.type.internal import LikeData
+from aioqzone_feed.event import FeedEvent
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram import BotCommand, Message, Update
@@ -17,7 +17,6 @@ from telegram.ext import (
     filters,
 )
 
-from qzone3tg.app.hook import DefaultUpHook
 from qzone3tg.settings import PollingConf, Settings
 
 from ..base import BaseApp
@@ -68,16 +67,14 @@ class InteractApp(BaseApp):
     # --------------------------------
     #            hook init
     # --------------------------------
-    from ._button import hook_taskerevent as _sub_taskerevent
+    from ._button import qrevent_hook as _sub_qrevent
+    from ._button import taskerevent_hook as _sub_taskerevent
 
-    def _sub_defaultqrhook(self, base):
-        from ._button import hook_defaultqr as _sub_defaultqrhook
+    def _sub_upevent(_self, base: type[UPEvent]):
+        base = super()._sub_upevent(base)
 
-        return _sub_defaultqrhook(self, super()._sub_defaultqrhook(base))
-
-    def _sub_defaultuphook(self, base: Type[DefaultUpHook]):
-        class get_reply(base):
-            async def force_reply_answer(_self, msg) -> str | None:
+        class interactapp_upevent(base):
+            async def force_reply_answer(self, msg) -> str | None:
                 code = ""
                 evt = asyncio.Event()
 
@@ -89,23 +86,23 @@ class InteractApp(BaseApp):
                     evt.set()
 
                 handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
-                self.app.add_handler(handler)
+                _self.app.add_handler(handler)
 
                 try:
-                    await asyncio.wait_for(evt.wait(), timeout=_self.vtimeout)
+                    await asyncio.wait_for(evt.wait(), timeout=_self.conf.qzone.vcode_timeout)
                 except (asyncio.TimeoutError, asyncio.CancelledError):
                     return
                 else:
                     return code
                 finally:
-                    self.app.remove_handler(handler)
+                    _self.app.remove_handler(handler)
 
-        return get_reply
+        return interactapp_upevent
 
-    def _sub_defaultfeedhook(self, base):
-        base = super()._sub_defaultfeedhook(base)
+    def _sub_feedevent(self, base: type[FeedEvent]):
+        base = super()._sub_feedevent(base)
 
-        class interactapp_feedhook(base):
+        class interactapp_feedevent(base):
             async def HeartbeatRefresh(_self, num: int):
                 if self.fetch_lock.locked:
                     self.log.warning("Heartbeat refresh skipped since fetch is running.")
@@ -122,7 +119,7 @@ class InteractApp(BaseApp):
                         self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
                     )
 
-        return interactapp_feedhook
+        return interactapp_feedevent
 
     def register_handlers(self):
         # build chat filters
@@ -163,7 +160,7 @@ class InteractApp(BaseApp):
 
     async def set_commands(self):
         try:
-            await self.extbot.set_my_commands(
+            await self.bot.set_my_commands(
                 [BotCommand(command=k, description=v) for k, v in self.commands.items()]
             )
         except:

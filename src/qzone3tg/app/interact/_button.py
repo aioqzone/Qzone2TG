@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from . import InteractApp
 
 
-def hook_taskerevent(self: InteractApp, base):
-    class interact_tasker_hook(base):
+def taskerevent_hook(_self: InteractApp, base):
+    class interactapp_taskerevent(base):
         def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
             if feed.unikey is None:
                 return
@@ -53,21 +53,30 @@ def hook_taskerevent(self: InteractApp, base):
             markup.append(self._reply_markup_one_feed(feed))
             return markup
 
-    return interact_tasker_hook
+    return interactapp_taskerevent
 
 
-def hook_defaultqr(self: InteractApp, base):
-    class has_markup(base):
+def qrevent_hook(_self: InteractApp, base):
+    base = super(_self.__class__, _self)._sub_qrevent(base)
+
+    class interactapp_qrevent(base):
         def qr_markup(self):
             btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
             btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
             return InlineKeyboardMarkup([[btnrefresh, btncancel]])
 
-    return has_markup
+    return interactapp_qrevent
 
 
 async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    assert query
+    if query.data is None or ":" not in query.data:
+        self.log.warning(f"wrong callback data from update {update.update_id}")
+        self.log.debug(query)
+        await query.answer(f"invalid query data: {query.data}", show_alert=True)
+        return
+
     self.log.info(f"Like! query={query.data}")
     _, data = str.split(query.data, ":", maxsplit=1)
     if unlike := data.startswith("-"):
@@ -103,6 +112,9 @@ async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFA
         )
 
     async def like_trans(likedata: LikeData):
+        assert query
+        assert query.message
+
         with self.loginman.disable_suppress():
             try:
                 succ = await self.qzone.like_app(likedata, not unlike)
@@ -138,6 +150,12 @@ async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFA
 
 async def btn_qr(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    assert query
+    if query.data is None:
+        await query.answer("null query data", show_alert=True)
+        self.log.debug(query)
+        return
+
     self.log.info(f"QR! query={query.data}")
 
     match query.data:
@@ -145,8 +163,6 @@ async def btn_qr(self: InteractApp, update: Update, context: ContextTypes.DEFAUL
             self.hook_qr.refresh_flag.set()
         case "qr:cancel":
             self.hook_qr.cancel_flag.set()
-            await query.delete_message()
-            self.hook_qr.qr_msg = None
         case _:
             self.log.warning(f"Unexpected qr button callback: {query.data}")
             await query.delete_message()

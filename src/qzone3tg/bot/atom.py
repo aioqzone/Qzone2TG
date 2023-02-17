@@ -3,13 +3,14 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Final, Generic, Protocol, Tuple, Type, overload
+from typing import Final, Generic, Protocol, Sequence, Tuple, overload
 
 from aioqzone.type.entity import AtEntity, ConEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
+from telegram import Bot
 from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
@@ -17,9 +18,9 @@ from telegram import InputMediaVideo as Video
 from telegram import Message
 from typing_extensions import Self
 
-from . import MD, BotProtocol, GroupMedia, ReplyMarkup, SupportMedia
+from . import MD, GroupMedia, ReplyMarkup, SupportMedia
 
-PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[Type[SupportMedia]]]
+PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[type[SupportMedia]]]
 LIM_TXT: Final = 4096
 LIM_MD_TXT: Final = 1024
 LIM_GROUP_MD: Final = 10
@@ -40,8 +41,8 @@ class MsgPartial(ABC):
         self.kwds = kw
 
     @abstractmethod
-    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
-        """This means `send_xxx` in :class:`BotProtocol`."""
+    async def __call__(self, bot: Bot, *args, **kwds) -> Message:
+        """This means `send_xxx` in :class:`Bot`."""
         pass
 
     @classmethod
@@ -89,7 +90,7 @@ class MsgPartial(ABC):
 
 class TextPartial(MsgPartial):
     """Text partial represents a pure text message.
-    Calling this will trigger :meth:`BotProtocol.send_message`.
+    Calling this will trigger :meth:`Bot.send_message`.
     """
 
     meth = "message"
@@ -98,7 +99,7 @@ class TextPartial(MsgPartial):
         super().__init__(**kw)
         self.text = text
 
-    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+    async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         assert self.text
         return await bot.send_message(*args, text=self.text, **(self.kwds | kwds))
 
@@ -108,7 +109,7 @@ class TextPartial(MsgPartial):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[Type[SupportMedia]],
+        md_types: list[type[SupportMedia]],
         **kwds,
     ) -> Tuple[Self, PIPE_OBJS]:
         return cls(txt[:LIM_TXT], **kwds), (txt[LIM_TXT:], metas, raws, md_types)
@@ -117,7 +118,7 @@ class TextPartial(MsgPartial):
 class MediaPartial(MsgPartial, Generic[MD]):
     """Media partial represents a message with **ONE** media. Each MediaPartial should have
     a :obj:`.meth` field which indicates what kind of media it contains. The meth is also used
-    when MediaPartial is called. Thus "send_{meth}" must be a callable in :class:`BotProtocol`.
+    when MediaPartial is called. Thus "send_{meth}" must be a callable in :class:`Bot`.
     """
 
     __slots__ = ("meta", "_raw")
@@ -141,8 +142,8 @@ class MediaPartial(MsgPartial, Generic[MD]):
 
     def wrap_media(self, **kw) -> MD:
         """Build a :class:`~telegram.InputMedia` from a MediaPartial.
-        This is used in :meth:`BotProtocol.edit_media`."""
-        cls: Type[MD] = self.__orig_bases__[0].__args__[0]  # type: ignore
+        This is used in :meth:`Bot.edit_media`."""
+        cls: type[MD] = self.__orig_bases__[0].__args__[0]  # type: ignore
         if self.text:
             kw["caption"] = self.text
         return cls(
@@ -150,7 +151,7 @@ class MediaPartial(MsgPartial, Generic[MD]):
             **kw,
         )
 
-    async def __call__(self, bot: BotProtocol, *args, **kwds) -> Message:
+    async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         f = getattr(bot, f"send_{self.meth}")
         return await f(*args, media=self.content, text=self.text, **(self.kwds | kwds))
 
@@ -160,7 +161,7 @@ class MediaPartial(MsgPartial, Generic[MD]):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[Type[SupportMedia]],
+        md_types: list[type[SupportMedia]],
         **kwds,
     ) -> Tuple["MediaPartial", PIPE_OBJS]:
         cls = cls.query_subclass(md_types[0])
@@ -172,16 +173,16 @@ class MediaPartial(MsgPartial, Generic[MD]):
     # fmt: off
     @classmethod
     @overload
-    def query_subclass(cls, ty: Type[Anim]) -> Type['AnimPartial']: ...
+    def query_subclass(cls, ty: type[Anim]) -> type['AnimPartial']: ...
     @classmethod
     @overload
-    def query_subclass(cls, ty: Type[Doc]) -> Type['DocPartial']: ...
+    def query_subclass(cls, ty: type[Doc]) -> type['DocPartial']: ...
     @classmethod
     @overload
-    def query_subclass(cls, ty: Type[Pic]) -> Type['PicPartial']: ...
+    def query_subclass(cls, ty: type[Pic]) -> type['PicPartial']: ...
     @classmethod
     @overload
-    def query_subclass(cls, ty: Type[Video]) -> Type['VideoPartial']: ...
+    def query_subclass(cls, ty: type[Video]) -> type['VideoPartial']: ...
     # fmt: on
 
     @classmethod
@@ -215,7 +216,7 @@ class VideoPartial(MediaPartial[Video]):
 
 class MediaGroupPartial(MsgPartial):
     """MediaGroupPartial represents a group of medias in one message. Calling this will trigger
-    :meth:`BotProtocol.send_media_group`.
+    :meth:`Bot.send_media_group`.
     """
 
     meth = "media_group"
@@ -240,13 +241,13 @@ class MediaGroupPartial(MsgPartial):
     def reply_markup(self, value: ReplyMarkup | None):
         assert value is None
 
-    async def __call__(self, bot: BotProtocol, *args, **kwds) -> list[Message]:
+    async def __call__(self, bot: Bot, *args, **kwds) -> Sequence[Message]:
         assert self.medias
         return await bot.send_media_group(
             *args, media=self.medias, caption=self.text or "", **(self.kwds | kwds)
         )
 
-    def append(self, meta: VisualMedia, raw: bytes | None, cls: Type[SupportMedia], **kw):
+    def append(self, meta: VisualMedia, raw: bytes | None, cls: type[SupportMedia], **kw):
         """append a media into this partial."""
         assert issubclass(cls, (Pic, Doc, Video))
         assert len(self.medias) < LIM_GROUP_MD
@@ -258,7 +259,7 @@ class MediaGroupPartial(MsgPartial):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[Type[SupportMedia]],
+        md_types: list[type[SupportMedia]],
         **kwds,
     ) -> Tuple[Self, PIPE_OBJS]:
         """See :meth:`MsgPartial.pipeline`.
@@ -413,7 +414,7 @@ class LocalSplitter(Splitter):
         """:class:`LocalSpliter` does not probe any media."""
         return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> Type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
         """Guess media type according to its metadata.
 
         :param media: metadata to guess
@@ -459,7 +460,7 @@ class FetchSplitter(LocalSplitter):
             log.warning("Error when probing", exc_info=True)
             return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> Type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
         """Guess media type using media raw, otherwise by metadata.
 
         :param media: metadata to guess

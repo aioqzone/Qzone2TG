@@ -5,6 +5,7 @@ import pytest
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
+from telegram import Bot
 from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.atom import FetchSplitter
@@ -23,10 +24,14 @@ class Ihave0(QueueEvent):
 
 
 @pytest.fixture
-def ideal(client: ClientAdapter):
-    bot = FakeBot()
+def fake_bot():
+    return FakeBot()
+
+
+@pytest.fixture
+def ideal(client: ClientAdapter, fake_bot: Bot):
     tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(bot, tasker, defaultdict(int))
+    q = EditableQueue(fake_bot, tasker, defaultdict(int))
     q.register_hook(Ihave0())
 
     class FakeMarkup(TaskerEvent):
@@ -102,27 +107,31 @@ class TestIdeal:
 
 
 class RealBot(FakeBot):
-    def send_message(self, to, text: str, **kw):
+    def send_message(self, chat_id, text: str, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_message(to, text, **kw)
+        return super().send_message(chat_id, text, **kw)
 
-    def send_media_group(self, to, media: list, **kw):
+    def send_media_group(self, chat_id, media: list, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_media_group(to, media, **kw)
+        return super().send_media_group(chat_id, media, **kw)
 
-    def send_photo(self, to, media: str | bytes, text: str, **kw):
+    def send_photo(self, chat_id, media: str | bytes, text: str, **kw):
         if e := kw.pop("e", None):
             raise e
-        return super().send_photo(to, media, text, **kw)
+        return super().send_photo(chat_id, media, text, **kw)
 
 
 @pytest.fixture
-def real(client: ClientAdapter):
-    bot = RealBot()
+def real_bot():
+    return RealBot()
+
+
+@pytest.fixture
+def real(client: ClientAdapter, real_bot: Bot):
     tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(bot, tasker, defaultdict(int))
+    q = EditableQueue(real_bot, tasker, defaultdict(int))
     q.register_hook(Ihave0())
     tasker.register_hook(TaskerEvent())
     return q
