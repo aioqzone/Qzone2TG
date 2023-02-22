@@ -70,3 +70,10 @@ def fake_media(url: str):
     url = W.parse_obj(dict(u=url)).u
     # fmt: on
     return VisualMedia.construct(height=1, width=1, thumbnail=url, raw=url, is_video=False)
+
+
+def invalid_media(url: str):
+    m = fake_media(url)
+    m.height = 100000
+    m.width = 100000
+    return m

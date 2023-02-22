@@ -2,9 +2,9 @@
 import asyncio
 
 from aioqzone.api.loginman import QrStrategy
-from aioqzone.event.login import QREvent, UPEvent
+from aioqzone.event.login import UPEvent
 from aioqzone.type.internal import LikeData
-from aioqzone_feed.event import FeedEvent
+from aioqzone_feed.event import HeartbeatEvent
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram import BotCommand, Message, Update
@@ -68,7 +68,7 @@ class InteractApp(BaseApp):
     #            hook init
     # --------------------------------
     from ._button import qrevent_hook as _sub_qrevent
-    from ._button import taskerevent_hook as _sub_taskerevent
+    from ._button import queueevent_hook as _sub_queueevent
 
     def _sub_upevent(_self, base: type[UPEvent]):
         base = super()._sub_upevent(base)
@@ -99,27 +99,42 @@ class InteractApp(BaseApp):
 
         return interactapp_upevent
 
-    def _sub_feedevent(self, base: type[FeedEvent]):
-        base = super()._sub_feedevent(base)
+    def _sub_heartbeatevent(_self, base: type[HeartbeatEvent]):
+        base = super()._sub_heartbeatevent(base)
 
-        class interactapp_feedevent(base):
-            async def HeartbeatRefresh(_self, num: int):
-                if self.fetch_lock.locked:
-                    self.log.warning("Heartbeat refresh skipped since fetch is running.")
+        class interactapp_heartbeatevent(base):
+            async def HeartbeatRefresh(self, num: int):
+                if _self.fetch_lock.locked:
+                    _self.log.warning("Heartbeat refresh skipped since fetch is running.")
                     return
-                self.fetch_lock.acquire(await super().HeartbeatRefresh(num))  # type: ignore
+                await super().HeartbeatRefresh(num)
 
-            async def HeartbeatFailed(_self, exc: BaseException | None):
+                tasks = [t for t in _self._tasks["fetch"] if t._state == "PENDING"]
+                match len(tasks):
+                    case n if n > 1:
+                        task = next(filter(lambda t: t._state == "PENDING", tasks))
+                        _self.log.warn(
+                            "fetch taskset should contain only one task, the first pending task is used."
+                        )
+                    case n if n == 1:
+                        task = next(iter(tasks))
+                    case _:
+                        _self.log.warn("fetch task not found, fetch lock skipped.")
+                        return
+
+                _self.fetch_lock.acquire(task)
+
+            async def HeartbeatFailed(self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
-                lm = self.loginman
+                lm = _self.loginman
                 qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
                 up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
                 if qr_avil or up_avil:
-                    await self.bot.send_message(
-                        self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
+                    await _self.bot.send_message(
+                        _self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
                     )
 
-        return interactapp_feedevent
+        return interactapp_heartbeatevent
 
     def register_handlers(self):
         # build chat filters
@@ -203,8 +218,11 @@ class InteractApp(BaseApp):
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
         assert chat
-        self.log.info("Start! chat=%d", chat.id)
-        task = self.add_hook_ref("command", self.fetch(chat.id))
+        self.log.debug("Start! chat=%d", chat.id)
+        if self._tasks["fetch"]:
+            self.log.warning("a fetch task is pending, cancel.")
+            self.clear("fetch")
+        task = self.add_hook_ref("fetch", self._fetch(chat.id))
         self.fetch_lock.acquire(task)
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,22 +239,22 @@ class InteractApp(BaseApp):
     async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
         assert chat
-        if context.args and len(context.args) == 1 and context.args[0].lower() == "debug":
-            await super().status(chat.id, debug=True)
-        else:
-            await super().status(chat.id)
+        match context.args:
+            case ["debug"]:
+                await super().status(chat.id, debug=True)
+            case _:
+                await super().status(chat.id)
 
     async def relogin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
         assert chat
         with self.loginman.disable_suppress():
             try:
-                await self.qzone.api.login.new_cookie()
+                await self.qzone.login.new_cookie()
             except:
                 return
 
-        if await self.restart_heartbeat():
-            await self.bot.send_message(self.admin, "心跳已重启")
+        # `LoginSuccess` hooks will restart heartbeat
 
     async def like(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = update.effective_message

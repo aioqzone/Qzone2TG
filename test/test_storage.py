@@ -9,9 +9,12 @@ from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from qzone3tg.app.storage import DefaultStorageHook, FeedOrm, StorageMan
+from qzone3tg.app.base import BaseApp
+from qzone3tg.app.base._hook import queueevent_hook, storageevent_hook
+from qzone3tg.app.storage import FeedOrm, StorageEvent, StorageMan
 from qzone3tg.app.storage.loginman import LoginMan
 from qzone3tg.app.storage.orm import CookieOrm, MessageOrm
+from qzone3tg.bot.queue import QueueEvent
 
 from . import fake_feed
 
@@ -27,6 +30,7 @@ def fixed():
 @pytest_asyncio.fixture(scope="class")
 async def engine():
     db = Path("tmp/tmp.db")
+    db.unlink(missing_ok=True)
     async with AsyncEngineFactory.sqlite3(db) as engine:
         yield engine
     db.unlink(missing_ok=True)
@@ -39,42 +43,58 @@ async def store(engine: AsyncEngine):
     yield s
 
 
+@pytest.fixture(scope="class")
+def fake_app(store: StorageMan):
+    class fake_app:
+        def __init__(self, store) -> None:
+            self.store = store
+
+    return fake_app(store)
+
+
 @pytest_asyncio.fixture(scope="class")
-async def hook(store: StorageMan):
-    yield DefaultStorageHook(store)
+async def hook_store(fake_app: BaseApp):
+    cls = storageevent_hook(fake_app, StorageEvent)
+    yield cls()
+
+
+@pytest_asyncio.fixture(scope="class")
+async def hook_queue(fake_app: BaseApp):
+    cls = queueevent_hook(fake_app, QueueEvent)
+    yield cls()
 
 
 class TestFeedStore:
     async def test_create(self, store: StorageMan):
         await store.create()
 
-    async def test_insert(self, hook: DefaultStorageHook, fixed: list):
-        await hook.SaveFeed(fixed[1])
-        await hook.SaveFeed(fixed[2], [0])
+    async def test_insert(self, hook_queue: QueueEvent, fixed: list):
+        await hook_queue.SaveFeed(fixed[1])
+        await hook_queue.SaveFeed(fixed[2], [0])
 
-    async def test_exist(self, hook: DefaultStorageHook, fixed: list):
-        assert not await hook.Exists(fixed[0])
-        assert not await hook.Exists(fixed[1])
-        assert await hook.Exists(fixed[2])
+    async def test_exist(self, store: StorageMan, hook_store: StorageEvent, fixed: list):
+        assert not await store.exists(*FeedOrm.primkey(fixed[0]))
+        assert not await store.exists(*FeedOrm.primkey(fixed[1]))
+        assert await store.exists(*FeedOrm.primkey(fixed[2]))
 
-    async def test_update(self, store: StorageMan, hook: DefaultStorageHook, fixed: list):
+    async def test_update(self, store: StorageMan, hook_queue: QueueEvent, fixed: list):
         pack = await store.get(*FeedOrm.primkey(fixed[1]))
         assert pack
         feed, mids = pack
         assert not mids
 
-        await hook.update_message_ids(fixed[2], [1, 2])
-        mids = await hook.GetMid(fixed[2])
+        await hook_queue._update_message_ids(fixed[2], [1, 2])  # type: ignore
+        mids = await hook_queue.GetMid(fixed[2])
         assert mids
         assert mids == [1, 2]
 
-    async def test_mid2feed(self, hook: DefaultStorageHook, fixed: list):
-        feed = await hook.Mid2Feed(1)
+    async def test_mid2feed(self, hook_store: StorageEvent, fixed: list):
+        feed = await hook_store.Mid2Feed(1)
         assert feed == fixed[2]
 
-    async def test_remove(self, store: StorageMan, hook: DefaultStorageHook, fixed: list):
-        await hook.Clean(0)  # clean all
-        assert not await hook.Exists(fixed[2])
+    async def test_remove(self, store: StorageMan, hook_store: StorageEvent, fixed: list):
+        await hook_store.Clean(0)  # clean all
+        assert not await store.exists(*FeedOrm.primkey(fixed[2]))
         assert not await store.get_msg_orms(MessageOrm.mid == 1)
 
 

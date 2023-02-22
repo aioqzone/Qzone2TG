@@ -2,22 +2,27 @@ from __future__ import annotations
 
 import asyncio
 from time import time
-from typing import TYPE_CHECKING, Optional
-
-import telegram
-from aioqzone.api.loginman import QrStrategy
-from aioqzone.event.login import QREvent, UPEvent
-from aioqzone_feed.event import FeedEvent
-from aioqzone_feed.type import FeedContent
-from telegram import InlineKeyboardMarkup, InputMediaPhoto, Message
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from aioqzone.event.login import QREvent, UPEvent
+    from aioqzone.type.resp import FeedRep
+    from aioqzone_feed.event import FeedEvent, HeartbeatEvent
+    from aioqzone_feed.type import FeedContent
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from telegram import InlineKeyboardMarkup
+
+    from qzone3tg.bot.queue import QueueEvent
+
+    from ..storage import StorageEvent
     from . import BaseApp
 
 
 def qrevent_hook(_self: BaseApp, base: type[QREvent]):
+    from telegram import InputMediaPhoto, Message
+
     class baseapp_qrevent(base):
-        async def LoginFailed(self, meth, msg: Optional[str] = None):
+        async def LoginFailed(self, meth, msg: str | None = None):
             await super().LoginFailed(meth, msg)
             _self.loginman.suppress_qr_till = time() + _self.loginman.qr_suppress_sec
             await self._cleanup()
@@ -76,8 +81,10 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
 
 
 def upevent_hook(_self: BaseApp, base: type[UPEvent]):
+    from telegram import ForceReply, Message
+
     class baseapp_upevent(base):
-        async def LoginFailed(self, meth, msg: Optional[str] = None):
+        async def LoginFailed(self, meth, msg: str | None = None):
             await super().LoginFailed(meth, msg)
             _self.loginman.suppress_up_till = time() + _self.loginman.up_suppress_sec
             pmsg = f": {msg}" if msg else ""
@@ -88,12 +95,12 @@ def upevent_hook(_self: BaseApp, base: type[UPEvent]):
             await _self.restart_heartbeat()
             await _self.bot.send_message(_self.admin, "登录成功", disable_notification=True)
 
-        async def GetSmsCode(self, phone: str, nickname: str) -> Optional[str]:
+        async def GetSmsCode(self, phone: str, nickname: str) -> str | None:
             m = await _self.bot.send_message(
                 _self.admin,
                 f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
                 disable_notification=False,
-                reply_markup=telegram.ForceReply(input_field_placeholder="012345"),
+                reply_markup=ForceReply(input_field_placeholder="012345"),
             )
             code = await self.force_reply_answer(m)
             if code is None:
@@ -121,7 +128,9 @@ def upevent_hook(_self: BaseApp, base: type[UPEvent]):
 
 
 def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
-    class baseapp_feedevent(FeedEvent):
+    from ..storage.orm import FeedOrm
+
+    class baseapp_feedevent(base):
         def __init__(self) -> None:
             super().__init__()
 
@@ -144,7 +153,17 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
             _self.log.debug(f"feed update received: media={feed.media}")
             await _self.queue.edit(bid, feed)
 
-        async def HeartbeatFailed(self, exc: Optional[BaseException] = None):
+        async def StopFeedFetch(self, feed: FeedRep) -> bool:
+            return await _self.store.exists(*FeedOrm.primkey(feed))
+
+    return baseapp_feedevent
+
+
+def heartbeatevent_hook(_self: BaseApp, base: type[HeartbeatEvent]):
+    from aioqzone.api.loginman import QrStrategy
+
+    class baseapp_heartbeatevent(base):
+        async def HeartbeatFailed(self, exc: BaseException | None = None):
             _self.log.debug(f"heartbeat failed: {exc}")
             lm = _self.loginman
             qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
@@ -165,6 +184,111 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
 
         async def HeartbeatRefresh(self, num: int):
             _self.log.info(f"Heartbeat triggers a refresh: count={num}")
-            await _self.fetch(_self.conf.bot.admin, is_period=True)
+            if _self._tasks["fetch"]:
+                _self.log.warning(
+                    "fetch taskset should contain only one task, heartbeat fetch skipped."
+                )
+                _self.log.debug(_self._tasks["fetch"])
+                return
+            _self.add_hook_ref("fetch", _self._fetch(_self.conf.bot.admin, is_period=True))
 
-    return baseapp_feedevent
+    return baseapp_heartbeatevent
+
+
+def queueevent_hook(_self: BaseApp, base: type[QueueEvent]):
+    from aioqzone_feed.type import BaseFeed
+    from sqlalchemy import select
+
+    from ..storage.orm import FeedOrm, MessageOrm
+
+    class baseapp_queueevent(base):
+        @property
+        def sess(self):
+            return _self.store.sess
+
+        async def _update_message_ids(
+            self,
+            feed: BaseFeed,
+            mids: list[int] | None,
+            sess: AsyncSession | None = None,
+            flush: bool = True,
+        ):
+            if sess is None:
+                async with self.sess() as newsess:
+                    await self._update_message_ids(feed, mids, sess=newsess, flush=flush)
+                return
+
+            if flush:
+                await self._update_message_ids(feed, mids, sess=sess, flush=False)
+                await sess.commit()
+                return
+
+            # query existing mids
+            stmt = select(MessageOrm)
+            stmt = stmt.where(*MessageOrm.fkey(feed))
+            result = await sess.scalars(stmt)
+
+            # delete existing mids
+            tasks = [asyncio.create_task(sess.delete(i)) for i in result]
+            if tasks:
+                await asyncio.wait(tasks)
+
+            if mids is None:
+                return
+            for mid in mids:
+                sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
+
+        async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
+            """Add/Update an record by the given feed and messages id.
+
+            :param feed: feed
+            :param mids: message id list, defaults to None
+            """
+
+            async def _update_feed(feed, sess: AsyncSession):
+                prev = await _self.store.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
+                if prev:
+                    # if exist: update
+                    FeedOrm.set_by(prev, feed)
+                else:
+                    # not exist: add
+                    sess.add(FeedOrm.from_base(feed))
+
+            async with self.sess() as sess:
+                async with sess.begin():
+                    # BUG: asyncio.wait/gather raises error at the end of a transaction
+                    await self._update_message_ids(feed, mids, sess=sess, flush=False)
+                    await _update_feed(feed, sess=sess)
+
+        async def GetMid(self, feed: BaseFeed) -> list[int]:
+            r = await _self.store.get_msg_orms(*MessageOrm.fkey(feed))
+            return [i.mid for i in r]
+
+    return baseapp_queueevent
+
+
+def storageevent_hook(_self: BaseApp, base: type[StorageEvent]):
+    from aioqzone_feed.type import BaseFeed
+
+    from ..storage.orm import FeedOrm, MessageOrm
+
+    class baseapp_storageevent(base):
+        @property
+        def sess(self):
+            return _self.store.sess
+
+        async def Mid2Feed(self, mid: int) -> BaseFeed | None:
+            mo = await _self.store.get_msg_orms(MessageOrm.mid == mid)
+            if not mo:
+                return
+            orm = await _self.store.get_feed_orm(
+                FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
+            )
+            if orm is None:
+                return
+            return BaseFeed.from_orm(orm)
+
+        async def Clean(self, seconds: float):
+            return await _self.store.clean(seconds)
+
+    return baseapp_storageevent

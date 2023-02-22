@@ -1,21 +1,29 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Mapping, Sequence
+from itertools import chain
+from typing import TYPE_CHECKING, Mapping, Sequence
 
+from aioqzone.type.internal import PersudoCurkey
 from aioqzone_feed.type import BaseFeed, FeedContent
 from httpx import TimeoutException
 from qqqr.event import Emittable, Event
 from telegram import Bot, Message
+from telegram.constants import MessageLimit
 from telegram.error import BadRequest, TelegramError, TimedOut
 
-from qzone3tg.utils.iter import alist, countif
+from qzone3tg.utils.iter import countif
 
-from . import ChatId, GroupMedia
-from .atom import LIM_TXT, MediaGroupPartial, MediaPartial, MsgPartial, stringify_entities
-from .limitbot import BotTaskEditter as BTE
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial
+from .splitter import FetchSplitter, Splitter
 
-SendFunc = MediaGroupPartial | MsgPartial
+if TYPE_CHECKING:
+    from . import ChatId, ReplyMarkup, SupportMedia
+
+    SendFunc = MediaGroupPartial | MsgPartial
+
 log = logging.getLogger(__name__)
 
 
@@ -38,6 +46,15 @@ class QueueEvent(Event):
         """
         return ()
 
+    async def reply_markup(
+        self, feed: FeedContent
+    ) -> tuple[ReplyMarkup | None, ReplyMarkup | None]:
+        """Allow app to generate `reply_markup` according to its own policy.
+
+        :param feed: the feed to generate reply_markup
+        :return: (forwardee reply_markup, feed reply_markup)."""
+        return None, None
+
 
 class MsgQueue(Emittable[QueueEvent]):
     bid = -1
@@ -45,17 +62,16 @@ class MsgQueue(Emittable[QueueEvent]):
     def __init__(
         self,
         bot: Bot,
-        tasker: BTE,
+        splitter: Splitter,
         forward_map: Mapping[int, ChatId],
         max_retry: int = 2,
     ) -> None:
         super().__init__()
         self.q: dict[FeedContent, list[SendFunc] | int] = {}
         self.bot = bot
-        self.tasker = tasker
+        self.splitter = splitter
         self.fwd2 = forward_map
-        self._loop = asyncio.get_event_loop()
-        self.exc = defaultdict(list)
+        self.exc_groups = defaultdict(list)
         self.max_retry = max_retry
         self.sending = None
         self.skip_num = 0
@@ -72,22 +88,38 @@ class MsgQueue(Emittable[QueueEvent]):
             return  # needn't send again. refer to the message is okay.
 
         # add a sending task
-        tasks = await alist(self.tasker.unify_send(feed))
+        markup_task = self.add_hook_ref(
+            PersudoCurkey(feed.uin, feed.abstime), self.hook.reply_markup(feed)
+        )
+        dbl_feed = await self.splitter.split(feed)
+
+        tasks = list(chain(*dbl_feed))
         for p in tasks:
             p.kwds.update(chat_id=self.fwd2[feed.uin])
 
+        def attach_markup(task: asyncio.Task):
+            markups = task.result()
+            for parts, markup in zip(dbl_feed, markups):
+                if markup is None:
+                    continue
+                if part := next(
+                    filter(lambda p: not isinstance(p, MediaGroupPartial), parts), None
+                ):
+                    part.reply_markup = markup
+
+        markup_task.add_done_callback(attach_markup)
         self.q[feed] = tasks
 
     @property
     def exc_num(self):
-        return countif(self.exc.values(), lambda i: len(i) == self.max_retry)
+        return countif(self.exc_groups.values(), lambda i: len(i) == self.max_retry)
 
     def new_batch(self, bid: int):
         assert self.sending is None
         assert bid != self.bid
         self.skip_num = 0
         self.q.clear()
-        self.exc.clear()
+        self.exc_groups.clear()
         self.bid = bid
 
     async def send_all(self):
@@ -128,25 +160,23 @@ class MsgQueue(Emittable[QueueEvent]):
             log.debug(f"feed {feed} is sent before.")
             return
 
+        await self.wait(PersudoCurkey(feed.uin, feed.abstime))
         for f in v:
             f.kwds.update(reply_to_message_id=reply)
             for retry in range(self.max_retry):
                 if (r := await self._send_one_atom(f, feed)) is True:
                     log.debug("Send atom suggest to resend, resend at once.")
                     continue
-                if isinstance(r, list):
-                    mids += r
+                if isinstance(r, Sequence):
+                    mids.extend(r)
                     reply = r[-1]
-                if retry == 0:
-                    self.tasker.bps += self.tasker.eps
-                    log.debug(f"increased bps to {self.tasker.bps:.2f}")
                 break
 
         if mids:
             log.info(f"发送成功：{feed.uin}({feed.nickname}){feed.abstime}")
         else:
-            log.error(f"feed {feed}, max retry exceeded: {self.exc[feed]}")
-            for i, e in enumerate(self.exc[feed], start=1):
+            log.error(f"feed {feed}, max retry exceeded: {self.exc_groups[feed]}")
+            for i, e in enumerate(self.exc_groups[feed], start=1):
                 if e:
                     log.debug("Retry %d", i, exc_info=e)
             # Save the feed even if send failed
@@ -168,36 +198,41 @@ class MsgQueue(Emittable[QueueEvent]):
             match r:
                 case Message():
                     return [r.message_id]
-                case list():
+                case Sequence():
                     return [i.message_id for i in r]
                 case _:
                     log.fatal(f"Unexpected send return type: {type(r)}")
         except TimedOut as e:
             log.debug(f"current timeout={f.timeout:.2f}")
-            self.exc[feed].append(e)
-            self.tasker.bps /= 2
-            self.tasker.inc_timeout(f)
+            self.exc_groups[feed].append(e)
             log.info("发送超时：等待重发")
             log.debug(f"increased timeout={f.timeout:.2f}")
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
-            if f.text and len(f.text) < LIM_TXT:
-                f.text = "🔁" + f.text
+            if f.text is None or len(f.text) < (
+                MessageLimit.MAX_TEXT_LENGTH
+                if f.meth == "message"
+                else MessageLimit.CAPTION_LENGTH
+            ):
+                f.text = "🔁" + (f.text or "")
             return True
         except BadRequest as e:
-            self.exc[feed].append(e)
-            assert isinstance(tasks := self.q[feed], list)
-            if isinstance(f, (MediaPartial, MediaGroupPartial)):
-                tasks[tasks.index(f)] = await self.tasker.force_bytes(f)
+            self.exc_groups[feed].append(e)
+            tasks = self.q[feed]
+            assert isinstance(tasks, Sequence)
+            if isinstance(self.splitter, FetchSplitter) and isinstance(
+                f, (MediaPartial, MediaGroupPartial)
+            ):
+                tasks[tasks.index(f)] = await self.splitter.force_bytes(f)
                 return True
             log.error("Got BadRequest from send_%s!", f.meth, exc_info=e)
         except TelegramError as e:
-            self.exc[feed].append(e)
-            self.exc[feed] += [None] * (self.max_retry - 1)
+            self.exc_groups[feed].append(e)
+            self.exc_groups[feed] += [None] * (self.max_retry - 1)
             log.error("Uncaught telegram error in send_%s.", f.meth, exc_info=e)
         except BaseException as e:
-            self.exc[feed].append(e)
-            self.exc[feed] += [None] * (self.max_retry - 1)
+            self.exc_groups[feed].append(e)
+            self.exc_groups[feed] += [None] * (self.max_retry - 1)
             log.error("Uncaught error in send_%s.", f.meth, exc_info=e)
         return False
 
@@ -205,16 +240,18 @@ class MsgQueue(Emittable[QueueEvent]):
 class EditableQueue(MsgQueue):
     """Sender with support of editting sending tasks when they are pending."""
 
+    splitter: FetchSplitter
+
     def __init__(
         self,
         bot: Bot,
-        tasker: BTE,
+        splitter: FetchSplitter,
         forward_map: Mapping[int, ChatId],
         max_retry: int = 2,
     ) -> None:
-        super().__init__(bot, tasker, forward_map, max_retry)
+        super().__init__(bot, splitter, forward_map, max_retry)
 
-    async def edit_media(self, to: ChatId, mid: int, media: GroupMedia):
+    async def edit_media(self, to: ChatId, mid: int, media: SupportMedia):
         kw = {}
         for _ in range(self.max_retry):
             try:
@@ -222,7 +259,11 @@ class EditableQueue(MsgQueue):
             except TimedOut:
                 kw["timeout"] = kw.get("timeout", 5) * 2  # TODO
             except BadRequest:
-                media = await self.tasker.force_bytes_inputmedia(media)
+                h = hash(media.media)
+                media = await self.splitter.force_bytes_inputmedia(media)
+                if hash(media.media) == h:
+                    log.error("media doesnot change after force fetch, skip retry", exc_info=True)
+                    return
             except TelegramError:
                 log.error("Uncaught telegram error when editting media.", exc_info=True)
             except BaseException:
@@ -252,7 +293,7 @@ class EditableQueue(MsgQueue):
             log.error("Edit media wasn't sent before, skipped.")
             return
 
-        args = await alist(self.tasker.unify_send(feed))
+        args = await self.splitter.unify_send(feed)
         for a in args:
             if isinstance(a, MediaPartial):
                 mid = mids.pop(0)
@@ -268,8 +309,8 @@ class EditableQueue(MsgQueue):
 
     async def _edit_pending(self, feed: FeedContent):
         # replace the kwarg with new content
-        tasks = await alist(self.tasker.unify_send(feed))
+        tasks = await self.splitter.unify_send(feed)
         for p in tasks:
             p.kwds.update(chat_id=self.fwd2[feed.uin])
 
-        self.q[feed] = tasks
+        self.q[feed] = list(tasks)
