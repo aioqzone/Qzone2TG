@@ -8,9 +8,8 @@ from qzemoji.utils import build_html
 from telegram import Bot
 from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.bot.atom import FetchSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, TaskerEvent
 from qzone3tg.bot.queue import EditableQueue, MsgQueue, QueueEvent
+from qzone3tg.bot.splitter import FetchSplitter
 
 from . import FakeBot, fake_feed, fake_media
 
@@ -22,6 +21,9 @@ class Ihave0(QueueEvent):
         if feed.entities[0].con == "0":  # type: ignore
             return [0]
 
+    async def reply_markup(self, feed):
+        return 1, 1
+
 
 @pytest.fixture
 def fake_bot():
@@ -30,15 +32,8 @@ def fake_bot():
 
 @pytest.fixture
 def ideal(client: ClientAdapter, fake_bot: Bot):
-    tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(fake_bot, tasker, defaultdict(int))
+    q = EditableQueue(fake_bot, FetchSplitter(client), defaultdict(int))
     q.register_hook(Ihave0())
-
-    class FakeMarkup(TaskerEvent):
-        async def reply_markup(self, feed):
-            return 1, 1
-
-    tasker.register_hook(FakeMarkup())
     return q
 
 
@@ -101,9 +96,9 @@ class TestIdeal:
         assert ideal.sending is None
         bot = cast(FakeBot, ideal.bot)
         dfw = bot.log[0][-1]
-        df = bot.log[1][-1]
+        dfe = bot.log[1][-1]
         assert dfw["reply_markup"] == 1
-        assert df["reply_markup"] == 1
+        assert dfe["reply_markup"] == 1
 
 
 class RealBot(FakeBot):
@@ -130,10 +125,8 @@ def real_bot():
 
 @pytest.fixture
 def real(client: ClientAdapter, real_bot: Bot):
-    tasker = BotTaskEditter(FetchSplitter(client), client)
-    q = EditableQueue(real_bot, tasker, defaultdict(int))
+    q = EditableQueue(real_bot, FetchSplitter(client), defaultdict(int))
     q.register_hook(Ihave0())
-    tasker.register_hook(TaskerEvent())
     return q
 
 
@@ -153,8 +146,8 @@ class TestReal:
         assert real.sending is None
         bot = cast(RealBot, real.bot)
         assert not bot.log
-        assert len(real.exc) == 3
-        assert [len(i) for i in real.exc.values()] == [2, 1, 2]
+        assert len(real.exc_groups) == 3
+        assert [len(i) for i in real.exc_groups.values()] == [2, 1, 2]
 
     async def test_badrequest_media(self, real: EditableQueue):
         real.new_batch(1)
@@ -169,5 +162,5 @@ class TestReal:
         assert real.sending is None
         bot = cast(RealBot, real.bot)
         assert not bot.log
-        assert len(real.exc) == 1
-        assert len(real.exc[f]) == 2
+        assert len(real.exc_groups) == 1
+        assert len(real.exc_groups[f]) == 2

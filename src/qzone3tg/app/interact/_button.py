@@ -5,18 +5,24 @@ from typing import TYPE_CHECKING
 from aioqzone.type.entity import AtEntity, TextEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.api.emoji import TAG_RE
-from aioqzone_feed.type import FeedContent
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..storage.orm import FeedOrm
 
 if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
+
+    from ...bot.queue import QueueEvent
     from . import InteractApp
 
 
-def taskerevent_hook(_self: InteractApp, base):
-    class interactapp_taskerevent(base):
+def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
+    from aioqzone_feed.type import FeedContent
+
+    base = super(_self.__class__, _self)._sub_queueevent(base)
+
+    class interactapp_queueevent(base):
         def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
             if feed.unikey is None:
                 return
@@ -53,7 +59,7 @@ def taskerevent_hook(_self: InteractApp, base):
             markup.append(self._reply_markup_one_feed(feed))
             return markup
 
-    return interactapp_taskerevent
+    return interactapp_queueevent
 
 
 def qrevent_hook(_self: InteractApp, base):

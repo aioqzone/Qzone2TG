@@ -4,6 +4,7 @@ from qzemoji.utils import build_html
 from telegram import InputMedia
 
 import qzone3tg.bot.atom as atom
+from qzone3tg.bot.splitter import FetchSplitter, LocalSplitter
 
 from . import fake_feed, fake_media
 
@@ -12,12 +13,12 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(scope="class")
 def local():
-    return atom.LocalSplitter()
+    return LocalSplitter()
 
 
 @pytest.fixture(scope="class")
 def fetch(client: ClientAdapter):
-    return atom.FetchSplitter(client)
+    return FetchSplitter(client)
 
 
 async def test_media_arg():
@@ -34,7 +35,7 @@ async def test_media_arg():
 
 
 class TestLocal:
-    async def test_msg_norm(self, local: atom.LocalSplitter):
+    async def test_msg_norm(self, local: LocalSplitter):
         f1 = fake_feed(1)
         w, a = await local.split(f1)
         assert len(w) == 0
@@ -45,11 +46,11 @@ class TestLocal:
         assert len(w) == 1
         assert len(a) == 1
 
-    async def test_msg_long(self, local: atom.LocalSplitter):
+    async def test_msg_long(self, local: LocalSplitter):
         _, f = await local.split(fake_feed("a" * atom.LIM_TXT))
         assert len(f) == 2
 
-    async def test_media_norm(self, local: atom.LocalSplitter):
+    async def test_media_norm(self, local: LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))]
         _, a = await local.split(f)
@@ -67,7 +68,7 @@ class TestLocal:
         assert len(a) == 1
         assert isinstance(a[0], atom.VideoPartial)
 
-    async def test_media_long(self, local: atom.LocalSplitter):
+    async def test_media_long(self, local: LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
         _, a = await local.split(f)
@@ -75,7 +76,7 @@ class TestLocal:
         assert isinstance(a[0], atom.PicPartial)
         assert isinstance(a[1], atom.TextPartial)
 
-    async def test_media_group(self, local: atom.LocalSplitter):
+    async def test_media_group(self, local: LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))] * 2
         _, a = await local.split(f)
@@ -85,7 +86,7 @@ class TestLocal:
         medias = a[0].medias
         assert all(isinstance(i, InputMedia) for i in medias)
 
-    async def test_media_group_exd(self, local: atom.LocalSplitter):
+    async def test_media_group_exd(self, local: LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))] * 11
         _, a = await local.split(f)
@@ -100,7 +101,7 @@ class TestLocal:
 
 
 class TestFetch:
-    async def test_media_norm(self, fetch: atom.FetchSplitter):
+    async def test_media_norm(self, fetch: FetchSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))]
         _, a = await fetch.split(f)

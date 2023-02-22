@@ -37,7 +37,12 @@ async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
     with mock.patch("qqqr.up.UpLogin.login", side_effect=mock_err):
         with pytest.raises(LoginError):
             await app.loginman._new_cookie()
-    await app.loginman.wait("hook")
+
+    async def __coro():
+        return None
+
+    with mock.patch("telegram.Bot.send_message", return_value=__coro):
+        await app.loginman.wait("hook")
     assert app.loginman.up_suppressed
     with pytest.raises(SkipLoginInterrupt):
         await app.loginman._new_cookie()

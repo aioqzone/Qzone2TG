@@ -6,7 +6,7 @@ import pytest_asyncio
 import qzemoji as qe
 import yaml
 from aioqzone.event.login import QREvent, UPEvent
-from aioqzone_feed.event import FeedEvent
+from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from httpx import AsyncClient
 from pydantic import SecretStr
 from qqqr.event import Event
@@ -14,7 +14,7 @@ from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from qzone3tg.app.base import BaseApp, TaskerEvent
+from qzone3tg.app.base import BaseApp, QueueEvent, StorageEvent
 from qzone3tg.app.interact import InteractApp
 from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 
@@ -87,12 +87,15 @@ async def test_init(minc: Settings):
     ["app_cls", "evt_cls"],
     [
         (BaseApp, FeedEvent),
+        (BaseApp, HeartbeatEvent),
         (BaseApp, QREvent),
         (BaseApp, UPEvent),
-        (InteractApp, FeedEvent),
+        (BaseApp, QueueEvent),
+        (BaseApp, StorageEvent),
+        (InteractApp, HeartbeatEvent),
         (InteractApp, QREvent),
         (InteractApp, UPEvent),
-        (InteractApp, TaskerEvent),
+        (InteractApp, QueueEvent),
     ],
 )
 async def test_hook_class(

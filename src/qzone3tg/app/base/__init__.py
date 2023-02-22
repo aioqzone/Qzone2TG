@@ -8,35 +8,40 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from time import time
-from typing import Union
 
 import qzemoji as qe
-import telegram.ext as ext
 from aioqzone.api.loginman import QRLoginMan, QrStrategy, UPLoginMan
 from aioqzone.event.login import QREvent, UPEvent
 from aioqzone.exception import LoginError
-from aioqzone_feed.api.feed import FeedApi
-from aioqzone_feed.event import FeedEvent
+from aioqzone_feed.api import FeedApi, HeartbeatApi
+from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
 from httpx import URL, HTTPError, Timeout
-from qqqr.event import EventManager
+from qqqr.event import EventManager, Tasksets
 from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
 from telegram.error import NetworkError
-from telegram.ext import AIORateLimiter, Application, ApplicationBuilder, ExtBot, Job
+from telegram.ext import (
+    AIORateLimiter,
+    Application,
+    ApplicationBuilder,
+    CallbackContext,
+    Defaults,
+    ExtBot,
+    Job,
+)
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.atom import FetchSplitter, LocalSplitter
-from qzone3tg.bot.limitbot import BotTaskEditter, TaskerEvent
-from qzone3tg.bot.queue import EditableQueue
+from qzone3tg.bot.queue import EditableQueue, QueueEvent
+from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
-from ..storage import DefaultStorageHook, StorageMan
+from ..storage import StorageEvent, StorageMan
 from ..storage.loginman import LoginMan
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
@@ -100,7 +105,10 @@ class TimeoutLoginman(LoginMan):
         self.force_login = False
 
 
-class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, TaskerEvent]):
+class BaseApp(
+    Tasksets,
+    EventManager[FeedEvent, HeartbeatEvent, QREvent, UPEvent, StorageEvent, QueueEvent],
+):
     start_time = 0
 
     def __init__(
@@ -114,6 +122,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         init_queue=True,
         init_hooks=True,
     ) -> None:
+        super(Tasksets, self).__init__()
         assert conf.bot.token
         # init logger at first
         self.conf = conf
@@ -135,7 +144,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         if init_queue:
             self.init_queue()
 
-        super().__init__()  # update bases before instantiate hooks
+        super(EventManager, self).__init__()  # update bases before instantiate hooks
 
         if init_hooks:
             self.init_hooks()
@@ -155,7 +164,10 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
     #             hook init
     # --------------------------------
     from ._hook import feedevent_hook as _sub_feedevent
+    from ._hook import heartbeatevent_hook as _sub_heartbeatevent
     from ._hook import qrevent_hook as _sub_qrevent
+    from ._hook import queueevent_hook as _sub_queueevent
+    from ._hook import storageevent_hook as _sub_storageevent
     from ._hook import upevent_hook as _sub_upevent
 
     def init_qzone(self):
@@ -169,7 +181,8 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
             min_qr_interval=conf.min_qr_interval,
             min_up_interval=conf.min_up_interval,
         )
-        self.qzone = FeedApi(self.client, self.loginman)
+        self.qzone = FeedApi(self.client, self.loginman, init_hb=False)
+        self.heartbeat = HeartbeatApi(self.qzone)
         self.log.debug("init_qzone done")
 
     def init_ptb(self):
@@ -179,22 +192,19 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         builder = Application.builder()
         builder.rate_limiter(AIORateLimiter())
         builder = builder.token(conf.token.get_secret_value())
-        builder = builder.defaults(ext.Defaults(parse_mode=ParseMode.HTML, **conf.default.dict()))
+        builder = builder.defaults(Defaults(parse_mode=ParseMode.HTML, **conf.default.dict()))
         builder = self._build_request(builder)
 
         self.app = builder.build()
         self.log.debug("init_ptb done")
 
     def init_queue(self):
+        self.store = StorageMan(self.engine)
         self.queue = EditableQueue(
             self.bot,
-            BotTaskEditter(
-                FetchSplitter(self.client) if self.conf.bot.send_gif_as_anim else LocalSplitter(),
-                self.client,
-            ),
+            FetchSplitter(self.client),
             defaultdict(lambda: self.admin),
         )
-        self.add_hook_ref = self.queue.add_hook_ref
 
     def init_timers(self):
         assert self.app.job_queue
@@ -240,13 +250,13 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
             block.append(self.conf.qzone.uin)
 
         self.hook_feed = self.sub_of(FeedEvent)()
-        self.hook_tasker = self.sub_of(TaskerEvent)()
-        self.store = StorageMan(self.engine)
-        self.hook_store = self.sub_of(DefaultStorageHook)(self.store)
+        self.hook_queue = self.sub_of(QueueEvent)()
+        self.hook_store = self.sub_of(StorageEvent)()
+        self.hook_hb = self.sub_of(HeartbeatEvent)()
 
         self.qzone.register_hook(self.hook_feed)
-        self.queue.register_hook(self.hook_store)
-        self.queue.tasker.register_hook(self.hook_tasker)
+        self.heartbeat.register_hook(self.hook_hb)
+        self.queue.register_hook(self.hook_queue)
         self.loginman.register_hook(self.hook_qr)
         self.loginman.register_hook(self.hook_up)
 
@@ -342,7 +352,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
-        async def ptb_error_handler(_, context: ext.CallbackContext):
+        async def ptb_error_handler(_, context: CallbackContext):
             if isinstance(context.error, NetworkError):
                 self.log.fatal(f"更新超时，请检查网络连接 ({context.error})")
                 if not self.conf.bot.network.proxy:
@@ -367,6 +377,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         try:
             self.log.warning("App stopping...")
             self.qzone.stop()
+            self.heartbeat.stop()
             for t in self.timers.values():
                 if not t.removed:
                     t.schedule_removal()
@@ -398,7 +409,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         self.log.info("注册信号处理...")
         self.register_signal()
         self.log.info("注册心跳...")
-        self.qzone.add_heartbeat()
+        self.heartbeat.add_heartbeat()
         self.log.info("等待异步初始化任务...")
         init_task = [
             qe.auto_update(),
@@ -415,7 +426,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
 
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
-            task = self.add_hook_ref("command", self.fetch(self.admin))
+            task = self.add_hook_ref("command", self._fetch(self.admin))
             self.fetch_lock.acquire(task)
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
@@ -451,15 +462,15 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         elif not JSDOM.check_jsdom():
             self.log.warning("jsdom 不可用，可能无法提交验证码。")
 
-    async def fetch(self, to: Union[int, str], *, is_period: bool = False) -> None:
+    async def _fetch(self, to: ChatId, *, is_period: bool = False) -> None:
         """fetch feeds.
 
-        :param reload: dismiss existing records in database
+        :param to: send to whom
         :param is_period: triggered by heartbeat, defaults to False
         """
         if not is_period and not self.loginman.force_login:
             with self.loginman.disable_suppress():
-                return await self.fetch(to, is_period=False)
+                return await self._fetch(to, is_period=False)
 
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
@@ -470,9 +481,7 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
         try:
-            got = await self.qzone.get_feeds_by_second(
-                self.conf.qzone.dayspac * 86400, exceed_pred=self.hook_store.Exists
-            )
+            got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
         except UserBreak:
             self.log.debug("Fetch stopped because UserBreak.")
             echo("命令已取消：用户取消了登录")
@@ -480,8 +489,8 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         except LoginError:
             # LoginFailed hook will show reason to user
             self.log.warning("由于发生了登录错误，爬取未开始。")
-            if self.qzone.hb_timer:
-                self.qzone.hb_timer.stop()
+            if self.heartbeat.hb_timer:
+                self.heartbeat.hb_timer.stop()
                 self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
             else:
                 self.log.warning(
@@ -550,16 +559,16 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
             "上次登录": ts2a(self.loginman.last_login),
             "PTB应用状态": friendly(self.app.running),
             "PTB更新状态": friendly(self.app.updater and self.app.updater.running),
-            "心跳状态": friendly(self.qzone.hb_timer and self.qzone.hb_timer.state == "PENDING"),
-            "上次心跳": ts2a(self.qzone.hb_timer and self.qzone.hb_timer.last_call),
+            "心跳状态": friendly(
+                self.heartbeat.hb_timer and self.heartbeat.hb_timer.state == "PENDING"
+            ),
+            "上次心跳": ts2a(self.heartbeat.hb_timer and self.heartbeat.hb_timer.last_call),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
             "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
             "密码登录暂停至": ts2a(self.loginman.suppress_up_till),
         }
         if debug:
-            add_dic = {
-                "网速估计": f"{self.queue.tasker.bps / 1e6:.2f}M/s",
-            }
+            add_dic = {}
             stat_dic.update(add_dic)
         return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
 
@@ -572,16 +581,16 @@ class BaseApp(EventManager[FeedEvent, QREvent, UPEvent, DefaultStorageHook, Task
         """
         :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
         """
-        if self.qzone.hb_timer is None:
+        if self.heartbeat.hb_timer is None:
             self.log.warning("heartbeat not initialized")
             return False
 
-        self.log.debug("heartbeat state before restart: %s", self.qzone.hb_timer.state)
-        if self.qzone.hb_timer.state != "PENDING":
+        self.log.debug("heartbeat state before restart: %s", self.heartbeat.hb_timer.state)
+        if self.heartbeat.hb_timer.state != "PENDING":
             self.log.debug("heartbeat stopped. restarting...")
-            self.qzone.hb_timer()
-            self.log.debug("heartbeat state after restart: %s", self.qzone.hb_timer.state)
-            if self.qzone.hb_timer.state == "PENDING":
+            self.heartbeat.hb_timer()
+            self.log.debug("heartbeat state after restart: %s", self.heartbeat.hb_timer.state)
+            if self.heartbeat.hb_timer.state == "PENDING":
                 self.log.info("heartbeat restart success")
                 return True
         return False
