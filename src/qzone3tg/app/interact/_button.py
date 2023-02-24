@@ -2,25 +2,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aioqzone.event import QREvent
 from aioqzone.type.entity import AtEntity, TextEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from aioqzone_feed.api.emoji import TAG_RE
+from qqqr.event import sub_of
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
 
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes
 
-    from ...bot.queue import QueueEvent
     from . import InteractApp
 
 
+@sub_of(QueueEvent)
 def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
     from aioqzone_feed.type import FeedContent
-
-    base = super(_self.__class__, _self)._sub_queueevent(base)
 
     class interactapp_queueevent(base):
         def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
@@ -62,9 +63,8 @@ def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
     return interactapp_queueevent
 
 
-def qrevent_hook(_self: InteractApp, base):
-    base = super(_self.__class__, _self)._sub_qrevent(base)
-
+@sub_of(QREvent)
+def qrevent_hook(_self: InteractApp, base: type[QREvent]):
     class interactapp_qrevent(base):
         def qr_markup(self):
             btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
@@ -166,9 +166,9 @@ async def btn_qr(self: InteractApp, update: Update, context: ContextTypes.DEFAUL
 
     match query.data:
         case "qr:refresh":
-            self.hook_qr.refresh_flag.set()
+            self[QREvent].refresh_flag.set()
         case "qr:cancel":
-            self.hook_qr.cancel_flag.set()
+            self[QREvent].cancel_flag.set()
         case _:
             self.log.warning(f"Unexpected qr button callback: {query.data}")
             await query.delete_message()

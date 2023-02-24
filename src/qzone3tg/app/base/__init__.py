@@ -8,10 +8,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from time import time
+from typing import Sequence
 
 import qzemoji as qe
-from aioqzone.api.loginman import QRLoginMan, QrStrategy, UPLoginMan
-from aioqzone.event.login import QREvent, UPEvent
+from aioqzone.api.loginman import strategy_to_order
+from aioqzone.event import LoginMethod, QREvent, UPEvent
 from aioqzone.exception import LoginError
 from aioqzone_feed.api import FeedApi, HeartbeatApi
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
@@ -60,13 +61,13 @@ class TimeoutLoginman(LoginMan):
         client: ClientAdapter,
         engine: AsyncEngine,
         uin: int,
-        strategy: QrStrategy,
+        order: Sequence[LoginMethod],
         pwd: str | None = None,
         refresh_time: int = 6,
         min_qr_interval: float = 0,
         min_up_interval: float = 0,
     ) -> None:
-        super().__init__(client, engine, uin, strategy, pwd, refresh_time)
+        super().__init__(client, engine, uin, order, pwd, refresh_time)
         self.qr_suppress_sec = min_qr_interval
         self.up_suppress_sec = min_up_interval
         self.suppress_qr_till = 0.0
@@ -77,18 +78,18 @@ class TimeoutLoginman(LoginMan):
         if self.force_login:
             return super().ordered_methods()
 
-        lmls = []
-        for man in super().ordered_methods():
-            match man:
-                case UPLoginMan():
+        methods = []
+        for meth in super().ordered_methods():
+            match meth:
+                case LoginMethod.up:
                     if not self.up_suppressed:
-                        lmls.append(man)
-                case QRLoginMan():
+                        methods.append(meth)
+                case LoginMethod.qr:
                     if not self.qr_suppressed:
-                        lmls.append(man)
+                        methods.append(meth)
                 case _:
-                    lmls.append(man)
-        return lmls
+                    methods.append(meth)
+        return methods
 
     @property
     def qr_suppressed(self):
@@ -122,7 +123,7 @@ class BaseApp(
         init_queue=True,
         init_hooks=True,
     ) -> None:
-        super(Tasksets, self).__init__()
+        Tasksets.__init__(self)
         assert conf.bot.token
         # init logger at first
         self.conf = conf
@@ -144,7 +145,7 @@ class BaseApp(
         if init_queue:
             self.init_queue()
 
-        super(EventManager, self).__init__()  # update bases before instantiate hooks
+        EventManager.__init__(self)  # update bases before instantiate hooks
 
         if init_hooks:
             self.init_hooks()
@@ -176,7 +177,7 @@ class BaseApp(
             self.client,
             self.engine,
             conf.uin,
-            conf.qr_strategy,
+            strategy_to_order[conf.qr_strategy],
             conf.password.get_secret_value() if conf.password else None,
             min_qr_interval=conf.min_qr_interval,
             min_up_interval=conf.min_up_interval,
@@ -213,7 +214,7 @@ class BaseApp(
 
         # clean database
         async def clean(_):
-            await self.hook_store.Clean(-self.conf.bot.storage.keepdays * 86400)
+            await self[StorageEvent].Clean(-self.conf.bot.storage.keepdays * 86400)
 
         self.timers["cl"] = self.app.job_queue.run_repeating(clean, 86400, 0, name="clean")
 
@@ -242,23 +243,19 @@ class BaseApp(
         self.log.debug("init_timers done")
 
     def init_hooks(self):
-        self.hook_qr = self.sub_of(QREvent)()
-        self.hook_up = self.sub_of(UPEvent)()
         block = self.conf.qzone.block or []
         block = block.copy()
         if self.conf.qzone.block_self:
             block.append(self.conf.qzone.uin)
 
-        self.hook_feed = self.sub_of(FeedEvent)()
-        self.hook_queue = self.sub_of(QueueEvent)()
-        self.hook_store = self.sub_of(StorageEvent)()
-        self.hook_hb = self.sub_of(HeartbeatEvent)()
-
-        self.qzone.register_hook(self.hook_feed)
-        self.heartbeat.register_hook(self.hook_hb)
-        self.queue.register_hook(self.hook_queue)
-        self.loginman.register_hook(self.hook_qr)
-        self.loginman.register_hook(self.hook_up)
+        self.inst_of(StorageEvent)
+        self.qzone.register_hook(self.inst_of(FeedEvent))
+        self.heartbeat.register_hook(self.inst_of(HeartbeatEvent))
+        self.queue.register_hook(self.inst_of(QueueEvent))
+        self.loginman[QREvent] = self.inst_of(QREvent)
+        self.loginman[UPEvent] = self.inst_of(UPEvent)
+        # reregister sub-loginman hooks
+        self.loginman.init_hooks()
 
         self.log.info("TG端初始化完成")
 
@@ -450,7 +447,7 @@ class BaseApp(
                 continue
 
     def check_node(self):
-        if self.conf.qzone.qr_strategy == QrStrategy.force:
+        if self.conf.qzone.qr_strategy == "force":
             return
         from shutil import which
 
@@ -458,7 +455,7 @@ class BaseApp(
 
         if not which("node"):
             self.log.error("Node 不可用，二维码策略切换至 `force`.")
-            self.conf.qzone.qr_strategy = QrStrategy.force
+            self.conf.qzone.qr_strategy = "force"
         elif not JSDOM.check_jsdom():
             self.log.warning("jsdom 不可用，可能无法提交验证码。")
 

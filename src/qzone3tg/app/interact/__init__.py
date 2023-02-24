@@ -1,10 +1,10 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
 
-from aioqzone.api.loginman import QrStrategy
-from aioqzone.event.login import UPEvent
+from aioqzone.event import LoginMethod, UPEvent
 from aioqzone.type.internal import LikeData
 from aioqzone_feed.event import HeartbeatEvent
+from qqqr.event import sub_of
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram import BotCommand, Message, Update
@@ -17,6 +17,7 @@ from telegram.ext import (
     filters,
 )
 
+from qzone3tg.app.storage import StorageEvent
 from qzone3tg.settings import PollingConf, Settings
 
 from ..base import BaseApp
@@ -70,9 +71,8 @@ class InteractApp(BaseApp):
     from ._button import qrevent_hook as _sub_qrevent
     from ._button import queueevent_hook as _sub_queueevent
 
+    @sub_of(UPEvent)
     def _sub_upevent(_self, base: type[UPEvent]):
-        base = super()._sub_upevent(base)
-
         class interactapp_upevent(base):
             async def force_reply_answer(self, msg) -> str | None:
                 code = ""
@@ -99,9 +99,8 @@ class InteractApp(BaseApp):
 
         return interactapp_upevent
 
+    @sub_of(HeartbeatEvent)
     def _sub_heartbeatevent(_self, base: type[HeartbeatEvent]):
-        base = super()._sub_heartbeatevent(base)
-
         class interactapp_heartbeatevent(base):
             async def HeartbeatRefresh(self, num: int):
                 if _self.fetch_lock.locked:
@@ -127,8 +126,8 @@ class InteractApp(BaseApp):
             async def HeartbeatFailed(self, exc: BaseException | None):
                 await super().HeartbeatFailed(exc)
                 lm = _self.loginman
-                qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
-                up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
+                qr_avil = LoginMethod.qr in lm.order and not lm.qr_suppressed
+                up_avil = LoginMethod.up in lm.order and not lm.up_suppressed
                 if qr_avil or up_avil:
                     await _self.bot.send_message(
                         _self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
@@ -265,7 +264,7 @@ class InteractApp(BaseApp):
             return
 
         async def query_likedata(mid: int):
-            feed = await self.hook_store.Mid2Feed(reply.message_id)
+            feed = await self[StorageEvent].Mid2Feed(reply.message_id)
             if not feed:
                 await msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
                 return

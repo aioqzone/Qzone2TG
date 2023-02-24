@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 import qzemoji as qe
 import yaml
-from aioqzone.event.login import QREvent, UPEvent
+from aioqzone.event import QREvent, UPEvent
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from httpx import AsyncClient
 from pydantic import SecretStr
@@ -76,8 +76,8 @@ async def test_init(minc: Settings):
     maxc = Settings(**maxd).load_secrets()
     async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
         client = ClientAdapter(sess)
-        InteractApp(client, engine, conf=minc)
-        InteractApp(client, engine, conf=maxc)
+        InteractApp(client, engine, conf=minc)._tasks
+        InteractApp(client, engine, conf=maxc)._tasks
         assert qe.proxy == "socks5://localhost:443"
 
 
@@ -107,4 +107,4 @@ async def test_hook_class(
 ):
 
     app = app_cls(client, engine, conf=minc)
-    assert app.sub_of(evt_cls).__name__ == (app_cls.__name__ + "_" + evt_cls.__name__).lower()
+    assert app[evt_cls].__class__.__name__ == (app_cls.__name__ + "_" + evt_cls.__name__).lower()
