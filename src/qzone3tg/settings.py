@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import Literal, Optional, Union
 
-from aioqzone.api.loginman import QrStrategy
 from pydantic import (
     AnyUrl,
     BaseModel,
@@ -218,7 +217,7 @@ class QzoneConf(BaseModel):
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    qr_strategy: QrStrategy = QrStrategy.allow
+    qr_strategy: str = "allow"
     """二维码策略. 枚举类型，可选值为 ``force``, ``prefer``, ``allow``, ``forbid``
 
     - ``force``：强制二维码登录，不使用密码登录. **如果环境中没有安装 :program:`<node>`，则仅此模式可用**.

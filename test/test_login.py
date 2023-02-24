@@ -1,9 +1,9 @@
 from time import time
-from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
-from aioqzone.api.loginman import QrStrategy
+from aioqzone.event import LoginMethod
 from aioqzone.exception import LoginError, SkipLoginInterrupt
 from qqqr.exception import TencentLoginError
 from qqqr.utils.net import ClientAdapter
@@ -29,29 +29,28 @@ async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
     app = BaseApp(
         client,
         engine,
-        Settings(
-            qzone=QzoneConf(qq=1, qr_strategy=QrStrategy.forbid), bot=BotConf(admin=1)
-        ).load_secrets(),
+        Settings(qzone=QzoneConf(qq=1, qr_strategy="forbid"), bot=BotConf(admin=1)).load_secrets(),
     )
 
-    with mock.patch("qqqr.up.UpLogin.login", side_effect=mock_err):
+    from qqqr.up import UpLogin
+    from telegram import Bot
+
+    with patch.object(UpLogin, "login", side_effect=mock_err):
         with pytest.raises(LoginError):
             await app.loginman._new_cookie()
 
-    async def __coro():
-        return None
-
-    with mock.patch("telegram.Bot.send_message", return_value=__coro):
-        await app.loginman.wait("hook")
+    with patch.object(Bot, "send_message"):
+        await app.loginman.loginables[LoginMethod.up].wait("hook")
     assert app.loginman.up_suppressed
     with pytest.raises(SkipLoginInterrupt):
         await app.loginman._new_cookie()
 
 
 async def test_force(client: ClientAdapter, engine: AsyncEngine):
-    lm = TimeoutLoginman(client, engine, 1, QrStrategy.allow, "pwd")
+    from qqqr.up import UpLogin
+
+    lm = TimeoutLoginman(client, engine, 1, [LoginMethod.up, LoginMethod.qr], "pwd")
     lm.suppress_up_till = 3600 + time()
-    with mock.patch("qqqr.up.UpLogin.login", side_effect=RuntimeError):
-        with lm.disable_suppress():
-            with pytest.raises(SystemExit):
-                await lm.new_cookie()
+    with patch.object(UpLogin, "login", side_effect=RuntimeError):
+        with lm.disable_suppress(), pytest.raises(SystemExit):
+            await lm.new_cookie()

@@ -4,13 +4,12 @@ from unittest import mock
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
-from aioqzone.api.loginman import MixedLoginMan
+from aioqzone.api import MixedLoginMan
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from qzone3tg.app.base import BaseApp
-from qzone3tg.app.base._hook import queueevent_hook, storageevent_hook
 from qzone3tg.app.storage import FeedOrm, StorageEvent, StorageMan
 from qzone3tg.app.storage.loginman import LoginMan
 from qzone3tg.app.storage.orm import CookieOrm, MessageOrm
@@ -54,13 +53,13 @@ def fake_app(store: StorageMan):
 
 @pytest_asyncio.fixture(scope="class")
 async def hook_store(fake_app: BaseApp):
-    cls = storageevent_hook(fake_app, StorageEvent)
+    cls = BaseApp._sub_storageevent(fake_app, StorageEvent)  # type: ignore
     yield cls()
 
 
 @pytest_asyncio.fixture(scope="class")
 async def hook_queue(fake_app: BaseApp):
-    cls = queueevent_hook(fake_app, QueueEvent)
+    cls = BaseApp._sub_queueevent(fake_app, QueueEvent)  # type: ignore
     yield cls()
 
 

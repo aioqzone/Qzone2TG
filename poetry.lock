@@ -17,21 +17,21 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.11.4.dev1"
+version = "0.12.2.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-0.11.4.dev1-py3-none-any.whl", hash = "sha256:8d98db5f9170fb802d5f02ff8cb12e124d944721df8d97e3bf305605c20fc316"},
-    {file = "aioqzone-0.11.4.dev1.tar.gz", hash = "sha256:fd11bb386bb1e66f6fbe2e402e8c7e7ea173ff6bd97719459fcd1d4f41cab252"},
+    {file = "aioqzone-0.12.2.dev1-py3-none-any.whl", hash = "sha256:6f68cbf625dee3d8607ce9a23c4b2b5d6df7fa63931134597d74034172051fd0"},
+    {file = "aioqzone-0.12.2.dev1.tar.gz", hash = "sha256:f40e78e9065e6acdc9679145b2f1a43eae919994a61ba2f6fa9b1a1b8cad619a"},
 ]
 
 [package.dependencies]
 cssselect = ">=1.1.0,<2.0.0"
 httpx = ">=0.23.0,<0.24.0"
 lxml = ">=4.9.1,<5.0.0"
-numpy = {version = ">=1.22.3,<2.0.0", markers = "python_version >= \"3.8\" and python_version < \"4.0\""}
+numpy = ">=1.22.3,<2.0.0"
 opencv-python-headless = ">=4.7.0,<5.0.0"
 pydantic = ">=1.10.4,<2.0.0"
 pytz = ">=2022.1,<2023.0"
@@ -39,19 +39,19 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.12.0.dev1"
+version = "0.12.1.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-0.12.0.dev1-py3-none-any.whl", hash = "sha256:9b593d808a4f2bc04bdc8d88b9df696c74c795b4ba1e62d34a9b851cfe8225a0"},
-    {file = "aioqzone_feed-0.12.0.dev1.tar.gz", hash = "sha256:dbc0e76337735f8610fc015ea3a1031e494601a227c3c3e1efe33ecc764c7a7e"},
+    {file = "aioqzone_feed-0.12.1.dev1-py3-none-any.whl", hash = "sha256:03ec83734effc2b4e94471f902dbb78bc239471380f799de932da6454fb2790a"},
+    {file = "aioqzone_feed-0.12.1.dev1.tar.gz", hash = "sha256:84aa06749fd96544a1420a6e9ebc4268e7f5bca46f273da76f98a0fc5cc736f4"},
 ]
 
 [package.dependencies]
-aioqzone = ">=0.11.4.dev1,<0.13.0.dev0"
-QzEmoji = ">=5.0.0.dev3,<6.0.0"
+aioqzone = ">=0.12.1.dev2,<0.13.0"
+QzEmoji = ">=5.1.0,<6.0.0"
 
 [package.source]
 type = "legacy"
@@ -577,7 +577,6 @@ h2 = {version = ">=3,<5", optional = true, markers = "extra == \"http2\""}
 httpcore = ">=0.15.0,<0.17.0"
 rfc3986 = {version = ">=1.3,<2", extras = ["idna2008"]}
 sniffio = "*"
-socksio = {version = ">=1.0.0,<2.0.0", optional = true, markers = "extra == \"socks\""}
 
 [package.extras]
 brotli = ["brotli", "brotlicffi"]
@@ -904,25 +903,26 @@ files = [
 
 [[package]]
 name = "opencv-python-headless"
-version = "4.7.0.68"
+version = "4.7.0.72"
 description = "Wrapper package for OpenCV python bindings."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "opencv-python-headless-4.7.0.68.tar.gz", hash = "sha256:a2109193e88570bbbdf5335541c74b5b27573f1c922e38f523febaeae77a81be"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-macosx_10_13_x86_64.whl", hash = "sha256:e0c5ab677ff730c87317f3d2e4ee97ce1d95052bec35886a1bf8c8ef328c82a2"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:f39df64ca733eebe1ed78fe4ac13bedb0ef77beeabddbb2c0e291cc6bf5fbcdc"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cdda3cc5b65bf41be8c76f7d2ab9fda78a204a4837689351206d054444b5bb24"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:abfbac281ab85d90c4d17f13febf5adb640b727e2c3557e1ae49a71359a87c31"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-win32.whl", hash = "sha256:636d9517d946048c3ba34bc0addbe1b9fd4273954e228d3dcd96687cd5d447c7"},
-    {file = "opencv_python_headless-4.7.0.68-cp37-abi3-win_amd64.whl", hash = "sha256:e1cb2120720e54e0e563615ae4ccccf0f63d4f8a29b27722a185a22a7638103b"},
+    {file = "opencv-python-headless-4.7.0.72.tar.gz", hash = "sha256:eea59caa92b28b197f9d2a2dd8275ca3869718b2a857c8e53203de6ef3f9f4db"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-macosx_10_16_x86_64.whl", hash = "sha256:2f8b60bddd325411cf4664e4dbea729ce20f0c2ffeaedc5c6724b544fdf36e8a"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:6e13954f705e640e52962dfb252ee1f0a0af7b33cdbe8dd73f27e7e31172b7a2"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f448aea686069474e701223a2ed192df95f501a092b5e06e39171b4927564692"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:18dac3147863d2f4beef6b06b784ee115799a7842e2883adc4ae750c432613f9"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-win32.whl", hash = "sha256:f7f421a2099acbfb69db5e571abaf69a90f43846c3832452c19611efc2c6c926"},
+    {file = "opencv_python_headless-4.7.0.72-cp37-abi3-win_amd64.whl", hash = "sha256:388015ee96816b71e529fed6153aeb68420b69a80efad7aad5445fd7cd7a154c"},
 ]
 
 [package.dependencies]
 numpy = [
     {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
+    {version = ">=1.22.0", markers = "python_version >= \"3.11\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\""},
     {version = ">=1.17.0", markers = "python_version >= \"3.7\""},
     {version = ">=1.17.3", markers = "python_version >= \"3.8\""},
@@ -986,14 +986,14 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pre-commit"
-version = "3.0.4"
+version = "3.1.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pre_commit-3.0.4-py2.py3-none-any.whl", hash = "sha256:9e3255edb0c9e7fe9b4f328cb3dc86069f8fdc38026f1bf521018a05eaf4d67b"},
-    {file = "pre_commit-3.0.4.tar.gz", hash = "sha256:bc4687478d55578c4ac37272fe96df66f73d9b5cf81be6f28627d4e712e752d5"},
+    {file = "pre_commit-3.1.0-py2.py3-none-any.whl", hash = "sha256:7001dfcd174540658822b1fd3630ceadf4f41375a5d1844b5c3b3830f227348c"},
+    {file = "pre_commit-3.1.0.tar.gz", hash = "sha256:61bd9f1b96d3d1e763f2a9a0f8522aed341646800642ff6803c73fac5781f5b7"},
 ]
 
 [package.dependencies]
@@ -1139,10 +1139,7 @@ files = [
 [package.dependencies]
 aiolimiter = {version = ">=1.0.0,<1.1.0", optional = true, markers = "extra == \"rate-limiter\""}
 APScheduler = {version = ">=3.10.0,<3.11.0", optional = true, markers = "extra == \"job-queue\""}
-httpx = [
-    {version = ">=0.23.3,<0.24.0", extras = ["http2"]},
-    {version = "*", extras = ["socks"], optional = true, markers = "extra == \"socks\""},
-]
+httpx = {version = ">=0.23.3,<0.24.0", extras = ["http2"]}
 pytz = {version = ">=2018.6", optional = true, markers = "extra == \"job-queue\""}
 tornado = {version = ">=6.2,<7.0", optional = true, markers = "extra == \"webhooks\""}
 
@@ -1235,20 +1232,20 @@ files = [
 
 [[package]]
 name = "qzemoji"
-version = "5.0.0.dev4"
+version = "5.1.0"
 description = "Translate Qzone emoji link to text."
 category = "main"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = ">=3.8,<4.0"
 files = [
-    {file = "qzemoji-5.0.0.dev4-py3-none-any.whl", hash = "sha256:eae1f8327b1b2bbaf316610339af396f194d206a3b4374b32a4e5256a9347764"},
-    {file = "qzemoji-5.0.0.dev4.tar.gz", hash = "sha256:fde1a73fcbb47707adf8818f7428597b93d2a0eaa61d89fc147fed061077444d"},
+    {file = "qzemoji-5.1.0-py3-none-any.whl", hash = "sha256:92162f92f37bf2438bc5348d7caa485967e05e5ece1109ef643d7e5efb876e2d"},
+    {file = "qzemoji-5.1.0.tar.gz", hash = "sha256:40159c73c4ac1a1853b8b9370d3c0fd6c62e5eb18e268f1c3da8f7a91bcb1a44"},
 ]
 
 [package.dependencies]
 httpx = ">=0.23.0,<0.24.0"
 PyYAML = ">=6.0,<7.0"
-SQLAlchemy = {version = ">=2.0.3,<3.0.0", extras = ["aiosqlite", "asyncio"]}
+SQLAlchemy = {version = ">=2.0.4,<3.0.0", extras = ["aiosqlite", "asyncio"]}
 
 [package.source]
 type = "legacy"
@@ -1773,4 +1770,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "a9df2fd214792ce80f16acc9cda08d9b0ed031b742d3b52f29f2f9d5cf7cd0d5"
+content-hash = "e05e0cc0c942e881489caed3a15381dd9fe00933b39557e230132c0909ed3b7c"

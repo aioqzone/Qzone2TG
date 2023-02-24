@@ -4,20 +4,24 @@ import asyncio
 from time import time
 from typing import TYPE_CHECKING
 
+from aioqzone.event import QREvent, UPEvent
+from aioqzone_feed.event import FeedEvent, HeartbeatEvent
+from qqqr.event import sub_of
+
+from qzone3tg.bot.queue import QueueEvent
+
+from ..storage import StorageEvent
+
 if TYPE_CHECKING:
-    from aioqzone.event.login import QREvent, UPEvent
     from aioqzone.type.resp import FeedRep
-    from aioqzone_feed.event import FeedEvent, HeartbeatEvent
     from aioqzone_feed.type import FeedContent
     from sqlalchemy.ext.asyncio import AsyncSession
     from telegram import InlineKeyboardMarkup
 
-    from qzone3tg.bot.queue import QueueEvent
-
-    from ..storage import StorageEvent
     from . import BaseApp
 
 
+@sub_of(QREvent)
 def qrevent_hook(_self: BaseApp, base: type[QREvent]):
     from telegram import InputMediaPhoto, Message
 
@@ -80,6 +84,7 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
     return baseapp_qrevent
 
 
+@sub_of(UPEvent)
 def upevent_hook(_self: BaseApp, base: type[UPEvent]):
     from telegram import ForceReply, Message
 
@@ -127,6 +132,7 @@ def upevent_hook(_self: BaseApp, base: type[UPEvent]):
     return baseapp_upevent
 
 
+@sub_of(FeedEvent)
 def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
     from ..storage.orm import FeedOrm
 
@@ -159,15 +165,16 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
     return baseapp_feedevent
 
 
+@sub_of(HeartbeatEvent)
 def heartbeatevent_hook(_self: BaseApp, base: type[HeartbeatEvent]):
-    from aioqzone.api.loginman import QrStrategy
+    from aioqzone.event import LoginMethod
 
     class baseapp_heartbeatevent(base):
         async def HeartbeatFailed(self, exc: BaseException | None = None):
             _self.log.debug(f"heartbeat failed: {exc}")
             lm = _self.loginman
-            qr_avil = lm.strategy != QrStrategy.forbid and not lm.qr_suppressed
-            up_avil = lm.strategy != QrStrategy.force and not lm.up_suppressed
+            qr_avil = LoginMethod.qr in lm.order and not lm.qr_suppressed
+            up_avil = LoginMethod.up in lm.order and not lm.up_suppressed
             if qr_avil or up_avil:
                 try:
                     await _self.loginman.new_cookie()
@@ -195,6 +202,7 @@ def heartbeatevent_hook(_self: BaseApp, base: type[HeartbeatEvent]):
     return baseapp_heartbeatevent
 
 
+@sub_of(QueueEvent)
 def queueevent_hook(_self: BaseApp, base: type[QueueEvent]):
     from aioqzone_feed.type import BaseFeed
     from sqlalchemy import select
@@ -267,6 +275,7 @@ def queueevent_hook(_self: BaseApp, base: type[QueueEvent]):
     return baseapp_queueevent
 
 
+@sub_of(StorageEvent)
 def storageevent_hook(_self: BaseApp, base: type[StorageEvent]):
     from aioqzone_feed.type import BaseFeed
 
