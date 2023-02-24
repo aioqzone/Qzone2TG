@@ -157,7 +157,8 @@ class MediaPartial(MsgPartial):
 
     async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         f = getattr(bot, f"send_{self.meth}")
-        return await f(*args, media=self.content, text=self.text, **(self.kwds | kwds))
+        kwds[self.meth] = self.content
+        return await f(*args, caption=self.text, **(self.kwds | kwds))
 
     @classmethod
     def pipeline(

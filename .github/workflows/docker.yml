@@ -16,6 +16,9 @@ on:
       - beta
       - release
 
+concurrency:
+  group: docker-build-${{ github.ref_name }}
+
 permissions:
   contents: read
   packages: write
