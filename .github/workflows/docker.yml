@@ -3,6 +3,7 @@
 name: Build Docker Image
 
 on:
+  workflow_dispatch:
   pull_request:
     types:
       - ready_for_review
@@ -26,12 +27,8 @@ permissions:
 jobs:
   build-release-docker:
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'release') ||
-      contains(github.event.pull_request.labels.*.name, 'docker')
     env:
-      push: ${{ github.event_name == 'pull_request_target' }}
+      push: ${{ github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v3
 
