@@ -511,7 +511,7 @@ class BaseApp(
             return
 
         # wait for all hook to finish
-        await self.qzone.wait()
+        await self.qzone.wait("hook", "dispatch")
         got -= self.queue.skip_num
         if got == 0:
             if not is_period:
