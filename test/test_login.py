@@ -32,10 +32,10 @@ async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
         Settings(qzone=QzoneConf(qq=1, qr_strategy="forbid"), bot=BotConf(admin=1)).load_secrets(),
     )
 
-    from qqqr.up import UpLogin
+    from qqqr.up import UpWebLogin
     from telegram import Bot
 
-    with patch.object(UpLogin, "login", side_effect=mock_err):
+    with patch.object(UpWebLogin, "login", side_effect=mock_err):
         with pytest.raises(LoginError):
             await app.loginman._new_cookie()
 
@@ -47,10 +47,10 @@ async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
 
 
 async def test_force(client: ClientAdapter, engine: AsyncEngine):
-    from qqqr.up import UpLogin
+    from qqqr.up import UpWebLogin
 
     lm = TimeoutLoginman(client, engine, 1, [LoginMethod.up, LoginMethod.qr], "pwd")
     lm.suppress_up_till = 3600 + time()
-    with patch.object(UpLogin, "login", side_effect=RuntimeError):
+    with patch.object(UpWebLogin, "login", side_effect=RuntimeError):
         with lm.disable_suppress(), pytest.raises(SystemExit):
             await lm.new_cookie()

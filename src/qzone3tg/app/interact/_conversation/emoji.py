@@ -5,8 +5,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-import cv2 as cv
-import numpy as np
 import qzemoji as qe
 from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
 from qzemoji.utils import build_html
@@ -30,16 +28,9 @@ async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
     for ext in ("gif", "jpg", "png"):
         try:
             async with self.client.get(build_html(eid, ext=ext)) as r:
-                return upsample(r.content, ext)
+                return r.content
         except:
             pass
-
-
-def upsample(content: bytes, ext: str, f=2.0) -> bytes:
-    img = cv.imdecode(np.frombuffer(content, dtype=np.uint8), cv.IMREAD_UNCHANGED)
-    img = cv.resize(img, None, fx=f, fy=f, interpolation=cv.INTER_CUBIC)  # type: ignore
-    _, arr = cv.imencode(".jpg", img)
-    return arr.tobytes()
 
 
 async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):

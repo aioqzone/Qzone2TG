@@ -26,7 +26,7 @@ class LoginMan(AsyncSessionProvider, MixedLoginMan):
         refresh_time: int = 6,
     ) -> None:
         AsyncSessionProvider.__init__(self, engine)
-        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_time)
+        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_time=refresh_time)
         self.client = client
 
     async def table_exists(self):
