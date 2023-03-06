@@ -160,6 +160,8 @@ class MsgQueue(Emittable[QueueEvent]):
             log.debug(f"feed {feed} is sent before.")
             return
 
+        log.debug(f"sending feed {feed.uin}{feed.abstime}.")
+
         await self.wait(PersudoCurkey(feed.uin, feed.abstime))
         for f in v:
             f.kwds.update(reply_to_message_id=reply)
@@ -193,12 +195,15 @@ class MsgQueue(Emittable[QueueEvent]):
         :param feed: the feed to be sent
         :return: a list of message id if success, otherwise whether to resend
         """
+        log.debug(f"sending atom {f}.")
         try:
             r = await f(self.bot)
             match r:
                 case Message():
+                    log.debug("atom is sent successfully.")
                     return [r.message_id]
-                case Sequence():
+                case _ if isinstance(r, Sequence):
+                    log.debug("atom is sent successfully.")
                     return [i.message_id for i in r]
                 case _:
                     log.fatal(f"Unexpected send return type: {type(r)}")
