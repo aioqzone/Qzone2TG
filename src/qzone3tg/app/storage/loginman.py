@@ -23,10 +23,12 @@ class LoginMan(AsyncSessionProvider, MixedLoginMan):
         uin: int,
         order: Sequence[LoginMethod],
         pwd: str | None = None,
+        *,
         refresh_time: int = 6,
+        h5=False,
     ) -> None:
         AsyncSessionProvider.__init__(self, engine)
-        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_time=refresh_time)
+        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_time=refresh_time, h5=h5)
         self.client = client
 
     async def table_exists(self):
@@ -34,7 +36,8 @@ class LoginMan(AsyncSessionProvider, MixedLoginMan):
             """
             .. versionchanged:: 0.6.0.dev2
 
-                check if the ``cookie`` table has a ``p_skey`` column. If not, replace the schema.
+                Check if the ``cookie`` table has a ``p_skey`` and ``pt4_token`` column.
+                If not, reconstruct the schema.
             """
             nsp = inspect(conn)
             exist = nsp.has_table(CookieOrm.__tablename__)

@@ -54,7 +54,7 @@ def fake_message(id: int):
 
 def fake_feed(i: int | str) -> FeedContent:
     return Feed4Test.construct(
-        entities=[TextEntity(type=2, con=str(i))],
+        entities=[TextEntity(con=str(i))],
         appid=0,
         typeid=0,
         fid="",

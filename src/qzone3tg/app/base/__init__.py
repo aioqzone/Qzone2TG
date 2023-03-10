@@ -14,7 +14,8 @@ import qzemoji as qe
 from aioqzone.api.loginman import strategy_to_order
 from aioqzone.event import LoginMethod, QREvent, UPEvent
 from aioqzone.exception import LoginError
-from aioqzone_feed.api import FeedApi, HeartbeatApi
+from aioqzone_feed.api import HeartbeatApi
+from aioqzone_feed.api.feed.h5 import FeedH5Api
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
@@ -63,11 +64,13 @@ class TimeoutLoginman(LoginMan):
         uin: int,
         order: Sequence[LoginMethod],
         pwd: str | None = None,
+        *,
         refresh_time: int = 6,
+        h5=False,
         min_qr_interval: float = 0,
         min_up_interval: float = 0,
     ) -> None:
-        super().__init__(client, engine, uin, order, pwd, refresh_time)
+        super().__init__(client, engine, uin, order, pwd, refresh_time=refresh_time, h5=h5)
         self.qr_suppress_sec = min_qr_interval
         self.up_suppress_sec = min_up_interval
         self.suppress_qr_till = 0.0
@@ -179,10 +182,11 @@ class BaseApp(
             conf.uin,
             strategy_to_order[conf.qr_strategy],
             conf.password.get_secret_value() if conf.password else None,
+            h5=True,
             min_qr_interval=conf.min_qr_interval,
             min_up_interval=conf.min_up_interval,
         )
-        self.qzone = FeedApi(self.client, self.loginman, init_hb=False)
+        self.qzone = FeedH5Api(self.client, self.loginman, init_hb=False)
         self.heartbeat = HeartbeatApi(self.qzone)
         self.log.debug("init_qzone done")
 
@@ -211,6 +215,14 @@ class BaseApp(
         assert self.app.job_queue
         self.timers: dict[str, Job] = {}
         conf = self.conf.log
+
+        async def heartbeat(callback: CallbackContext):
+            await self.heartbeat.heartbeat_refresh()
+
+        self.timers["hb"] = job = self.app.job_queue.run_repeating(
+            heartbeat, interval=300, first=300, name="heartbeat"
+        )
+        job.enabled = False
 
         # clean database
         async def clean(_):
@@ -304,6 +316,7 @@ class BaseApp(
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
         logging.getLogger("charset_normalizer").setLevel(logging.WARN)
+        logging.getLogger("aiosqlite").setLevel(logging.WARN)
 
     # --------------------------------
     #          init network
@@ -405,8 +418,6 @@ class BaseApp(
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")
         self.register_signal()
-        self.log.info("注册心跳...")
-        self.heartbeat.add_heartbeat()
         self.log.info("等待异步初始化任务...")
         init_task = [
             qe.auto_update(),

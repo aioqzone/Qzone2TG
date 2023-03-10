@@ -5,6 +5,7 @@ from time import time
 from typing import TYPE_CHECKING
 
 from aioqzone.event import QREvent, UPEvent
+from aioqzone.type.resp.h5 import FeedData
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from qqqr.event import sub_of
 
@@ -151,15 +152,15 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
                 return await self.FeedDropped(bid, feed)
             await _self.queue.add(bid, feed)
 
-        async def FeedDropped(self, bid: int, feed):
-            _self.log.debug(f"batch {bid}: one feed dropped")
+        async def FeedDropped(self, bid: int, *_, **kw):
+            _self.log.debug(f"batch {bid}: one feed is dropped")
             _self.queue.skip_num += 1
 
         async def FeedMediaUpdate(self, bid: int, feed: FeedContent):
             _self.log.debug(f"feed update received: media={feed.media}")
             await _self.queue.edit(bid, feed)
 
-        async def StopFeedFetch(self, feed: FeedRep) -> bool:
+        async def StopFeedFetch(self, feed: FeedRep | FeedData) -> bool:
             return await _self.store.exists(*FeedOrm.primkey(feed))
 
     return baseapp_feedevent

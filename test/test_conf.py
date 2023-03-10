@@ -105,6 +105,5 @@ async def test_hook_class(
     app_cls: type[BaseApp],
     evt_cls: type[Event],
 ):
-
     app = app_cls(client, engine, conf=minc)
     assert app[evt_cls].__class__.__name__ == (app_cls.__name__ + "_" + evt_cls.__name__).lower()

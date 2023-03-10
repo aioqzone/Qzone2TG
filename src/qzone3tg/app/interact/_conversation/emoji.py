@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import re
+from enum import IntEnum, auto
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import qzemoji as qe
-from aioqzone_feed.api.emoji import TAG_RE, wrap_plain_text
-from qzemoji.utils import build_html
+from qzemoji.utils import build_html, wrap_plain_text
 from telegram import (
     ForceReply,
     InlineKeyboardMarkup,
@@ -21,7 +22,12 @@ from telegram.ext import ContextTypes, ConversationHandler
 if TYPE_CHECKING:
     from qzone3tg.app.interact import InteractApp
 
-CHOOSE_EID, ASK_CUSTOM = range(2)
+TAG_RE = re.compile(r"\[em\]e(\d+)\[/em\]")
+
+
+class EmCvState(IntEnum):
+    CHOOSE_EID = auto()
+    ASK_CUSTOM = auto()
 
 
 async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
@@ -67,7 +73,7 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             assert context.user_data is not None
             context.user_data["eid"] = eid
             context.user_data["to_delete"] = [msg.id, update.message.id]
-            return ASK_CUSTOM
+            return EmCvState.ASK_CUSTOM
         case [eid, name] if str.isdigit(eid):
             await asyncio.gather(
                 qe.set(int(eid), name),
@@ -126,7 +132,7 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
             is_persistent=True,
         ),
     )
-    return CHOOSE_EID
+    return EmCvState.CHOOSE_EID
 
 
 async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,7 +154,7 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
         eid = int(update.message.text)
     except ValueError:
         await update.message.reply_text(f"请输入数字（当前输入{update.message.text}）")
-        return CHOOSE_EID
+        return EmCvState.CHOOSE_EID
 
     content = await _get_eid_bytes(self, eid)
     if content is None:
@@ -162,7 +168,7 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
     )
     context.user_data["eid"] = eid
     context.user_data["to_delete"] = [msg.id]
-    return ASK_CUSTOM
+    return EmCvState.ASK_CUSTOM
 
 
 async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):

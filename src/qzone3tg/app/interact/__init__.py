@@ -154,7 +154,7 @@ class InteractApp(BaseApp):
         self.app.add_handler(CallbackQueryHandler(self.btn_qr, r"^qr:(refresh|cancel)$"))
         self.app.add_handler(CallbackQueryHandler(self.btn_like, r"^like:-?\d+$", block=False))
 
-        from ._conversation.emoji import ASK_CUSTOM, CHOOSE_EID
+        from ._conversation.emoji import EmCvState
 
         self.app.add_handler(
             ConversationHandler(
@@ -163,8 +163,10 @@ class InteractApp(BaseApp):
                     CommandHandler("em", self.command_em, CA),
                 ],
                 states={
-                    CHOOSE_EID: [MessageHandler(filters.Regex(r"^\d+$"), self.input_eid)],
-                    ASK_CUSTOM: [
+                    EmCvState.CHOOSE_EID: [
+                        MessageHandler(filters.Regex(r"^\d+$"), self.input_eid)
+                    ],
+                    EmCvState.ASK_CUSTOM: [
                         MessageHandler(filters.TEXT & (~filters.COMMAND), self.update_eid)
                     ],
                 },
@@ -285,7 +287,9 @@ class InteractApp(BaseApp):
         async def like_trans(likedata: LikeData):
             with self.loginman.disable_suppress():
                 try:
-                    succ = await self.qzone.like_app(likedata, True)
+                    succ = await self.qzone.internal_dolike_app(
+                        likedata.appid, likedata.unikey, likedata.curkey, True
+                    )
                 except:
                     self.log.error("点赞失败", exc_info=True)
                     succ = False

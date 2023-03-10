@@ -8,7 +8,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Sequence, overload
 
-from aioqzone.type.entity import AtEntity, ConEntity, TextEntity
+import qzemoji.utils as qeu
+from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from pydantic import HttpUrl
@@ -18,9 +19,8 @@ from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
 from telegram import InputMediaVideo as Video
-from telegram.constants import MediaGroupLimit
 
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial, PicPartial, TextPartial, href
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href
 
 if TYPE_CHECKING:
     from . import GroupMedia, SupportMedia
@@ -45,6 +45,8 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
                 s += e.con
             case AtEntity():
                 s += f"@{href(e.nick, f'user.qzone.qq.com/{e.uin}')}"
+            case EmEntity():
+                s += await qeu.query_wrap(e.eid)
             case _:
                 s += str(e.dict(exclude={"type"}))
     return s

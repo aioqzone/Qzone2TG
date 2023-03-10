@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 from aioqzone.event import QREvent
 from aioqzone.type.entity import AtEntity, TextEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
-from aioqzone_feed.api.emoji import TAG_RE
 from qqqr.event import sub_of
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
+from ._conversation.emoji import TAG_RE
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -123,7 +123,9 @@ async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFA
 
         with self.loginman.disable_suppress():
             try:
-                succ = await self.qzone.like_app(likedata, not unlike)
+                succ = await self.qzone.internal_dolike_app(
+                    likedata.appid, likedata.unikey, likedata.curkey, not unlike
+                )
             except:
                 self.log.error("点赞失败", exc_info=True)
                 succ = False
