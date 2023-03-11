@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from qzone3tg.app.base import BaseApp
 from qzone3tg.app.storage import FeedOrm, StorageEvent, StorageMan
+from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.app.storage.loginman import LoginMan
 from qzone3tg.app.storage.orm import CookieOrm, MessageOrm
 from qzone3tg.bot.queue import QueueEvent
@@ -61,6 +62,13 @@ async def hook_store(fake_app: BaseApp):
 async def hook_queue(fake_app: BaseApp):
     cls = BaseApp._sub_queueevent(fake_app, QueueEvent)  # type: ignore
     yield cls()
+
+
+@pytest_asyncio.fixture(scope="class")
+async def blockset(engine: AsyncEngine):
+    s = BlockSet(engine)
+    await s.create()
+    yield s
 
 
 class TestFeedStore:
@@ -135,3 +143,23 @@ class TestCookieStore:
         assert r
         assert r.p_skey == cookie["p_skey"]
         assert r.pt4_token == cookie["pt4_token"]
+
+
+class TestBlockSet:
+    async def test_add(self, blockset: BlockSet):
+        await blockset.add(1)
+
+    async def test_contains(self, blockset: BlockSet):
+        assert await blockset.contains(1)
+
+    async def test_delete(self, blockset: BlockSet):
+        await blockset.delete(1)
+        assert not await blockset.contains(1)
+
+    async def test_list(self, blockset: BlockSet):
+        async with blockset.sess() as sess:
+            await blockset.add(1, sess=sess, flush=False)
+            await blockset.add(2, sess=sess, flush=False)
+            await blockset.add(3, sess=sess, flush=True)
+
+        assert [1, 2, 3] == sorted(await blockset.all())

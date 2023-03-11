@@ -96,6 +96,7 @@ async def test_init(minc: Settings):
         (InteractApp, QREvent),
         (InteractApp, UPEvent),
         (InteractApp, QueueEvent),
+        (InteractApp, FeedEvent),
     ],
 )
 async def test_hook_class(

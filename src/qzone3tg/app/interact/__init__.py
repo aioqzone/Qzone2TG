@@ -1,13 +1,10 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
 
-from aioqzone.event import LoginMethod, UPEvent
 from aioqzone.type.internal import LikeData
-from aioqzone_feed.event import HeartbeatEvent
-from qqqr.event import sub_of
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
-from telegram import BotCommand, Message, Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -18,6 +15,7 @@ from telegram.ext import (
 )
 
 from qzone3tg.app.storage import StorageEvent
+from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.settings import PollingConf, Settings
 
 from ..base import BaseApp
@@ -36,22 +34,6 @@ class LockFilter(filters.MessageFilter):
         task.add_done_callback(lambda _: setattr(self, "locked", False))
 
 
-class ReplyHandler(MessageHandler):
-    def __init__(self, filters, callback, reply: Message):
-        super().__init__(filters, callback)
-        self.reply = reply
-
-    def check_update(self, update: Update):
-        if super().check_update(update) is False:
-            return False
-        msg = update.effective_message
-        assert msg
-
-        if msg.reply_to_message and msg.reply_to_message.message_id == self.reply.message_id:
-            return
-        return False
-
-
 class InteractApp(BaseApp):
     commands = {
         "start": "刷新",
@@ -59,6 +41,7 @@ class InteractApp(BaseApp):
         "relogin": "强制重新登陆",
         "like": "点赞指定的说说",
         "help": "帮助",
+        "block": "黑名单管理",
     }
 
     def __init__(self, client: ClientAdapter, store: AsyncEngine, conf: Settings) -> None:
@@ -70,70 +53,13 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._button import qrevent_hook as _sub_qrevent
     from ._button import queueevent_hook as _sub_queueevent
+    from ._hook import feedevent_hook as _sub_feedevent
+    from ._hook import heartbeatevent_hook as _sub_heartbeatevent
+    from ._hook import upevent_hook as _sub_upevent
 
-    @sub_of(UPEvent)
-    def _sub_upevent(_self, base: type[UPEvent]):
-        class interactapp_upevent(base):
-            async def force_reply_answer(self, msg) -> str | None:
-                code = ""
-                evt = asyncio.Event()
-
-                def cb(update: Update, _):
-                    nonlocal code
-                    assert update.effective_message
-                    code = update.effective_message.text or ""
-                    code = code.strip()
-                    evt.set()
-
-                handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
-                _self.app.add_handler(handler)
-
-                try:
-                    await asyncio.wait_for(evt.wait(), timeout=_self.conf.qzone.vcode_timeout)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    return
-                else:
-                    return code
-                finally:
-                    _self.app.remove_handler(handler)
-
-        return interactapp_upevent
-
-    @sub_of(HeartbeatEvent)
-    def _sub_heartbeatevent(_self, base: type[HeartbeatEvent]):
-        class interactapp_heartbeatevent(base):
-            async def HeartbeatRefresh(self, num: int):
-                if _self.fetch_lock.locked:
-                    _self.log.warning("Heartbeat refresh skipped since fetch is running.")
-                    return
-                await super().HeartbeatRefresh(num)
-
-                tasks = [t for t in _self._tasks["fetch"] if t._state == "PENDING"]
-                match len(tasks):
-                    case n if n > 1:
-                        task = next(filter(lambda t: t._state == "PENDING", tasks))
-                        _self.log.warn(
-                            "fetch taskset should contain only one task, the first pending task is used."
-                        )
-                    case n if n == 1:
-                        task = next(iter(tasks))
-                    case _:
-                        _self.log.warn("fetch task not found, fetch lock skipped.")
-                        return
-
-                _self.fetch_lock.acquire(task)
-
-            async def HeartbeatFailed(self, exc: BaseException | None):
-                await super().HeartbeatFailed(exc)
-                lm = _self.loginman
-                qr_avil = LoginMethod.qr in lm.order and not lm.qr_suppressed
-                up_avil = LoginMethod.up in lm.order and not lm.up_suppressed
-                if qr_avil or up_avil:
-                    await _self.bot.send_message(
-                        _self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
-                    )
-
-        return interactapp_heartbeatevent
+    def init_queue(self):
+        super().init_queue()
+        self.blockset = BlockSet(self.engine)
 
     def register_handlers(self):
         # build chat filters
@@ -307,5 +233,6 @@ class InteractApp(BaseApp):
     # --------------------------------
     #              query
     # --------------------------------
+    from ._block import block
     from ._button import btn_like, btn_qr
     from ._conversation.emoji import btn_emoji, cancel_custom, command_em, input_eid, update_eid
