@@ -171,6 +171,7 @@ class InteractApp(BaseApp):
                     ],
                 },
                 fallbacks=[CommandHandler("cancel", self.cancel_custom, filters=CA)],
+                per_chat=False,
             )
         )
 

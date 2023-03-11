@@ -212,14 +212,15 @@ class BaseApp(
         )
 
     def init_timers(self):
-        assert self.app.job_queue
+        job_queue = self.app.job_queue
+        assert job_queue
         self.timers: dict[str, Job] = {}
         conf = self.conf.log
 
-        async def heartbeat(callback: CallbackContext):
+        async def heartbeat(_):
             await self.heartbeat.heartbeat_refresh()
 
-        self.timers["hb"] = job = self.app.job_queue.run_repeating(
+        self.timers["hb"] = job = job_queue.run_repeating(
             heartbeat, interval=300, first=300, name="heartbeat"
         )
         job.enabled = False
@@ -228,29 +229,27 @@ class BaseApp(
         async def clean(_):
             await self[StorageEvent].Clean(-self.conf.bot.storage.keepdays * 86400)
 
-        self.timers["cl"] = self.app.job_queue.run_repeating(clean, 86400, 0, name="clean")
+        self.timers["cl"] = job = job_queue.run_repeating(clean, 86400, 0, name="clean")
+        job.enabled = False
 
         async def lst_forever(_):
-            self.log.info(self._status_text(True))
-            return False
+            self.log.info(self._status_dict(debug=True))
 
-        self.timers["ls"] = self.app.job_queue.run_repeating(
-            lst_forever, 3600, 3600, name="log status"
-        )
+        self.timers["ls"] = job_queue.run_repeating(lst_forever, 3600, 3600, name="status")
 
         # register debug status timer
         if conf.debug_status_interval > 0:
 
             async def dst_forever(_):
                 await BaseApp.status(self, self.admin, debug=True)
-                return False
 
-            self.timers["ds"] = self.app.job_queue.run_repeating(
+            self.timers["ds"] = job = job_queue.run_repeating(
                 dst_forever,
                 conf.debug_status_interval,
                 conf.debug_status_interval,
-                name="/status debug",
+                name="debug_status",
             )
+            job.enabled = False
 
         self.log.debug("init_timers done")
 
@@ -317,6 +316,7 @@ class BaseApp(
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
         logging.getLogger("charset_normalizer").setLevel(logging.WARN)
         logging.getLogger("aiosqlite").setLevel(logging.WARN)
+        logging.getLogger("hpack.hpack").setLevel(logging.WARN)
 
     # --------------------------------
     #          init network
@@ -442,7 +442,7 @@ class BaseApp(
         self.log.info("启动所有定时器")
         for t in self.timers.values():
             t.enabled = True
-            self.log.debug(f"{t} started.")
+            self.log.debug(f"Job <{t.name}> started.")
 
         self.start_time = time()
         return await self.idle()
@@ -556,7 +556,13 @@ class BaseApp(
         LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({AGREEMENT})。"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
-    def _status_text(self, debug: bool, *, hf: bool = False):
+    def _status_dict(self, *, debug: bool, hf: bool = False):
+        """Generate app status dict.
+
+        :param debug: include debug fields.
+        :param hf: generate humuan-friendly value.
+        :return: a status dict.
+        """
         from aioqzone.utils.time import sementic_time
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
@@ -578,10 +584,11 @@ class BaseApp(
         if debug:
             add_dic = {}
             stat_dic.update(add_dic)
-        return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
+        return stat_dic
 
     async def status(self, to: ChatId, debug: bool = False):
-        statm = self._status_text(debug, hf=True)
+        stat_dic = self._status_dict(debug=debug, hf=True)
+        statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
 
