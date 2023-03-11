@@ -1,8 +1,8 @@
 FROM python:3.11-slim as build
 
-LABEL org.opencontainers.image.url=https://github.com/aioqzone/Qzone2TG/pkgs/container/qzone3tg
-LABEL org.opencontainers.image.documentation=https://aioqzone.github.io/Qzone2TG
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
+LABEL org.opencontainers.image.description="Forward Qzone feeds to telegram."
+LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
