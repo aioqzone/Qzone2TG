@@ -576,7 +576,7 @@ class BaseApp(
             "心跳状态": friendly(
                 self.heartbeat.hb_timer and self.heartbeat.hb_timer.state == "PENDING"
             ),
-            "上次心跳": ts2a(self.heartbeat.hb_timer and self.heartbeat.hb_timer.last_call),
+            "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
             "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
             "密码登录暂停至": ts2a(self.loginman.suppress_up_till),
