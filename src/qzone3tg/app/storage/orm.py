@@ -63,6 +63,19 @@ class FeedOrm(Base):
             case _:
                 raise TypeError(type(feed))
 
+    def dict(self):
+        return dict(
+            fid=self.fid,
+            uin=self.uin,
+            abstime=self.abstime,
+            appid=self.appid,
+            typeid=self.typeid,
+            topicId=self.topicId,
+            nickname=self.nickname,
+            curkey=self.curkey,
+            unikey=self.unikey,
+        )
+
 
 class MessageOrm(Base):
     __tablename__ = "message"

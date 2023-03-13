@@ -1,15 +1,18 @@
 from collections import defaultdict
 from typing import cast
+from unittest.mock import patch
 
 import pytest
+from aioqzone.type.internal import PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 from telegram import Bot
 from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.bot.queue import EditableQueue, MsgQueue, QueueEvent
+from qzone3tg.bot.queue import MsgQueue, QueueEvent
 from qzone3tg.bot.splitter import FetchSplitter
+from qzone3tg.type import FeedPair
 
 from . import FakeBot, fake_feed, fake_media
 
@@ -21,8 +24,8 @@ class Ihave0(QueueEvent):
         if feed.entities[0].con == "0":  # type: ignore
             return [0]
 
-    async def reply_markup(self, feed):
-        return 1, 1
+    async def reply_markup(self, feed, need_forward: bool):
+        return FeedPair(1, 1 if need_forward else None)
 
 
 @pytest.fixture
@@ -31,136 +34,99 @@ def fake_bot():
 
 
 @pytest.fixture
-def ideal(client: ClientAdapter, fake_bot: Bot):
-    q = EditableQueue(fake_bot, FetchSplitter(client), defaultdict(int))
+def queue(client: ClientAdapter, fake_bot: Bot):
+    q = MsgQueue(fake_bot, FetchSplitter(client), defaultdict(int))
     q.register_hook(Ihave0())
     return q
 
 
-class TestIdeal:
-    async def test_add(self, ideal: MsgQueue):
-        ideal.new_batch(0)
+class TestQueue:
+    async def test_add(self, queue: MsgQueue):
+        queue.new_batch(0)
         f = fake_feed(0)
-        await ideal.add(0, f)
-        assert isinstance(ideal.q[f], int)
-        await ideal.add(1, f)
-        assert len(ideal.q) == 1
+        queue.add(0, f)
+        assert len(queue.q) == 1
+        await queue.wait(PersudoCurkey(f.uin, f.abstime))
+        assert isinstance(queue.q[f], FeedPair)
+        assert queue.q[f].feed
+
+        queue.add(1, f)
+        await queue.wait(PersudoCurkey(f.uin, f.abstime))
+        assert len(queue.q) == 1
         f = fake_feed(1)
         f.uin = 1
-        await ideal.add(0, f)
-        assert len(ideal.q) == 2
-        assert isinstance(ideal.q[f], list)
+        queue.add(0, f)
+        assert len(queue.q) == 2
+        await queue.wait(PersudoCurkey(f.uin, f.abstime))
+        assert isinstance(queue.q[f], FeedPair)
+        assert queue.q[f].feed
 
-    async def test_send_norm(self, ideal: MsgQueue):
-        ideal.new_batch(1)
+    async def test_send_norm(self, queue: MsgQueue):
+        queue.new_batch(1)
         for i in range(3):
             f = fake_feed(i + 1)
             f.abstime = i * 1000
-            await ideal.add(1, f)
-        await ideal.send_all()
-        assert ideal.sending is None
-        bot = cast(FakeBot, ideal.bot)
+            queue.add(1, f)
+        await queue.send_all()
+        assert queue.sending is None
+        bot = cast(FakeBot, queue.bot)
         assert len(bot.log) == 3
         assert "".join(i[2][-1] for i in bot.log) == "123"
 
-    async def test_drop_dup_feed(self, ideal: MsgQueue):
-        ideal.new_batch(3)
+    async def test_drop_dup_feed(self, queue: MsgQueue):
+        queue.new_batch(3)
 
         f = fake_feed(1)
-        await ideal.add(3, f)
+        queue.add(3, f)
 
         f = fake_feed(1)
         f.abstime = 1
-        await ideal.add(3, f)
+        queue.add(3, f)
 
         f = fake_feed(1)
         f.uin = f.abstime = 2
-        await ideal.add(3, f)
+        queue.add(3, f)
 
         f = fake_feed(1)
         f.abstime = 3
-        await ideal.add(3, f)
+        queue.add(3, f)
 
-        await ideal.send_all()
-        bot = cast(FakeBot, ideal.bot)
+        await queue.send_all()
+        bot = cast(FakeBot, queue.bot)
         assert len(bot.log) == 2
 
-        assert list(ideal.q.values()) == [1, 1, 2, 1]
+        assert sum((i.feed for i in queue.q.values()), []) == [1, 1, 2, 1]
 
-    async def test_reply_markup(self, ideal: MsgQueue):
-        ideal.new_batch(2)
+    async def test_reply_markup(self, queue: MsgQueue):
+        queue.new_batch(2)
         f = fake_feed(2)
         f.forward = fake_feed(1)
-        await ideal.add(2, f)
-        await ideal.send_all()
-        assert ideal.sending is None
-        bot = cast(FakeBot, ideal.bot)
+        queue.add(2, f)
+        await queue.send_all()
+        assert queue.sending is None
+        bot = cast(FakeBot, queue.bot)
         dfw = bot.log[0][-1]
         dfe = bot.log[1][-1]
         assert dfw["reply_markup"] == 1
         assert dfe["reply_markup"] == 1
 
+    @pytest.mark.parametrize(
+        ["exc2r", "grp_len"],
+        [
+            (TimedOut, 2),
+            (BadRequest(""), 2),
+            (RuntimeError, 1),
+        ],
+    )
+    async def test_send_retry(self, queue: MsgQueue, exc2r: Exception, grp_len: int):
+        queue.new_batch(0)
+        with patch.object(FakeBot, "send_photo", side_effect=exc2r):
+            f = fake_feed(1)
+            f.media = [fake_media(build_html(100))]
+            queue.add(0, f)
+            await queue.send_all()
 
-class RealBot(FakeBot):
-    def send_message(self, chat_id, text: str, **kw):
-        if e := kw.pop("e", None):
-            raise e
-        return super().send_message(chat_id, text, **kw)
-
-    def send_media_group(self, chat_id, media: list, **kw):
-        if e := kw.pop("e", None):
-            raise e
-        return super().send_media_group(chat_id, media, **kw)
-
-    def send_photo(self, chat_id, media: str | bytes, text: str, **kw):
-        if e := kw.pop("e", None):
-            raise e
-        return super().send_photo(chat_id, media, text, **kw)
-
-
-@pytest.fixture
-def real_bot():
-    return RealBot()
-
-
-@pytest.fixture
-def real(client: ClientAdapter, real_bot: Bot):
-    q = EditableQueue(real_bot, FetchSplitter(client), defaultdict(int))
-    q.register_hook(Ihave0())
-    return q
-
-
-class TestReal:
-    async def test_send_retry(self, real: EditableQueue):
-        real.new_batch(0)
-        for i, e in zip(range(3), [TimedOut, BadRequest(""), RuntimeError]):
-            f = fake_feed(i + 1)
-            f.abstime = i
-            await real.add(0, f)
-
-            l = real.q[f]
-            assert isinstance(l, list)
-            for p in l:
-                p.kwds["e"] = e
-        await real.send_all()
-        assert real.sending is None
-        bot = cast(RealBot, real.bot)
+        assert queue.sending is None
+        bot = cast(FakeBot, queue.bot)
         assert not bot.log
-        assert len(real.exc_groups) == 3
-        assert [len(i) for i in real.exc_groups.values()] == [2, 1, 2]
-
-    async def test_badrequest_media(self, real: EditableQueue):
-        real.new_batch(1)
-        f = fake_feed(1)
-        f.media = [fake_media(build_html(100))]
-        await real.add(1, f)
-        l = real.q[f]
-        assert isinstance(l, list)
-        for p in l:
-            p.kwds["e"] = BadRequest("")
-        await real.send_all()
-        assert real.sending is None
-        bot = cast(RealBot, real.bot)
-        assert not bot.log
-        assert len(real.exc_groups) == 1
-        assert len(real.exc_groups[f]) == 2
+        assert len(queue.exc_groups[f]) == grp_len

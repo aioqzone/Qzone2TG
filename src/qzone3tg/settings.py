@@ -77,7 +77,7 @@ class WebhookConf(BaseModel):
     此外，由于 `!telegram api` 的限制，对 :obj:`webhook destination <.destination>` 的请求必须开启 SSL.
     因此您可能需要域名（和证书）才能使用 :term:`webhook`.
 
-    ..seealso:: :external:meth:`telegram.ext.Updater.start_webhook`"""
+    .. seealso:: :external:meth:`telegram.ext.Updater.start_webhook`"""
 
     destination: HttpUrl
     """webhook url. `!telegram api` 将向此地址发送数据. 如果您配置了反向代理，可填写反向代理的转发地址.

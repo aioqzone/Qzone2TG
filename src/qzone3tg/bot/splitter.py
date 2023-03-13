@@ -12,6 +12,7 @@ import qzemoji.utils as qeu
 from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
+from httpx import URL
 from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
 from telegram import InputFile
@@ -19,6 +20,8 @@ from telegram import InputMediaAnimation as Anim
 from telegram import InputMediaDocument as Doc
 from telegram import InputMediaPhoto as Pic
 from telegram import InputMediaVideo as Video
+
+from qzone3tg.type import FeedPair
 
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href
 
@@ -52,8 +55,10 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
     return s
 
 
-def supported_video(url: HttpUrl):
+def supported_video(url: str | URL):
     """Check if a video can be sent as video. (Telegram supports mp4 only)"""
+    if isinstance(url, str):
+        url = URL(url)
     return bool(url.path and url.path.endswith(".mp4"))
 
 
@@ -72,10 +77,12 @@ class Splitter(ABC):
     """
 
     @abstractmethod
-    async def split(self, feed: FeedContent) -> tuple[Sequence[MsgPartial], Sequence[MsgPartial]]:
+    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[Sequence[MsgPartial]]:
         """
         :param feed: feed to split into partials
-        :return: (forward partials Sequence, feed partials Sequence)"""
+        :param need_forward: whether the forward atoms will be used.
+            If False, simply set `forward` field of `FeedPair` to a empty list.
+        :return: a :class:`FeedPair` object containing atoms sequence."""
         raise NotImplementedError
 
     async def unify_send(self, feed: FeedContent):
@@ -88,8 +95,8 @@ class Splitter(ABC):
         :return: Message Partials. Forwardee partials is prior to forwarder partials.
         """
 
-        fw, fe = await self.split(feed)
-        return (*fw, *fe)
+        pair = await self.split(feed, True)
+        return (*pair.forward, *pair.feed)
 
 
 class LocalSplitter(Splitter):
@@ -97,8 +104,8 @@ class LocalSplitter(Splitter):
     It will guess the media type using its metadata.
     """
 
-    async def split(self, feed: FeedContent) -> tuple[list[MsgPartial], list[MsgPartial]]:
-        msgs: list[MsgPartial] = []
+    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[list[MsgPartial]]:
+        pair = FeedPair([], [])  # type: FeedPair[list[MsgPartial]]
 
         txt = self.header(feed) + await stringify_entities(feed.entities)
         metas = feed.media or []
@@ -117,23 +124,21 @@ class LocalSplitter(Splitter):
                     p, pipe_objs = MediaPartial.pipeline(*pipe_objs)
             else:
                 p, pipe_objs = TextPartial.pipeline(*pipe_objs)
-            msgs.append(p)
+            pair.feed.append(p)
 
         if isinstance(feed.forward, HttpUrl):
             # override disable_web_page_preview if forwarding an app.
-            match msgs[0]:
+            match pair.feed[0]:
                 case MediaGroupPartial():
                     log.warning(f"Forward url and media coexist: {feed}")
                 case TextPartial():
-                    msgs[0].kwds["disable_web_page_preview"] = False
+                    pair.feed[0].kwds["disable_web_page_preview"] = False
 
         # send forward before stem message
-        if isinstance(feed.forward, FeedContent):
-            fmsg = (await self.split(feed.forward))[1]
-        else:
-            fmsg = []
+        if need_forward and isinstance(feed.forward, FeedContent):
+            pair.forward = (await self.split(feed.forward, False)).feed
 
-        return fmsg, msgs
+        return pair
 
     def header(self, feed: FeedContent) -> str:
         """Generate a header for a feed according to feed type.
@@ -169,14 +174,15 @@ class LocalSplitter(Splitter):
         :param media: metadata to guess
         """
         assert isinstance(media, VisualMedia)
+        raw_url = URL(media.raw)
+        if raw_url.path and raw_url.path.endswith(".gif"):
+            return Anim
         if media.is_video:
-            if supported_video(media.raw):
+            if supported_video(raw_url):
                 return Video
             return Doc
         if media.height + media.width > 1e4:
             return Doc
-        if media.raw.path and media.raw.path.endswith(".gif"):
-            return Anim
         return Pic
 
 
@@ -236,7 +242,7 @@ class FetchSplitter(LocalSplitter):
         """
         if isinstance(feed.forward, FeedContent):
             feed = feed.forward
-        for group in (await self.split(feed))[1]:
+        for group in (await self.split(feed, False)).feed:
             if isinstance(group, (MediaPartial, MediaGroupPartial)):
                 yield group
                 continue

@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
     from aioqzone_feed.type import FeedContent
 
+    from qzone3tg.type import FeedPair
+
     class interactapp_queueevent(base):
         def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
             if feed.unikey is None:
@@ -51,14 +53,12 @@ def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
             if row:
                 return InlineKeyboardMarkup([row])
 
-        async def reply_markup(self, feed: FeedContent):
-            markup = []
-            if isinstance(feed.forward, FeedContent):
-                markup.append(self._reply_markup_one_feed(feed.forward))
-            else:
-                markup.append(None)
-            markup.append(self._reply_markup_one_feed(feed))
-            return markup
+        async def reply_markup(self, feed: FeedContent, need_forward: bool):
+            pair = FeedPair(None, None)  # type: FeedPair[InlineKeyboardMarkup | None]
+            if need_forward and isinstance(feed.forward, FeedContent):
+                pair.forward = self._reply_markup_one_feed(feed.forward)
+            pair.feed = self._reply_markup_one_feed(feed)
+            return pair
 
     return interactapp_queueevent
 

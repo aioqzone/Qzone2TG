@@ -39,7 +39,7 @@ from telegram.ext import (
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.queue import EditableQueue, QueueEvent
+from qzone3tg.bot.queue import MsgQueue, QueueEvent
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
@@ -205,7 +205,7 @@ class BaseApp(
 
     def init_queue(self):
         self.store = StorageMan(self.engine)
-        self.queue = EditableQueue(
+        self.queue = MsgQueue(
             self.bot,
             FetchSplitter(self.client),
             defaultdict(lambda: self.admin),
@@ -497,18 +497,12 @@ class BaseApp(
         except LoginError:
             # LoginFailed hook will show reason to user
             self.log.warning("由于发生了登录错误，爬取未开始。")
-            if self.heartbeat.hb_timer:
-                self.heartbeat.hb_timer.stop()
-                self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
-            else:
-                self.log.warning(
-                    "Should stop heartbeat because LoginError, but it has already stopped."
-                )
+            self.timers["hb"].enabled = False
+            self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
             return
-        except HTTPError as e:
+        except HTTPError | ExceptionGroup as e:
             self.log.error(e)
-            self.log.debug(e.request)
-            echo(f"发生了网络错误: {e}")
+            echo(f"有错误发生，但 Qzone3TG 尚能运行。请检查日志以获取详细信息。")
             return
         except SystemError:
             return await self.shutdown()

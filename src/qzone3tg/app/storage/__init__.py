@@ -67,7 +67,7 @@ class StorageMan(AsyncSessionProvider):
 
         orms = await self.get_msg_orms(*MessageOrm.fkey(orm))
         mids = [i.mid for i in orms]
-        return BaseFeed.from_orm(orm), mids
+        return BaseFeed(**orm.dict()), mids
 
     async def clean(self, seconds: float):
         """clean feeds out of date, based on `abstime`.

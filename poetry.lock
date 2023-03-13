@@ -17,14 +17,14 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.12.7.dev1"
+version = "0.12.8.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-0.12.7.dev1-py3-none-any.whl", hash = "sha256:8eaa576ecb05684811c4be86ac0464e188eda38a3f4545477883ea8f3d9fe957"},
-    {file = "aioqzone-0.12.7.dev1.tar.gz", hash = "sha256:e779ef4fb6a444c9c881b179d48a8df7a4893232acd7e3056e9bb618aac53c17"},
+    {file = "aioqzone-0.12.8.dev1-py3-none-any.whl", hash = "sha256:b3bfe8b6ee684d20b98448a26fd854774b206582e9c2317ecce1ad0e34bce526"},
+    {file = "aioqzone-0.12.8.dev1.tar.gz", hash = "sha256:56c71d20e171195d00946dd8e99fdd382521158e2eb225ae9dadd2b3b5d39f8c"},
 ]
 
 [package.dependencies]
@@ -39,18 +39,18 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.13.0.dev1"
+version = "0.13.2.dev1"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-0.13.0.dev1-py3-none-any.whl", hash = "sha256:1cc4345a427bda27bf76ca87cf963e3e37550f3ff0454e16efe9e19a6efb945b"},
-    {file = "aioqzone_feed-0.13.0.dev1.tar.gz", hash = "sha256:102470a6f6757906e8653b63f085a81406424c5f7b2e16df12fda6c880d78316"},
+    {file = "aioqzone_feed-0.13.2.dev1-py3-none-any.whl", hash = "sha256:57cab32092d119b2b6fdd2f062cd2d4e85c0c96df35b002ceebc7cff69afeabd"},
+    {file = "aioqzone_feed-0.13.2.dev1.tar.gz", hash = "sha256:d205c0d6b6b7b31a611b67ca3035550d4184000b39f4478b312c7a213b078006"},
 ]
 
 [package.dependencies]
-aioqzone = ">=0.12.7.dev1,<0.13.0"
+aioqzone = ">=0.12.8.dev1,<0.13.0"
 
 [package.source]
 type = "legacy"
@@ -595,14 +595,14 @@ files = [
 
 [[package]]
 name = "identify"
-version = "2.5.19"
+version = "2.5.20"
 description = "File identification library for Python"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "identify-2.5.19-py2.py3-none-any.whl", hash = "sha256:3ee3533e7f6f5023157fbebbd5687bb4b698ce6f305259e0d24b2d7d9efb72bc"},
-    {file = "identify-2.5.19.tar.gz", hash = "sha256:4102ecd051f6884449e7359e55b38ba6cd7aafb6ef27b8e2b38495a5723ea106"},
+    {file = "identify-2.5.20-py2.py3-none-any.whl", hash = "sha256:5dfef8a745ca4f2c95f27e9db74cb4c8b6d9916383988e8791f3595868f78a33"},
+    {file = "identify-2.5.20.tar.gz", hash = "sha256:c8b288552bc5f05a08aff09af2f58e6976bf8ac87beb38498a0e3d98ba64eb18"},
 ]
 
 [package.extras]
@@ -1015,14 +1015,14 @@ tests = ["check-manifest", "coverage", "defusedxml", "markdown2", "olefile", "pa
 
 [[package]]
 name = "platformdirs"
-version = "3.1.0"
+version = "3.1.1"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "platformdirs-3.1.0-py3-none-any.whl", hash = "sha256:13b08a53ed71021350c9e300d4ea8668438fb0046ab3937ac9a29913a1a1350a"},
-    {file = "platformdirs-3.1.0.tar.gz", hash = "sha256:accc3665857288317f32c7bebb5a8e482ba717b474f3fc1d18ca7f9214be0cef"},
+    {file = "platformdirs-3.1.1-py3-none-any.whl", hash = "sha256:e5986afb596e4bb5bde29a79ac9061aa955b94fca2399b7aaac4090860920dd8"},
+    {file = "platformdirs-3.1.1.tar.gz", hash = "sha256:024996549ee88ec1a9aa99ff7f8fc819bb59e2c3477b410d90a16d32d6e707aa"},
 ]
 
 [package.extras]
@@ -1792,14 +1792,14 @@ test = ["pytest (>=4.3)", "pytest-mock (>=3.3)"]
 
 [[package]]
 name = "urllib3"
-version = "1.26.14"
+version = "1.26.15"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 files = [
-    {file = "urllib3-1.26.14-py2.py3-none-any.whl", hash = "sha256:75edcdc2f7d85b137124a6c3c9fc3933cdeaa12ecb9a6a959f22797a0feca7e1"},
-    {file = "urllib3-1.26.14.tar.gz", hash = "sha256:076907bf8fd355cde77728471316625a4d2f7e713c125f51953bb5b3eecf4f72"},
+    {file = "urllib3-1.26.15-py2.py3-none-any.whl", hash = "sha256:aa751d169e23c7479ce47a0cb0da579e3ede798f994f5816a74e4f4500dcea42"},
+    {file = "urllib3-1.26.15.tar.gz", hash = "sha256:8a388717b9476f934a21484e8c8e61875ab60644d29b9b39e11e4b9dc1c6b305"},
 ]
 
 [package.extras]
@@ -1809,14 +1809,14 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
 name = "virtualenv"
-version = "20.20.0"
+version = "20.21.0"
 description = "Virtual Python Environment builder"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "virtualenv-20.20.0-py3-none-any.whl", hash = "sha256:3c22fa5a7c7aa106ced59934d2c20a2ecb7f49b4130b8bf444178a16b880fa45"},
-    {file = "virtualenv-20.20.0.tar.gz", hash = "sha256:a8a4b8ca1e28f864b7514a253f98c1d62b64e31e77325ba279248c65fb4fcef4"},
+    {file = "virtualenv-20.21.0-py3-none-any.whl", hash = "sha256:31712f8f2a17bd06234fa97fdf19609e789dd4e3e4bf108c3da71d710651adbc"},
+    {file = "virtualenv-20.21.0.tar.gz", hash = "sha256:f50e3e60f990a0757c9b68333c9fdaa72d7188caa417f96af9e52407831a3b68"},
 ]
 
 [package.dependencies]
@@ -1831,4 +1831,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "8c9eaabad03484c11828f588f4c1b1532ef78bd1f6ea059419e75b3ac2e83101"
+content-hash = "d122d3a4b7c157b811365e9ff3a3853e9056e744f3832ff4d892e112e1c793e4"

@@ -29,7 +29,7 @@ class LockFilter(filters.MessageFilter):
     def filter(self, message):
         return not self.locked
 
-    def acquire(self, task: asyncio.Task):
+    def acquire(self, task: asyncio.Future):
         self.locked = True
         task.add_done_callback(lambda _: setattr(self, "locked", False))
 

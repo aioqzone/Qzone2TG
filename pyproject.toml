@@ -11,7 +11,7 @@ documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
 python = "~3.11.0"
-aioqzone-feed = { version = "^0.13.0.dev1", source = "aioqzone-index" }
+aioqzone-feed = { version = "^0.13.2.dev1", source = "aioqzone-index" }
 qzemoji = { version = "^5.1.1", source = "aioqzone-index" }
 python-telegram-bot = { extras = [
     "rate-limiter",
