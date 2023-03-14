@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from qzone3tg.app.interact import InteractApp
 
 BLOCK_CMD_HELP = """
-`/block`: Query uin from the message id to which the command replies, then add the uin into block set
-`/block add <uin>`: Add the uin into block set
-`/block rm <uin>`: Remove the uin from block set
-`/block list`: List all **dynamically** blocked uins
+`/block`: 根据回复的消息查询 QQ，并将其加入黑名单
+`/block add <uin>`: 将 uin 加入黑名单
+`/block rm <uin>`: 从黑名单中移除 uin
+`/block list`: 列出所有 **动态添加的** 黑名单 QQ
 """
 
 
@@ -38,15 +38,17 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
                 await echo("uin not found. Try `/block add <uin>` instead.")
                 return
             await self.blockset.add(feed.uin)
-            await echo(f"{feed.uin} blocked.")
+            await echo(f"{feed.uin} 已加入黑名单")
         case ["rm", uin]:
             try:
                 uin = int(uin)
             except:
                 await echo(BLOCK_CMD_HELP)
                 return
-            await self.blockset.delete(uin)
-            await echo(f"{uin} unblocked.")
+            if await self.blockset.delete(uin):
+                await echo(f"{uin} 已从黑名单移除✅")
+            else:
+                await echo(f"{uin} 尚未被拉黑✅")
         case ["add", uin]:
             try:
                 uin = int(uin)
@@ -54,9 +56,12 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
                 await echo(BLOCK_CMD_HELP)
                 return
             await self.blockset.add(int(uin))
-            await echo(f"{uin} blocked.")
+            await echo(f"{uin} 已加入黑名单")
         case ["list"]:
             uins = await self.blockset.all()
-            await echo("\n".join(f"- {i}" for i in uins))
+            if uins:
+                await echo("\n".join(f"- {i}" for i in uins))
+            else:
+                await echo("黑名单中还没有用户✅")
         case _:
             await echo(BLOCK_CMD_HELP)

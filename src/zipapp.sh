@@ -34,7 +34,7 @@ done
 # move libs to top level
 for depname in ${PIP_TARG}/*; do
     if [ -d $depname ]; then
-        so=$(find $depname -name '*.so')
+        so=$(find $depname -regex '.*\.so\.?.*')
         if [[ $so != "" ]]; then mv $depname $workdir; fi
     fi
 done

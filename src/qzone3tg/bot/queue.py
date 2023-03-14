@@ -60,12 +60,14 @@ class QueueEvent(Event):
 
 
 def is_mids(l: MidOrAtoms) -> TypeGuard[list[int]]:
+    assert l
     if all(isinstance(i, int) for i in l):
         return True
     return False
 
 
 def is_atoms(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
+    assert l
     if all(isinstance(i, MsgPartial) for i in l):
         return True
     return False
@@ -112,16 +114,23 @@ class MsgQueue(Emittable[QueueEvent]):
             return
         assert not self._tasks["db_write"], 'call wait("db_write") after a batch ends!'
 
-        async def query_forward_mids() -> bool:
+        async def query_forward_mids() -> FeedPair[bool]:
+            pair = FeedPair(True, True)
+            if ids := await self.hook.GetMid(feed):
+                log.info(f"Forward feed {feed} is sent before, using existing message ids: {ids}")
+                self.q[feed].feed = list(ids)
+                pair.feed = False
+                return pair
+
             if isinstance(feed.forward, BaseFeed):
-                ids = await self.hook.GetMid(feed)
-                if ids:
+                if ids := await self.hook.GetMid(feed.forward):
                     log.info(
                         f"Forward feed {feed} is sent before, using existing message ids: {ids}"
                     )
                     self.q[feed].forward = list(ids)
-                    return False
-            return True
+                    pair.forward = False
+
+            return pair
 
         async def split_feed(need_forward: bool):
             return await self.splitter.split(feed, need_forward=need_forward)
@@ -158,15 +167,16 @@ class MsgQueue(Emittable[QueueEvent]):
 
         tid = PersudoCurkey(feed.uin, feed.abstime)
         self.q[feed]  # create item
-        task_forward_mids = self.add_hook_ref(tid, query_forward_mids())
-        task_forward_mids.add_done_callback(
-            lambda p: self.add_hook_ref(
+        task_get_mids = self.add_hook_ref(tid, query_forward_mids())
+        task_get_mids.add_done_callback(
+            lambda p: (has_mids := p.result()).feed
+            and self.add_hook_ref(
                 tid,
                 asyncio.gather(
-                    split_feed(need_forward=p.result()),
-                    self.hook.reply_markup(feed, need_forward=p.result()),
+                    split_feed(need_forward=has_mids.forward),
+                    self.hook.reply_markup(feed, need_forward=has_mids.forward),
                 ),
-            ).add_done_callback(lambda s: set_atom_keywords(*s.result(), p.result()))
+            ).add_done_callback(lambda s: set_atom_keywords(*s.result(), has_mids.forward))
         )
 
     @property
@@ -230,18 +240,22 @@ class MsgQueue(Emittable[QueueEvent]):
             return r
 
         # send forward
-        if isinstance(feed.forward, FeedContent):
-            assert is_atoms(atoms.forward)
-            mids = sum([await _send_atom_with_reply(p, feed.forward) for p in atoms.forward], [])
-            self.add_hook_ref("db_write", self.hook.SaveFeed(feed.forward, mids))
-            atoms.forward = mids
-        else:
-            assert is_mids(atoms.forward)
-            log.info(f"Forward feed is skipped with message ids {atoms.forward}")
-            if atoms.forward:
-                reply = atoms.forward[-1]
+        if atoms.forward:
+            if is_atoms(atoms.forward):
+                assert isinstance(feed.forward, FeedContent)
+                mids = sum(
+                    [await _send_atom_with_reply(p, feed.forward) for p in atoms.forward], []
+                )
+                self.add_hook_ref("db_write", self.hook.SaveFeed(feed.forward, mids))
+                atoms.forward = mids
+            else:
+                assert is_mids(atoms.forward)
+                log.info(f"Forward feed is skipped with message ids {atoms.forward}")
+                if atoms.forward:
+                    reply = atoms.forward[-1]
 
         # send feed
+        assert atoms.feed
         if is_atoms(atoms.feed):
             mids = sum([await _send_atom_with_reply(p, feed) for p in atoms.feed], [])
             self.add_hook_ref("db_write", self.hook.SaveFeed(feed, mids))
@@ -282,7 +296,7 @@ class MsgQueue(Emittable[QueueEvent]):
             self.exc_groups[feed].append(e)
             log.debug(f"current timeout={atom.timeout:.2f}")
             log.info("发送超时：等待重发")
-            log.debug(f"increased timeout={atom.timeout:.2f}")
+            # log.debug(f"increased timeout={atom.timeout:.2f}")
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
             if atom.text is None or len(atom.text) < (
