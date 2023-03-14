@@ -27,7 +27,7 @@ class BlockSet(AsyncSessionProvider):
         if flush:
             await sess.commit()
 
-    async def delete(self, uin: int, sess: AsyncSession | None = None, flush=True):
+    async def delete(self, uin: int, sess: AsyncSession | None = None, flush=True) -> bool:
         if sess is None:
             async with self.sess() as sess:
                 return await self.delete(uin, sess=sess, flush=flush)
@@ -37,6 +37,8 @@ class BlockSet(AsyncSessionProvider):
             await sess.delete(r)
             if flush:
                 await sess.commit()
+            return True
+        return False
 
     async def all(self, sess: AsyncSession | None = None) -> list[int]:
         if sess is None:

@@ -11,6 +11,7 @@ from time import time
 from typing import Sequence
 
 import qzemoji as qe
+import yaml
 from aioqzone.api.loginman import strategy_to_order
 from aioqzone.event import LoginMethod, QREvent, UPEvent
 from aioqzone.exception import LoginError, QzoneError
@@ -287,14 +288,12 @@ class BaseApp(
         """
         conf = self.conf.log
 
-        if conf.conf:
-            if not conf.conf.exists():
-                raise FileNotFoundError(conf.conf)
-            import yaml
-
+        if conf.conf and conf.conf.exists():
             with open(conf.conf, encoding="utf8") as f:
                 dic = yaml.safe_load(f)
-            assert isinstance(dic, dict)
+            if not isinstance(dic, dict):
+                raise TypeError(f"请检查日志配置：{conf.conf}", type(dic))
+
             dic["disable_existing_loggers"] = False
             if "version" not in dic:
                 dic["version"] = 1
@@ -305,7 +304,11 @@ class BaseApp(
         else:
             logging.basicConfig(**conf.dict(include={"level", "format", "datefmt", "style"}))
 
-        return logging.getLogger(self.__class__.__name__)
+        log = logging.getLogger(self.__class__.__name__)
+
+        if conf.conf and not conf.conf.exists():
+            log.error(f"{conf.conf.as_posix()} 不存在，已忽略此条目。")
+        return log
 
     def silent_noisy_logger(self):
         """Silent some noisy logger in other packages."""
