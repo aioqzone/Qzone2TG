@@ -5,6 +5,7 @@ from time import time
 from typing import TYPE_CHECKING
 
 from aioqzone.event import QREvent, UPEvent
+from aioqzone.type.resp.h5 import FeedData
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from qqqr.event import sub_of
 
@@ -149,17 +150,16 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
             if feed.uin in self.block:
                 _self.log.info(f"Blocklist hit: {feed.uin}({feed.nickname})")
                 return await self.FeedDropped(bid, feed)
-            await _self.queue.add(bid, feed)
+            _self.queue.add(bid, feed)
 
-        async def FeedDropped(self, bid: int, feed):
-            _self.log.debug(f"batch {bid}: one feed dropped")
+        async def FeedDropped(self, bid: int, *_, **kw):
+            _self.log.debug(f"batch {bid}: one feed is dropped")
             _self.queue.skip_num += 1
 
         async def FeedMediaUpdate(self, bid: int, feed: FeedContent):
-            _self.log.debug(f"feed update received: media={feed.media}")
-            await _self.queue.edit(bid, feed)
+            _self.log.warning(f"FeedMediaUpdate is deprecated in h5 version. media={feed.media}")
 
-        async def StopFeedFetch(self, feed: FeedRep) -> bool:
+        async def StopFeedFetch(self, feed: FeedRep | FeedData) -> bool:
             return await _self.store.exists(*FeedOrm.primkey(feed))
 
     return baseapp_feedevent
@@ -295,7 +295,7 @@ def storageevent_hook(_self: BaseApp, base: type[StorageEvent]):
             )
             if orm is None:
                 return
-            return BaseFeed.from_orm(orm)
+            return BaseFeed(**orm.dict())  # type: ignore
 
         async def Clean(self, seconds: float):
             return await _self.store.clean(seconds)

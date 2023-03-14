@@ -13,15 +13,16 @@ from typing import Sequence
 import qzemoji as qe
 from aioqzone.api.loginman import strategy_to_order
 from aioqzone.event import LoginMethod, QREvent, UPEvent
-from aioqzone.exception import LoginError
-from aioqzone_feed.api import FeedApi, HeartbeatApi
+from aioqzone.exception import LoginError, QzoneError
+from aioqzone_feed.api import HeartbeatApi
+from aioqzone_feed.api.feed.h5 import FeedH5Api
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
 from httpx import URL, HTTPError, Timeout
 from qqqr.event import EventManager, Tasksets
-from qqqr.exception import UserBreak
+from qqqr.exception import HookError, UserBreak
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
@@ -38,7 +39,7 @@ from telegram.ext import (
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.queue import EditableQueue, QueueEvent
+from qzone3tg.bot.queue import MsgQueue, QueueEvent
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
@@ -63,11 +64,13 @@ class TimeoutLoginman(LoginMan):
         uin: int,
         order: Sequence[LoginMethod],
         pwd: str | None = None,
+        *,
         refresh_time: int = 6,
+        h5=False,
         min_qr_interval: float = 0,
         min_up_interval: float = 0,
     ) -> None:
-        super().__init__(client, engine, uin, order, pwd, refresh_time)
+        super().__init__(client, engine, uin, order, pwd, refresh_time=refresh_time, h5=h5)
         self.qr_suppress_sec = min_qr_interval
         self.up_suppress_sec = min_up_interval
         self.suppress_qr_till = 0.0
@@ -179,10 +182,11 @@ class BaseApp(
             conf.uin,
             strategy_to_order[conf.qr_strategy],
             conf.password.get_secret_value() if conf.password else None,
+            h5=True,
             min_qr_interval=conf.min_qr_interval,
             min_up_interval=conf.min_up_interval,
         )
-        self.qzone = FeedApi(self.client, self.loginman, init_hb=False)
+        self.qzone = FeedH5Api(self.client, self.loginman, init_hb=False)
         self.heartbeat = HeartbeatApi(self.qzone)
         self.log.debug("init_qzone done")
 
@@ -201,44 +205,51 @@ class BaseApp(
 
     def init_queue(self):
         self.store = StorageMan(self.engine)
-        self.queue = EditableQueue(
+        self.queue = MsgQueue(
             self.bot,
             FetchSplitter(self.client),
             defaultdict(lambda: self.admin),
         )
 
     def init_timers(self):
-        assert self.app.job_queue
+        job_queue = self.app.job_queue
+        assert job_queue
         self.timers: dict[str, Job] = {}
         conf = self.conf.log
+
+        async def heartbeat(_):
+            await self.heartbeat.heartbeat_refresh()
+
+        self.timers["hb"] = job = job_queue.run_repeating(
+            heartbeat, interval=300, first=300, name="heartbeat"
+        )
+        job.enabled = False
 
         # clean database
         async def clean(_):
             await self[StorageEvent].Clean(-self.conf.bot.storage.keepdays * 86400)
 
-        self.timers["cl"] = self.app.job_queue.run_repeating(clean, 86400, 0, name="clean")
+        self.timers["cl"] = job = job_queue.run_repeating(clean, 86400, 0, name="clean")
+        job.enabled = False
 
         async def lst_forever(_):
-            self.log.info(self._status_text(True))
-            return False
+            self.log.info(self._status_dict(debug=True))
 
-        self.timers["ls"] = self.app.job_queue.run_repeating(
-            lst_forever, 3600, 3600, name="log status"
-        )
+        self.timers["ls"] = job_queue.run_repeating(lst_forever, 3600, 3600, name="status")
 
         # register debug status timer
         if conf.debug_status_interval > 0:
 
             async def dst_forever(_):
                 await BaseApp.status(self, self.admin, debug=True)
-                return False
 
-            self.timers["ds"] = self.app.job_queue.run_repeating(
+            self.timers["ds"] = job = job_queue.run_repeating(
                 dst_forever,
                 conf.debug_status_interval,
                 conf.debug_status_interval,
-                name="/status debug",
+                name="debug_status",
             )
+            job.enabled = False
 
         self.log.debug("init_timers done")
 
@@ -304,6 +315,8 @@ class BaseApp(
         logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
         logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
         logging.getLogger("charset_normalizer").setLevel(logging.WARN)
+        logging.getLogger("aiosqlite").setLevel(logging.WARN)
+        logging.getLogger("hpack.hpack").setLevel(logging.WARN)
 
     # --------------------------------
     #          init network
@@ -405,8 +418,6 @@ class BaseApp(
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")
         self.register_signal()
-        self.log.info("注册心跳...")
-        self.heartbeat.add_heartbeat()
         self.log.info("等待异步初始化任务...")
         init_task = [
             qe.auto_update(),
@@ -431,7 +442,7 @@ class BaseApp(
         self.log.info("启动所有定时器")
         for t in self.timers.values():
             t.enabled = True
-            self.log.debug(f"{t} started.")
+            self.log.debug(f"Job <{t.name}> started.")
 
         self.start_time = time()
         return await self.idle()
@@ -477,33 +488,23 @@ class BaseApp(
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
+        got = 0
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
-        except UserBreak:
-            self.log.debug("Fetch stopped because UserBreak.")
+        except* UserBreak:
+            self.log.info("用户取消了登录")
             echo("命令已取消：用户取消了登录")
-            return
-        except LoginError:
+        except* LoginError:
             # LoginFailed hook will show reason to user
             self.log.warning("由于发生了登录错误，爬取未开始。")
-            if self.heartbeat.hb_timer:
-                self.heartbeat.hb_timer.stop()
-                self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
-            else:
-                self.log.warning(
-                    "Should stop heartbeat because LoginError, but it has already stopped."
-                )
-            return
-        except HTTPError as e:
-            self.log.error(e)
-            self.log.debug(e.request)
-            echo(f"发生了网络错误: {e}")
-            return
-        except SystemError:
-            return await self.shutdown()
-        except:
+            self.timers["hb"].enabled = False
+            self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
+        except* (HTTPError, QzoneError, HookError):
+            self.log.error("get_feeds_by_second 抛出了异常", exc_info=True)
+            echo(f"有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。")
+        except* BaseException:
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            return
+            echo(f"有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
 
         if got == 0:
             if not is_period:
@@ -513,7 +514,7 @@ class BaseApp(
         # wait for all hook to finish
         await self.qzone.wait("hook", "dispatch")
         got -= self.queue.skip_num
-        if got == 0:
+        if got <= 0:
             if not is_period:
                 echo("您已跟上时代🎉")
             return
@@ -545,7 +546,13 @@ class BaseApp(
         LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({AGREEMENT})。"""
         await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
 
-    def _status_text(self, debug: bool, *, hf: bool = False):
+    def _status_dict(self, *, debug: bool, hf: bool = False):
+        """Generate app status dict.
+
+        :param debug: include debug fields.
+        :param hf: generate humuan-friendly value.
+        :return: a status dict.
+        """
         from aioqzone.utils.time import sementic_time
 
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
@@ -559,7 +566,7 @@ class BaseApp(
             "心跳状态": friendly(
                 self.heartbeat.hb_timer and self.heartbeat.hb_timer.state == "PENDING"
             ),
-            "上次心跳": ts2a(self.heartbeat.hb_timer and self.heartbeat.hb_timer.last_call),
+            "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
             "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
             "密码登录暂停至": ts2a(self.loginman.suppress_up_till),
@@ -567,10 +574,11 @@ class BaseApp(
         if debug:
             add_dic = {}
             stat_dic.update(add_dic)
-        return "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
+        return stat_dic
 
     async def status(self, to: ChatId, debug: bool = False):
-        statm = self._status_text(debug, hf=True)
+        stat_dic = self._status_dict(debug=debug, hf=True)
+        statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
 

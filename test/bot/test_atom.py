@@ -37,66 +37,66 @@ async def test_media_arg():
 class TestLocal:
     async def test_msg_norm(self, local: LocalSplitter):
         f1 = fake_feed(1)
-        w, a = await local.split(f1)
-        assert len(w) == 0
-        assert len(a) == 1
+        pair = await local.split(f1, False)
+        assert len(pair.forward) == 0
+        assert len(pair.feed) == 1
 
         f1.forward = fake_feed(2)
-        w, a = await local.split(f1)
-        assert len(w) == 1
-        assert len(a) == 1
+        pair = await local.split(f1, True)
+        assert len(pair.forward) == 1
+        assert len(pair.feed) == 1
 
     async def test_msg_long(self, local: LocalSplitter):
-        _, f = await local.split(fake_feed("a" * atom.LIM_TXT))
-        assert len(f) == 2
+        pair = await local.split(fake_feed("a" * atom.LIM_TXT), False)
+        assert len(pair.feed) == 2
 
     async def test_media_norm(self, local: LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))]
-        _, a = await local.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.PicPartial)
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.PicPartial)
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
-        _, a = await local.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.AnimPartial)
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.AnimPartial)
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
-        _, a = await local.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.VideoPartial)
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.VideoPartial)
 
     async def test_media_long(self, local: LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
-        _, a = await local.split(f)
-        assert len(a) == 2
-        assert isinstance(a[0], atom.PicPartial)
-        assert isinstance(a[1], atom.TextPartial)
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 2
+        assert isinstance(pair.feed[0], atom.PicPartial)
+        assert isinstance(pair.feed[1], atom.TextPartial)
 
     async def test_media_group(self, local: LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))] * 2
-        _, a = await local.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.MediaGroupPartial)
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.MediaGroupPartial)
 
-        medias = a[0].medias
+        medias = pair.feed[0].medias
         assert all(isinstance(i, InputMedia) for i in medias)
 
     async def test_media_group_exd(self, local: LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))] * 11
-        _, a = await local.split(f)
-        assert len(a) == 2
-        assert isinstance(a[0], atom.MediaGroupPartial)
-        assert isinstance(a[1], atom.PicPartial)
-        assert a[0].text
-        assert a[1].text
+        pair = await local.split(f, False)
+        assert len(pair.feed) == 2
+        assert isinstance(pair.feed[0], atom.MediaGroupPartial)
+        assert isinstance(pair.feed[1], atom.PicPartial)
+        assert pair.feed[0].text
+        assert pair.feed[1].text
 
-        medias = a[0].medias
+        medias = pair.feed[0].medias
         assert all(isinstance(i, InputMedia) for i in medias)
 
 
@@ -104,19 +104,19 @@ class TestFetch:
     async def test_media_norm(self, fetch: FetchSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))]
-        _, a = await fetch.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.PicPartial)
-        assert a[0]._raw
+        pair = await fetch.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.PicPartial)
+        assert pair.feed[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
-        _, a = await fetch.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.AnimPartial)
-        assert a[0]._raw
+        pair = await fetch.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.AnimPartial)
+        assert pair.feed[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
-        _, a = await fetch.split(f)
-        assert len(a) == 1
-        assert isinstance(a[0], atom.VideoPartial)
+        pair = await fetch.split(f, False)
+        assert len(pair.feed) == 1
+        assert isinstance(pair.feed[0], atom.VideoPartial)

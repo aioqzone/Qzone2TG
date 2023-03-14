@@ -13,8 +13,7 @@ from .orm import FeedOrm, MessageOrm
 
 class StorageMan(AsyncSessionProvider):
     async def create(self):
-        async with self.engine.begin() as conn:
-            await conn.run_sync(FeedOrm.metadata.create_all)
+        await self._create(FeedOrm)
 
     async def exists(self, *pred) -> bool:
         """check if a feed exists in this database _AND_ it has a message id.
@@ -68,7 +67,7 @@ class StorageMan(AsyncSessionProvider):
 
         orms = await self.get_msg_orms(*MessageOrm.fkey(orm))
         mids = [i.mid for i in orms]
-        return BaseFeed.from_orm(orm), mids
+        return BaseFeed(**orm.dict()), mids
 
     async def clean(self, seconds: float):
         """clean feeds out of date, based on `abstime`.

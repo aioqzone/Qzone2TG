@@ -24,7 +24,7 @@ async def main(conf: Settings) -> int:
         # this client is used for QzoneApi/BotFetcher. So set the ssl context, unset the proxy.
         # UA will be set by qqqr once this client is used for login.
         # telegram proxy will be set by App._request_args, through PTB app.
-        app = InteractApp(ClientAdapter(client), engine, conf)
+        app = InteractApp(ClientAdapter(client), store=engine, conf=conf)
         try:
             await app.run()
             return 0

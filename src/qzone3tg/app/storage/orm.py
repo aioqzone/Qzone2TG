@@ -3,6 +3,7 @@
 
 import sqlalchemy as sa
 from aioqzone.type.resp import FeedRep
+from aioqzone.type.resp.h5 import FeedData
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 
@@ -53,8 +54,27 @@ class FeedOrm(Base):
         return record
 
     @classmethod
-    def primkey(cls, feed: BaseFeed | FeedRep):
-        return cls.uin == feed.uin, cls.abstime == feed.abstime
+    def primkey(cls, feed: BaseFeed | FeedRep | FeedData):
+        match feed:
+            case FeedData():
+                return cls.uin == feed.userinfo.uin, cls.abstime == feed.abstime
+            case BaseFeed() | FeedOrm():
+                return cls.uin == feed.uin, cls.abstime == feed.abstime
+            case _:
+                raise TypeError(type(feed))
+
+    def dict(self):
+        return dict(
+            fid=self.fid,
+            uin=self.uin,
+            abstime=self.abstime,
+            appid=self.appid,
+            typeid=self.typeid,
+            topicId=self.topicId,
+            nickname=self.nickname,
+            curkey=self.curkey,
+            unikey=self.unikey,
+        )
 
 
 class MessageOrm(Base):
@@ -82,3 +102,9 @@ class CookieOrm(Base):
     uin: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
     p_skey: Mapped[str] = mapped_column(sa.VARCHAR)
     pt4_token: Mapped[str] = mapped_column(sa.VARCHAR)
+
+
+class BlockOrm(Base):
+    __tablename__ = "Block"
+
+    uin: Mapped[int] = mapped_column(sa.Integer, primary_key=True)

@@ -3,8 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from itertools import chain
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Mapping, Sequence, TypeGuard
 
 from aioqzone.type.internal import PersudoCurkey
 from aioqzone_feed.type import BaseFeed, FeedContent
@@ -14,6 +13,7 @@ from telegram import Bot, Message
 from telegram.constants import MessageLimit
 from telegram.error import BadRequest, TelegramError, TimedOut
 
+from qzone3tg.type import FeedPair
 from qzone3tg.utils.iter import countif
 
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial
@@ -22,7 +22,8 @@ from .splitter import FetchSplitter, Splitter
 if TYPE_CHECKING:
     from . import ChatId, ReplyMarkup, SupportMedia
 
-    SendFunc = MediaGroupPartial | MsgPartial
+    Atom = MediaGroupPartial | MsgPartial
+    MidOrAtoms = list[Atom] | list[int]
 
 log = logging.getLogger(__name__)
 
@@ -47,17 +48,32 @@ class QueueEvent(Event):
         return ()
 
     async def reply_markup(
-        self, feed: FeedContent
-    ) -> tuple[ReplyMarkup | None, ReplyMarkup | None]:
+        self, feed: FeedContent, need_forward: bool
+    ) -> FeedPair[ReplyMarkup | None]:
         """Allow app to generate `reply_markup` according to its own policy.
 
         :param feed: the feed to generate reply_markup
-        :return: (forwardee reply_markup, feed reply_markup)."""
-        return None, None
+        :param need_forward: whether the forward reply_markup will be used.
+            If this is False, you can simply set `forward` field to None.
+        :return: A :class:`FeedPair` object contains `ReplyMarkup`s."""
+        return FeedPair(None, None)
+
+
+def is_mids(l: MidOrAtoms) -> TypeGuard[list[int]]:
+    if all(isinstance(i, int) for i in l):
+        return True
+    return False
+
+
+def is_atoms(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
+    if all(isinstance(i, MsgPartial) for i in l):
+        return True
+    return False
 
 
 class MsgQueue(Emittable[QueueEvent]):
     bid = -1
+    q: dict[FeedContent, FeedPair[MidOrAtoms]]
 
     def __init__(
         self,
@@ -67,48 +83,91 @@ class MsgQueue(Emittable[QueueEvent]):
         max_retry: int = 2,
     ) -> None:
         super().__init__()
-        self.q: dict[FeedContent, list[SendFunc] | int] = {}
+        self.q = defaultdict(lambda: FeedPair([], []))
         self.bot = bot
         self.splitter = splitter
-        self.fwd2 = forward_map
+        self.forward_map = forward_map
         self.exc_groups = defaultdict(list)
         self.max_retry = max_retry
         self.sending = None
         self.skip_num = 0
 
-    async def add(self, bid: int, feed: FeedContent):
+    def add(self, bid: int, feed: FeedContent):
+        """Add a feed into queue. The :obj:`bid` should equal to current :obj:`~MsgQueue.bid`, or
+        the feed will be dropped directly.
+
+        This operation will:
+
+        1. Query message ids of the forward feed, if `feed` has one. If that feed is sent before, we can skip
+            sending and just reply to its id when sending the feed itself.
+        2. Split the feed into atoms.
+        3. Add ``chat_id`` field into atom keywords, according to :obj:`.forward_map`.
+        4. Attach `reply_markup` to atoms.
+
+        :param bid: batch id, should equals to current `.bid`.
+        :param feed: the feed to add into queue.
+        """
         if bid != self.bid:
             log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
             return
-        await self.wait("storage")  # wait for all pending storage tasks
-        ids = await self.hook.GetMid(feed)
-        if ids:
-            log.info(f"Feed {feed} is sent, use existing message id: {ids[-1]}")
-            self.q[feed] = ids[-1]
-            return  # needn't send again. refer to the message is okay.
+        assert not self._tasks["db_write"], 'call wait("db_write") after a batch ends!'
 
-        # add a sending task
-        markup_task = self.add_hook_ref(
-            PersudoCurkey(feed.uin, feed.abstime), self.hook.reply_markup(feed)
-        )
-        dbl_feed = await self.splitter.split(feed)
+        async def query_forward_mids() -> bool:
+            if isinstance(feed.forward, BaseFeed):
+                ids = await self.hook.GetMid(feed)
+                if ids:
+                    log.info(
+                        f"Forward feed {feed} is sent before, using existing message ids: {ids}"
+                    )
+                    self.q[feed].forward = list(ids)
+                    return False
+            return True
 
-        tasks = list(chain(*dbl_feed))
-        for p in tasks:
-            p.kwds.update(chat_id=self.fwd2[feed.uin])
+        async def split_feed(need_forward: bool):
+            return await self.splitter.split(feed, need_forward=need_forward)
 
-        def attach_markup(task: asyncio.Task):
-            markups = task.result()
-            for parts, markup in zip(dbl_feed, markups):
-                if markup is None:
-                    continue
+        def set_atom_keywords(
+            atoms: FeedPair[Sequence[MsgPartial]],
+            reply_markups: FeedPair[ReplyMarkup | None],
+            need_forward: bool,
+        ):
+            # set chat_id fields
+            chat_id = self.forward_map[feed.uin]
+            for p in atoms.feed:
+                p.kwds.update(chat_id=chat_id)
+            if need_forward:
+                for p in atoms.forward:
+                    p.kwds.update(chat_id=chat_id)
+
+            # set reply_markup fields
+            if reply_markups.feed:
                 if part := next(
-                    filter(lambda p: not isinstance(p, MediaGroupPartial), parts), None
+                    filter(lambda p: not isinstance(p, MediaGroupPartial), atoms.feed), None
                 ):
-                    part.reply_markup = markup
+                    part.reply_markup = reply_markups.feed
+            if need_forward and reply_markups.forward:
+                if part := next(
+                    filter(lambda p: not isinstance(p, MediaGroupPartial), atoms.forward), None
+                ):
+                    part.reply_markup = reply_markups.forward
 
-        markup_task.add_done_callback(attach_markup)
-        self.q[feed] = tasks
+            # push into queue
+            self.q[feed].feed = list(atoms.feed)
+            if need_forward:
+                self.q[feed].forward = list(atoms.forward)
+
+        tid = PersudoCurkey(feed.uin, feed.abstime)
+        self.q[feed]  # create item
+        task_forward_mids = self.add_hook_ref(tid, query_forward_mids())
+        task_forward_mids.add_done_callback(
+            lambda p: self.add_hook_ref(
+                tid,
+                asyncio.gather(
+                    split_feed(need_forward=p.result()),
+                    self.hook.reply_markup(feed, need_forward=p.result()),
+                ),
+            ).add_done_callback(lambda s: set_atom_keywords(*s.result(), p.result()))
+        )
 
     @property
     def exc_num(self):
@@ -124,7 +183,7 @@ class MsgQueue(Emittable[QueueEvent]):
 
     async def send_all(self):
         try:
-            return await self._send_all_unsafe()
+            await self._send_all_unsafe()
         finally:
             self.sending = None
 
@@ -133,15 +192,15 @@ class MsgQueue(Emittable[QueueEvent]):
         for k in sorted(self.q):
             if (
                 (last_feed := uin2lastfeed.get(k.uin))
-                and isinstance(last_mid := self.q[last_feed], int)
+                and is_mids(last_mids := self.q[last_feed].feed)
                 and k.abstime - last_feed.abstime < 1000
             ):
                 # compare with last feed
                 if last_feed.entities == k.entities:
                     log.info(f"Feed {last_feed} and {k} has the same content. Skip the last one.")
                     # if all entities are the same, save the last mid and continue.
-                    self.q[k] = last_mid
-                    self.add_hook_ref("storage", self.hook.SaveFeed(k, [last_mid]))
+                    self.q[k].feed = last_mids
+                    self.add_hook_ref("db_write", self.hook.SaveFeed(k, last_mids))
                     uin2lastfeed[k.uin] = k
                     continue
 
@@ -149,173 +208,102 @@ class MsgQueue(Emittable[QueueEvent]):
             await self._send_one_feed(k)
             uin2lastfeed[k.uin] = k
 
-    async def _send_one_feed(self, feed: FeedContent):
-        reply: int | None = None
-        mids: list[int] = []
-        if (v := self.q.get(feed)) is None:
-            # BUG: why is KeyError?
-            log.fatal(f"feed MISS!!! feed={feed}, q={self.q}")
-            return
-        elif isinstance(v, int):
-            log.debug(f"feed {feed} is sent before.")
-            return
+        # clear storage taskset
+        await self.wait("db_write")
 
+    async def _send_one_feed(self, feed: FeedContent):
+        assert feed in self.q
         log.debug(f"sending feed {feed.uin}{feed.abstime}.")
 
-        await self.wait(PersudoCurkey(feed.uin, feed.abstime))
-        for f in v:
-            f.kwds.update(reply_to_message_id=reply)
-            for retry in range(self.max_retry):
-                if (r := await self._send_one_atom(f, feed)) is True:
-                    log.debug("Send atom suggest to resend, resend at once.")
-                    continue
-                if isinstance(r, Sequence):
-                    mids.extend(r)
-                    reply = r[-1]
-                break
+        tid = PersudoCurkey(feed.uin, feed.abstime)
+        await self.wait(tid)
 
-        if mids:
-            log.info(f"发送成功：{feed.uin}({feed.nickname}){feed.abstime}")
+        atoms = self.q[feed]
+        reply: int | None = None
+
+        async def _send_atom_with_reply(atom: Atom, feed: FeedContent):
+            nonlocal reply
+            if reply is not None:
+                atom.kwds.update(reply_to_message_id=reply)
+            if r := await self._send_atom(atom, feed):
+                reply = r[-1]
+            return r
+
+        # send forward
+        if isinstance(feed.forward, FeedContent):
+            assert is_atoms(atoms.forward)
+            mids = sum([await _send_atom_with_reply(p, feed.forward) for p in atoms.forward], [])
+            self.add_hook_ref("db_write", self.hook.SaveFeed(feed.forward, mids))
+            atoms.forward = mids
         else:
-            log.error(f"feed {feed}, max retry exceeded: {self.exc_groups[feed]}")
-            for i, e in enumerate(self.exc_groups[feed], start=1):
-                if e:
-                    log.debug("Retry %d", i, exc_info=e)
-            # Save the feed even if send failed
-            self.add_hook_ref("storage", self.hook.SaveFeed(feed))
-            return
+            assert is_mids(atoms.forward)
+            log.info(f"Forward feed is skipped with message ids {atoms.forward}")
+            if atoms.forward:
+                reply = atoms.forward[-1]
 
-        # Save the feed after all sending task is done
-        self.q[feed] = mids[-1]
-        self.add_hook_ref("storage", self.hook.SaveFeed(feed, mids))
+        # send feed
+        if is_atoms(atoms.feed):
+            mids = sum([await _send_atom_with_reply(p, feed) for p in atoms.feed], [])
+            self.add_hook_ref("db_write", self.hook.SaveFeed(feed, mids))
+            atoms.feed = mids
+        else:
+            assert is_mids(atoms.feed)
+            log.info(f"Feed is skipped with message ids {atoms.feed}")
+            if atoms.feed:
+                reply = atoms.feed[-1]
 
-    async def _send_one_atom(self, f: SendFunc, feed: FeedContent) -> list[int] | bool:
+    async def _send_atom(self, atom: Atom, feed: FeedContent) -> list[int]:
+        for _ in range(self.max_retry):
+            match await self._send_atom_once(atom, feed):
+                case MsgPartial() as atom:
+                    continue
+                case None:
+                    break
+                case list() as r:
+                    return r
+        return []
+
+    async def _send_atom_once(self, atom: Atom, feed: FeedContent) -> list[int] | Atom | None:
         """
         :param f: a :class:`MsgPartial` object
         :param feed: the feed to be sent
-        :return: a list of message id if success, otherwise whether to resend
+        :return: a list of message ids if success, or a `MsgPartial` if resend, or None if skip.
         """
-        log.debug(f"sending atom {f}.")
+        log.debug(f"sending atom {atom}.")
         try:
-            r = await f(self.bot)
-            match r:
-                case Message():
+            match await atom(self.bot):
+                case Message() as r:
                     log.debug("atom is sent successfully.")
                     return [r.message_id]
-                case _ if isinstance(r, Sequence):
+                case r if isinstance(r, Sequence):
                     log.debug("atom is sent successfully.")
                     return [i.message_id for i in r]
-                case _:
-                    log.fatal(f"Unexpected send return type: {type(r)}")
         except TimedOut as e:
-            log.debug(f"current timeout={f.timeout:.2f}")
             self.exc_groups[feed].append(e)
+            log.debug(f"current timeout={atom.timeout:.2f}")
             log.info("发送超时：等待重发")
-            log.debug(f"increased timeout={f.timeout:.2f}")
+            log.debug(f"increased timeout={atom.timeout:.2f}")
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
-            if f.text is None or len(f.text) < (
+            if atom.text is None or len(atom.text) < (
                 MessageLimit.MAX_TEXT_LENGTH
-                if f.meth == "message"
+                if atom.meth == "message"
                 else MessageLimit.CAPTION_LENGTH
             ):
-                f.text = "🔁" + (f.text or "")
-            return True
+                atom.text = "🔁" + (atom.text or "")
+            return atom
         except BadRequest as e:
             self.exc_groups[feed].append(e)
-            tasks = self.q[feed]
-            assert isinstance(tasks, Sequence)
             if isinstance(self.splitter, FetchSplitter) and isinstance(
-                f, (MediaPartial, MediaGroupPartial)
+                atom, (MediaPartial, MediaGroupPartial)
             ):
-                tasks[tasks.index(f)] = await self.splitter.force_bytes(f)
-                return True
-            log.error("Got BadRequest from send_%s!", f.meth, exc_info=e)
+                return await self.splitter.force_bytes(atom)
+            log.error("Got BadRequest from send_%s!", atom.meth, exc_info=e)
+            log.debug(atom)
         except TelegramError as e:
             self.exc_groups[feed].append(e)
-            self.exc_groups[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught telegram error in send_%s.", f.meth, exc_info=e)
+            log.error("Uncaught telegram error in send_%s.", atom.meth, exc_info=e)
         except BaseException as e:
             self.exc_groups[feed].append(e)
-            self.exc_groups[feed] += [None] * (self.max_retry - 1)
-            log.error("Uncaught error in send_%s.", f.meth, exc_info=e)
-        return False
-
-
-class EditableQueue(MsgQueue):
-    """Sender with support of editting sending tasks when they are pending."""
-
-    splitter: FetchSplitter
-
-    def __init__(
-        self,
-        bot: Bot,
-        splitter: FetchSplitter,
-        forward_map: Mapping[int, ChatId],
-        max_retry: int = 2,
-    ) -> None:
-        super().__init__(bot, splitter, forward_map, max_retry)
-
-    async def edit_media(self, to: ChatId, mid: int, media: SupportMedia):
-        kw = {}
-        for _ in range(self.max_retry):
-            try:
-                return await self.bot.edit_message_media(media, to, mid, **kw)
-            except TimedOut:
-                kw["timeout"] = kw.get("timeout", 5) * 2  # TODO
-            except BadRequest:
-                h = hash(media.media)
-                media = await self.splitter.force_bytes_inputmedia(media)
-                if hash(media.media) == h:
-                    log.error("media doesnot change after force fetch, skip retry", exc_info=True)
-                    return
-            except TelegramError:
-                log.error("Uncaught telegram error when editting media.", exc_info=True)
-            except BaseException:
-                log.error("Uncaught error when editting media.", exc_info=True)
-                return
-
-    async def edit(self, bid: int, feed: FeedContent):
-        if bid != self.bid:
-            # this batch is sent and all info is cleared.
-            return await self._edit_sent(feed)
-        if not feed in self.q:
-            log.warning("The feed to be update should have been in queue. Skipped.")
-            return
-        if not self.sending or self.sending < feed:
-            return await self._edit_pending(feed)
-        if self.sending > feed:
-            return await self._edit_sent(feed)
-        # The feed is being sent now!!!
-        # schedule later!
-        self.add_hook_ref("edit", self.edit(bid, feed))
-
-    async def _edit_sent(self, feed: FeedContent):
-        await self.wait("storage")
-        mids = await self.hook.GetMid(feed)
-        mids = list(mids)
-        if not mids:
-            log.error("Edit media wasn't sent before, skipped.")
-            return
-
-        args = await self.splitter.unify_send(feed)
-        for a in args:
-            if isinstance(a, MediaPartial):
-                mid = mids.pop(0)
-                c = self.edit_media(self.fwd2[feed.uin], mid, a.wrap_media())
-                self.add_hook_ref("edit", c)
-            elif isinstance(a, MediaGroupPartial):
-                for i in a.medias:
-                    mid = mids.pop(0)
-                    self.add_hook_ref("edit", self.edit_media(self.fwd2[feed.uin], mid, i))
-                    pass
-            else:
-                break
-
-    async def _edit_pending(self, feed: FeedContent):
-        # replace the kwarg with new content
-        tasks = await self.splitter.unify_send(feed)
-        for p in tasks:
-            p.kwds.update(chat_id=self.fwd2[feed.uin])
-
-        self.q[feed] = list(tasks)
+            log.error("Uncaught error in send_%s.", atom.meth, exc_info=e)
+        return None

@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 from aioqzone.event import QREvent
 from aioqzone.type.entity import AtEntity, TextEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
-from aioqzone_feed.api.emoji import TAG_RE
 from qqqr.event import sub_of
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
+from ._conversation.emoji import TAG_RE
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 @sub_of(QueueEvent)
 def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
     from aioqzone_feed.type import FeedContent
+
+    from qzone3tg.type import FeedPair
 
     class interactapp_queueevent(base):
         def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
@@ -51,14 +53,12 @@ def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
             if row:
                 return InlineKeyboardMarkup([row])
 
-        async def reply_markup(self, feed: FeedContent):
-            markup = []
-            if isinstance(feed.forward, FeedContent):
-                markup.append(self._reply_markup_one_feed(feed.forward))
-            else:
-                markup.append(None)
-            markup.append(self._reply_markup_one_feed(feed))
-            return markup
+        async def reply_markup(self, feed: FeedContent, need_forward: bool):
+            pair = FeedPair(None, None)  # type: FeedPair[InlineKeyboardMarkup | None]
+            if need_forward and isinstance(feed.forward, FeedContent):
+                pair.forward = self._reply_markup_one_feed(feed.forward)
+            pair.feed = self._reply_markup_one_feed(feed)
+            return pair
 
     return interactapp_queueevent
 
@@ -123,7 +123,9 @@ async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFA
 
         with self.loginman.disable_suppress():
             try:
-                succ = await self.qzone.like_app(likedata, not unlike)
+                succ = await self.qzone.internal_dolike_app(
+                    likedata.appid, likedata.unikey, likedata.curkey, not unlike
+                )
             except:
                 self.log.error("点赞失败", exc_info=True)
                 succ = False
