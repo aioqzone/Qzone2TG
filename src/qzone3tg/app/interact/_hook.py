@@ -106,6 +106,6 @@ def feedevent_hook(_self: InteractApp, base: type[FeedEvent]):
             if await _self.blockset.contains(feed.uin):
                 await self.FeedDropped(bid, feed)
                 return
-            await self.FeedProcEnd(bid, feed)
+            await super().FeedProcEnd(bid, feed)
 
     return interactapp_feedevent
