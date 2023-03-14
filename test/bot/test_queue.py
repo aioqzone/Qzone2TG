@@ -10,7 +10,7 @@ from qzemoji.utils import build_html
 from telegram import Bot
 from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.bot.queue import MsgQueue, QueueEvent
+from qzone3tg.bot.queue import MsgQueue, QueueEvent, is_atoms, is_mids
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.type import FeedPair
 
@@ -25,7 +25,7 @@ class Ihave0(QueueEvent):
             return [0]
 
     async def reply_markup(self, feed, need_forward: bool):
-        return FeedPair(1, 1 if need_forward else None)
+        return FeedPair(2, 1 if need_forward else None)
 
 
 @pytest.fixture
@@ -47,19 +47,27 @@ class TestQueue:
         queue.add(0, f)
         assert len(queue.q) == 1
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert isinstance(queue.q[f], FeedPair)
-        assert queue.q[f].feed
+        assert queue.q[f].feed and is_mids(queue.q[f].feed)
 
         queue.add(1, f)
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
         assert len(queue.q) == 1
+
         f = fake_feed(1)
         f.uin = 1
         queue.add(0, f)
         assert len(queue.q) == 2
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert isinstance(queue.q[f], FeedPair)
-        assert queue.q[f].feed
+        assert queue.q[f].feed and is_atoms(queue.q[f].feed)
+
+        f = fake_feed(2)
+        f.uin = 2
+        f.forward = fake_feed(0)
+        queue.add(0, f)
+        assert len(queue.q) == 3
+        await queue.wait(PersudoCurkey(f.uin, f.abstime))
+        assert queue.q[f].feed and is_atoms(queue.q[f].feed)
+        assert queue.q[f].forward and is_mids(queue.q[f].forward)
 
     async def test_send_norm(self, queue: MsgQueue):
         queue.new_batch(1)
@@ -97,18 +105,23 @@ class TestQueue:
 
         assert sum((i.feed for i in queue.q.values()), []) == [1, 1, 2, 1]
 
-    async def test_reply_markup(self, queue: MsgQueue):
+    @pytest.mark.parametrize(
+        ["feed", "forward", "markups"],
+        [
+            (fake_feed(2), fake_feed(1), [1, 2]),
+            (fake_feed(2), fake_feed(0), [2]),
+        ],
+    )
+    async def test_reply_markup(self, queue: MsgQueue, feed, forward, markups: list[int]):
         queue.new_batch(2)
-        f = fake_feed(2)
-        f.forward = fake_feed(1)
-        queue.add(2, f)
+        feed.forward = forward
+        queue.add(2, feed)
         await queue.send_all()
         assert queue.sending is None
         bot = cast(FakeBot, queue.bot)
-        dfw = bot.log[0][-1]
-        dfe = bot.log[1][-1]
-        assert dfw["reply_markup"] == 1
-        assert dfe["reply_markup"] == 1
+        assert len(bot.log) == len(markups)
+        for i, markup in zip(bot.log, markups):
+            assert i[-1]["reply_markup"] == markup
 
     @pytest.mark.parametrize(
         ["exc2r", "grp_len"],
