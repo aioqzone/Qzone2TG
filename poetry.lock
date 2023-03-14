@@ -17,14 +17,14 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.12.8.dev1"
+version = "0.12.8.dev4"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-0.12.8.dev1-py3-none-any.whl", hash = "sha256:b3bfe8b6ee684d20b98448a26fd854774b206582e9c2317ecce1ad0e34bce526"},
-    {file = "aioqzone-0.12.8.dev1.tar.gz", hash = "sha256:56c71d20e171195d00946dd8e99fdd382521158e2eb225ae9dadd2b3b5d39f8c"},
+    {file = "aioqzone-0.12.8.dev4-py3-none-any.whl", hash = "sha256:48dd60aabcc3bd99702f94a03226f745c7afcc8975a26c82c6c2d4e88ce2295e"},
+    {file = "aioqzone-0.12.8.dev4.tar.gz", hash = "sha256:0216d3fff95411c199c9e685364ab8c9e0cc8eeb0a4d9d4ab41ef4d7340f752f"},
 ]
 
 [package.dependencies]

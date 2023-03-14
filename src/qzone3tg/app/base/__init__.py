@@ -13,7 +13,7 @@ from typing import Sequence
 import qzemoji as qe
 from aioqzone.api.loginman import strategy_to_order
 from aioqzone.event import LoginMethod, QREvent, UPEvent
-from aioqzone.exception import LoginError
+from aioqzone.exception import LoginError, QzoneError
 from aioqzone_feed.api import HeartbeatApi
 from aioqzone_feed.api.feed.h5 import FeedH5Api
 from aioqzone_feed.event import FeedEvent, HeartbeatEvent
@@ -22,7 +22,7 @@ from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
 from httpx import URL, HTTPError, Timeout
 from qqqr.event import EventManager, Tasksets
-from qqqr.exception import UserBreak
+from qqqr.exception import HookError, UserBreak
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
@@ -488,27 +488,23 @@ class BaseApp(
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
+        got = 0
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
-        except UserBreak:
-            self.log.debug("Fetch stopped because UserBreak.")
+        except* UserBreak:
+            self.log.info("用户取消了登录")
             echo("命令已取消：用户取消了登录")
-            return
-        except LoginError:
+        except* LoginError:
             # LoginFailed hook will show reason to user
             self.log.warning("由于发生了登录错误，爬取未开始。")
             self.timers["hb"].enabled = False
             self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
-            return
-        except HTTPError | ExceptionGroup as e:
-            self.log.error(e)
-            echo(f"有错误发生，但 Qzone3TG 尚能运行。请检查日志以获取详细信息。")
-            return
-        except SystemError:
-            return await self.shutdown()
-        except:
+        except* (HTTPError, QzoneError, HookError):
+            self.log.error("get_feeds_by_second 抛出了异常", exc_info=True)
+            echo(f"有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。")
+        except* BaseException:
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            return
+            echo(f"有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
 
         if got == 0:
             if not is_period:
@@ -518,7 +514,7 @@ class BaseApp(
         # wait for all hook to finish
         await self.qzone.wait("hook", "dispatch")
         got -= self.queue.skip_num
-        if got == 0:
+        if got <= 0:
             if not is_period:
                 echo("您已跟上时代🎉")
             return
