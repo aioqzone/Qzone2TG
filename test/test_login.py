@@ -40,7 +40,7 @@ async def test_suppress(client: ClientAdapter, engine: AsyncEngine):
             await app.loginman._new_cookie()
 
     with patch.object(Bot, "send_message"):
-        await app.loginman.loginables[LoginMethod.up].wait("hook")
+        await app.loginman.loginables[LoginMethod.up].wait("hook")  # type: ignore
     assert app.loginman.up_suppressed
     with pytest.raises(SkipLoginInterrupt):
         await app.loginman._new_cookie()
@@ -52,5 +52,5 @@ async def test_force(client: ClientAdapter, engine: AsyncEngine):
     lm = TimeoutLoginman(client, engine, 1, [LoginMethod.up, LoginMethod.qr], "pwd")
     lm.suppress_up_till = 3600 + time()
     with patch.object(UpWebLogin, "login", side_effect=RuntimeError):
-        with lm.disable_suppress(), pytest.raises(SystemExit):
+        with lm.disable_suppress(), pytest.raises(RuntimeError):
             await lm.new_cookie()

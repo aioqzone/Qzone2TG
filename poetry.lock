@@ -17,14 +17,14 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.12.8.dev4"
+version = "0.12.9.dev1"
 description = "Python wrapper for Qzone web login and Qzone http api."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-0.12.8.dev4-py3-none-any.whl", hash = "sha256:48dd60aabcc3bd99702f94a03226f745c7afcc8975a26c82c6c2d4e88ce2295e"},
-    {file = "aioqzone-0.12.8.dev4.tar.gz", hash = "sha256:0216d3fff95411c199c9e685364ab8c9e0cc8eeb0a4d9d4ab41ef4d7340f752f"},
+    {file = "aioqzone-0.12.9.dev1-py3-none-any.whl", hash = "sha256:3fcbf10916ab9fdaf346f61601a845912a55531f418c03170673c5e7425022b4"},
+    {file = "aioqzone-0.12.9.dev1.tar.gz", hash = "sha256:3d972025aff6869a20edc37213d40c6795de845b0708e43bbe2e4825c98b40a3"},
 ]
 
 [package.dependencies]
@@ -34,7 +34,7 @@ lxml = ">=4.9.1,<5.0.0"
 numpy = ">=1.22.3,<2.0.0"
 pillow = ">=9.4.0,<10.0.0"
 pydantic = ">=1.10.4,<2.0.0"
-pytz = ">=2022.1,<2023.0"
+pytz = "*"
 rsa = ">=4.8,<5.0"
 
 [[package]]

@@ -525,8 +525,6 @@ class BaseApp(
         # forward
         try:
             await self.queue.send_all()
-        except SystemError:
-            return await self.shutdown()
         except:
             self.log.fatal("queue.send_all：未捕获的异常", exc_info=True)
             return
@@ -566,9 +564,7 @@ class BaseApp(
             "上次登录": ts2a(self.loginman.last_login),
             "PTB应用状态": friendly(self.app.running),
             "PTB更新状态": friendly(self.app.updater and self.app.updater.running),
-            "心跳状态": friendly(
-                self.heartbeat.hb_timer and self.heartbeat.hb_timer.state == "PENDING"
-            ),
+            "心跳状态": friendly(self.timers.get("hb") and self.timers["hb"].enabled),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
             "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
@@ -589,19 +585,14 @@ class BaseApp(
         """
         :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
         """
-        if self.heartbeat.hb_timer is None:
+        if self.timers.get("hb") is None:
             self.log.warning("heartbeat not initialized")
             return False
 
-        self.log.debug("heartbeat state before restart: %s", self.heartbeat.hb_timer.state)
-        if self.heartbeat.hb_timer.state != "PENDING":
-            self.log.debug("heartbeat stopped. restarting...")
-            self.heartbeat.hb_timer()
-            self.log.debug("heartbeat state after restart: %s", self.heartbeat.hb_timer.state)
-            if self.heartbeat.hb_timer.state == "PENDING":
-                self.log.info("heartbeat restart success")
-                return True
-        return False
+        self.log.debug("heartbeat state before restart: %s", self.timers["hb"].enabled)
+        self.timers["hb"].enabled = True
+        self.log.debug("heartbeat state after restart: %s", self.timers["hb"].enabled)
+        return True
 
 
 def get_last_call(timer: AsyncTimer | Job | APSJob | None) -> float:
