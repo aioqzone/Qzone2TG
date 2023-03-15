@@ -31,9 +31,9 @@ async def main(conf: Settings) -> int:
         except (KeyboardInterrupt, asyncio.CancelledError):
             return 0
         except SystemExit as e:
+            app.log.fatal(f"Uncaught error in main: {e.code}")
             if isinstance(e.code, int):
                 return e.code
-            app.log.fatal(f"Uncaught error in main: {e.code}")
             return 1
         except:
             app.log.fatal("Uncaught error in main.", exc_info=True)
