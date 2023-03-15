@@ -47,7 +47,7 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
         async def QrFetched(self, png: bytes, times: int):
             context: dict = _self.app.bot_data
 
-            if context.get("qr_msg") is None:
+            if (msg := context.get("qr_msg")) is None:
                 context["qr_msg"] = await _self.bot.send_photo(
                     _self.admin,
                     png,
@@ -61,10 +61,11 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
                     text = "二维码已刷新："
                     context["qr_renew"] = False
 
+                assert isinstance(msg, Message)
                 msg = await _self.bot.edit_message_media(
                     InputMediaPhoto(png, text),
                     _self.admin,
-                    context["qr_msg"].message_id,
+                    msg.message_id,
                     reply_markup=self.qr_markup(),
                 )
                 if isinstance(msg, Message):
@@ -74,13 +75,13 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
             context: dict = _self.app.bot_data
             context["qr_renew"] = False
 
-            if isinstance(context.get("qr_msg"), Message):
+            if isinstance(qr_msg := context.get("qr_msg"), Message):
                 try:
-                    await context["qr_msg"].delete()
+                    await qr_msg.delete()
                 except BaseException as e:
                     _self.log.warning(e)
                 finally:
-                    self.qr_msg = None
+                    context["qr_msg"] = None
 
     return baseapp_qrevent
 
