@@ -194,15 +194,6 @@ class BotConf(BaseModel):
     * 按照 :class:`.PollingConf` 填写，对应 :term:`polling` 模式（默认）；
     * 按照 :class:`.WebhookConf` 填写，对应 :term:`webhook` 模式。"""
 
-    send_gif_as_anim: bool = True
-    """当此项为 ``False`` 时，除非出现了发送错误，否则 bot 不会对任何图片发起请求。这会导致 bot
-    在正常情况下无法区分普通图片和 gif 动图，从而以错误的 api (`SendPhoto <https://core.telegram.org/bots/api#sendphoto>`_) 发送给
-    telegram，最终导致用户收到的 gif 链接“不会动”.
-
-    .. warning::
-        开启此项会导致额外的服务器流量和额外的连接时间（向Qzone服务器请求图片）.
-        用户可以根据需要关闭.
-    """
     auto_start: bool = False
     """是否在程序启动后自动运行一次更新（``/start``）。默认为 ``False``.
 

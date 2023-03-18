@@ -56,6 +56,25 @@
     由于 `!telegram api` 的限制，相册类型的消息不能包含“按钮”。因此点赞相册类消息时，需要用户回复该消息并发送命令
     :command:`/like`。
 
+.. option:: /block
+
+    .. versionadded:: 0.7.5
+
+    动态屏蔽某人的说说。使用此命令需要回复一条消息，若此通过此消息未能查询到uin，则会回复一条提示。若未回复某条消息，则会发送
+    /block 系列命令的帮助信息。
+
+.. option:: /block add <uin>
+
+    动态屏蔽某个uin。如果通过 /block 消息的方式未能成功，可以手动屏蔽uin。
+
+.. option:: /block rm <uin>
+
+    取消屏蔽某个uin。
+
+.. option:: /block list
+
+    列出所有被屏蔽的uin。
+
 .. option:: help
 
     发送帮助信息。

@@ -140,6 +140,11 @@ class MsgQueue(Emittable[QueueEvent]):
             reply_markups: FeedPair[ReplyMarkup | None],
             need_forward: bool,
         ):
+            # log input
+            log.debug(f"need_forward = {need_forward}")
+            log.debug(f"got atoms: {atoms}")
+            log.debug(f"got reply_markups: {reply_markups}")
+
             # set chat_id fields
             chat_id = self.forward_map[feed.uin]
             for p in atoms.feed:
