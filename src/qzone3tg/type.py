@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 _T = TypeVar("_T")
 
@@ -15,3 +15,6 @@ class FeedPair(Generic[_T]):
 
     feed: _T
     forward: _T
+
+    def __repr__(self) -> str:
+        return f"(forward={self.forward},feed={self.feed})"

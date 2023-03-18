@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from time import time
 from typing import TYPE_CHECKING
 
@@ -32,6 +33,7 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
             _self.loginman.suppress_qr_till = time() + _self.loginman.qr_suppress_sec
             await self._cleanup()
             pmsg = f": {msg}" if msg else ""
+            pmsg = re.sub(r"[<>]", lambda m: "\\" + m.group(0), pmsg)
             await _self.bot.send_message(_self.admin, "二维码登录失败" + pmsg)
 
         async def LoginSuccess(self, meth):
@@ -76,12 +78,11 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
             context["qr_renew"] = False
 
             if isinstance(qr_msg := context.get("qr_msg"), Message):
+                context["qr_msg"] = None
                 try:
                     await qr_msg.delete()
                 except BaseException as e:
                     _self.log.warning(e)
-                finally:
-                    context["qr_msg"] = None
 
     return baseapp_qrevent
 
@@ -95,6 +96,7 @@ def upevent_hook(_self: BaseApp, base: type[UPEvent]):
             await super().LoginFailed(meth, msg)
             _self.loginman.suppress_up_till = time() + _self.loginman.up_suppress_sec
             pmsg = f": {msg}" if msg else ""
+            pmsg = re.sub(r"[<>]", lambda m: "\\" + m.group(0), pmsg)
             await _self.bot.send_message(_self.admin, "密码登录失败" + pmsg)
 
         async def LoginSuccess(self, meth):
