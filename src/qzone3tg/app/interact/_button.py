@@ -3,14 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aioqzone.event import QREvent
-from aioqzone.type.entity import AtEntity, TextEntity
+from aioqzone.type.entity import EmEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from qqqr.event import sub_of
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
-from ._conversation.emoji import TAG_RE
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -22,6 +21,7 @@ if TYPE_CHECKING:
 @sub_of(QueueEvent)
 def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
     from aioqzone_feed.type import FeedContent
+    from telegram.constants import InlineKeyboardButtonLimit
 
     from qzone3tg.type import FeedPair
 
@@ -36,20 +36,28 @@ def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
                 return InlineKeyboardButton("Like", callback_data="like:" + curkey)
 
         def _emoji_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
-            if feed.entities is None:
+            if not feed.entities:
                 return
-            for e in feed.entities:
-                match e:
-                    case TextEntity(con=text) | AtEntity(nick=text):
-                        if TAG_RE.search(text):
-                            return InlineKeyboardButton("Customize Emoji", callback_data="emoji:")
+            eids = [e.eid for e in feed.entities if isinstance(e, EmEntity)]
+            if not eids:
+                return
+
+            # NOTE: maybe a more compact encoding
+            eids = [str(i) for i in set(eids)]
+            cb = "emoji:"
+            for i in eids:
+                if len(cb) + len(i) <= InlineKeyboardButtonLimit.MAX_CALLBACK_DATA:
+                    cb += i + ","
+                else:
+                    break
+            cb = cb.removesuffix(",")
+
+            assert len(cb) <= InlineKeyboardButtonLimit.MAX_CALLBACK_DATA
+            return InlineKeyboardButton("Customize Emoji", callback_data=cb)
 
         def _reply_markup_one_feed(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
-            row = []
-            if m := self._emoji_markup(feed):
-                row.append(m)
-            if m := self._like_markup(feed):
-                row.append(m)
+            row = [self._emoji_markup(feed), self._like_markup(feed)]
+            row = list(filter(None, row))
             if row:
                 return InlineKeyboardMarkup([row])
 

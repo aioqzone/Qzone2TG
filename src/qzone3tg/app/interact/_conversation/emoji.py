@@ -107,6 +107,7 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
     query = update.callback_query
     assert context.user_data is not None
     assert query is not None
+    assert query.data is not None
 
     if query.message is None:
         await query.answer("null query message", show_alert=True)
@@ -115,12 +116,17 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
     context.user_data["message"] = query.message
     text = query.message.text or query.message.caption or ""
 
-    eids = TAG_RE.findall(text)
-    if not eids:
-        return ConversationHandler.END
+    eids = query.data.removeprefix("emoji:").split(",")
 
-    eids = list(set(eids))[:9]
-    rows = [eids[i : i + 3] for i in range(0, len(eids), 3)]
+    if len(eids) <= 9:
+        max_eids = 9
+        column = 3
+    else:
+        max_eids = 12
+        column = 4
+
+    eids = list(set(eids))[:max_eids]
+    rows = [eids[i : i + column] for i in range(0, len(eids), column)]
     await query.message.reply_text(
         "Choose a emoji id",
         reply_markup=ReplyKeyboardMarkup(

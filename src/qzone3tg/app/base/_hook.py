@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
     from . import BaseApp
 
+html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
+
 
 @sub_of(QREvent)
 def qrevent_hook(_self: BaseApp, base: type[QREvent]):
@@ -32,8 +34,7 @@ def qrevent_hook(_self: BaseApp, base: type[QREvent]):
             await super().LoginFailed(meth, msg)
             _self.loginman.suppress_qr_till = time() + _self.loginman.qr_suppress_sec
             await self._cleanup()
-            pmsg = f": {msg}" if msg else ""
-            pmsg = re.sub(r"[<>]", lambda m: "\\" + m.group(0), pmsg)
+            pmsg = f": {msg.translate(html_trans)}" if msg else ""
             await _self.bot.send_message(_self.admin, "二维码登录失败" + pmsg)
 
         async def LoginSuccess(self, meth):
@@ -95,8 +96,7 @@ def upevent_hook(_self: BaseApp, base: type[UPEvent]):
         async def LoginFailed(self, meth, msg: str | None = None):
             await super().LoginFailed(meth, msg)
             _self.loginman.suppress_up_till = time() + _self.loginman.up_suppress_sec
-            pmsg = f": {msg}" if msg else ""
-            pmsg = re.sub(r"[<>]", lambda m: "\\" + m.group(0), pmsg)
+            pmsg = f": {msg.translate(html_trans)}" if msg else ""
             await _self.bot.send_message(_self.admin, "密码登录失败" + pmsg)
 
         async def LoginSuccess(self, meth):

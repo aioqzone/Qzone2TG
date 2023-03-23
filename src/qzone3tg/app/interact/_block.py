@@ -26,6 +26,7 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
     echo = lambda text, **kw: message.reply_text(
         text=text, reply_to_message_id=message.id, parse_mode=ParseMode.MARKDOWN_V2, **kw
     )
+    # NOTE: parse mode is MARKDOWN_V2, "_*[]()~`>#+-=|{}.!" must be escaped!!!
 
     match context.args:
         case None | []:
@@ -60,7 +61,7 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
         case ["list"]:
             uins = await self.blockset.all()
             if uins:
-                await echo("\n".join(f"- {i}" for i in uins))
+                await echo("\n".join(f"> {i}" for i in uins))
             else:
                 await echo("黑名单中还没有用户✅")
         case _:
