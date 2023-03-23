@@ -66,12 +66,12 @@ class TimeoutLoginman(LoginMan):
         order: Sequence[LoginMethod],
         pwd: str | None = None,
         *,
-        refresh_time: int = 6,
+        refresh_times: int = 6,
         h5=False,
         min_qr_interval: float = 0,
         min_up_interval: float = 0,
     ) -> None:
-        super().__init__(client, engine, uin, order, pwd, refresh_time=refresh_time, h5=h5)
+        super().__init__(client, engine, uin, order, pwd, refresh_times=refresh_times, h5=h5)
         self.qr_suppress_sec = min_qr_interval
         self.up_suppress_sec = min_up_interval
         self.suppress_qr_till = 0.0

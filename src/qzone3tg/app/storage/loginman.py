@@ -24,11 +24,11 @@ class LoginMan(AsyncSessionProvider, MixedLoginMan):
         order: Sequence[LoginMethod],
         pwd: str | None = None,
         *,
-        refresh_time: int = 6,
+        refresh_times: int = 6,
         h5=False,
     ) -> None:
         AsyncSessionProvider.__init__(self, engine)
-        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_time=refresh_time, h5=h5)
+        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_times=refresh_times, h5=h5)
         self.client = client
 
     async def table_exists(self):

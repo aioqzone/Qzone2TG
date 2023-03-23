@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.7.5.dev14"
+version = "0.7.5.dev15"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
 python = "~3.11.0"
-aioqzone-feed = { version = "^0.13.2.dev2", source = "aioqzone-index" }
+aioqzone-feed = { version = "^0.13.2.dev3", source = "aioqzone-index" }
 qzemoji = { version = "^5.1.1", source = "aioqzone-index" }
 python-telegram-bot = { extras = [
     "rate-limiter",
@@ -27,15 +27,15 @@ optional = false
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.2"
-pytest-asyncio = "~0.20.1"
+pytest-asyncio = "~0.21.0"
 
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.1.1"
+pre-commit = "*"
 black = "^23.1.0"
-isort = "^5.11.2"
+isort = "*"
 
 [tool.poetry.group.docs]
 optional = true
@@ -44,7 +44,7 @@ optional = true
 Sphinx = "^6.1.3"
 autodoc-pydantic = "^1.7.0"
 sphinx-autodoc-typehints = "^1.18.2"
-sphinx-rtd-theme = "^1.0.0"
+sphinx-rtd-theme = "*"
 sphinx-tabs = "^3.4.0"
 
 [[tool.poetry.source]]
@@ -60,11 +60,6 @@ build-backend = "poetry.core.masonry.api"
 # customize begin
 [tool.pytest.ini_options]
 pythonpath = 'src'
-markers = [
-    "needuser: Need user interaction, DO NOT use in ci",
-    "incremental: xfail succ cases if pred case failed or skipped",
-    "upstream: Test cannot run normally due to upstream problems",
-]
 log_cli = 1
 log_cli_level = 'WARNING'
 
@@ -76,3 +71,7 @@ line_length = 99
 [tool.black]
 line-length = 99
 target-version = ['py311']
+
+[tool.pyright]
+pythonVersion = "3.11"
+pythonPlatform = "All"
