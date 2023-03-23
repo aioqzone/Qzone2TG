@@ -27,7 +27,7 @@ LIM_MD_TXT: Final[int] = MessageLimit.CAPTION_LENGTH - 1
 log = logging.getLogger(__name__)
 
 
-def href(txt: str | int, url: str):
+def href(txt: str, url: str):
     url = url.replace("'", "\\'")
     return f"<a href='{url}'>{txt}</a>"
 

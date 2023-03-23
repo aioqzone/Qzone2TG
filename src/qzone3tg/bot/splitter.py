@@ -146,7 +146,8 @@ class LocalSplitter(Splitter):
         :param feed: feed to generate a header
         """
         semt = sementic_time(feed.abstime)
-        nickname = href(feed.nickname or feed.uin, f"user.qzone.qq.com/{feed.uin}")
+        uname = feed.nickname or str(feed.uin)
+        nickname = href(uname, f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
             return f"{nickname}{semt}发布了{href('说说', str(feed.unikey))}：\n\n"
@@ -159,7 +160,9 @@ class LocalSplitter(Splitter):
             )
         elif isinstance(feed.forward, HttpUrl):
             share = str(feed.forward)
-            return f"{nickname}{semt}分享了{href('应用', share)}：\n\n"
+            # here we ensure share url is the first url entity, so telegram's preview link feature
+            # will fetch the app for user.
+            return f"{uname}{semt}分享了{href('应用', share)}：\n\n"
 
         # should not send in <a> since it is not a valid url
         return f"{nickname}{semt}分享了应用: ({feed.forward})：\n\n"
