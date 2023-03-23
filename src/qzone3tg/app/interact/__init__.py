@@ -85,7 +85,7 @@ class InteractApp(BaseApp):
         self.app.add_handler(
             ConversationHandler(
                 entry_points=[
-                    CallbackQueryHandler(self.btn_emoji, r"^emoji:$"),
+                    CallbackQueryHandler(self.btn_emoji, r"^emoji:"),
                     CommandHandler("em", self.command_em, CA),
                 ],
                 states={

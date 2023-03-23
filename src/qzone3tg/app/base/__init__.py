@@ -544,8 +544,8 @@ class BaseApp(
         echo(summary)
 
     async def license(self, to: ChatId):
-        LICENSE_TEXT = f"""继续使用即代表您同意[用户协议]({AGREEMENT})。"""
-        await self.bot.send_message(to, LICENSE_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
+        LICENSE_TEXT = f"""继续使用即代表您同意<a href="{AGREEMENT}">用户协议</a>。"""
+        await self.bot.send_message(to, LICENSE_TEXT)
 
     def _status_dict(self, *, debug: bool, hf: bool = False):
         """Generate app status dict.

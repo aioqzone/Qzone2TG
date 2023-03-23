@@ -38,14 +38,14 @@ rsa = ">=4.8,<5.0"
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.13.2.dev3"
+version = "0.13.2.dev4"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-0.13.2.dev3-py3-none-any.whl", hash = "sha256:43898228f139b43b435506ca6586fbdc5dd9ca739536cb6177c05cabfd62c6be"},
-    {file = "aioqzone_feed-0.13.2.dev3.tar.gz", hash = "sha256:7f8c599f749067a290f0c6f6e26844c025cead73542a0da7ed06cba6cbf31002"},
+    {file = "aioqzone_feed-0.13.2.dev4-py3-none-any.whl", hash = "sha256:81c3d5833c76384ff4855dee73055b87e3d4ae0870b5a5556979e3e09fba1bd0"},
+    {file = "aioqzone_feed-0.13.2.dev4.tar.gz", hash = "sha256:ec222378d000a27aa06f053c3011a7c2d154f0711497545c87d91f31cb4e918e"},
 ]
 
 [package.dependencies]
@@ -1829,4 +1829,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "3fafed8e2155745019cb8818e3a79434aaa52a532a3a33ff618d7e147669ba5b"
+content-hash = "5185d154636ec41fc0c39b76a365441be9273a3f675d85d18f44aebc91654861"
