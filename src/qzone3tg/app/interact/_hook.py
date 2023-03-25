@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 @sub_of(UPEvent)
 def upevent_hook(_self: InteractApp, base: type[UPEvent]):
-    from telegram import Message, Update
+    from telegram import ForceReply, Message, Update
     from telegram.ext import MessageHandler, filters
 
     class ReplyHandler(MessageHandler):
@@ -32,7 +32,33 @@ def upevent_hook(_self: InteractApp, base: type[UPEvent]):
             return False
 
     class interactapp_upevent(base):
+        async def GetSmsCode(self, phone: str, nickname: str) -> str | None:
+            m = await _self.bot.send_message(
+                _self.admin,
+                f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
+                disable_notification=False,
+                reply_markup=ForceReply(input_field_placeholder="012345"),
+            )
+            code = await self.force_reply_answer(m)
+            if code is None:
+                await _self.bot.send_message(_self.admin, "超时未回复")
+                await m.edit_reply_markup(reply_markup=None)
+                return
+
+            if len(code) != 6:
+                await _self.bot.send_message(_self.admin, "应回复六位数字验证码")
+                await m.edit_reply_markup(reply_markup=None)
+                return
+            return code
+
         async def force_reply_answer(self, msg) -> str | None:
+            """A hook cannot get answer from the user. This should be done by handler in app.
+            So this method should be implemented in app level.
+
+            :param msg: The force reply message to wait for the reply from user.
+            :param timeout: wait timeout
+            :return: None if timeout, else the reply string.
+            """
             code = ""
             evt = asyncio.Event()
 

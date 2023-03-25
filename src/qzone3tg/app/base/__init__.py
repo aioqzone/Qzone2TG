@@ -21,13 +21,12 @@ from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from aioqzone_feed.utils.task import AsyncTimer
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
-from httpx import URL, HTTPError, Timeout
+from httpx import URL, ConnectError, HTTPError, Timeout
 from qqqr.event import EventManager, Tasksets
 from qqqr.exception import HookError, UserBreak
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram.constants import ParseMode
-from telegram.error import NetworkError
 from telegram.ext import (
     AIORateLimiter,
     Application,
@@ -366,17 +365,16 @@ class BaseApp(
         signal.signal(signal.SIGTERM, sigterm_handler)
 
         async def ptb_error_handler(_, context: CallbackContext):
-            if isinstance(context.error, NetworkError):
-                self.log.fatal(f"更新超时，请检查网络连接 ({context.error})")
+            if isinstance(context.error, ConnectError):
+                self.log.fatal(f"请检查网络连接 ({context.error})")
                 if not self.conf.bot.network.proxy:
                     self.log.warning("提示：您是否忘记了设置代理？")
                 if not isinstance(self.conf.bot.init_args, WebhookConf):
                     self.log.info("提示：使用 webhook 能够减少向 Telegram 发起连接的次数，从而间接降低代理出错的频率。")
-            else:
-                self.log.fatal(
-                    "Uncaught error caught by PTB error handler", exc_info=context.error
-                )
-            await self.shutdown()
+                await self.shutdown()
+                return
+
+            self.log.fatal("PTB错误处理收到未被捕捉的异常：", exc_info=context.error)
 
         self.app.add_error_handler(ptb_error_handler)
 
@@ -461,17 +459,21 @@ class BaseApp(
                 continue
 
     def check_node(self):
-        if self.conf.qzone.qr_strategy == "force":
+        if self.conf.qzone.qr_strategy in ["force", "prefer"]:
             return
         from shutil import which
 
         from jssupport.jsdom import JSDOM
 
         if not which("node"):
-            self.log.error("Node 不可用，二维码策略切换至 `force`.")
-            self.conf.qzone.qr_strategy = "force"
+            self.log.warning("Node 不可用。")
         elif not JSDOM.check_jsdom():
             self.log.warning("jsdom 不可用，可能无法提交验证码。")
+        else:
+            return
+
+        self.log.warning("二维码策略切换至 prefer")
+        self.conf.qzone.qr_strategy = "prefer"
 
     async def _fetch(self, to: ChatId, *, is_period: bool = False) -> None:
         """fetch feeds.
@@ -491,7 +493,7 @@ class BaseApp(
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
-        got = 0
+        got = -1
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
         except* UserBreak:
@@ -509,9 +511,9 @@ class BaseApp(
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
             echo(f"有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
 
-        if got == 0:
-            if not is_period:
-                echo("您已跟上时代🎉")
+        if got == 0 and not is_period:
+            echo("您已跟上时代🎉")
+        if got <= 0:
             return
 
         # wait for all hook to finish
