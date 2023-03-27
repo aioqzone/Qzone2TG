@@ -1,12 +1,20 @@
-FROM nikolaik/python-nodejs:python3.11-nodejs18-alpine as build
+FROM python:3.11-slim as build
 
-USER pn
-WORKDIR /home/pn/app
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        git \
+        curl \
+        build-essential \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install --no-install-recommends -y \
+        nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . ./
-
-# pack the dependencies
-RUN sh src/zipapp.sh ./run \
+# pack the package
+COPY . /app
+RUN bash src/zipapp.sh ./run \
     && npm install --omit optional --omit dev --no-fund \
     && mv ./node_modules ./run/
 
@@ -14,22 +22,28 @@ RUN sh src/zipapp.sh ./run \
 #                 Runtime Stage
 # ==============================================
 
-FROM python:3.11-alpine as release
+FROM python:3.11-slim as release
+# use slim since opencv-python doesn't offically support alpine.
 
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
 LABEL org.opencontainers.image.description="Forward Qzone feeds to telegram."
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 
-WORKDIR /app
 EXPOSE 80 88 443 8443
+WORKDIR /app
 ENV PATH="/app:$PATH"
 # ENV PYTHONPATH="/app:$PYTHONPATH"
 
-# we do not need npm in runtime stage
-RUN apk add --no-cache \
-    fontconfig \
-    nodejs
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        curl \
+        fontconfig \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install --no-install-recommends -y \
+        nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /home/pn/app/run ./
+COPY --from=build /app/run /app
 
 ENTRYPOINT ["python", "app.pyz"]
