@@ -3,7 +3,7 @@ FROM nikolaik/python-nodejs:python3.11-nodejs18-alpine as build
 USER pn
 WORKDIR /home/pn/app
 
-COPY pyproject.toml package.json package-lock.json ./run/
+COPY . ./run/
 
 # pack the dependencies
 RUN bash src/zipapp.sh ./run \
