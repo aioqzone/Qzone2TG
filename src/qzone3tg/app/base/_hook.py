@@ -11,6 +11,7 @@ from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from qqqr.event import sub_of
 
 from qzone3tg.bot.queue import QueueEvent
+from qzone3tg.bot.splitter import html_trans
 
 from ..storage import StorageEvent
 
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
     from telegram import InlineKeyboardMarkup
 
     from . import BaseApp
-
-html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 
 
 @sub_of(QREvent)
