@@ -3,7 +3,7 @@ FROM nikolaik/python-nodejs:python3.11-nodejs18-alpine as build
 USER pn
 WORKDIR /home/pn/app
 
-COPY . ./run/
+COPY . ./
 
 # pack the dependencies
 RUN sh src/zipapp.sh ./run \
