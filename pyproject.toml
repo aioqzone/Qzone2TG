@@ -19,7 +19,7 @@ python-telegram-bot = { extras = [
     "webhooks",
     "job-queue",
 ], version = "^20.0" }
-socksio = { git = "https://github.com/JamzumSum/socksio.git", rev = "master" }
+socksio = { version = "^1.0.0", source = "aioqzone-index" }
 
 
 # dependency groups

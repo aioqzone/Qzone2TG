@@ -17,14 +17,14 @@ docs = ["aiohttp-theme (>=0.1.6,<0.2.0)", "sphinx (>=2.2.1,<5.0.0)", "sphinx-aut
 
 [[package]]
 name = "aioqzone"
-version = "0.12.11.dev2"
+version = "0.12.12.dev1"
 description = "Python wrapper for Qzone login and Qzone HTTP APIs."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-0.12.11.dev2-py3-none-any.whl", hash = "sha256:316ad96287219e832d44de45bed1409a52dda33fd12979787dbb030bd21f9c81"},
-    {file = "aioqzone-0.12.11.dev2.tar.gz", hash = "sha256:57a4dbeb47b071f92ea771ba645d034be85409ca8c2dfcf58bee576418ce6842"},
+    {file = "aioqzone-0.12.12.dev1-py3-none-any.whl", hash = "sha256:a52e13207444b963df9f9733a992e443f00d9c0001e4e8afbafdd1e3f6d81d05"},
+    {file = "aioqzone-0.12.12.dev1.tar.gz", hash = "sha256:f1e4e8466bac9b1628864fb7b7cc62e46a3e7619e7c033bce11f284dbfbd1755"},
 ]
 
 [package.dependencies]
@@ -42,18 +42,18 @@ lxml = ["cssselect (>=1.1.0,<2.0.0)", "lxml (>=4.9.1,<5.0.0)"]
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.13.4.dev1"
+version = "0.13.4.dev2"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-0.13.4.dev1-py3-none-any.whl", hash = "sha256:d67a2f8b778d0cd9bbf42890a1aa793a47435793d001c2c9125915db5004a0a1"},
-    {file = "aioqzone_feed-0.13.4.dev1.tar.gz", hash = "sha256:00a4559feb7e2d9f182bdcce30543f156093845ad36d44357c9b3f01ae39374b"},
+    {file = "aioqzone_feed-0.13.4.dev2-py3-none-any.whl", hash = "sha256:fda35308e222af369a71dcf5bd36590d22d086b647aad961d802c40006e8758a"},
+    {file = "aioqzone_feed-0.13.4.dev2.tar.gz", hash = "sha256:51d9bade23878e9a79da549df8e9b91538900479f001db34e06b433e7eab7aff"},
 ]
 
 [package.dependencies]
-aioqzone = ">=0.12.11.dev2,<0.13.0"
+aioqzone = ">=0.12.12.dev1,<0.13.0"
 
 [package.extras]
 web = ["lxml"]
@@ -1394,14 +1394,15 @@ description = "Sans-I/O implementation of SOCKS4, SOCKS4A, and SOCKS5."
 category = "main"
 optional = false
 python-versions = ">=3.6"
-files = []
-develop = false
+files = [
+    {file = "socksio-1.0.0-py3-none-any.whl", hash = "sha256:47895eef011b0f2369e079a782c12dc4d9ea3308dd0df05ff8a332a56d9d95de"},
+    {file = "socksio-1.0.0.tar.gz", hash = "sha256:5b5a7fd8630d35449e18c47cd7078a905d0be08e834404e1ba465601b97155bb"},
+]
 
 [package.source]
-type = "git"
-url = "https://github.com/JamzumSum/socksio.git"
-reference = "master"
-resolved_reference = "9f992b32be9856ec5975d21f8296f5f1936d091a"
+type = "legacy"
+url = "https://aioqzone.github.io/aioqzone-index/simple"
+reference = "aioqzone-index"
 
 [[package]]
 name = "sphinx"
@@ -1796,4 +1797,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "69e85611d43d6219cf40e1505b4e71ba05953f3d55effae407157182ceff26a7"
+content-hash = "f4c667106ab4c235f788a9990e7be5553cd3d362fda5bafcc937afc98ee5d4ec"
