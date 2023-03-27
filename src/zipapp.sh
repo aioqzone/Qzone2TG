@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # This script aims to build the minimal Qzone2TG pyz.
 # before running the script, caller should export a `requirements.txt`,
 # otherwise the script will call `poetry export` itself.

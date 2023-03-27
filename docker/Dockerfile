@@ -6,7 +6,7 @@ WORKDIR /home/pn/app
 COPY . ./run/
 
 # pack the dependencies
-RUN bash src/zipapp.sh ./run \
+RUN sh src/zipapp.sh ./run \
     && npm install --omit optional --omit dev --no-fund \
     && mv ./node_modules ./run/
 
