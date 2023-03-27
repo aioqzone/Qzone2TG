@@ -218,7 +218,9 @@ class BaseApp(
         conf = self.conf.log
 
         async def heartbeat(_):
-            await self.heartbeat.heartbeat_refresh()
+            if await self.heartbeat.heartbeat_refresh():
+                # if heartbeat_refresh suggest to stop, we disable the job
+                self.timers["hb"].enabled = False
 
         self.timers["hb"] = job = job_queue.run_repeating(
             heartbeat, interval=300, first=300, name="heartbeat"
@@ -583,7 +585,7 @@ class BaseApp(
         dn = debug or self.conf.bot.default.disable_notification
         await self.bot.send_message(to, statm, disable_notification=dn)
 
-    async def restart_heartbeat(self):
+    async def restart_heartbeat(self, *_):
         """
         :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
         """
