@@ -11,6 +11,7 @@ from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from qqqr.event import sub_of
 
 from qzone3tg.bot.queue import QueueEvent
+from qzone3tg.bot.splitter import html_trans
 
 from ..storage import StorageEvent
 
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
     from telegram import InlineKeyboardMarkup
 
     from . import BaseApp
-
-html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 
 
 @sub_of(QREvent)
@@ -139,27 +138,14 @@ def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
 
 @sub_of(HeartbeatEvent)
 def heartbeatevent_hook(_self: BaseApp, base: type[HeartbeatEvent]):
-    from aioqzone.event import LoginMethod
+    from aioqzone.exception import QzoneError
 
     class baseapp_heartbeatevent(base):
-        async def HeartbeatFailed(self, exc: BaseException | None = None):
+        async def HeartbeatFailed(self, exc: BaseException):
             _self.log.debug(f"heartbeat failed: {exc}")
-            lm = _self.loginman
-            qr_avil = LoginMethod.qr in lm.order and not lm.qr_suppressed
-            up_avil = LoginMethod.up in lm.order and not lm.up_suppressed
-            if qr_avil or up_avil:
-                try:
-                    await _self.loginman.new_cookie()
-                except:
-                    return
-                else:
-                    await _self.restart_heartbeat()
-                return
-
-            _self.log.warning("All login methods suppressed and heartbeat failed.")
-
-            info = f"({exc})" if exc else ""
-            await _self.bot.send_message(_self.admin, "由于距上次登录的时间间隔少于您所指定的最小值，自动登录已暂停。" + info)
+            if isinstance(exc, QzoneError) and "登录" in exc.msg:
+                assert _self.app.job_queue
+                _self.app.job_queue.run_once(_self.restart_heartbeat, 300)
 
         async def HeartbeatRefresh(self, num: int):
             _self.log.info(f"Heartbeat triggers a refresh: count={num}")

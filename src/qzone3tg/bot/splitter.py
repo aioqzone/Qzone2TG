@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 
 
 async def stringify_entities(entities: list[ConEntity] | None) -> str:
@@ -45,13 +46,13 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
     for e in entities:
         match e:
             case TextEntity():
-                s += e.con
+                s += e.con.translate(html_trans)
             case AtEntity():
-                s += f"@{href(e.nick, f'user.qzone.qq.com/{e.uin}')}"
+                s += f"@{href(e.nick.translate(html_trans), f'user.qzone.qq.com/{e.uin}')}"
             case EmEntity():
                 s += await qeu.query_wrap(e.eid)
             case _:
-                s += str(e.dict(exclude={"type"}))
+                s += str(e.dict(exclude={"type"})).translate(html_trans)
     return s
 
 
@@ -146,7 +147,7 @@ class LocalSplitter(Splitter):
         :param feed: feed to generate a header
         """
         semt = sementic_time(feed.abstime)
-        uname = feed.nickname or str(feed.uin)
+        uname = feed.nickname.translate(html_trans) or str(feed.uin)
         nickname = href(uname, f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # This script aims to build the minimal Qzone2TG pyz.
 # before running the script, caller should export a `requirements.txt`,
 # otherwise the script will call `poetry export` itself.
@@ -31,14 +33,18 @@ for unittest in $(find ${PIP_TARG} -name "test*"); do
     if [ -d $unittest ]; then rm -r $unittest; fi
 done
 
-# move libs to top level
+echo "moving libs to top level..."
 for depname in ${PIP_TARG}/*; do
     if [ -d $depname ]; then
         so=$(find $depname -regex '.*\.so\.?.*')
-        if [[ $so != "" ]]; then mv $depname $workdir; fi
+        if [[ $so != "" ]]; then
+            echo "$depname: lib files detected"
+            mv $depname $workdir;
+        fi
     fi
 done
 
+echo "removing pycache..."
 for pycache in $(find $workdir -name "__pycache__"); do
     rm -r $pycache
 done

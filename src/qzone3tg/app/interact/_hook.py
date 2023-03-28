@@ -86,8 +86,6 @@ def upevent_hook(_self: InteractApp, base: type[UPEvent]):
 
 @sub_of(HeartbeatEvent)
 def heartbeatevent_hook(_self: InteractApp, base: type[HeartbeatEvent]):
-    from aioqzone.event import LoginMethod
-
     class interactapp_heartbeatevent(base):
         async def HeartbeatRefresh(self, num: int):
             if _self.fetch_lock.locked:
@@ -109,16 +107,6 @@ def heartbeatevent_hook(_self: InteractApp, base: type[HeartbeatEvent]):
                     return
 
             _self.fetch_lock.acquire(task)
-
-        async def HeartbeatFailed(self, exc: BaseException | None):
-            await super().HeartbeatFailed(exc)
-            lm = _self.loginman
-            qr_avil = LoginMethod.qr in lm.order and not lm.qr_suppressed
-            up_avil = LoginMethod.up in lm.order and not lm.up_suppressed
-            if qr_avil or up_avil:
-                await _self.bot.send_message(
-                    _self.admin, "/relogin 重新登陆，/help 查看帮助", disable_notification=True
-                )
 
     return interactapp_heartbeatevent
 
