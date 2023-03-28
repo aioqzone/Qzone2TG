@@ -38,7 +38,7 @@ for depname in ${PIP_TARG}/*; do
     if [ -d $depname ]; then
         so=$(find $depname -regex '.*\.so\.?.*')
         if [[ $so != "" ]]; then
-            echo "$depname: detected $so"
+            echo "$depname: lib files detected"
             mv $depname $workdir;
         fi
     fi

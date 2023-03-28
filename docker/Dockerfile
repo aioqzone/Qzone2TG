@@ -23,7 +23,7 @@ LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 EXPOSE 80 88 443 8443
 WORKDIR /app
 ENV PATH="/app:$PATH"
-# ENV PYTHONPATH="/app:$PYTHONPATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
