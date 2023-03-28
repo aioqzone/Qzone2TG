@@ -1,12 +1,13 @@
 FROM nikolaik/python-nodejs:python3.11-nodejs18-slim as build
 
-WORKDIR /app
+WORKDIR /home/pn/app
 
 # pack the package
-COPY . /app
-RUN bash src/zipapp.sh ./run \
-    && npm install --omit optional --omit dev --no-fund \
-    && mv ./node_modules ./run/
+COPY . ./
+RUN npm install --omit optional --omit dev --no-fund \
+    && mkdir ./run \
+    && mv ./node_modules ./run
+RUN sh src/zipapp.sh ./run
 
 # ==============================================
 #                 Runtime Stage
@@ -34,6 +35,6 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /app/run /app
+COPY --from=build /home/pn/app/run /app
 
 ENTRYPOINT ["python", "app.pyz"]

@@ -37,7 +37,10 @@ done
 for depname in ${PIP_TARG}/*; do
     if [ -d $depname ]; then
         so=$(find $depname -regex '.*\.so\.?.*')
-        if [[ $so != "" ]]; then mv $depname $workdir; fi
+        if [[ $so != "" ]]; then
+            echo "$depname: detected $so"
+            mv $depname $workdir;
+        fi
     fi
 done
 
