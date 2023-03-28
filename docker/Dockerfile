@@ -7,7 +7,7 @@ COPY . ./
 RUN npm install --omit optional --omit dev --no-fund \
     && mkdir ./run \
     && mv ./node_modules ./run
-RUN sh src/zipapp.sh ./run
+RUN bash src/zipapp.sh ./run
 
 # ==============================================
 #                 Runtime Stage

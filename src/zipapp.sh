@@ -33,7 +33,7 @@ for unittest in $(find ${PIP_TARG} -name "test*"); do
     if [ -d $unittest ]; then rm -r $unittest; fi
 done
 
-# move libs to top level
+echo "moving libs to top level..."
 for depname in ${PIP_TARG}/*; do
     if [ -d $depname ]; then
         so=$(find $depname -regex '.*\.so\.?.*')
@@ -44,6 +44,7 @@ for depname in ${PIP_TARG}/*; do
     fi
 done
 
+echo "removing pycache..."
 for pycache in $(find $workdir -name "__pycache__"); do
     rm -r $pycache
 done
