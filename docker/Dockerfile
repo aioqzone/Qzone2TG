@@ -1,16 +1,6 @@
-FROM python:3.11-slim as build
+FROM nikolaik/python-nodejs:python3.11-nodejs18-slim as build
 
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-        git \
-        curl \
-        build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install --no-install-recommends -y \
-        nodejs \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # pack the package
 COPY . /app
