@@ -1,5 +1,5 @@
 REPO = "https://github.com/aioqzone/Qzone2TG"
-DISCUSS = "https://t.me/qzone2tg_discuss"
+DISCUSS = "https://t.me/aioqzone_chatroom"
 CHANNEL = "https://t.me/qzone2tg"
 DOCUMENT = "https://aioqzone.github.io/Qzone2TG"
 AGREEMENT = "https://github.com/aioqzone/Qzone2TG/blob/beta/README.zh-cn.md#license"
