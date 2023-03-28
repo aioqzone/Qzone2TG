@@ -506,12 +506,15 @@ class BaseApp(
             self.log.warning("由于发生了登录错误，爬取未开始。")
             self.timers["hb"].enabled = False
             self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
-        except* (HTTPError, QzoneError, HookError):
+        except* QzoneError as e:
+            self.log.warning(f"get_feeds_by_second: QzoneError", exc_info=True)
+            echo("Qzone未正常提供服务。通常这并不意味着程序发生了错误。这种情况可能持续几小时或数天。")
+        except* (HTTPError, HookError):
             self.log.error("get_feeds_by_second 抛出了异常", exc_info=True)
-            echo(f"有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。")
+            echo("有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。")
         except* BaseException:
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            echo(f"有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
+            echo("有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
 
         if got == 0 and not is_period:
             echo("您已跟上时代🎉")

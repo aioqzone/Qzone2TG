@@ -42,14 +42,14 @@ lxml = ["cssselect (>=1.1.0,<2.0.0)", "lxml (>=4.9.1,<5.0.0)"]
 
 [[package]]
 name = "aioqzone-feed"
-version = "0.13.4.dev2"
+version = "0.13.4.dev3"
 description = "aioqzone plugin providing higher level api for processing feed."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-0.13.4.dev2-py3-none-any.whl", hash = "sha256:fda35308e222af369a71dcf5bd36590d22d086b647aad961d802c40006e8758a"},
-    {file = "aioqzone_feed-0.13.4.dev2.tar.gz", hash = "sha256:51d9bade23878e9a79da549df8e9b91538900479f001db34e06b433e7eab7aff"},
+    {file = "aioqzone_feed-0.13.4.dev3-py3-none-any.whl", hash = "sha256:36dbc7ead52500543a819134330fad6c703072c243824fcaef5420c1ab90707c"},
+    {file = "aioqzone_feed-0.13.4.dev3.tar.gz", hash = "sha256:9d94c9c857e551619a34a8087c0b8a9732bfa0952ed89d520abb1b717383ef10"},
 ]
 
 [package.dependencies]
@@ -412,14 +412,14 @@ files = [
 
 [[package]]
 name = "filelock"
-version = "3.10.6"
+version = "3.10.7"
 description = "A platform independent file lock."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "filelock-3.10.6-py3-none-any.whl", hash = "sha256:52f119747b2b9c4730dac715a7b1ab34b8ee70fd9259cba158ee53da566387ff"},
-    {file = "filelock-3.10.6.tar.gz", hash = "sha256:409105becd604d6b176a483f855e7e8903c5cb2873e47f2c64f66a370c046aaf"},
+    {file = "filelock-3.10.7-py3-none-any.whl", hash = "sha256:bde48477b15fde2c7e5a0713cbe72721cb5a5ad32ee0b8f419907960b9d75536"},
+    {file = "filelock-3.10.7.tar.gz", hash = "sha256:892be14aa8efc01673b5ed6589dbccb95f9a8596f0507e232626155495c18105"},
 ]
 
 [package.extras]
@@ -1797,4 +1797,4 @@ test = ["covdefaults (>=2.2.2)", "coverage (>=7.1)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
-content-hash = "f4c667106ab4c235f788a9990e7be5553cd3d362fda5bafcc937afc98ee5d4ec"
+content-hash = "f0505daeed4b6e0368f96a8ebc1bb42b1c4bbc0b66c209985d7f8a0224292f76"
