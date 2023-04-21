@@ -53,16 +53,13 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
     assert update.message is not None
 
     match context.args:
-        case None | []:
-            await update.message.reply_markdown_v2("usage: `/em eid [name]`")
-            return ConversationHandler.END
         case ["export"]:
             await qe.export(Path("data/emoji.yml"))
-            return ConversationHandler.END
+            await update.message.reply_markdown_v2(r"已导出到`data/emoji\.yml`")
         case [eid] if str.isdigit(eid):
             content = await _get_eid_bytes(self, int(eid))
             if content is None:
-                await update.message.reply_text(f"未查询到eid={eid}")
+                await update.message.reply_markdown_v2(f"未查询到`eid={eid}`")
                 return ConversationHandler.END
 
             msg = await update.message.reply_photo(
@@ -78,20 +75,19 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
             await asyncio.gather(
                 qe.set(int(eid), name),
                 update.message.delete(),
-                update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
+                update.message.reply_markdown_v2(f"已将`{eid}`定义为{name}"),
             )
-            return ConversationHandler.END
         case _:
-            await update.message.reply_text(
+            await update.message.reply_markdown_v2(
                 dedent(
-                    """Usage:
-                1. /em
-                2. /em <eid>
-                3. /em export
-                4. /em <eid> <name>
-            """
+                    r"""用法:
+                    1\. `/em <eid>`: 交互式自定义 eid 名称
+                    2\. `/em <eid> <name>`: 直接指定 eid 的名称
+                    3\. `/em export`: 导出所有 eid
+                    """
                 )
             )
+    return ConversationHandler.END
 
 
 async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
