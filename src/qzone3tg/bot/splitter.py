@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Sequence, overload
 
 import qzemoji.utils as qeu
-from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, TextEntity
+from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from httpx import URL
@@ -36,9 +36,13 @@ html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 async def stringify_entities(entities: list[ConEntity] | None) -> str:
     """Stringify all entities and concatenate them.
 
-    .. versionchanged:: 0.4.0a1.dev5
+    .. deprecated:: 0.4.0a1.dev5
 
         changed to async-function for future improvement.
+
+    .. versionchanged:: 0.7.5.dev22
+
+        support `~aioqzone.type.entity.LinkEntity`.
     """
     if not entities:
         return ""
@@ -49,6 +53,11 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
                 s += e.con.translate(html_trans)
             case AtEntity():
                 s += f"@{href(e.nick.translate(html_trans), f'user.qzone.qq.com/{e.uin}')}"
+            case LinkEntity():
+                if isinstance(e.url, HttpUrl):
+                    s += href(e.text, e.url)
+                else:
+                    s += f"{e.text}({e.url})"
             case EmEntity():
                 s += await qeu.query_wrap(e.eid)
             case _:
