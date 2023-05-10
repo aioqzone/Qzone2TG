@@ -207,6 +207,7 @@ class MsgQueue(Emittable[QueueEvent]):
         for k in sorted(self.q):
             if (
                 (last_feed := uin2lastfeed.get(k.uin))
+                and self.q[last_feed].feed
                 and is_mids(last_mids := self.q[last_feed].feed)
                 and k.abstime - last_feed.abstime < 1000
             ):
@@ -313,12 +314,24 @@ class MsgQueue(Emittable[QueueEvent]):
             return atom
         except BadRequest as e:
             self.exc_groups[feed].append(e)
-            if isinstance(self.splitter, FetchSplitter) and isinstance(
-                atom, (MediaPartial, MediaGroupPartial)
-            ):
-                return await self.splitter.force_bytes(atom)
-            log.error("Got BadRequest from send_%s!", atom.meth, exc_info=e)
-            log.debug(atom)
+            reason = e.message.lower()
+            log.error(f"BadRequest in _send_atom_once: {reason}")
+            if "replied message not found" in reason:
+                if "reply_to_message_id" in atom.kwds:
+                    atom.kwds.pop("reply_to_message_id")
+                    log.warning("'reply_to_message_id' keyword removed.")
+                    return atom
+                log.error("'reply_to_message_id' keyword not found, skip.")
+                log.debug(atom)
+                return None
+            elif "wrong file" in reason:
+                if isinstance(self.splitter, FetchSplitter):
+                    if isinstance(atom, (MediaPartial, MediaGroupPartial)):
+                        return await self.splitter.force_bytes(atom)
+                    log.error("no file is to be sent, skip.")
+                    log.debug(atom)
+                    return None
+                log.warning("fetch is not enabled, skip.")
         except TelegramError as e:
             self.exc_groups[feed].append(e)
             log.error("Uncaught telegram error in send_%s.", atom.meth, exc_info=e)
