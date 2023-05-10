@@ -127,7 +127,8 @@ class TestQueue:
         ["exc2r", "grp_len"],
         [
             (TimedOut, 2),
-            (BadRequest(""), 2),
+            # (BadRequest("Reply message not found"), 2),
+            (BadRequest("Wrong file identifier/http url specified"), 2),
             (RuntimeError, 1),
         ],
     )
