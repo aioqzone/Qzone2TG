@@ -1,12 +1,9 @@
-FROM nikolaik/python-nodejs:python3.11-nodejs18-slim as build
+FROM python:3.11-slim as build
 
-WORKDIR /home/pn/app
+WORKDIR /home/build
 
 # pack the package
 COPY . ./
-RUN npm install --omit optional --omit dev --no-fund \
-    && mkdir ./run \
-    && mv ./node_modules ./run
 RUN bash src/zipapp.sh ./run
 
 # ==============================================
@@ -25,16 +22,6 @@ WORKDIR /app
 ENV PATH="/app:$PATH"
 ENV PYTHONPATH="/app:$PYTHONPATH"
 
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-        curl \
-        fontconfig \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install --no-install-recommends -y \
-        nodejs \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=build /home/pn/app/run /app
+COPY --from=build /home/build/run /app
 
 ENTRYPOINT ["python", "app.pyz"]

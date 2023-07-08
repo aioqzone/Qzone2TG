@@ -19,18 +19,17 @@ sdist & bdist 在 :file:`dist/` 下
 构建 python 压缩包
 ========================
 
-打包程序需要的所有依赖，在安装 :program:`python` 和 :program:`node` 的环境上开箱即用。
+打包程序需要的所有依赖，在安装 :program:`python` 的环境上开箱即用。
 完全由 python 代码构成的包会被压缩。参见 :external+python:mod:`zipapp`.
 
 .. code-block:: shell
 
-    python src/pack.py -z "app.zip"     # 帮助：python src/pack.py -h
+    bash src/zipapp.sh ./workdir
 
 .. note::
 
-    1. 打包脚本运行于 py310 下
-    2. 系统相关，linux 系统下打包就只能用于 linux
-    3. 脚本需要调用 :program:`npm` 和 :program:`pip`
+    1. 打包脚本仅适用于 Linux
+    2. 脚本需要调用 :program:`pip`
 
 使用：``python app.pyz``
 
