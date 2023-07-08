@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: bahmutov/npm-install@v1
       - run: pipx install poetry
 
       - name: Setup Python

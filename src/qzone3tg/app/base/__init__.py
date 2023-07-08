@@ -417,7 +417,6 @@ class BaseApp(
 
         :return: None
         """
-        self.check_node()
         first_run = not await self.loginman.table_exists()
         self.log.info("注册信号处理...")
         self.register_signal()
@@ -459,23 +458,6 @@ class BaseApp(
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
                 continue
-
-    def check_node(self):
-        if self.conf.qzone.qr_strategy in ["force", "prefer"]:
-            return
-        from shutil import which
-
-        from jssupport.jsdom import JSDOM
-
-        if not which("node"):
-            self.log.warning("Node 不可用。")
-        elif not JSDOM.check_jsdom():
-            self.log.warning("jsdom 不可用，可能无法提交验证码。")
-        else:
-            return
-
-        self.log.warning("二维码策略切换至 prefer")
-        self.conf.qzone.qr_strategy = "prefer"
 
     async def _fetch(self, to: ChatId, *, is_period: bool = False) -> None:
         """fetch feeds.

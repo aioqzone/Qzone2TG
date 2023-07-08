@@ -13,12 +13,6 @@ updates:
       day: saturday
     versioning-strategy: increase-if-necessary
 
-  - package-ecosystem: npm
-    directory: "/"
-    schedule:
-      interval: daily
-    versioning-strategy: increase-if-necessary
-
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
