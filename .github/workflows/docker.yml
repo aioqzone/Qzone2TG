@@ -41,7 +41,7 @@ jobs:
           version=$(sed -nr "s/^\s*version\s*=\s*\"(.*)\"/\1/p" pyproject.toml)
           echo "tag=$version" >> $GITHUB_OUTPUT
 
-      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v2
 
       - name: Login to DockerHub
