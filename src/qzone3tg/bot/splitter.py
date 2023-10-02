@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Sequence, overload
 
 import qzemoji.utils as qeu
-from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
+from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from httpx import URL
@@ -55,7 +55,7 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
                 s += f"@{href(e.nick.translate(html_trans), f'user.qzone.qq.com/{e.uin}')}"
             case LinkEntity():
                 if isinstance(e.url, HttpUrl):
-                    s += href(e.text, e.url)
+                    s += href(e.text, str(e.url))
                 else:
                     s += f"{e.text}({e.url})"
             case EmEntity():
@@ -87,15 +87,13 @@ class Splitter(ABC):
     """
 
     @abstractmethod
-    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[Sequence[MsgPartial]]:
+    async def split(self, feed: FeedContent) -> Sequence[MsgPartial]:
         """
         :param feed: feed to split into partials
-        :param need_forward: whether the forward atoms will be used.
-            If False, simply set `forward` field of `FeedPair` to a empty list.
         :return: a :class:`FeedPair` object containing atoms sequence."""
         raise NotImplementedError
 
-    async def unify_send(self, feed: FeedContent):
+    async def unify_send(self, feed: FeedContent) -> Sequence[MsgPartial]:
         """
         The unify_send function is a unified function to generate atomic unit to be sent.
         It will split the feed into multiple callable partials no matter
@@ -105,8 +103,10 @@ class Splitter(ABC):
         :return: Message Partials. Forwardee partials is prior to forwarder partials.
         """
 
-        pair = await self.split(feed, True)
-        return (*pair.forward, *pair.feed)
+        if isinstance(feed.forward, FeedContent):
+            a, b = await asyncio.gather(self.split(feed), self.split(feed.forward))
+            return *a, *b
+        return await self.split(feed)
 
 
 class LocalSplitter(Splitter):
@@ -114,8 +114,8 @@ class LocalSplitter(Splitter):
     It will guess the media type using its metadata.
     """
 
-    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[list[MsgPartial]]:
-        pair = FeedPair([], [])  # type: FeedPair[list[MsgPartial]]
+    async def split(self, feed: FeedContent) -> list[MsgPartial]:
+        atoms: list[MsgPartial] = []
 
         txt = self.header(feed) + await stringify_entities(feed.entities)
         metas = feed.media or []
@@ -134,21 +134,17 @@ class LocalSplitter(Splitter):
                     p, pipe_objs = MediaPartial.pipeline(*pipe_objs)
             else:
                 p, pipe_objs = TextPartial.pipeline(*pipe_objs)
-            pair.feed.append(p)
+            atoms.append(p)
 
-        if isinstance(feed.forward, HttpUrl):
+        if isinstance(feed.forward, str):
             # override disable_web_page_preview if forwarding an app.
-            match pair.feed[0]:
+            match atoms[0]:
                 case MediaGroupPartial():
                     log.warning(f"Forward url and media coexist: {feed}")
                 case TextPartial():
-                    pair.feed[0].kwds["disable_web_page_preview"] = False
+                    atoms[0].kwds["disable_web_page_preview"] = False
 
-        # send forward before stem message
-        if need_forward and isinstance(feed.forward, FeedContent):
-            pair.forward = (await self.split(feed.forward, False)).feed
-
-        return pair
+        return atoms
 
     def header(self, feed: FeedContent) -> str:
         """Generate a header for a feed according to feed type.
@@ -168,7 +164,7 @@ class LocalSplitter(Splitter):
                 f"{href(feed.forward.nickname, f'user.qzone.qq.com/{feed.forward.uin}')}"
                 f"的{href('说说', str(feed.unikey))}：\n\n"
             )
-        elif isinstance(feed.forward, HttpUrl):
+        elif isinstance(feed.forward, str):
             share = str(feed.forward)
             # here we ensure share url is the first url entity, so telegram's preview link feature
             # will fetch the app for user.
@@ -255,7 +251,7 @@ class FetchSplitter(LocalSplitter):
         """
         if isinstance(feed.forward, FeedContent):
             feed = feed.forward
-        for group in (await self.split(feed, False)).feed:
+        for group in await self.split(feed):
             if isinstance(group, (MediaPartial, MediaGroupPartial)):
                 yield group
                 continue

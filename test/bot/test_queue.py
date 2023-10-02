@@ -3,29 +3,20 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
-from aioqzone.type.internal import PersudoCurkey
+from aioqzone.model import PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 from telegram import Bot
 from telegram.error import BadRequest, TimedOut
 
-from qzone3tg.bot.queue import MsgQueue, QueueEvent, is_atoms, is_mids
+from qzone3tg.bot.queue import MsgQueue, is_atoms, is_mids
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.type import FeedPair
 
 from . import FakeBot, fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
-
-
-class Ihave0(QueueEvent):
-    async def GetMid(self, feed: FeedContent) -> list[int] | None:
-        if feed.entities[0].con == "0":  # type: ignore
-            return [0]
-
-    async def reply_markup(self, feed, need_forward: bool):
-        return FeedPair(2, 1 if need_forward else None)
 
 
 @pytest.fixture
@@ -35,9 +26,7 @@ def fake_bot():
 
 @pytest.fixture
 def queue(client: ClientAdapter, fake_bot: Bot):
-    q = MsgQueue(fake_bot, FetchSplitter(client), defaultdict(int))
-    q.register_hook(Ihave0())
-    return q
+    return MsgQueue(fake_bot, FetchSplitter(client), defaultdict(int))
 
 
 class TestQueue:
@@ -45,29 +34,29 @@ class TestQueue:
         queue.new_batch(0)
         f = fake_feed(0)
         queue.add(0, f)
-        assert len(queue.q) == 1
+        assert len(queue.Q) == 1
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert queue.q[f].feed and is_mids(queue.q[f].feed)
+        assert queue.Q[f].feed and is_mids(queue.Q[f].feed)
 
         queue.add(1, f)
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert len(queue.q) == 1
+        assert len(queue.Q) == 1
 
         f = fake_feed(1)
         f.uin = 1
         queue.add(0, f)
-        assert len(queue.q) == 2
+        assert len(queue.Q) == 2
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert queue.q[f].feed and is_atoms(queue.q[f].feed)
+        assert queue.Q[f].feed and is_atoms(queue.Q[f].feed)
 
         f = fake_feed(2)
         f.uin = 2
         f.forward = fake_feed(0)
         queue.add(0, f)
-        assert len(queue.q) == 3
+        assert len(queue.Q) == 3
         await queue.wait(PersudoCurkey(f.uin, f.abstime))
-        assert queue.q[f].feed and is_atoms(queue.q[f].feed)
-        assert queue.q[f].forward and is_mids(queue.q[f].forward)
+        assert queue.Q[f].feed and is_atoms(queue.Q[f].feed)
+        assert queue.Q[f].forward and is_mids(queue.Q[f].forward)
 
     async def test_send_norm(self, queue: MsgQueue):
         queue.new_batch(1)
@@ -103,7 +92,7 @@ class TestQueue:
         bot = cast(FakeBot, queue.bot)
         assert len(bot.log) == 2
 
-        assert sum((i.feed for i in queue.q.values()), []) == [1, 1, 2, 1]
+        assert sum((i.feed for i in queue.Q.values()), []) == [1, 1, 2, 1]
 
     @pytest.mark.parametrize(
         ["feed", "forward", "markups"],

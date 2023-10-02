@@ -3,7 +3,6 @@ from time import time
 from typing import Sequence
 
 from aioqzone_feed.type import BaseFeed
-from qqqr.event import Event
 from qzemoji.base import AsyncSessionProvider
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,7 +66,12 @@ class StorageMan(AsyncSessionProvider):
 
         orms = await self.get_msg_orms(*MessageOrm.fkey(orm))
         mids = [i.mid for i in orms]
-        return BaseFeed(**orm.dict()), mids
+        return (
+            BaseFeed(
+                **orm.dict(),  # type: ignore
+            ),
+            mids,
+        )
 
     async def clean(self, seconds: float):
         """clean feeds out of date, based on `abstime`.
@@ -91,20 +95,3 @@ class StorageMan(AsyncSessionProvider):
                     await asyncio.wait(taskm)
                 if taskf:
                     await asyncio.wait(taskf)
-
-
-class StorageEvent(Event):
-    async def Clean(self, seconds: float):
-        """clean feeds out of date, based on `abstime`.
-
-        :param seconds: Timestamp in second, clean the feeds before this time. Means back from now if the value < 0.
-        """
-        return
-
-    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
-        """query feed from message id.
-
-        :param mid: message id
-        :return: corresponding feed if exist, else None.
-        """
-        return

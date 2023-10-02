@@ -5,16 +5,13 @@ import pytest
 import pytest_asyncio
 import qzemoji as qe
 import yaml
-from aioqzone.event import QREvent, UPEvent
-from aioqzone_feed.event import FeedEvent, HeartbeatEvent
 from httpx import AsyncClient
 from pydantic import SecretStr
-from qqqr.event import Event
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from qzone3tg.app.base import BaseApp, QueueEvent, StorageEvent
+from qzone3tg.app.base import BaseApp
 from qzone3tg.app.interact import InteractApp
 from qzone3tg.settings import Settings, UserSecrets, WebhookConf
 
@@ -54,13 +51,13 @@ def test_secrets():
 
 
 def test_webhook_url():
-    wh = WebhookConf.parse_obj(dict(destination="https://example.xyz/prefix/"))
+    wh = WebhookConf.model_validate(dict(destination="https://example.xyz/prefix/"))
     url = wh.webhook_url(SecretStr("hello")).get_secret_value()
     assert url == "https://example.xyz/prefix/hello"
-    wh = WebhookConf.parse_obj(dict(destination="https://example.xyz/prefix"))
+    wh = WebhookConf.model_validate(dict(destination="https://example.xyz/prefix"))
     url = wh.webhook_url(SecretStr("hello")).get_secret_value()
     assert url == "https://example.xyz/prefix/hello"
-    wh = WebhookConf.parse_obj(dict(destination="https://example.xyz"))
+    wh = WebhookConf.model_validate(dict(destination="https://example.xyz"))
     url = wh.webhook_url(SecretStr("hello")).get_secret_value()
     assert url == "https://example.xyz/hello"
 
@@ -76,8 +73,8 @@ async def test_init(minc: Settings):
     maxc = Settings(**maxd).load_secrets()
     async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
         client = ClientAdapter(sess)
-        InteractApp(client, engine, conf=minc)._tasks
-        InteractApp(client, engine, conf=maxc)._tasks
+        InteractApp(client, engine, conf=minc)
+        InteractApp(client, engine, conf=maxc)
         assert qe.proxy == "socks5://localhost:443"
 
 

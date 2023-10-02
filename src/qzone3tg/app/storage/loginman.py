@@ -1,35 +1,17 @@
-from typing import Sequence, cast
+from typing import cast
 
-from aioqzone.api import MixedLoginMan
-from aioqzone.event import LoginMethod
-from qqqr.utils.net import ClientAdapter
+from aioqzone.api import UnifiedLoginManager
 from qzemoji.base import AsyncSessionProvider
 from sqlalchemy import Connection, Table, inspect, select
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .orm import CookieOrm
 
 
-class LoginMan(AsyncSessionProvider, MixedLoginMan):
-    """Login manager with cookie caching.
+class LoginMan(AsyncSessionProvider, UnifiedLoginManager):
+    """Login manager with cookie persistence.
 
     .. versionadded:: 0.1.3
     """
-
-    def __init__(
-        self,
-        client: ClientAdapter,
-        engine: AsyncEngine,
-        uin: int,
-        order: Sequence[LoginMethod],
-        pwd: str | None = None,
-        *,
-        refresh_times: int = 6,
-        h5=False,
-    ) -> None:
-        AsyncSessionProvider.__init__(self, engine)
-        MixedLoginMan.__init__(self, client, uin, order, pwd, refresh_times=refresh_times, h5=h5)
-        self.client = client
 
     async def table_exists(self):
         def ensure_table(conn: Connection):
@@ -65,7 +47,7 @@ class LoginMan(AsyncSessionProvider, MixedLoginMan):
         if prev is None:
             return
         self._cookie = dict(
-            p_uin="o" + str(self.uin).zfill(10),
+            p_uin="o" + str(self.up_config.uin or self.qr_config.uin).zfill(10),
             p_skey=prev.p_skey,
             pt4_token=prev.pt4_token,
         )

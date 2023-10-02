@@ -4,28 +4,25 @@ import asyncio
 import logging
 import logging.config
 from collections import defaultdict
-from contextlib import contextmanager
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from time import time
-from typing import Sequence
 
 import qzemoji as qe
 import yaml
-from aioqzone.api.loginman import strategy_to_order
-from aioqzone.event import LoginMethod, QREvent, UPEvent
 from aioqzone.exception import LoginError, QzoneError
 from aioqzone_feed.api import HeartbeatApi
 from aioqzone_feed.api.feed.h5 import FeedH5Api
-from aioqzone_feed.event import FeedEvent, HeartbeatEvent
-from aioqzone_feed.utils.task import AsyncTimer
+from aioqzone_feed.type import BaseFeed, FeedContent
 from apscheduler.job import Job as APSJob
 from apscheduler.triggers.interval import IntervalTrigger
 from httpx import URL, ConnectError, HTTPError, Timeout
-from qqqr.event import EventManager, Tasksets
-from qqqr.exception import HookError, UserBreak
+from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from telegram import InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
     AIORateLimiter,
@@ -36,15 +33,17 @@ from telegram.ext import (
     ExtBot,
     Job,
 )
+from tylisten.futstore import FutureStore
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.queue import MsgQueue, QueueEvent
+from qzone3tg.bot.queue import MsgQueue, is_mids
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
-from ..storage import StorageEvent, StorageMan
+from ..storage import StorageMan
 from ..storage.loginman import LoginMan
+from ..storage.orm import FeedOrm, MessageOrm
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
 
@@ -56,64 +55,82 @@ class FakeLock(object):
         pass
 
 
-class TimeoutLoginman(LoginMan):
-    def __init__(
+class StorageMixin:
+    store: StorageMan
+
+    @property
+    def sess_maker(self):
+        return self.store.sess
+
+    async def _update_message_ids(
         self,
-        client: ClientAdapter,
-        engine: AsyncEngine,
-        uin: int,
-        order: Sequence[LoginMethod],
-        pwd: str | None = None,
-        *,
-        refresh_times: int = 6,
-        h5=False,
-        min_qr_interval: float = 0,
-        min_up_interval: float = 0,
-    ) -> None:
-        super().__init__(client, engine, uin, order, pwd, refresh_times=refresh_times, h5=h5)
-        self.qr_suppress_sec = min_qr_interval
-        self.up_suppress_sec = min_up_interval
-        self.suppress_qr_till = 0.0
-        self.suppress_up_till = 0.0
-        self.force_login = False
+        feed: BaseFeed,
+        mids: list[int] | None,
+        sess: AsyncSession | None = None,
+        flush: bool = True,
+    ):
+        if sess is None:
+            async with self.sess_maker() as newsess:
+                await self._update_message_ids(feed, mids, sess=newsess, flush=flush)
+            return
 
-    def ordered_methods(self):
-        if self.force_login:
-            return super().ordered_methods()
+        if flush:
+            await self._update_message_ids(feed, mids, sess=sess, flush=False)
+            await sess.commit()
+            return
 
-        methods = []
-        for meth in super().ordered_methods():
-            match meth:
-                case LoginMethod.up:
-                    if not self.up_suppressed:
-                        methods.append(meth)
-                case LoginMethod.qr:
-                    if not self.qr_suppressed:
-                        methods.append(meth)
-                case _:
-                    methods.append(meth)
-        return methods
+        # query existing mids
+        stmt = select(MessageOrm)
+        stmt = stmt.where(*MessageOrm.fkey(feed))
+        result = await sess.scalars(stmt)
 
-    @property
-    def qr_suppressed(self):
-        return time() < self.suppress_qr_till
+        # delete existing mids
+        tasks = [asyncio.create_task(sess.delete(i)) for i in result]
+        if tasks:
+            await asyncio.wait(tasks)
 
-    @property
-    def up_suppressed(self):
-        return time() < self.suppress_up_till
+        if mids is None:
+            return
+        for mid in mids:
+            sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
 
-    @contextmanager
-    def disable_suppress(self):
-        self.force_login = True
-        yield self
-        self.force_login = False
+    async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
+        """Add/Update an record by the given feed and messages id.
+
+        :param feed: feed
+        :param mids: message id list, defaults to None
+        """
+
+        async def _update_feed(feed, sess: AsyncSession):
+            prev = await self.store.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
+            if prev:
+                # if exist: update
+                FeedOrm.set_by(prev, feed)
+            else:
+                # not exist: add
+                sess.add(FeedOrm.from_base(feed))
+
+        async with self.sess_maker() as sess:
+            async with sess.begin():
+                # BUG: asyncio.wait/gather raises error at the end of a transaction
+                await self._update_message_ids(feed, mids, sess=sess, flush=False)
+                await _update_feed(feed, sess=sess)
+
+    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
+        mo = await self.store.get_msg_orms(MessageOrm.mid == mid)
+        if not mo:
+            return
+        orm = await self.store.get_feed_orm(
+            FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
+        )
+        if orm is None:
+            return
+        return BaseFeed(**orm.dict())  # type: ignore
 
 
-class BaseApp(
-    Tasksets,
-    EventManager[FeedEvent, HeartbeatEvent, QREvent, UPEvent, StorageEvent, QueueEvent],
-):
+class BaseApp(StorageMixin):
     start_time = 0
+    blockset: set[int]
 
     def __init__(
         self,
@@ -126,12 +143,15 @@ class BaseApp(
         init_queue=True,
         init_hooks=True,
     ) -> None:
-        Tasksets.__init__(self)
         assert conf.bot.token
         # init logger at first
         self.conf = conf
         self.client = client
         self.engine = engine
+        # future store channels
+        self.ch_fetch = FutureStore()
+        self.ch_db_write = FutureStore()
+        self.ch_db_read = FutureStore()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
         self.fetch_lock = FakeLock()
 
@@ -147,8 +167,6 @@ class BaseApp(
 
         if init_queue:
             self.init_queue()
-
-        EventManager.__init__(self)  # update bases before instantiate hooks
 
         if init_hooks:
             self.init_hooks()
@@ -167,24 +185,14 @@ class BaseApp(
     # --------------------------------
     #             hook init
     # --------------------------------
-    from ._hook import feedevent_hook as _sub_feedevent
-    from ._hook import heartbeatevent_hook as _sub_heartbeatevent
-    from ._hook import qrevent_hook as _sub_qrevent
-    from ._hook import queueevent_hook as _sub_queueevent
-    from ._hook import storageevent_hook as _sub_storageevent
-    from ._hook import upevent_hook as _sub_upevent
-
     def init_qzone(self):
         conf = self.conf.qzone
-        self.loginman = TimeoutLoginman(
-            self.client,
-            self.engine,
-            conf.uin,
-            strategy_to_order[conf.qr_strategy],
-            conf.password.get_secret_value() if conf.password else None,
+        self.loginman = LoginMan(
+            client=self.client,
+            engine=self.engine,
+            up_config=conf.up_config,
+            qr_config=conf.qr_config,
             h5=True,
-            min_qr_interval=conf.min_qr_interval,
-            min_up_interval=conf.min_up_interval,
         )
         self.qzone = FeedH5Api(self.client, self.loginman, init_hb=False)
         self.heartbeat = HeartbeatApi(self.qzone)
@@ -229,7 +237,7 @@ class BaseApp(
 
         # clean database
         async def clean(_):
-            await self[StorageEvent].Clean(-self.conf.bot.storage.keepdays * 86400)
+            await self.store.clean(-self.conf.bot.storage.keepdays * 86400)
 
         self.timers["cl"] = job = job_queue.run_repeating(clean, 86400, 0, name="clean")
         job.enabled = False
@@ -256,21 +264,17 @@ class BaseApp(
         self.log.debug("init_timers done")
 
     def init_hooks(self):
-        block = self.conf.qzone.block or []
-        block = block.copy()
-        if self.conf.qzone.block_self:
-            block.append(self.conf.qzone.uin)
+        from ._hook import feedevent_hook, heartbeatevent_hook, qrevent_hook, upevent_hook
 
-        self.inst_of(StorageEvent)
-        self.qzone.register_hook(self.inst_of(FeedEvent))
-        self.heartbeat.register_hook(self.inst_of(HeartbeatEvent))
-        self.queue.register_hook(self.inst_of(QueueEvent))
-        self.loginman[QREvent] = self.inst_of(QREvent)
-        self.loginman[UPEvent] = self.inst_of(UPEvent)
-        # reregister sub-loginman hooks
-        self.loginman.init_hooks()
+        feedevent_hook(self)
+        heartbeatevent_hook(self)
+        qrevent_hook(self)
+        upevent_hook(self)
 
         self.log.info("TG端初始化完成")
+
+    def _make_qr_markup(self) -> InlineKeyboardMarkup | None:
+        return
 
     # --------------------------------
     #           init logger
@@ -342,7 +346,7 @@ class BaseApp(
         if proxy and proxy.scheme == "socks5h":
             # httpx resolves DNS at service-side by default. socks5h is not supported.
             self.log.warning("socks5h协议不受支持，已替换为socks5")
-            proxy = URL(proxy).copy_with(scheme="socks5")
+            proxy = URL(str(proxy)).copy_with(scheme="socks5")
 
         if proxy:
             # expect to support https and socks
@@ -436,7 +440,7 @@ class BaseApp(
 
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
-            task = self.add_hook_ref("command", self._fetch(self.admin))
+            task = self.ch_fetch.add_awaitable(self._fetch(self.admin))
             self.fetch_lock.acquire(task)
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
@@ -465,15 +469,15 @@ class BaseApp(
         :param to: send to whom
         :param is_period: triggered by heartbeat, defaults to False
         """
-        if not is_period and not self.loginman.force_login:
-            with self.loginman.disable_suppress():
+        if not is_period:
+            with self.loginman.force_login():
                 return await self._fetch(to, is_period=False)
 
         # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
         # which has 300s interval.
         # NOTE: subclass must handle async lock here
         self.log.info(f"Start fetch with period={is_period}")
-        echo = lambda m: self.add_hook_ref("command", self.bot.send_message(to, m))
+        echo = ""
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
@@ -482,7 +486,7 @@ class BaseApp(
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
         except* UserBreak:
             self.log.info("用户取消了登录")
-            echo("命令已取消：用户取消了登录")
+            echo = "命令已取消：用户取消了登录"
         except* LoginError:
             # LoginFailed hook will show reason to user
             self.log.warning("由于发生了登录错误，爬取未开始。")
@@ -490,33 +494,48 @@ class BaseApp(
             self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
         except* QzoneError as e:
             self.log.warning(f"get_feeds_by_second: QzoneError", exc_info=True)
-            echo("Qzone未正常提供服务。通常这并不意味着程序发生了错误。这种情况可能持续几小时或数天。")
-        except* (HTTPError, HookError):
+            echo = "Qzone未正常提供服务。通常这并不意味着程序发生了错误。这种情况可能持续几小时或数天。"
+        except* HTTPError:
             self.log.error("get_feeds_by_second 抛出了异常", exc_info=True)
-            echo("有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。")
+            echo = "有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。"
         except* BaseException:
             self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            echo("有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。")
+            echo = "有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。"
 
         if got == 0 and not is_period:
-            echo("您已跟上时代🎉")
+            echo = "您已跟上时代🎉"
+
+        if echo:
+            await self.bot.send_message(to, echo)
+            echo = ""
+
         if got <= 0:
             return
 
         # wait for all hook to finish
-        await self.qzone.wait("hook", "dispatch")
+        await asyncio.gather(self.qzone.ch_dispatch.wait(), self.qzone.ch_notify.wait())
         got -= self.queue.skip_num
         if got <= 0:
             if not is_period:
-                echo("您已跟上时代🎉")
+                await self.bot.send_message(to, "您已跟上时代🎉")
             return
 
         # forward
-        try:
-            await self.queue.send_all()
-        except:
-            self.log.fatal("queue.send_all：未捕获的异常", exc_info=True)
-            return
+        def _post_sent(task: asyncio.Future[None], feed: FeedContent):
+            if e := task.exception():
+                return self.log.error(f"发送feed时出现错误：{feed}", exc_info=e)
+
+            mids = self.queue.Q[feed]
+            assert is_mids(mids)
+            self.ch_db_write.add_awaitable(self.SaveFeed(feed, mids))
+
+        feed_send = self.queue.send_all()
+        for feed, t in feed_send.items():
+            t.add_done_callback(partial(_post_sent, feed=feed))
+            if isinstance(feed.forward, FeedContent):
+                t.add_done_callback(partial(_post_sent, feed=feed.forward))
+
+        await self.queue.wait_all()
 
         if is_period:
             return  # skip summary if this is called by heartbeat
@@ -530,7 +549,8 @@ class BaseApp(
         if errs:
             summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
             summary += log_level_helper
-        echo(summary)
+
+        await self.bot.send_message(to, summary)
 
     async def license(self, to: ChatId):
         LICENSE_TEXT = f"""继续使用即代表您同意<a href="{AGREEMENT}">用户协议</a>。"""
@@ -556,8 +576,8 @@ class BaseApp(
             "心跳状态": friendly(self.timers.get("hb") and self.timers["hb"].enabled),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
-            "二维码登录暂停至": ts2a(self.loginman.suppress_qr_till),
-            "密码登录暂停至": ts2a(self.loginman.suppress_up_till),
+            "二维码登录暂停至": ts2a(self.loginman.qr_suppress_end_time),
+            "密码登录暂停至": ts2a(self.loginman.up_suppress_end_time),
         }
         if debug:
             add_dic = {}
@@ -584,11 +604,9 @@ class BaseApp(
         return True
 
 
-def get_last_call(timer: AsyncTimer | Job | APSJob | None) -> float:
+def get_last_call(timer: Job | APSJob | None) -> float:
     if timer is None:
         return 0.0
-    if isinstance(timer, AsyncTimer):
-        return timer.last_call
     if isinstance(timer, Job):
         timer = timer.job
 

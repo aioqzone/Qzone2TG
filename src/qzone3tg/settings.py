@@ -1,12 +1,13 @@
 """This module read user config as a global object."""
 
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Sequence, Union
 
+from aioqzone.api import LoginMethod, QrLoginConfig, UpLoginConfig
 from pydantic import (
+    AliasChoices,
     AnyUrl,
     BaseModel,
-    BaseSettings,
     DirectoryPath,
     Field,
     FilePath,
@@ -14,7 +15,7 @@ from pydantic import (
     SecretStr,
     validator,
 )
-from pydantic.env_settings import SettingsSourceCallable
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 __all__ = ["Settings"]
 
@@ -124,7 +125,7 @@ class WebhookConf(BaseModel):
         用户不需要考虑这一连接过程，由程序完成拼接. 用户应该注意的是，如果要使用反向代理，对 :obj:`.destination`
         路径的一切访问都应该转发."""
         if token is None:
-            return SecretStr(self.destination)
+            return SecretStr(str(self.destination))
         urljoin = lambda u, p: str(u) + ("" if str.endswith(u, "/") else "/") + p
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
 
@@ -139,7 +140,7 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置，对应配置文件中的 :obj:`bot.network <.BotConf.network>`. 包括代理和自定义等待时间等。"""
 
-    proxy: Optional[AnyUrl] = Field(None, env="HTTPS_PROXY")
+    proxy: Optional[AnyUrl] = Field(None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
     """代理设置，支持 :term:`http <http_proxy>` 和 :term:`socks <socks_proxy>` 代理.
     代理将用于向 `!telegram api` 和 `!github` 发送请求. 也支持读取系统全局代理 :envvar:`HTTPS_PROXY`,
     但优先级 **低于** 配置文件提供的值。
@@ -208,27 +209,20 @@ class QzoneConf(BaseModel):
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    qr_strategy: str = "allow"
-    """二维码策略. 枚举类型，可选值为 ``force``, ``prefer``, ``allow``, ``forbid``
+    login_order: Sequence[LoginMethod] = Field(["up", "qr"])
+    """用于控制登录顺序。
 
-    - ``force``：强制二维码登录，不使用密码登录.
-    - ``prefer``：二维码优先于密码登录. 当二维码登陆失败（包括未得到用户响应时）尝试密码登录.
-    - ``allow``：密码优先于二维码登录. 当密码登陆失败（通常是在新设备上登录触发了保护）时使用二维码登录. **推荐普通用户使用**.
-    - ``forbid``：禁止二维码登录. 通常用于自动测试."""
-    min_qr_interval: float = 7200
-    """最短的二维码登录时间间隔，单位为秒，默认7200（两小时）
+    .. versionadded:: 0.7.7.dev2"""
 
-    .. versionadded:: 0.5.0a7
-    """
-    min_up_interval: float = 3600
-    """密码登录发生错误后，距下次密码登录的最短时间间隔，单位为秒，默认3600
+    up_config: UpLoginConfig
+    """密码登录配置
 
-    .. versionadded:: 0.5.0a7
+    .. versionadded:: 0.7.7.dev2"""
+    qr_config: QrLoginConfig
+    """二维码登录配置
 
-    .. versionchanged:: 0.6.5
+    .. versionadded:: 0.7.7.dev2"""
 
-        密码登录成功不会触发暂停机制。
-    """
     vcode_timeout: float = 30
     """等待动态验证码的超时时间，单位秒，默认30。
 
@@ -297,35 +291,38 @@ class UserSecrets(BaseSettings):
     用户可以通过 :term:`docker secrets` 或环境变量来传递密码/密钥。
     """
 
-    password: Optional[SecretStr] = Field(default=None, env=["TEST_PASSWORD", "password"])
+    password: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("password", "test_password")
+    )
     """QQ密码，支持以下两种输入：
 
     * 名为 ``password`` 的 :term:`docker secrets`
     * 名为 :envvar:`TEST_PASSWORD` 或 :envvar:`password` 的环境变量
     """
 
-    token: SecretStr = Field(env=["TEST_TOKEN", "token"])
+    token: SecretStr = Field(validation_alias=AliasChoices("token", "test_token"))
     """TG 机器人的密钥(bot token)，支持以下两种输入：
 
     * 名为 ``token`` 的 :term:`docker secrets`
     * 名为 :envvar:`TEST_TOKEN` 或 :envvar:`token` 的环境变量"""
 
-    class Config:
-        secrets_dir = "/run/secrets"
-
-        @classmethod
-        def customise_sources(
-            cls,
-            init_settings: SettingsSourceCallable,
-            env_settings: SettingsSourceCallable,
-            file_secret_settings: SettingsSourceCallable,
-        ) -> tuple[SettingsSourceCallable, ...]:
-            return env_settings, file_secret_settings
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return env_settings, file_secret_settings
 
 
 class Settings(BaseSettings):
     """:program:`Qzone3TG` 的配置文件。目前包括三大项：:class:`bot <.BotConf>`,
     :class:`log <.LogConf>`, :class:`qzone <.QzoneConf>`."""
+
+    model_config = SettingsConfigDict(env_nested_delimiter=".")
 
     log: LogConf = LogConf()
     """日志配置: :class:`.LogConf`, 对应 :doc:`log <log>` 项"""
@@ -341,6 +338,3 @@ class Settings(BaseSettings):
         self.qzone.password = secrets.password
         self.bot.token = secrets.token
         return self
-
-    class Config:
-        env_nested_delimiter = "."

@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from qzone3tg.app.storage import StorageEvent
-
 if TYPE_CHECKING:
     from telegram import Update
 
@@ -34,11 +32,12 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
                 await echo(BLOCK_CMD_HELP)
                 return
             # message id to uin
-            feed = await self[StorageEvent].Mid2Feed(message.reply_to_message.id)
+            feed = await self.Mid2Feed(message.reply_to_message.id)
             if feed is None:
                 await echo("uin not found. Try `/block add <uin>` instead.")
                 return
-            await self.blockset.add(feed.uin)
+            self.blockset.add(feed.uin)
+            await self.dyn_blockset.add(feed.uin)
             await echo(f"{feed.uin} 已加入黑名单")
         case ["rm", uin]:
             try:
@@ -46,7 +45,8 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
             except:
                 await echo(BLOCK_CMD_HELP)
                 return
-            if await self.blockset.delete(uin):
+            self.blockset.discard(uin)
+            if await self.dyn_blockset.delete(uin):
                 await echo(f"{uin} 已从黑名单移除✅")
             else:
                 await echo(f"{uin} 尚未被拉黑✅")
@@ -56,10 +56,12 @@ async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT
             except:
                 await echo(BLOCK_CMD_HELP)
                 return
-            await self.blockset.add(int(uin))
+
+            self.blockset.add(int(uin))
+            await self.dyn_blockset.add(int(uin))
             await echo(f"{uin} 已加入黑名单")
         case ["list"]:
-            uins = await self.blockset.all()
+            uins = await self.dyn_blockset.all()
             if uins:
                 await echo("\n".join(f"> {i}" for i in uins))
             else:

@@ -2,8 +2,8 @@
 
 
 import sqlalchemy as sa
-from aioqzone.type.resp import FeedRep
-from aioqzone.type.resp.h5 import FeedData
+from aioqzone.model import FeedData
+from aioqzone.model.response.web import FeedRep
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 

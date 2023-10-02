@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from aioqzone.type.entity import TextEntity
+from aioqzone.model import TextEntity
 from aioqzone_feed.type import FeedContent, VisualMedia
 from telegram import Chat, Message
 

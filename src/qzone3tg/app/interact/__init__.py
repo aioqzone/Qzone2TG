@@ -1,7 +1,7 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
 
-from aioqzone.type.internal import LikeData
+from aioqzone.model import LikeData
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine
 from telegram import BotCommand, Update
@@ -14,7 +14,6 @@ from telegram.ext import (
     filters,
 )
 
-from qzone3tg.app.storage import StorageEvent
 from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.settings import PollingConf, Settings
 
@@ -53,13 +52,12 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._button import qrevent_hook as _sub_qrevent
     from ._button import queueevent_hook as _sub_queueevent
-    from ._hook import feedevent_hook as _sub_feedevent
     from ._hook import heartbeatevent_hook as _sub_heartbeatevent
     from ._hook import upevent_hook as _sub_upevent
 
     def init_queue(self):
         super().init_queue()
-        self.blockset = BlockSet(self.engine)
+        self.dyn_blockset = BlockSet(self.engine)
 
     def register_handlers(self):
         # build chat filters
@@ -138,6 +136,8 @@ class InteractApp(BaseApp):
             )
         self.register_handlers()
         await self.set_commands()
+        # 加载动态黑名单
+        self.blockset.update(await self.dyn_blockset.all())
         return await super().run()
 
     # --------------------------------
@@ -147,10 +147,10 @@ class InteractApp(BaseApp):
         chat = update.effective_chat
         assert chat
         self.log.debug("Start! chat=%d", chat.id)
-        if self._tasks["fetch"]:
-            self.log.warning("a fetch task is pending, cancel.")
-            self.clear("fetch")
-        task = self.add_hook_ref("fetch", self._fetch(chat.id))
+        if self.ch_fetch._futs:
+            self.log.warning("有正在进行的抓取任务")
+            self.ch_fetch.clear()
+        task = self.ch_fetch.add_awaitable(self._fetch(chat.id))
         self.fetch_lock.acquire(task)
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -176,7 +176,7 @@ class InteractApp(BaseApp):
     async def relogin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
         assert chat
-        with self.loginman.disable_suppress():
+        with self.loginman.force_login():
             try:
                 await self.qzone.login.new_cookie()
             except:
@@ -193,7 +193,7 @@ class InteractApp(BaseApp):
             return
 
         async def query_likedata(mid: int):
-            feed = await self[StorageEvent].Mid2Feed(reply.message_id)
+            feed = await self.Mid2Feed(reply.message_id)
             if not feed:
                 await msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
                 return
@@ -212,7 +212,7 @@ class InteractApp(BaseApp):
             )
 
         async def like_trans(likedata: LikeData):
-            with self.loginman.disable_suppress():
+            with self.loginman.force_login():
                 try:
                     succ = await self.qzone.internal_dolike_app(
                         likedata.appid, likedata.unikey, likedata.curkey, True

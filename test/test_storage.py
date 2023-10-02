@@ -4,17 +4,16 @@ from unittest import mock
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
-from aioqzone.api import MixedLoginMan
+from aioqzone.api import UnifiedLoginManager
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from qzone3tg.app.base import BaseApp
-from qzone3tg.app.storage import FeedOrm, StorageEvent, StorageMan
+from qzone3tg.app.base import StorageMixin
+from qzone3tg.app.storage import FeedOrm, StorageMan
 from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.app.storage.loginman import LoginMan
 from qzone3tg.app.storage.orm import CookieOrm, MessageOrm
-from qzone3tg.bot.queue import QueueEvent
 
 from . import fake_feed
 
@@ -45,7 +44,7 @@ async def store(engine: AsyncEngine):
 
 @pytest.fixture(scope="class")
 def fake_app(store: StorageMan):
-    class fake_app:
+    class fake_app(StorageMixin):
         def __init__(self, store) -> None:
             self.store = store
 
@@ -54,13 +53,7 @@ def fake_app(store: StorageMan):
 
 @pytest_asyncio.fixture(scope="class")
 async def hook_store(fake_app: BaseApp):
-    cls = BaseApp._sub_storageevent(fake_app, StorageEvent)  # type: ignore
-    yield cls()
-
-
-@pytest_asyncio.fixture(scope="class")
-async def hook_queue(fake_app: BaseApp):
-    cls = BaseApp._sub_queueevent(fake_app, QueueEvent)  # type: ignore
+    cls = BaseApp._sub_storageevent(fake_app, StorageMixin)  # type: ignore
     yield cls()
 
 
@@ -75,32 +68,32 @@ class TestFeedStore:
     async def test_create(self, store: StorageMan):
         await store.create()
 
-    async def test_insert(self, hook_queue: QueueEvent, fixed: list):
-        await hook_queue.SaveFeed(fixed[1])
-        await hook_queue.SaveFeed(fixed[2], [0])
+    async def test_insert(self, hook_store: StorageMixin, fixed: list):
+        await hook_store.SaveFeed(fixed[1])
+        await hook_store.SaveFeed(fixed[2], [0])
 
-    async def test_exist(self, store: StorageMan, hook_store: StorageEvent, fixed: list):
+    async def test_exist(self, store: StorageMan, fixed: list):
         assert not await store.exists(*FeedOrm.primkey(fixed[0]))
         assert not await store.exists(*FeedOrm.primkey(fixed[1]))
         assert await store.exists(*FeedOrm.primkey(fixed[2]))
 
-    async def test_update(self, store: StorageMan, hook_queue: QueueEvent, fixed: list):
+    async def test_update(self, store: StorageMan, hook_store: StorageMixin, fixed: list):
         pack = await store.get(*FeedOrm.primkey(fixed[1]))
         assert pack
         feed, mids = pack
         assert not mids
 
-        await hook_queue._update_message_ids(fixed[2], [1, 2])  # type: ignore
-        mids = await hook_queue.GetMid(fixed[2])
+        await hook_store._update_message_ids(fixed[2], [1, 2])
+        mids = await hook_store.GetMid(fixed[2])
         assert mids
         assert mids == [1, 2]
 
-    async def test_mid2feed(self, hook_store: StorageEvent, fixed: list):
+    async def test_mid2feed(self, hook_store: StorageMixin, fixed: list):
         feed = await hook_store.Mid2Feed(1)
         assert feed == fixed[2]
 
-    async def test_remove(self, store: StorageMan, hook_store: StorageEvent, fixed: list):
-        await hook_store.Clean(0)  # clean all
+    async def test_remove(self, store: StorageMan, fixed: list):
+        await store.clean(0)  # clean all
         assert not await store.exists(*FeedOrm.primkey(fixed[2]))
         assert not await store.get_msg_orms(MessageOrm.mid == 1)
 
@@ -111,8 +104,8 @@ class TestCookieStore:
         async with engine.begin() as conn:
             await conn.run_sync(CookieOrm.metadata.create_all)
 
-        with mock.patch.object(MixedLoginMan, "_new_cookie", return_value=cookie):
-            man = LoginMan(client, engine, 123, "forbid", "pwd")  # type: ignore
+        with mock.patch.object(UnifiedLoginManager, "_new_cookie", return_value=cookie):
+            man = LoginMan(client, engine, 123, "forbid", "pwd")
             await man.new_cookie()
 
         async with AsyncSession(engine) as sess:
@@ -134,7 +127,7 @@ class TestCookieStore:
         assert man._cookie["p_skey"] == "expiredpskey"
         assert man._cookie["pt4_token"] == "expiredtoken"
 
-        with mock.patch.object(MixedLoginMan, "_new_cookie", return_value=cookie):
+        with mock.patch.object(UnifiedLoginManager, "_new_cookie", return_value=cookie):
             await man.new_cookie()
 
         async with AsyncSession(engine) as sess:

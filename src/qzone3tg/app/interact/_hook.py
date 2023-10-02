@@ -3,16 +3,11 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from aioqzone.event import UPEvent
-from aioqzone_feed.event import FeedEvent, HeartbeatEvent
-from qqqr.event import sub_of
-
 if TYPE_CHECKING:
     from . import InteractApp
 
 
-@sub_of(UPEvent)
-def upevent_hook(_self: InteractApp, base: type[UPEvent]):
+def upevent_hook(app: InteractApp):
     from telegram import ForceReply, Message, Update
     from telegram.ext import MessageHandler, filters
 
@@ -31,22 +26,22 @@ def upevent_hook(_self: InteractApp, base: type[UPEvent]):
                 return
             return False
 
-    class interactapp_upevent(base):
+    class interactapp_upevent:
         async def GetSmsCode(self, phone: str, nickname: str) -> str | None:
-            m = await _self.bot.send_message(
-                _self.admin,
+            m = await app.bot.send_message(
+                app.admin,
                 f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
                 disable_notification=False,
                 reply_markup=ForceReply(input_field_placeholder="012345"),
             )
             code = await self.force_reply_answer(m)
             if code is None:
-                await _self.bot.send_message(_self.admin, "超时未回复")
+                await app.bot.send_message(app.admin, "超时未回复")
                 await m.edit_reply_markup(reply_markup=None)
                 return
 
             if len(code) != 6:
-                await _self.bot.send_message(_self.admin, "应回复六位数字验证码")
+                await app.bot.send_message(app.admin, "应回复六位数字验证码")
                 await m.edit_reply_markup(reply_markup=None)
                 return
             return code
@@ -70,56 +65,35 @@ def upevent_hook(_self: InteractApp, base: type[UPEvent]):
                 evt.set()
 
             handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
-            _self.app.add_handler(handler)
+            app.app.add_handler(handler)
 
             try:
-                await asyncio.wait_for(evt.wait(), timeout=_self.conf.qzone.vcode_timeout)
+                await asyncio.wait_for(evt.wait(), timeout=app.conf.qzone.vcode_timeout)
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 return
             else:
                 return code
             finally:
-                _self.app.remove_handler(handler)
+                app.app.remove_handler(handler)
 
     return interactapp_upevent
 
 
-@sub_of(HeartbeatEvent)
-def heartbeatevent_hook(_self: InteractApp, base: type[HeartbeatEvent]):
-    class interactapp_heartbeatevent(base):
-        async def HeartbeatRefresh(self, num: int):
-            if _self.fetch_lock.locked:
-                _self.log.warning("Heartbeat refresh skipped since fetch is running.")
+def heartbeatevent_hook(app: InteractApp):
+    async def HeartbeatRefresh(num: int):
+        tasks = [t for t in app.ch_fetch._futs if t._state == "PENDING"]
+        match len(tasks):
+            case n if n > 1:
+                task = next(filter(lambda t: t._state == "PENDING", tasks))
+                app.log.warn(
+                    "fetch taskset should contain only one task, the first pending task is used."
+                )
+            case n if n == 1:
+                task = next(iter(tasks))
+            case _:
+                app.log.warn("fetch task not found, fetch lock skipped.")
                 return
-            await super().HeartbeatRefresh(num)
 
-            tasks = [t for t in _self._tasks["fetch"] if t._state == "PENDING"]
-            match len(tasks):
-                case n if n > 1:
-                    task = next(filter(lambda t: t._state == "PENDING", tasks))
-                    _self.log.warn(
-                        "fetch taskset should contain only one task, the first pending task is used."
-                    )
-                case n if n == 1:
-                    task = next(iter(tasks))
-                case _:
-                    _self.log.warn("fetch task not found, fetch lock skipped.")
-                    return
+        app.fetch_lock.acquire(task)
 
-            _self.fetch_lock.acquire(task)
-
-    return interactapp_heartbeatevent
-
-
-@sub_of(FeedEvent)
-def feedevent_hook(_self: InteractApp, base: type[FeedEvent]):
-    from aioqzone_feed.type import FeedContent
-
-    class interactapp_feedevent(base):
-        async def FeedProcEnd(self, bid: int, feed: FeedContent):
-            if await _self.blockset.contains(feed.uin):
-                await self.FeedDropped(bid, feed)
-                return
-            await super().FeedProcEnd(bid, feed)
-
-    return interactapp_feedevent
+    app.qzone.hb_api.hb_refresh.add_impl(HeartbeatRefresh)
