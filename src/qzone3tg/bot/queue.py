@@ -3,17 +3,18 @@ import logging
 from collections import defaultdict
 from typing import Mapping, Sequence, TypeGuard
 
+from aiogram import Bot
+from aiogram.exceptions import AiogramError
+from aiogram.exceptions import TelegramBadRequest as BadRequest
+from aiogram.types.message import Message
 from aioqzone_feed.type import FeedContent
 from httpx import TimeoutException
-from telegram import Bot, Message
-from telegram.constants import MessageLimit
-from telegram.error import BadRequest, TelegramError, TimedOut
 from tylisten.futstore import FutureStore
 
 from qzone3tg.utils.iter import countif
 
 from . import ChatId, ReplyMarkup, SupportMedia
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial
+from .atom import CAPTION_LENGTH, MAX_TEXT_LENGTH, MediaGroupPartial, MediaPartial, MsgPartial
 from .splitter import FetchSplitter, Splitter
 
 Atom = MediaGroupPartial | MsgPartial
@@ -248,7 +249,7 @@ class MsgQueue:
                 case r if isinstance(r, Sequence):
                     log.debug("atom is sent successfully.")
                     return [i.message_id for i in r]
-        except TimedOut as e:
+        except asyncio.TimeoutError as e:
             self.exc_groups[feed].append(e)
             log.debug(f"current timeout={atom.timeout:.2f}")
             log.info("发送超时：等待重发")
@@ -256,9 +257,7 @@ class MsgQueue:
             if isinstance(e.__cause__, TimeoutException):
                 log.debug("the timeout request is:", e.__cause__.request)
             if atom.text is None or len(atom.text) < (
-                MessageLimit.MAX_TEXT_LENGTH
-                if atom.meth == "message"
-                else MessageLimit.CAPTION_LENGTH
+                MAX_TEXT_LENGTH if atom.meth == "message" else CAPTION_LENGTH
             ):
                 atom.text = "🔁" + (atom.text or "")
             return atom
@@ -282,9 +281,9 @@ class MsgQueue:
                     log.debug(atom)
                     return None
                 log.warning("fetch is not enabled, skip.")
-        except TelegramError as e:
+        except AiogramError as e:
             self.exc_groups[feed].append(e)
-            log.error("Uncaught telegram error in send_%s.", atom.meth, exc_info=e)
+            log.error("Uncaught AiogramError in send_%s.", atom.meth, exc_info=e)
         except BaseException as e:
             self.exc_groups[feed].append(e)
             log.error("Uncaught error in send_%s.", atom.meth, exc_info=e)

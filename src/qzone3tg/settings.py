@@ -61,7 +61,7 @@ class PollingConf(BaseModel):
 
     bootstrap_retries: int = -1
     read_timeout: float = 2.0
-    """Timeout when reading from telegram.
+    """Timeout when reading from aiogram.
 
     .. versionchanged:: 0.5.0a3
 
@@ -131,7 +131,7 @@ class WebhookConf(BaseModel):
 
     @validator("port")
     def port_choice(cls, v: int):
-        from telegram.constants import SUPPORTED_WEBHOOK_PORTS
+        from aiogram.constants import SUPPORTED_WEBHOOK_PORTS
 
         assert v in SUPPORTED_WEBHOOK_PORTS
         return v

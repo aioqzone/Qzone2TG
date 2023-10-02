@@ -1,10 +1,10 @@
 from typing import Callable
 
 import pytest
+from aiogram import InputFile
+from aiogram.constants import MediaGroupLimit
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
-from telegram import InputFile
-from telegram.constants import MediaGroupLimit
 
 from qzone3tg.bot.atom import (
     LIM_MD_TXT,
@@ -116,7 +116,7 @@ class TestLocal:
         for p, p_cls in zip(ps, part_cls):
             assert isinstance(p, p_cls)
             if isinstance(p, MediaGroupPartial):
-                assert len(p.medias) >= MediaGroupLimit.MIN_MEDIA_LENGTH
+                assert len(p.builder) >= MediaGroupLimit.MIN_MEDIA_LENGTH
 
 
 class TestFetch:
@@ -126,7 +126,7 @@ class TestFetch:
         ps = await fetch.unify_send(f)
         p = ps[0]
         assert isinstance(p, MediaGroupPartial)
-        ipm = await fetch.force_bytes_inputmedia(p.medias[0])
+        ipm = await fetch.force_bytes_inputmedia(p.builder[0])
         assert isinstance(ipm.media, InputFile)
         assert ipm.media.input_file_content
 
@@ -139,7 +139,7 @@ class TestFetch:
         assert isinstance(ps[1], PicPartial)
 
         p = await fetch.force_bytes(ps[0])
-        for i in p.medias:
+        for i in p.builder:
             assert isinstance(i.media, InputFile)
             assert i.media.input_file_content
 

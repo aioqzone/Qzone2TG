@@ -9,24 +9,24 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Sequence, overload
 
 import qzemoji.utils as qeu
+from aiogram.enums.input_media_type import InputMediaType
+from aiogram.types.input_file import BufferedInputFile, InputFile
+from aiogram.types.input_media_animation import InputMediaAnimation as Anim
+from aiogram.types.input_media_document import InputMediaDocument as Doc
+from aiogram.types.input_media_photo import InputMediaPhoto as Pic
+from aiogram.types.input_media_video import InputMediaVideo as Video
+from aiogram.utils.media_group import MediaType as GroupMedia
 from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
 from httpx import URL
 from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
-from telegram import InputFile
-from telegram import InputMediaAnimation as Anim
-from telegram import InputMediaDocument as Doc
-from telegram import InputMediaPhoto as Pic
-from telegram import InputMediaVideo as Video
 
-from qzone3tg.type import FeedPair
-
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href, url_basename
 
 if TYPE_CHECKING:
-    from . import GroupMedia, SupportMedia
+    from . import SupportMedia
 
 
 log = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ class LocalSplitter(Splitter):
         while pipe_objs[0] or pipe_objs[1]:
             if pipe_objs[1]:
                 if len(md_types) > 1 and (
-                    issubclass(md_types[0], Doc) == issubclass(md_types[1], Doc)
+                    (md_types[0] == InputMediaType.DOCUMENT) == (md_types[1] == Doc)
                 ):
                     p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
                 else:
@@ -177,7 +177,7 @@ class LocalSplitter(Splitter):
         """:class:`LocalSpliter` does not probe any media."""
         return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> InputMediaType:
         """Guess media type according to its metadata.
 
         :param media: metadata to guess
@@ -185,14 +185,14 @@ class LocalSplitter(Splitter):
         assert isinstance(media, VisualMedia)
         raw_url = URL(media.raw)
         if raw_url.path and raw_url.path.endswith(".gif"):
-            return Anim
+            return InputMediaType.ANIMATION
         if media.is_video:
             if supported_video(raw_url):
-                return Video
-            return Doc
+                return InputMediaType.VIDEO
+            return InputMediaType.DOCUMENT
         if media.height + media.width > 1e4:
-            return Doc
-        return Pic
+            return InputMediaType.DOCUMENT
+        return InputMediaType.PHOTO
 
 
 class FetchSplitter(LocalSplitter):
@@ -218,13 +218,13 @@ class FetchSplitter(LocalSplitter):
         try:
             # fetch the media to probe correctly
             async with self.client.get(str(media.raw)) as r:
-                return b"".join([i async for i in r.aiter_bytes()])
+                return await r.content.read()
         except:
             # give-up if error
             log.warning("Error when probing", exc_info=True)
             return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> InputMediaType:
         """Guess media type using media raw, otherwise by metadata.
 
         :param media: metadata to guess
@@ -234,14 +234,14 @@ class FetchSplitter(LocalSplitter):
             return super().guess_md_type(media)
 
         if len(media) > 5e7:
-            return Doc
+            return InputMediaType.DOCUMENT
 
         if is_gif(media):
-            return Anim
+            return InputMediaType.ANIMATION
 
         if len(media) > 1e7:
-            return Doc
-        return Pic
+            return InputMediaType.DOCUMENT
+        return InputMediaType.PHOTO
 
     async def media_args(self, feed: FeedContent):
         """Get media atoms of a feed.
@@ -265,7 +265,7 @@ class FetchSplitter(LocalSplitter):
     # fmt: on
 
     async def force_bytes(self, call: MsgPartial) -> MsgPartial:
-        """This method will be called when a partial got :exc:`telegram.error.BadRequest` from telegram.
+        """This method will be called when a partial got :exc:`telegram.error.BadRequest` from aiogram.
         We will force fetch the url by ourself and send the raw data instead of the url to telegram.
 
         :param call: the partial that its media should be fetched.
@@ -275,35 +275,26 @@ class FetchSplitter(LocalSplitter):
             case "animation" | "document" | "photo" | "video":
                 assert isinstance(call, MediaPartial)
                 media = call.content
-                if isinstance(media, bytes):
+                if isinstance(media, InputFile):
                     log.error("force fetch the raws")
                     return call
 
                 log.info(f"force fetch a {call.meth}: {media}")
                 try:
                     async with self.client.get(media) as r:
-                        call._raw = b"".join([i async for i in r.aiter_bytes()])
+                        call._raw = BufferedInputFile(await r.content.read(), url_basename(media))
                 except:
                     log.warning(f"force fetch error, skipped: {media}", exc_info=True)
                 return call
 
             case "media_group":
                 assert isinstance(call, MediaGroupPartial)
-                for i, im in enumerate(call.medias):
-                    call.medias[i] = await self.force_bytes_inputmedia(im)
+                for i, im in enumerate(call.builder._media):
+                    call.builder._media[i] = await self.force_bytes_inputmedia(im)
         return call
 
-    # fmt: off
-    @overload
-    async def force_bytes_inputmedia(self, media: GroupMedia) -> GroupMedia: ...
-    @overload
-    async def force_bytes_inputmedia(self, media: SupportMedia) -> SupportMedia: ...
-    # fmt: true
-
-    async def force_bytes_inputmedia(self, media: SupportMedia) -> SupportMedia:
-        if isinstance(media.media, InputFile) and isinstance(
-            media.media.input_file_content, bytes
-        ):
+    async def force_bytes_inputmedia(self, media: GroupMedia) -> GroupMedia:
+        if isinstance(media.media, InputFile):
             return media
 
         if not isinstance(media.media, str):
@@ -315,7 +306,9 @@ class FetchSplitter(LocalSplitter):
         log.info(f"force fetch {media.type}: {media.media}")
         try:
             async with self.client.get(media.media) as r:
-                media = media.__class__(media=r.content)
+                media = media.__class__(
+                    media=BufferedInputFile(await r.content.read(), url_basename(media.media))
+                )
         except:
             log.warning(f"force fetch error, skipped: {media.media}", exc_info=True)
         return media

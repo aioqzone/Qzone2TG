@@ -2,26 +2,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aiogram import InlineKeyboardButton, InlineKeyboardMarkup
 from aioqzone.event import QREvent
 from aioqzone.type.entity import EmEntity
 from aioqzone.type.internal import LikeData, PersudoCurkey
 from qqqr.event import sub_of
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram import Update
+    from aiogram.ext import ContextTypes
 
     from . import InteractApp
 
 
 @sub_of(QueueEvent)
 def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
+    from aiogram.constants import InlineKeyboardButtonLimit
     from aioqzone_feed.type import FeedContent
-    from telegram.constants import InlineKeyboardButtonLimit
 
     from qzone3tg.type import FeedPair
 

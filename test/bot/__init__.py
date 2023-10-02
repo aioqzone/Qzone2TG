@@ -1,8 +1,8 @@
 from datetime import datetime
 
+from aiogram import Chat, Message
 from aioqzone.model import TextEntity
 from aioqzone_feed.type import FeedContent, VisualMedia
-from telegram import Chat, Message
 
 from qzone3tg.bot import ChatId
 

@@ -8,8 +8,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import qzemoji as qe
-from qzemoji.utils import build_html, wrap_plain_text
-from telegram import (
+from aiogram import (
     ForceReply,
     InlineKeyboardMarkup,
     Message,
@@ -17,7 +16,8 @@ from telegram import (
     ReplyKeyboardRemove,
     Update,
 )
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram.ext import ContextTypes, ConversationHandler
+from qzemoji.utils import build_html, wrap_plain_text
 
 if TYPE_CHECKING:
     from qzone3tg.app.interact import InteractApp

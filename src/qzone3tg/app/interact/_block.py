@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
+from aiogram.constants import ParseMode
+from aiogram.ext import ContextTypes
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram import Update
 
     from qzone3tg.app.interact import InteractApp
 

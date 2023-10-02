@@ -8,8 +8,8 @@ if TYPE_CHECKING:
 
 
 def upevent_hook(app: InteractApp):
-    from telegram import ForceReply, Message, Update
-    from telegram.ext import MessageHandler, filters
+    from aiogram import ForceReply, Message, Update
+    from aiogram.ext import MessageHandler, filters
 
     class ReplyHandler(MessageHandler):
         def __init__(self, filters, callback, reply: Message):

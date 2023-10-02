@@ -5,24 +5,29 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, Final, Sequence
 
+from aiogram import Bot
+from aiogram.enums.input_media_type import InputMediaType
+from aiogram.types.input_file import BufferedInputFile
+from aiogram.types.input_media_animation import InputMediaAnimation as Anim
+from aiogram.types.input_media_document import InputMediaDocument as Doc
+from aiogram.types.input_media_photo import InputMediaPhoto as Pic
+from aiogram.types.input_media_video import InputMediaVideo as Video
+from aiogram.types.message import Message
+from aiogram.utils.media_group import MediaGroupBuilder
 from aioqzone_feed.type import VisualMedia
-from telegram import Bot
-from telegram import InputMediaAnimation as Anim
-from telegram import InputMediaDocument as Doc
-from telegram import InputMediaPhoto as Pic
-from telegram import InputMediaVideo as Video
-from telegram import Message
-from telegram.constants import MediaGroupLimit, MessageLimit
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from . import GroupMedia, ReplyMarkup, SupportMedia
+    from . import ReplyMarkup, SupportMedia
 
-    PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[type[SupportMedia]]]
+    PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[InputMediaType]]
 
-LIM_TXT: Final[int] = MessageLimit.MAX_TEXT_LENGTH - 1
-LIM_MD_TXT: Final[int] = MessageLimit.CAPTION_LENGTH - 1
+MAX_GROUP_MEDIA: Final[int] = 10
+MAX_TEXT_LENGTH: Final[int] = 4096
+CAPTION_LENGTH: Final[int] = 1024
+LIM_TXT: Final[int] = MAX_TEXT_LENGTH - 1
+LIM_MD_TXT: Final[int] = CAPTION_LENGTH - 1
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +35,10 @@ log = logging.getLogger(__name__)
 def href(txt: str, url: str):
     url = url.replace("'", "\\'")
     return f"<a href='{url}'>{txt}</a>"
+
+
+def url_basename(url: str):
+    return url[url.rfind("/") + 1 :]
 
 
 class MsgPartial(ABC):
@@ -56,7 +65,7 @@ class MsgPartial(ABC):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[SupportMedia],
+        md_types: list[InputMediaType],
         **kwds,
     ) -> tuple[Self, PIPE_OBJS]:
         """Given a pipeline of texts, media metas, media raw, media types, this method
@@ -113,7 +122,7 @@ class TextPartial(MsgPartial):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[type[SupportMedia]],
+        md_types: list[InputMediaType],
         **kwds,
     ) -> tuple[Self, PIPE_OBJS]:
         return cls(txt[:LIM_TXT], **kwds), (txt[LIM_TXT:], metas, raws, md_types)
@@ -127,6 +136,7 @@ class MediaPartial(MsgPartial):
 
     __slots__ = ("meta", "_raw", "__md_cls__")
     __md_cls__: ClassVar[type[SupportMedia]]
+    meth: ClassVar[InputMediaType]
 
     def __init__(
         self,
@@ -137,23 +147,13 @@ class MediaPartial(MsgPartial):
     ) -> None:
         super().__init__(**kw)
         self.meta = media
-        self._raw = raw
+        self._raw = BufferedInputFile(raw, url_basename(media.raw)) if raw else None
         self.text = text
 
     @property
-    def content(self) -> bytes | str:
+    def content(self) -> BufferedInputFile | str:
         """returns the media url or its raw data if :obj:`._raw` is not None."""
-        return self._raw or str(self.meta.raw)
-
-    def wrap_media(self, **kw) -> SupportMedia:
-        """Build a :class:`~telegram.InputMedia` from a MediaPartial.
-        This is used in :meth:`Bot.edit_media`."""
-        if self.text:
-            kw["caption"] = self.text
-        return self.__md_cls__(
-            media=self.content,
-            **kw,
-        )
+        return self._raw or self.meta.raw
 
     async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         f = getattr(bot, f"send_{self.meth}")
@@ -166,12 +166,11 @@ class MediaPartial(MsgPartial):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[type[SupportMedia]],
+        md_types: list[InputMediaType],
         **kwds,
     ) -> tuple["MediaPartial", PIPE_OBJS]:
-        cls = {Anim: AnimPartial, Doc: DocPartial, Pic: PicPartial, Video: VideoPartial}[
-            md_types[0]
-        ]
+        cls = InputMedia2Partial[md_types[0]]
+
         return (
             cls(metas[0], raws[0], txt[:LIM_MD_TXT], **kwds),
             (txt[LIM_MD_TXT:], metas[1:], raws[1:], md_types[1:]),
@@ -179,7 +178,7 @@ class MediaPartial(MsgPartial):
 
 
 class AnimPartial(MediaPartial):
-    meth = "animation"
+    meth = InputMediaType.ANIMATION
     __md_cls__ = Anim
 
     @property
@@ -188,22 +187,30 @@ class AnimPartial(MediaPartial):
 
 
 class DocPartial(MediaPartial):
-    meth = "document"
+    meth = InputMediaType.DOCUMENT
     __md_cls__ = Doc
 
 
 class PicPartial(MediaPartial):
-    meth = "photo"
+    meth = InputMediaType.PHOTO
     __md_cls__ = Pic
 
 
 class VideoPartial(MediaPartial):
-    meth = "video"
+    meth = InputMediaType.VIDEO
     __md_cls__ = Video
 
     @property
     def thumb(self):
         return str(self.meta.thumbnail)
+
+
+InputMedia2Partial = {
+    InputMediaType.ANIMATION: AnimPartial,
+    InputMediaType.DOCUMENT: DocPartial,
+    InputMediaType.PHOTO: PicPartial,
+    InputMediaType.VIDEO: VideoPartial,
+}
 
 
 class MediaGroupPartial(MsgPartial):
@@ -212,18 +219,16 @@ class MediaGroupPartial(MsgPartial):
     """
 
     meth = "media_group"
+    is_doc: bool | None = None
+    """If the first media is Document.
+
+        .. note:: If True, then any other medias in this partial **MUST** be document.
+    """
 
     def __init__(self, text: str | None = None, **kw) -> None:
         super().__init__(**kw)
         self.text = text
-        self.medias: list[GroupMedia] = []
-
-    @property
-    def is_doc(self):
-        """If the first media is Document.
-
-        .. note:: If True, then any other medias in this partial **MUST** be document."""
-        return isinstance(self.medias[0], Doc)
+        self.builder = MediaGroupBuilder()
 
     @MsgPartial.reply_markup.getter
     def reply_markup(self):
@@ -234,16 +239,20 @@ class MediaGroupPartial(MsgPartial):
         assert value is None
 
     async def __call__(self, bot: Bot, *args, **kwds) -> Sequence[Message]:
-        assert self.medias
-        return await bot.send_media_group(
-            *args, media=self.medias, caption=self.text or "", **(self.kwds | kwds)
-        )
+        assert self.builder._media
+        self.builder.caption = self.text
+        return await bot.send_media_group(*args, media=self.builder.build(), **(self.kwds | kwds))
 
-    def append(self, meta: VisualMedia, raw: bytes | None, cls: type[GroupMedia], **kw):
+    def append(self, meta: VisualMedia, raw: bytes | None, cls: InputMediaType, **kw):
         """append a media into this partial."""
-        assert issubclass(cls, (Pic, Doc, Video))
-        assert len(self.medias) < MediaGroupLimit.MAX_MEDIA_LENGTH
-        self.medias.append(cls(media=raw or str(meta.raw), **kw))
+        assert cls in (InputMediaType.PHOTO, InputMediaType.DOCUMENT, InputMediaType.VIDEO)
+        assert len(self.builder._media) < MAX_GROUP_MEDIA
+
+        if raw:
+            media = BufferedInputFile(raw, url_basename(meta.raw))
+        else:
+            media = meta.raw
+        self.builder.add(type=cls, media=media, **kw)
 
     @classmethod
     def pipeline(
@@ -251,7 +260,7 @@ class MediaGroupPartial(MsgPartial):
         txt: str,
         metas: list[VisualMedia],
         raws: list[bytes | None],
-        md_types: list[type[SupportMedia]],
+        md_types: list[InputMediaType],
         **kwds,
     ) -> tuple[Self, PIPE_OBJS]:
         """See :meth:`MsgPartial.pipeline`.
@@ -263,21 +272,21 @@ class MediaGroupPartial(MsgPartial):
         """
         self = cls(**kwds)
         hint = ""
-        i = 0
+        n_pipe = n_media = 0
 
-        while len(self.medias) < MediaGroupLimit.MAX_MEDIA_LENGTH:
+        while n_media < MAX_GROUP_MEDIA:
             if not (metas and raws and md_types):
                 break
 
-            i += 1
+            n_pipe += 1
             meta = metas[0]
             ty = md_types[0]
 
-            if issubclass(ty, Doc) and self.medias and not self.is_doc:
+            if ty == InputMediaType.DOCUMENT and self.builder and not self.is_doc:
                 if meta.is_video:
-                    note = f"\nP{i}: 不支持的视频格式，点击查看{href('原视频', meta.raw)}"
+                    note = f"\nP{n_pipe}: 不支持的视频格式，点击查看{href('原视频', meta.raw)}"
                 else:
-                    note = f"\nP{i}: 图片过大无法发送/显示，点击查看{href('原图', meta.raw)}"
+                    note = f"\nP{n_pipe}: 图片过大无法发送/显示，点击查看{href('原图', meta.raw)}"
 
                 if len(hint) + len(note) <= LIM_MD_TXT - 1:
                     hint += note
@@ -287,15 +296,16 @@ class MediaGroupPartial(MsgPartial):
                     continue
                 else:
                     break
-            if self.medias and self.is_doc and not issubclass(ty, Doc):
+            if self.builder and self.is_doc and not ty == InputMediaType.DOCUMENT:
                 break
 
-            if issubclass(ty, Anim):
-                ty = Pic
-                hint += f"\nP{i}: 不支持动图，点击查看{href('原图', meta.raw)}"
+            if ty == InputMediaType.ANIMATION:
+                ty = InputMediaType.PHOTO
+                hint += f"\nP{n_pipe}: 不支持动图，点击查看{href('原图', meta.raw)}"
 
             self.append(metas.pop(0), raws.pop(0), ty)
             md_types.pop(0)
+            n_media += 1
 
         if hint:
             hint = "\n" + hint

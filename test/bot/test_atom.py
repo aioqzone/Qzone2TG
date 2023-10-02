@@ -1,7 +1,7 @@
 import pytest
+from aiogram import InputMedia
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
-from telegram import InputMedia
 
 import qzone3tg.bot.atom as atom
 from qzone3tg.bot.splitter import FetchSplitter, LocalSplitter
@@ -19,19 +19,6 @@ def local():
 @pytest.fixture(scope="class")
 def fetch(client: ClientAdapter):
     return FetchSplitter(client)
-
-
-async def test_media_arg():
-    vm = fake_media(build_html(100))
-    d = {
-        atom.PicPartial: atom.Pic,
-        atom.AnimPartial: atom.Anim,
-        atom.DocPartial: atom.Doc,
-        atom.VideoPartial: atom.Video,
-    }
-    for k, v in d.items():
-        a = k(vm, None)
-        assert isinstance(a.wrap_media(), v)
 
 
 class TestLocal:

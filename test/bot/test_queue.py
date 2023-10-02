@@ -3,12 +3,12 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
+from aiogram import Bot
+from aiogram.error import BadRequest, TimedOut
 from aioqzone.model import PersudoCurkey
 from aioqzone_feed.type import FeedContent
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
-from telegram import Bot
-from telegram.error import BadRequest, TimedOut
 
 from qzone3tg.bot.queue import MsgQueue, is_atoms, is_mids
 from qzone3tg.bot.splitter import FetchSplitter

@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 
 def qrevent_hook(app: BaseApp):
+    from aiogram import InputMediaPhoto, Message
     from aioqzone.api import LoginMethod
-    from telegram import InputMediaPhoto, Message
 
     async def _cleanup():
         context: dict = app.app.bot_data

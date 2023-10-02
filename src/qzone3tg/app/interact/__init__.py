@@ -1,11 +1,8 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
 
-from aioqzone.model import LikeData
-from qqqr.utils.net import ClientAdapter
-from sqlalchemy.ext.asyncio import AsyncEngine
-from telegram import BotCommand, Update
-from telegram.ext import (
+from aiogram import BotCommand, Update
+from aiogram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
@@ -13,6 +10,9 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from aioqzone.model import LikeData
+from qqqr.utils.net import ClientAdapter
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.settings import PollingConf, Settings

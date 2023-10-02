@@ -11,6 +11,17 @@ from time import time
 
 import qzemoji as qe
 import yaml
+from aiogram import InlineKeyboardMarkup
+from aiogram.constants import ParseMode
+from aiogram.ext import (
+    AIORateLimiter,
+    Application,
+    ApplicationBuilder,
+    CallbackContext,
+    Defaults,
+    ExtBot,
+    Job,
+)
 from aioqzone.exception import LoginError, QzoneError
 from aioqzone_feed.api import HeartbeatApi
 from aioqzone_feed.api.feed.h5 import FeedH5Api
@@ -22,17 +33,6 @@ from qqqr.exception import UserBreak
 from qqqr.utils.net import ClientAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-from telegram import InlineKeyboardMarkup
-from telegram.constants import ParseMode
-from telegram.ext import (
-    AIORateLimiter,
-    Application,
-    ApplicationBuilder,
-    CallbackContext,
-    Defaults,
-    ExtBot,
-    Job,
-)
 from tylisten.futstore import FutureStore
 
 from qzone3tg import AGREEMENT, DISCUSS
