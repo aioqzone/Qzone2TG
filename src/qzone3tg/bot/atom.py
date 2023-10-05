@@ -3,31 +3,28 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Final, Sequence
+from typing import TYPE_CHECKING, ClassVar, Sequence
 
 from aiogram import Bot
-from aiogram.enums.input_media_type import InputMediaType
-from aiogram.types.input_file import BufferedInputFile
-from aiogram.types.input_media_animation import InputMediaAnimation as Anim
-from aiogram.types.input_media_document import InputMediaDocument as Doc
-from aiogram.types.input_media_photo import InputMediaPhoto as Pic
-from aiogram.types.input_media_video import InputMediaVideo as Video
-from aiogram.types.message import Message
+from aiogram.enums import InputMediaType
+from aiogram.types import (
+    BufferedInputFile,
+    InputMediaAnimation,
+    InputMediaDocument,
+    InputMediaPhoto,
+    InputMediaVideo,
+    Message,
+)
 from aiogram.utils.media_group import MediaGroupBuilder
 from aioqzone_feed.type import VisualMedia
+
+from . import *
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from . import ReplyMarkup, SupportMedia
-
     PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[InputMediaType]]
 
-MAX_GROUP_MEDIA: Final[int] = 10
-MAX_TEXT_LENGTH: Final[int] = 4096
-CAPTION_LENGTH: Final[int] = 1024
-LIM_TXT: Final[int] = MAX_TEXT_LENGTH - 1
-LIM_MD_TXT: Final[int] = CAPTION_LENGTH - 1
 
 log = logging.getLogger(__name__)
 
@@ -179,7 +176,7 @@ class MediaPartial(MsgPartial):
 
 class AnimPartial(MediaPartial):
     meth = InputMediaType.ANIMATION
-    __md_cls__ = Anim
+    __md_cls__ = InputMediaAnimation
 
     @property
     def thumb(self):
@@ -188,17 +185,17 @@ class AnimPartial(MediaPartial):
 
 class DocPartial(MediaPartial):
     meth = InputMediaType.DOCUMENT
-    __md_cls__ = Doc
+    __md_cls__ = InputMediaDocument
 
 
 class PicPartial(MediaPartial):
     meth = InputMediaType.PHOTO
-    __md_cls__ = Pic
+    __md_cls__ = InputMediaPhoto
 
 
 class VideoPartial(MediaPartial):
     meth = InputMediaType.VIDEO
-    __md_cls__ = Video
+    __md_cls__ = InputMediaVideo
 
     @property
     def thumb(self):

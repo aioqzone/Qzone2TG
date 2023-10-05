@@ -11,39 +11,32 @@ from time import time
 
 import qzemoji as qe
 import yaml
-from aiogram import InlineKeyboardMarkup
-from aiogram.constants import ParseMode
-from aiogram.ext import (
-    AIORateLimiter,
-    Application,
-    ApplicationBuilder,
-    CallbackContext,
-    Defaults,
-    ExtBot,
-    Job,
-)
-from aioqzone.exception import LoginError, QzoneError
-from aioqzone_feed.api import HeartbeatApi
-from aioqzone_feed.api.feed.h5 import FeedH5Api
+from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.enums import ParseMode
+from aiogram.types import ErrorEvent, InlineKeyboardMarkup
+from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
+from aioqzone.api import QrLoginManager, UpLoginManager
+from aioqzone_feed.api import FeedApi
 from aioqzone_feed.type import BaseFeed, FeedContent
-from apscheduler.job import Job as APSJob
+from apscheduler.job import Job
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from httpx import URL, ConnectError, HTTPError, Timeout
-from qqqr.exception import UserBreak
-from qqqr.utils.net import ClientAdapter
+from qzemoji.base import AsyncEngineFactory
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import RetryError
 from tylisten.futstore import FutureStore
+from yarl import URL
 
 from qzone3tg import AGREEMENT, DISCUSS
+from qzone3tg.app.storage import StorageMan
+from qzone3tg.app.storage.loginman import *
+from qzone3tg.app.storage.orm import FeedOrm, MessageOrm
 from qzone3tg.bot import ChatId
 from qzone3tg.bot.queue import MsgQueue, is_mids
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
-
-from ..storage import StorageMan
-from ..storage.loginman import LoginMan
-from ..storage.orm import FeedOrm, MessageOrm
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
 
@@ -134,42 +127,36 @@ class BaseApp(StorageMixin):
 
     def __init__(
         self,
-        client: ClientAdapter,
-        engine: AsyncEngine,
         conf: Settings,
-        *,
-        init_qzone=True,
-        init_ptb=True,
-        init_queue=True,
-        init_hooks=True,
     ) -> None:
         assert conf.bot.token
         # init logger at first
         self.conf = conf
-        self.client = client
-        self.engine = engine
         # future store channels
         self.ch_fetch = FutureStore()
         self.ch_db_write = FutureStore()
         self.ch_db_read = FutureStore()
         # init a fake lock since subclass impls this protocol but BaseApp needn't
-        self.fetch_lock = FakeLock()
+        self.fetch_lock = asyncio.Lock()
 
         self.log = self._get_logger()
         self.silent_noisy_logger()
 
-        if init_qzone:
-            self.init_qzone()
+    async def __aenter__(self):
+        self.client = await ClientSession().__aenter__()
+        self.engine = await AsyncEngineFactory.sqlite3(self.conf.bot.storage.database).__aenter__()
 
-        if init_ptb:
-            self.init_ptb()
-            self.init_timers()
+        self.init_qzone()
+        self.init_gram()
+        self.init_timers()
+        self.init_queue()
+        self.init_hooks()
 
-        if init_queue:
-            self.init_queue()
+        return self
 
-        if init_hooks:
-            self.init_hooks()
+    async def __aexit__(self, *exc):
+        await self.client.__aexit__(*exc)
+        await self.engine.dispose()
 
     # --------------------------------
     #            properties
@@ -178,38 +165,27 @@ class BaseApp(StorageMixin):
     def admin(self):
         return self.conf.bot.admin
 
-    @property
-    def bot(self) -> ExtBot:
-        return self.app.bot
-
     # --------------------------------
     #             hook init
     # --------------------------------
     def init_qzone(self):
         conf = self.conf.qzone
-        self.loginman = LoginMan(
-            client=self.client,
-            engine=self.engine,
-            up_config=conf.up_config,
-            qr_config=conf.qr_config,
-            h5=True,
-        )
-        self.qzone = FeedH5Api(self.client, self.loginman, init_hb=False)
-        self.heartbeat = HeartbeatApi(self.qzone)
+        self.up_login = UpLoginManager(self.client, conf.up_config)
+        self.qr_login = QrLoginManager(self.client, conf.qr_config)
+        self.qzone = FeedApi(self.client, self.up_login)
         self.log.debug("init_qzone done")
 
-    def init_ptb(self):
+    def init_gram(self):
         conf = self.conf.bot
         assert conf.token
 
-        builder = Application.builder()
-        builder.rate_limiter(AIORateLimiter())
-        builder = builder.token(conf.token.get_secret_value())
-        builder = builder.defaults(Defaults(parse_mode=ParseMode.HTML, **conf.default.dict()))
-        builder = self._build_request(builder)
+        session = self._build_session()
+        default: dict = dict(parse_mode=ParseMode.HTML)
+        default |= conf.default.model_dump()
 
-        self.app = builder.build()
-        self.log.debug("init_ptb done")
+        self.dp = Dispatcher()
+        self.bot = Bot(conf.token.get_secret_value(), session, **default)
+        self.log.debug("init_gram done")
 
     def init_queue(self):
         self.store = StorageMan(self.engine)
@@ -220,46 +196,42 @@ class BaseApp(StorageMixin):
         )
 
     def init_timers(self):
-        job_queue = self.app.job_queue
-        assert job_queue
+        self.scheduler = AsyncIOScheduler()
+        self.scheduler.start(paused=True)
+
         self.timers: dict[str, Job] = {}
         conf = self.conf.log
 
-        async def heartbeat(_):
-            if await self.heartbeat.heartbeat_refresh():
+        async def heartbeat():
+            if await self.qzone.heartbeat_refresh():
                 # if heartbeat_refresh suggest to stop, we disable the job
-                self.timers["hb"].enabled = False
+                self.timers["hb"].pause()
 
-        self.timers["hb"] = job = job_queue.run_repeating(
-            heartbeat, interval=300, first=300, name="heartbeat"
+        self.timers["hb"] = self.scheduler.add_job(
+            heartbeat, "interval", minutes=5, id="heartbeat"
         )
-        job.enabled = False
 
         # clean database
-        async def clean(_):
+        async def clean():
             await self.store.clean(-self.conf.bot.storage.keepdays * 86400)
 
-        self.timers["cl"] = job = job_queue.run_repeating(clean, 86400, 0, name="clean")
-        job.enabled = False
+        self.timers["cl"] = self.scheduler.add_job(clean, "interval", days=1, id="clean")
 
         async def lst_forever(_):
             self.log.info(self._status_dict(debug=True))
 
-        self.timers["ls"] = job_queue.run_repeating(lst_forever, 3600, 3600, name="status")
+        self.timers["ls"] = self.scheduler.add_job(lst_forever, "interval", hours=1, id="status")
 
         # register debug status timer
         if conf.debug_status_interval > 0:
-
-            async def dst_forever(_):
-                await BaseApp.status(self, self.admin, debug=True)
-
-            self.timers["ds"] = job = job_queue.run_repeating(
-                dst_forever,
-                conf.debug_status_interval,
-                conf.debug_status_interval,
-                name="debug_status",
+            self.timers["ds"] = self.scheduler.add_job(
+                BaseApp.status,
+                "interval",
+                args=(self, self.admin),
+                kwargs=dict(debug=True),
+                id="debug_status",
+                seconds=conf.debug_status_interval,
             )
-            job.enabled = False
 
         self.log.debug("init_timers done")
 
@@ -329,7 +301,7 @@ class BaseApp(StorageMixin):
     # --------------------------------
     #          init network
     # --------------------------------
-    def _build_request(self, builder: ApplicationBuilder) -> ApplicationBuilder:
+    def _build_session(self) -> AiohttpSession | None:
         """(internal use only) Build netowrk args for PTB app.
         This will Set QzEmoji proxy as well.
 
@@ -343,21 +315,17 @@ class BaseApp(StorageMixin):
         conf = self.conf.bot.network
         proxy = conf.proxy
 
-        if proxy and proxy.scheme == "socks5h":
-            # httpx resolves DNS at service-side by default. socks5h is not supported.
-            self.log.warning("socks5h协议不受支持，已替换为socks5")
-            proxy = URL(str(proxy)).copy_with(scheme="socks5")
+        # TODO: default timeouts
+        self.client._timeout = ClientTimeout(60, connect=conf.connect_timeout)
+
+        if proxy and proxy.scheme == "socks5":
+            self.log.warning("socks5 已替换为 socks5h")
+            proxy = URL(str(proxy)).with_scheme("socks5h")
 
         if proxy:
             # expect to support https and socks
             proxy = str(proxy)
-            builder = builder.proxy_url(proxy).get_updates_proxy_url(proxy)
-            qe.proxy = proxy
-
-        # TODO: default timeouts
-        self.client.client.timeout = Timeout(60, connect=conf.connect_timeout)
-        builder = builder.connect_timeout(conf.connect_timeout).read_timeout(60).write_timeout(60)
-        return builder
+            return AiohttpSession(proxy=proxy)
 
     # --------------------------------
     #          graceful stop
@@ -370,9 +338,10 @@ class BaseApp(StorageMixin):
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
-        async def ptb_error_handler(_, context: CallbackContext):
-            if isinstance(context.error, ConnectError):
-                self.log.fatal(f"请检查网络连接 ({context.error})")
+        @self.dp.error()
+        async def ptb_error_handler(event: ErrorEvent):
+            if isinstance(event.exception, ClientConnectionError):
+                self.log.fatal(f"请检查网络连接 ({event.exception})")
                 if not self.conf.bot.network.proxy:
                     self.log.warning("提示：您是否忘记了设置代理？")
                 if not isinstance(self.conf.bot.init_args, WebhookConf):
@@ -380,9 +349,7 @@ class BaseApp(StorageMixin):
                 await self.shutdown()
                 return
 
-            self.log.fatal("PTB错误处理收到未被捕捉的异常：", exc_info=context.error)
-
-        self.app.add_error_handler(ptb_error_handler)
+            self.log.fatal("PTB错误处理收到未被捕捉的异常：", exc_info=event.exception)
 
     async def shutdown(self):
         """Shutdown App. `@noexcept`
@@ -394,15 +361,9 @@ class BaseApp(StorageMixin):
         try:
             self.log.warning("App stopping...")
             self.qzone.stop()
-            self.heartbeat.stop()
-            for t in self.timers.values():
-                if not t.removed:
-                    t.schedule_removal()
-            if self.app.running:
-                await self.app.stop()
-            if self.app.updater and self.app.updater.running:
-                await self.app.updater.stop()
-            await self.app.shutdown()
+            self.scheduler.shutdown(False)
+            if self.dp._stop_signal:
+                self.dp._stop_signal.set()
 
         except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
             self.log.error("Force stopping...", exc_info=True)
@@ -421,34 +382,28 @@ class BaseApp(StorageMixin):
 
         :return: None
         """
-        first_run = not await self.loginman.table_exists()
+        first_run = not await table_exists(self.engine)
         self.log.info("注册信号处理...")
         self.register_signal()
         self.log.info("等待异步初始化任务...")
-        init_task = [
+
+        cookie, _, _ = await asyncio.gather(
+            load_cached_cookie(self.conf.qzone.uin, self.engine),
             qe.auto_update(),
             self.store.create(),
-            self.loginman.load_cached_cookie(),
-        ]
-        if not self.app._initialized:
-            init_task.append(self.app.initialize())
-        await asyncio.wait([asyncio.create_task(i) for i in init_task])
-        await self.app.start()
+        )
 
         if first_run:
             await self.license(self.conf.bot.admin)
 
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
-            task = self.ch_fetch.add_awaitable(self._fetch(self.admin))
-            self.fetch_lock.acquire(task)
+            self.ch_fetch.add_awaitable(self._fetch(self.admin))
         else:
             await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
 
         self.log.info("启动所有定时器")
-        for t in self.timers.values():
-            t.enabled = True
-            self.log.debug(f"Job <{t.name}> started.")
+        self.scheduler.resume()
 
         self.start_time = time()
         return await self.idle()
@@ -457,11 +412,8 @@ class BaseApp(StorageMixin):
         """Idle. :exc:`asyncio.CancelledError` will be omitted.
         Return when :obj:`.app` is stopped.
         """
-        while self.app._running:
-            try:
-                await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                continue
+        assert self.dp._stopped_signal
+        await self.dp._stopped_signal.wait()
 
     async def _fetch(self, to: ChatId, *, is_period: bool = False) -> None:
         """fetch feeds.
@@ -469,13 +421,10 @@ class BaseApp(StorageMixin):
         :param to: send to whom
         :param is_period: triggered by heartbeat, defaults to False
         """
-        if not is_period:
-            with self.loginman.force_login():
-                return await self._fetch(to, is_period=False)
+        if not self.fetch_lock.locked:
+            async with self.fetch_lock:
+                return await self._fetch(to, is_period=is_period)
 
-        # No need to acquire lock since all fetch in BaseApp is triggered by heartbeat
-        # which has 300s interval.
-        # NOTE: subclass must handle async lock here
         self.log.info(f"Start fetch with period={is_period}")
         echo = ""
         # start a new batch
@@ -484,23 +433,8 @@ class BaseApp(StorageMixin):
         got = -1
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
-        except* UserBreak:
-            self.log.info("用户取消了登录")
-            echo = "命令已取消：用户取消了登录"
-        except* LoginError:
-            # LoginFailed hook will show reason to user
-            self.log.warning("由于发生了登录错误，爬取未开始。")
-            self.timers["hb"].enabled = False
-            self.log.warning("由于发生了登录错误，心跳定时器已暂停。")
-        except* QzoneError as e:
-            self.log.warning(f"get_feeds_by_second: QzoneError", exc_info=True)
-            echo = "Qzone未正常提供服务。通常这并不意味着程序发生了错误。这种情况可能持续几小时或数天。"
-        except* HTTPError:
-            self.log.error("get_feeds_by_second 抛出了异常", exc_info=True)
-            echo = "有错误发生，但Qzone3TG 或许能继续运行。请检查日志以获取详细信息。"
-        except* BaseException:
-            self.log.fatal("get_feeds_by_second：未捕获的异常", exc_info=True)
-            echo = "有错误发生，Qzone3TG 或许不能继续运行。请检查日志以获取详细信息。"
+        except RetryError:
+            return
 
         if got == 0 and not is_period:
             echo = "您已跟上时代🎉"
@@ -513,7 +447,7 @@ class BaseApp(StorageMixin):
             return
 
         # wait for all hook to finish
-        await asyncio.gather(self.qzone.ch_dispatch.wait(), self.qzone.ch_notify.wait())
+        await asyncio.gather(self.qzone.ch_feed_dispatch.wait(), self.qzone.ch_feed_notify.wait())
         got -= self.queue.skip_num
         if got <= 0:
             if not is_period:
@@ -570,21 +504,19 @@ class BaseApp(StorageMixin):
 
         stat_dic = {
             "启动时间": ts2a(self.start_time),
-            "上次登录": ts2a(self.loginman.last_login),
-            "PTB应用状态": friendly(self.app.running),
-            "PTB更新状态": friendly(self.app.updater and self.app.updater.running),
-            "心跳状态": friendly(self.timers.get("hb") and self.timers["hb"].enabled),
+            "上次密码登录": ts2a(self.up_login.last_login),
+            "上次二维码登录": ts2a(self.qr_login.last_login),
+            "PTB应用状态": friendly(self.dp._stopped_signal and not self.dp._stopped_signal.is_set()),
+            "心跳状态": friendly(self.timers["hb"].next_run_time is not None),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
-            "二维码登录暂停至": ts2a(self.loginman.qr_suppress_end_time),
-            "密码登录暂停至": ts2a(self.loginman.up_suppress_end_time),
         }
         if debug:
             add_dic = {}
             stat_dic.update(add_dic)
         return stat_dic
 
-    async def status(self, to: ChatId, debug: bool = False):
+    async def status(self, to: ChatId, *, debug: bool = False):
         stat_dic = self._status_dict(debug=debug, hf=True)
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
         dn = debug or self.conf.bot.default.disable_notification
@@ -594,21 +526,19 @@ class BaseApp(StorageMixin):
         """
         :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
         """
-        if self.timers.get("hb") is None:
+        if (job := self.timers.get("hb")) is None:
             self.log.warning("heartbeat not initialized")
             return False
 
-        self.log.debug("heartbeat state before restart: %s", self.timers["hb"].enabled)
-        self.timers["hb"].enabled = True
-        self.log.debug("heartbeat state after restart: %s", self.timers["hb"].enabled)
+        self.log.debug("heartbeat next_run_time before restart: %s", job.next_run_time)
+        job.resume()
+        self.log.debug("heartbeat next_run_time after restart: %s", job.next_run_time)
         return True
 
 
-def get_last_call(timer: Job | APSJob | None) -> float:
+def get_last_call(timer: Job | None) -> float:
     if timer is None:
         return 0.0
-    if isinstance(timer, Job):
-        timer = timer.job
 
     if not hasattr(timer, "next_run_time"):
         return 0.0

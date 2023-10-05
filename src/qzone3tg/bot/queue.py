@@ -8,13 +8,12 @@ from aiogram.exceptions import AiogramError
 from aiogram.exceptions import TelegramBadRequest as BadRequest
 from aiogram.types.message import Message
 from aioqzone_feed.type import FeedContent
-from httpx import TimeoutException
 from tylisten.futstore import FutureStore
 
 from qzone3tg.utils.iter import countif
 
-from . import ChatId, ReplyMarkup, SupportMedia
-from .atom import CAPTION_LENGTH, MAX_TEXT_LENGTH, MediaGroupPartial, MediaPartial, MsgPartial
+from . import *
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial
 from .splitter import FetchSplitter, Splitter
 
 Atom = MediaGroupPartial | MsgPartial
@@ -254,8 +253,6 @@ class MsgQueue:
             log.debug(f"current timeout={atom.timeout:.2f}")
             log.info("发送超时：等待重发")
             # log.debug(f"increased timeout={atom.timeout:.2f}")
-            if isinstance(e.__cause__, TimeoutException):
-                log.debug("the timeout request is:", e.__cause__.request)
             if atom.text is None or len(atom.text) < (
                 MAX_TEXT_LENGTH if atom.meth == "message" else CAPTION_LENGTH
             ):

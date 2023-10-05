@@ -1,9 +1,10 @@
 """This module read user config as a global object."""
 
 from pathlib import Path
-from typing import Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Union
 
-from aioqzone.api import LoginMethod, QrLoginConfig, UpLoginConfig
+from aioqzone.api import QrLoginConfig as _QrConfig
+from aioqzone.api import UpLoginConfig as _UpConfig
 from pydantic import (
     AliasChoices,
     AnyUrl,
@@ -13,11 +14,22 @@ from pydantic import (
     FilePath,
     HttpUrl,
     SecretStr,
+    model_validator,
     validator,
 )
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 __all__ = ["Settings"]
+
+SUPPORTED_WEBHOOK_PORTS = (443, 80, 88, 8443)
+
+
+class QrLoginConfig(_QrConfig):
+    uin = 0
+
+
+class UpLoginConfig(_UpConfig):
+    uin = 0
 
 
 class StorageConfig(BaseModel):
@@ -88,12 +100,11 @@ class WebhookConf(BaseModel):
     - `!https://this.server.xyz:443` 如果没有额外配置，替换本机域名即可.
     - `!https://this.server.xyz:443/any/prefix/you/like` 若您配置的反向代理会将 url 转发到 :obj:`.port` 指明的端口，则填写这个 url."""
 
-    port: int = 443
+    port: int = Field(default=443, examples=list(SUPPORTED_WEBHOOK_PORTS))
     """webhook 端口. :abbr:`PTB (Python Telgram Bot)` 会在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
     或经反向代理等中间环节间接访问此端口.
 
-    受 :abbr:`PTB`:external:data:`限制 <telegram.constants.SUPPORTED_WEBHOOK_PORTS>`,
-    端口只能在 443, 80, 88, 8443 中选择。
+    受 Telegram :obj:`限制 <SUPPORTED_WEBHOOK_PORTS>`, 端口只能在 443, 80, 88, 8443 中选择。
     """
 
     cert: Optional[FilePath] = None
@@ -131,8 +142,6 @@ class WebhookConf(BaseModel):
 
     @validator("port")
     def port_choice(cls, v: int):
-        from aiogram.constants import SUPPORTED_WEBHOOK_PORTS
-
         assert v in SUPPORTED_WEBHOOK_PORTS
         return v
 
@@ -205,15 +214,10 @@ class BotConf(BaseModel):
 class QzoneConf(BaseModel):
     """对应配置文件中的 ``qzone`` 项。包含要登陆的QQ账户信息和爬虫相关的设置。"""
 
-    uin: int = Field(alias="qq")
+    uin: int = Field(validation_alias=AliasChoices("uin", "qq"))
     """QQ账号"""
 
     password: Optional[SecretStr] = None
-    login_order: Sequence[LoginMethod] = Field(["up", "qr"])
-    """用于控制登录顺序。
-
-    .. versionadded:: 0.7.7.dev2"""
-
     up_config: UpLoginConfig
     """密码登录配置
 
@@ -235,6 +239,12 @@ class QzoneConf(BaseModel):
     """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
     block_self: bool = True
     """是否舍弃当前登录账号发布的内容. 等同于在 :obj:`.block` 中加入当前 :obj:`.uin`"""
+
+    @model_validator(mode="after")
+    def consistency_uin(self):
+        self.up_config.uin = self.uin
+        self.qr_config.uin = self.uin
+        return self
 
 
 class LogConf(BaseModel):

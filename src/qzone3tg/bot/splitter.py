@@ -19,15 +19,11 @@ from aiogram.utils.media_group import MediaType as GroupMedia
 from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
-from httpx import URL
 from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
+from yarl import URL
 
 from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href, url_basename
-
-if TYPE_CHECKING:
-    from . import SupportMedia
-
 
 log = logging.getLogger(__name__)
 html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})

@@ -1,51 +1,41 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
-import asyncio
-
-from aiogram import BotCommand, Update
-from aiogram.ext import (
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
+import aiogram.filters as filter
+from aiogram import Bot, F
+from aiogram.filters.callback_data import CallbackData
+from aiogram.filters.command import CommandObject
+from aiogram.types import BotCommand, Message
+from aiogram.utils.formatting import BotCommand as CommandText
+from aiogram.utils.formatting import Url as UrlText
+from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
 from aioqzone.model import LikeData
-from qqqr.utils.net import ClientAdapter
-from sqlalchemy.ext.asyncio import AsyncEngine
 
+from qzone3tg import CHANNEL, DISCUSS, DOCUMENT
 from qzone3tg.app.storage.blockset import BlockSet
-from qzone3tg.settings import PollingConf, Settings
+from qzone3tg.settings import Settings, WebhookConf
 
 from ..base import BaseApp
+from ._conversation.emoji import command_em
 
 
-class LockFilter(filters.MessageFilter):
-    def __init__(self) -> None:
-        super().__init__()
-        self.locked = False
-
-    def filter(self, message):
-        return not self.locked
-
-    def acquire(self, task: asyncio.Future):
-        self.locked = True
-        task.add_done_callback(lambda _: setattr(self, "locked", False))
+class SerialCbData(CallbackData):
+    command: str
+    sub_command: str
 
 
 class InteractApp(BaseApp):
-    commands = {
-        "start": "刷新",
-        "status": "获取运行状态",
-        "relogin": "强制重新登陆",
-        "like": "点赞指定的说说",
-        "help": "帮助",
-        "block": "黑名单管理",
-    }
+    commands: list[BotCommand] = [
+        BotCommand(command="start", description="刷新"),
+        BotCommand(command="status", description="获取运行状态"),
+        BotCommand(command="up_login", description="密码登录"),
+        BotCommand(command="qr_login", description="二维码登录"),
+        BotCommand(command="like", description="点赞指定的说说"),
+        BotCommand(command="help", description="帮助"),
+        BotCommand(command="block", description="黑名单管理"),
+        command_em,
+    ]
 
-    def __init__(self, client: ClientAdapter, store: AsyncEngine, conf: Settings) -> None:
-        super().__init__(client, store, conf)
-        self.fetch_lock = LockFilter()
+    def __init__(self, conf: Settings) -> None:
+        super().__init__(conf)
 
     # --------------------------------
     #            hook init
@@ -61,51 +51,67 @@ class InteractApp(BaseApp):
 
     def register_handlers(self):
         # build chat filters
-        ca_id = [self.conf.bot.admin]
-        ca_un = []
-        CA = filters.Chat(chat_id=ca_id, username=ca_un)
+        CA = F.from_user.id.in_({self.conf.bot.admin})
 
-        has_fetch = ["start"]
-        for command in set(i.split(maxsplit=1)[0] for i in self.commands):
-            self.app.add_handler(
-                CommandHandler(
-                    command,
-                    getattr(self, command, self.help),
-                    filters=(CA | self.fetch_lock) if command in has_fetch else CA,
-                    block=False,
-                )
+        for command in self.commands:
+            self.dp.message.register(
+                getattr(self, command.command, self.help),
+                CA,
+                filter.Command(command),
             )
-        self.app.add_handler(CallbackQueryHandler(self.btn_qr, r"^qr:(refresh|cancel)$"))
-        self.app.add_handler(CallbackQueryHandler(self.btn_like, r"^like:-?\d+$", block=False))
 
-        from ._conversation.emoji import EmCvState
-
-        self.app.add_handler(
-            ConversationHandler(
-                entry_points=[
-                    CallbackQueryHandler(self.btn_emoji, r"^emoji:"),
-                    CommandHandler("em", self.command_em, CA),
-                ],
-                states={
-                    EmCvState.CHOOSE_EID: [
-                        MessageHandler(filters.Regex(r"^\d+$"), self.input_eid)
-                    ],
-                    EmCvState.ASK_CUSTOM: [
-                        MessageHandler(filters.TEXT & (~filters.COMMAND), self.update_eid)
-                    ],
-                },
-                fallbacks=[CommandHandler("cancel", self.cancel_custom, filters=CA)],
-                per_chat=False,
-            )
+        self.dp.callback_query.register(
+            self.btn_qr,
+            SerialCbData.filter(F.command == "qr"),
+            SerialCbData.filter(F.sub_command.in_({"refresh", "cancel"})),
         )
+        self.dp.callback_query.register(
+            self.btn_like,
+            SerialCbData.filter(F.command == "like"),
+            SerialCbData.filter(F.sub_command.regexp(r"-?\d+")),
+        )
+
+        self.em_cvs = self.build_router()
+        self.dp.include_router(self.em_cvs)
 
     async def set_commands(self):
         try:
-            await self.bot.set_my_commands(
-                [BotCommand(command=k, description=v) for k, v in self.commands.items()]
-            )
+            await self.bot.set_my_commands(self.commands)
         except:
             self.log.error("Error in setting commands", exc_info=True)
+
+    def _start_webhook(self, conf: WebhookConf):
+        from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+        from aiohttp import web
+
+        token = self.conf.bot.token
+        assert token
+
+        # Create aiohttp.web.Application instance
+        app = web.Application()
+
+        # Create an instance of request handler,
+        # aiogram has few implementations for different cases of usage
+        # In this example we use SimpleRequestHandler which is designed to handle simple cases
+        webhook_requests_handler = SimpleRequestHandler(dispatcher=self.dp, bot=self.bot)
+        # Register webhook handler on application
+        webhook_requests_handler.register(app, path=conf.webhook_url(token).get_secret_value())
+
+        async def on_startup(bot: Bot) -> None:
+            # If you have a self-signed SSL certificate, then you will need to send a public
+            # certificate to Telegram
+            await bot.set_webhook(
+                conf.webhook_url(token).get_secret_value(),
+                secret_token=token.get_secret_value(),
+            )
+
+        self.dp.startup.register(on_startup)
+
+        # Mount dispatcher startup and shutdown hooks to aiohttp application
+        setup_application(app, self.dp, bot=self.bot)
+
+        # And finally start webserver
+        web.run_app(app, host="0.0.0.0", port=conf.port)
 
     async def run(self):
         """
@@ -116,24 +122,11 @@ class InteractApp(BaseApp):
         """
 
         conf = self.conf.bot.init_args
-        await self.app.initialize()
-        updater = self.app.updater
-        assert updater
-        if isinstance(conf, PollingConf):
-            await updater.start_polling(**conf.dict())
+        if isinstance(conf, WebhookConf):
+            self._start_webhook(conf)
         else:
-            token = self.conf.bot.token
-            assert token
-            kw = conf.dict(exclude={"destination", "cert", "key"})
-            safe_asposix = lambda p: p and p.as_posix()
-            await updater.start_webhook(
-                listen="0.0.0.0",
-                url_path=token.get_secret_value(),
-                webhook_url=conf.webhook_url(token).get_secret_value(),
-                cert=safe_asposix(conf.cert),
-                key=safe_asposix(conf.key),
-                **kw,
-            )
+            await self.dp.start_polling(self.bot, **conf.model_dump())
+
         self.register_handlers()
         await self.set_commands()
         # 加载动态黑名单
@@ -143,63 +136,64 @@ class InteractApp(BaseApp):
     # --------------------------------
     #            command
     # --------------------------------
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat = update.effective_chat
-        assert chat
+    async def start(self, message: Message, command: CommandObject):
+        chat = message.chat
+
         self.log.debug("Start! chat=%d", chat.id)
         if self.ch_fetch._futs:
             self.log.warning("有正在进行的抓取任务")
             self.ch_fetch.clear()
-        task = self.ch_fetch.add_awaitable(self._fetch(chat.id))
-        self.fetch_lock.acquire(task)
+        self.ch_fetch.add_awaitable(self._fetch(chat.id))
 
-    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        from qzone3tg import DOCUMENT
+    async def help(self, message: Message, command: CommandObject):
+        chat = message.chat
 
-        chat = update.effective_chat
-        assert chat
-        helpm = "\n".join(f"/{k} - {v}" for k, v in self.commands.items())
-        helpm += "\n\n官方频道：@qzone2tg"
-        helpm += "\n讨论群：@qzone2tg_discuss"
-        helpm += f"\n文档：{DOCUMENT}/usage.html"
-        await self.bot.send_message(chat.id, helpm)
+        help_section = as_marked_section(
+            "命令：", *(as_key_value(CommandText(c.command), c.description) for c in self.commands)
+        )
+        brand_section = as_marked_section(
+            "其他帮助：",
+            as_key_value("官方频道", UrlText(CHANNEL)),
+            as_key_value("讨论群", UrlText(DISCUSS)),
+            as_key_value("文档", UrlText(f"{DOCUMENT}/usage.html")),
+        )
 
-    async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat = update.effective_chat
-        assert chat
-        match context.args:
-            case ["debug"]:
+        await self.bot.send_message(
+            chat.id, **as_list(help_section, brand_section, sep="\n\n").as_kwargs()
+        )
+
+    async def status(self, message: Message, command: CommandObject):
+        chat = message.chat
+        assert message.text
+
+        match command.args:
+            case "debug":
                 await super().status(chat.id, debug=True)
             case _:
                 await super().status(chat.id)
 
-    async def relogin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat = update.effective_chat
-        assert chat
-        with self.loginman.force_login():
-            try:
-                await self.qzone.login.new_cookie()
-            except:
-                return
-
+    async def up_login(self, message: Message, command: CommandObject):
+        await self.up_login.new_cookie()
         # `LoginSuccess` hooks will restart heartbeat
 
-    async def like(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        msg = update.effective_message
-        assert msg
-        reply = msg.reply_to_message
+    async def qr_login(self, message: Message, command: CommandObject):
+        await self.qr_login.new_cookie()
+
+    async def like(self, message: Message, command: CommandObject):
+        assert message
+        reply = message.reply_to_message
         if not reply:
-            await msg.reply_text("使用 /like 时，您需要回复一条消息。")
+            await message.reply("使用 /like 时，您需要回复一条消息。")
             return
 
         async def query_likedata(mid: int):
             feed = await self.Mid2Feed(reply.message_id)
             if not feed:
-                await msg.reply_text(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
+                await message.reply(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
                 return
 
             if feed.unikey is None:
-                await msg.reply_text("该说说不支持点赞。")
+                await message.reply("该说说不支持点赞。")
                 return
 
             return LikeData(
@@ -212,18 +206,17 @@ class InteractApp(BaseApp):
             )
 
         async def like_trans(likedata: LikeData):
-            with self.loginman.force_login():
-                try:
-                    succ = await self.qzone.internal_dolike_app(
-                        likedata.appid, likedata.unikey, likedata.curkey, True
-                    )
-                except:
-                    self.log.error("点赞失败", exc_info=True)
-                    succ = False
+            try:
+                succ = await self.qzone.internal_dolike_app(
+                    likedata.appid, likedata.unikey, likedata.curkey, True
+                )
+            except:
+                self.log.error("点赞失败", exc_info=True)
+                succ = False
             if succ:
-                await msg.reply_text("点赞成功")
+                await message.reply("点赞成功")
             else:
-                await msg.reply_text("点赞失败")
+                await message.reply("点赞失败")
 
         likedata = await query_likedata(reply.message_id)
         if likedata is None:
@@ -235,4 +228,4 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._block import block
     from ._button import btn_like, btn_qr
-    from ._conversation.emoji import btn_emoji, cancel_custom, command_em, input_eid, update_eid
+    from ._conversation.emoji import build_router, em, input_eid

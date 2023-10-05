@@ -18,7 +18,7 @@ def qrevent_hook(app: BaseApp):
     from aioqzone.api import LoginMethod
 
     async def _cleanup():
-        context: dict = app.app.bot_data
+        context: dict = app.dp.bot_data
         context["qr_renew"] = False
 
         if isinstance(qr_msg := context.get("qr_msg"), Message):
@@ -43,7 +43,7 @@ def qrevent_hook(app: BaseApp):
         await app.bot.send_message(app.admin, "登录成功")
 
     async def QrFetched(png: bytes, times: int):
-        context: dict = app.app.bot_data
+        context: dict = app.dp.bot_data
 
         if (msg := context.get("qr_msg")) is None:
             context["qr_msg"] = await app.bot.send_photo(
@@ -148,8 +148,8 @@ def heartbeatevent_hook(app: BaseApp):
     async def HeartbeatFailed(exc: BaseException, stop: bool):
         app.log.debug(f"heartbeat failed: {exc}")
         if isinstance(exc, QzoneError) and "登录" in exc.msg:
-            assert app.app.job_queue
-            app.app.job_queue.run_once(app.restart_heartbeat, 300)
+            assert app.dp.job_queue
+            app.dp.job_queue.run_once(app.restart_heartbeat, 300)
 
     async def HeartbeatRefresh(num: int):
         app.log.info(f"Heartbeat triggers a refresh: count={num}")

@@ -65,7 +65,7 @@ def upevent_hook(app: InteractApp):
                 evt.set()
 
             handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
-            app.app.add_handler(handler)
+            app.dp.add_handler(handler)
 
             try:
                 await asyncio.wait_for(evt.wait(), timeout=app.conf.qzone.vcode_timeout)
@@ -74,7 +74,7 @@ def upevent_hook(app: InteractApp):
             else:
                 return code
             finally:
-                app.app.remove_handler(handler)
+                app.dp.remove_handler(handler)
 
     return interactapp_upevent
 

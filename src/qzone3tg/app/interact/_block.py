@@ -2,69 +2,67 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from aiogram.constants import ParseMode
-from aiogram.ext import ContextTypes
+from aiogram.types import BotCommand, Message
+from aiogram.utils.formatting import Bold
+from aiogram.utils.formatting import BotCommand as CommandText
+from aiogram.utils.formatting import Text, as_key_value, as_marked_section
 
 if TYPE_CHECKING:
-    from aiogram import Update
-
     from qzone3tg.app.interact import InteractApp
 
-BLOCK_CMD_HELP = """
-`/block`: 根据回复的消息查询 QQ，并将其加入黑名单
-`/block add <uin>`: 将 uin 加入黑名单
-`/block rm <uin>`: 从黑名单中移除 uin
-`/block list`: 列出所有 **动态添加的** 黑名单 QQ
-"""
+BLOCK_CMD_HELP = as_marked_section(
+    Bold("帮助："),
+    as_key_value(CommandText("/block"), "根据回复的消息查询 QQ，并将其加入黑名单"),
+    as_key_value(CommandText("/block add <uin>"), "将 uin 加入黑名单"),
+    as_key_value(CommandText("/block rm <uin>"), "从黑名单中移除 uin"),
+    as_key_value(CommandText("/block list"), Text("列出所有", Bold("动态添加的"), "黑名单 QQ")),
+)
 
 
-async def block(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.effective_message
-    assert message
-    echo = lambda text, **kw: message.reply_text(
-        text=text, reply_to_message_id=message.id, parse_mode=ParseMode.MARKDOWN_V2, **kw
-    )
-    # NOTE: parse mode is MARKDOWN_V2, "_*[]()~`>#+-=|{}.!" must be escaped!!!
-
-    match context.args:
+async def block(self: InteractApp, message: Message):
+    assert message.text
+    match message.text.split()[1:]:
         case None | []:
             if message.reply_to_message is None:
-                await echo(BLOCK_CMD_HELP)
+                await message.reply(**BLOCK_CMD_HELP.as_kwargs())
                 return
             # message id to uin
-            feed = await self.Mid2Feed(message.reply_to_message.id)
+            feed = await self.Mid2Feed(message.reply_to_message.message_id)
             if feed is None:
-                await echo("uin not found. Try `/block add <uin>` instead.")
+                await message.reply("uin not found. Try `/block add <uin>` instead.")
                 return
             self.blockset.add(feed.uin)
             await self.dyn_blockset.add(feed.uin)
-            await echo(f"{feed.uin} 已加入黑名单")
+            await message.reply(f"{feed.uin} 已加入黑名单")
         case ["rm", uin]:
             try:
                 uin = int(uin)
             except:
-                await echo(BLOCK_CMD_HELP)
+                await message.reply(**BLOCK_CMD_HELP.as_kwargs())
                 return
             self.blockset.discard(uin)
             if await self.dyn_blockset.delete(uin):
-                await echo(f"{uin} 已从黑名单移除✅")
+                await message.reply(f"{uin} 已从黑名单移除✅")
             else:
-                await echo(f"{uin} 尚未被拉黑✅")
+                await message.reply(f"{uin} 尚未被拉黑✅")
         case ["add", uin]:
             try:
                 uin = int(uin)
             except:
-                await echo(BLOCK_CMD_HELP)
+                await message.reply(**BLOCK_CMD_HELP.as_kwargs())
                 return
 
             self.blockset.add(int(uin))
             await self.dyn_blockset.add(int(uin))
-            await echo(f"{uin} 已加入黑名单")
+            await message.reply(f"{uin} 已加入黑名单")
         case ["list"]:
             uins = await self.dyn_blockset.all()
             if uins:
-                await echo("\n".join(f"> {i}" for i in uins))
+                await message.reply("\n".join(f"> {i}" for i in uins))
             else:
-                await echo("黑名单中还没有用户✅")
+                await message.reply("黑名单中还没有用户✅")
         case _:
-            await echo(BLOCK_CMD_HELP)
+            await message.reply(**BLOCK_CMD_HELP.as_kwargs())
+
+
+command_block = BotCommand(command="block", description="管理黑名单")
