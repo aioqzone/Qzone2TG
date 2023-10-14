@@ -170,9 +170,9 @@ class BaseApp(StorageMixin):
     # --------------------------------
     def init_qzone(self):
         conf = self.conf.qzone
-        self.up_login = UpLoginManager(self.client, conf.up_config)
-        self.qr_login = QrLoginManager(self.client, conf.qr_config)
-        self.qzone = FeedApi(self.client, self.up_login)
+        self._uplogin = UpLoginManager(self.client, conf.up_config)
+        self._qrlogin = QrLoginManager(self.client, conf.qr_config)
+        self.qzone = FeedApi(self.client, self._uplogin)
         self.log.debug("init_qzone done")
 
     def init_gram(self):
@@ -436,6 +436,10 @@ class BaseApp(StorageMixin):
         except RetryError:
             return
 
+        if not is_period:
+            # reschedule heartbeat timer
+            self.timers["hb"].reschedule("interval", minutes=5)
+
         if got == 0 and not is_period:
             echo = "您已跟上时代🎉"
 
@@ -504,8 +508,8 @@ class BaseApp(StorageMixin):
 
         stat_dic = {
             "启动时间": ts2a(self.start_time),
-            "上次密码登录": ts2a(self.up_login.last_login),
-            "上次二维码登录": ts2a(self.qr_login.last_login),
+            "上次密码登录": ts2a(self._uplogin.last_login),
+            "上次二维码登录": ts2a(self._qrlogin.last_login),
             "PTB应用状态": friendly(self.dp._stopped_signal and not self.dp._stopped_signal.is_set()),
             "心跳状态": friendly(self.timers["hb"].next_run_time is not None),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),

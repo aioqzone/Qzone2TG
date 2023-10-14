@@ -42,7 +42,6 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._button import qrevent_hook as _sub_qrevent
     from ._button import queueevent_hook as _sub_queueevent
-    from ._hook import heartbeatevent_hook as _sub_heartbeatevent
     from ._hook import upevent_hook as _sub_upevent
 
     def init_queue(self):
@@ -173,11 +172,11 @@ class InteractApp(BaseApp):
                 await super().status(chat.id)
 
     async def up_login(self, message: Message, command: CommandObject):
-        await self.up_login.new_cookie()
+        await self._uplogin.new_cookie()
         # `LoginSuccess` hooks will restart heartbeat
 
     async def qr_login(self, message: Message, command: CommandObject):
-        await self.qr_login.new_cookie()
+        await self._qrlogin.new_cookie()
 
     async def like(self, message: Message, command: CommandObject):
         assert message
