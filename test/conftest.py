@@ -2,7 +2,6 @@ import asyncio
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
 from qqqr.utils.net import ClientAdapter
 
 
@@ -15,5 +14,5 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="module")
 async def client():
-    async with AsyncClient() as client:
-        yield ClientAdapter(client)
+    async with ClientAdapter() as client:
+        yield client

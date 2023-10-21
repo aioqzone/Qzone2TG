@@ -1,7 +1,6 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import aiogram.filters as filter
 from aiogram import Bot, F
-from aiogram.filters.callback_data import CallbackData
 from aiogram.filters.command import CommandObject
 from aiogram.types import BotCommand, Message
 from aiogram.utils.formatting import BotCommand as CommandText
@@ -15,11 +14,7 @@ from qzone3tg.settings import Settings, WebhookConf
 
 from ..base import BaseApp
 from ._conversation.emoji import command_em
-
-
-class SerialCbData(CallbackData):
-    command: str
-    sub_command: str
+from .types import SerialCbData
 
 
 class InteractApp(BaseApp):
@@ -40,7 +35,6 @@ class InteractApp(BaseApp):
     # --------------------------------
     #            hook init
     # --------------------------------
-    from ._button import qrevent_hook as _sub_qrevent
     from ._button import queueevent_hook as _sub_queueevent
     from ._hook import upevent_hook as _sub_upevent
 

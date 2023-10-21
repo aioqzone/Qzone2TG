@@ -36,8 +36,8 @@ EM_HELP = as_marked_section(
 
 
 class EmForm(StatesGroup):
-    CHOOSE_EID = State()
-    ASK_CUSTOM = State()
+    GET_EID = State()
+    GET_TEXT = State()
 
 
 async def _get_eid_bytes(self: InteractApp, eid: int) -> BufferedInputFile | None:
@@ -78,7 +78,7 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
             await state.update_data(eid=int(eid))
-            return await state.set_state(EmForm.ASK_CUSTOM)
+            return await state.set_state(EmForm.GET_TEXT)
         case [eid, name] if str.isdigit(eid):
             await asyncio.gather(
                 qe.set(int(eid), name),
@@ -133,7 +133,7 @@ async def btn_emoji(query: CallbackQuery, callback_data: SerialCbData, state: FS
             is_persistent=True,
         ),
     )
-    await state.set_state(EmForm.CHOOSE_EID)
+    await state.set_state(EmForm.GET_EID)
 
 
 async def input_eid(self: InteractApp, message: Message, state: FSMContext):
@@ -165,10 +165,10 @@ async def input_eid(self: InteractApp, message: Message, state: FSMContext):
         **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(),
         reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
     )
-    await state.set_state(EmForm.ASK_CUSTOM)
+    await state.set_state(EmForm.GET_TEXT)
 
 
-async def update_eid(message: Message, state: FSMContext):
+async def input_text(message: Message, state: FSMContext):
     """This method is the callback when the user replys a customized emoji name. It should be triggerd
     under the `ASK_CUSTOM` state.
 
@@ -215,8 +215,8 @@ def build_router(self: InteractApp) -> Router:
 
     router.message.register(self.em, CA, filter.Command(command_em))
     router.callback_query.register(btn_emoji, SerialCbData.filter(F.command == "emoji"))
-    router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"))
-    router.message.register(update_eid, CA, F.text, ~filter.Command())
+    router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"), EmForm.GET_EID)
+    router.message.register(input_text, CA, F.text, ~filter.Command(), EmForm.GET_TEXT)
     router.message.register(cancel_custom, CA, filter.Command("cancel"))
 
     return router

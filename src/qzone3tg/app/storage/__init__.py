@@ -29,7 +29,7 @@ class StorageMan(AsyncSessionProvider):
     async def get_feed_orm(self, *where, sess: AsyncSession | None = None) -> FeedOrm | None:
         """Get a feed orm from ``feed`` table, with given criteria.
 
-        :return: a instance of :class:`.FeedOrm` if exist, else None.
+        :return: an instance of :class:`.FeedOrm` if exist, else None.
         """
         if sess is None:
             async with self.sess() as newsess:

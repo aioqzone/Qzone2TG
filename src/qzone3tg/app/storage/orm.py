@@ -2,8 +2,7 @@
 
 
 import sqlalchemy as sa
-from aioqzone.model import FeedData
-from aioqzone.model.response.web import FeedRep
+from aioqzone.model import FeedData, PersudoCurkey
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 
@@ -54,11 +53,11 @@ class FeedOrm(Base):
         return record
 
     @classmethod
-    def primkey(cls, feed: BaseFeed | FeedRep | FeedData):
+    def primkey(cls, feed: BaseFeed | PersudoCurkey | FeedData):
         match feed:
             case FeedData():
                 return cls.uin == feed.userinfo.uin, cls.abstime == feed.abstime
-            case BaseFeed() | FeedOrm():
+            case BaseFeed() | FeedOrm() | PersudoCurkey():
                 return cls.uin == feed.uin, cls.abstime == feed.abstime
             case _:
                 raise TypeError(type(feed))
