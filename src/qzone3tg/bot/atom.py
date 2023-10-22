@@ -119,7 +119,7 @@ class MediaPartial(MsgPartial):
 
     __slots__ = ("meta", "_raw", "__md_cls__")
     __md_cls__: ClassVar[type[SupportMedia]]
-    meth: ClassVar[InputMediaType]
+    meth: ClassVar[str]
 
     def __init__(
         self,
@@ -163,7 +163,7 @@ class MediaPartial(MsgPartial):
 
 
 class AnimPartial(MediaPartial):
-    meth = InputMediaType.ANIMATION
+    meth = "animation"
     __md_cls__ = InputMediaAnimation
 
     @property
@@ -172,17 +172,17 @@ class AnimPartial(MediaPartial):
 
 
 class DocPartial(MediaPartial):
-    meth = InputMediaType.DOCUMENT
+    meth = "document"
     __md_cls__ = InputMediaDocument
 
 
 class PicPartial(MediaPartial):
-    meth = InputMediaType.PHOTO
+    meth = "photo"
     __md_cls__ = InputMediaPhoto
 
 
 class VideoPartial(MediaPartial):
-    meth = InputMediaType.VIDEO
+    meth = "video"
     __md_cls__ = InputMediaVideo
 
     @property
