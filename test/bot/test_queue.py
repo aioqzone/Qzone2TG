@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardMarkup
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
 
-from qzone3tg.bot.queue import SendQueue, all_is_atom, all_is_mid
+from qzone3tg.bot.queue import SendQueue, all_is_atom
 from qzone3tg.bot.splitter import FetchSplitter
 
 from . import FakeBot, fake_feed, fake_media
