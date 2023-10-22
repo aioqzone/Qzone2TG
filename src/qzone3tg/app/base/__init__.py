@@ -18,107 +18,24 @@ from aiogram.types import ErrorEvent, InlineKeyboardMarkup
 from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
 from aioqzone.api import QrLoginManager, UpLoginManager
 from aioqzone_feed.api import FeedApi
-from aioqzone_feed.type import BaseFeed, FeedContent
+from aioqzone_feed.type import FeedContent
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from qzemoji.base import AsyncEngineFactory
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import RetryError
 from tylisten.futstore import FutureStore
 from yarl import URL
 
 from qzone3tg import AGREEMENT, DISCUSS
-from qzone3tg.app.storage import StorageMan
+from qzone3tg.app.storage import StorageMan, StorageMixin
 from qzone3tg.app.storage.loginman import *
-from qzone3tg.app.storage.orm import FeedOrm, MessageOrm
 from qzone3tg.bot import ChatId
-from qzone3tg.bot.queue import MsgQueue, is_mids
+from qzone3tg.bot.queue import SendQueue, all_is_mid
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
 DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
-
-
-class FakeLock(object):
-    __slots__ = ()
-
-    def acquire(self, _):
-        pass
-
-
-class StorageMixin:
-    store: StorageMan
-
-    @property
-    def sess_maker(self):
-        return self.store.sess
-
-    async def _update_message_ids(
-        self,
-        feed: BaseFeed,
-        mids: list[int] | None,
-        sess: AsyncSession | None = None,
-        flush: bool = True,
-    ):
-        if sess is None:
-            async with self.sess_maker() as newsess:
-                await self._update_message_ids(feed, mids, sess=newsess, flush=flush)
-            return
-
-        if flush:
-            await self._update_message_ids(feed, mids, sess=sess, flush=False)
-            await sess.commit()
-            return
-
-        # query existing mids
-        stmt = select(MessageOrm)
-        stmt = stmt.where(*MessageOrm.fkey(feed))
-        result = await sess.scalars(stmt)
-
-        # delete existing mids
-        tasks = [asyncio.create_task(sess.delete(i)) for i in result]
-        if tasks:
-            await asyncio.wait(tasks)
-
-        if mids is None:
-            return
-        for mid in mids:
-            sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
-
-    async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
-        """Add/Update an record by the given feed and messages id.
-
-        :param feed: feed
-        :param mids: message id list, defaults to None
-        """
-
-        async def _update_feed(feed, sess: AsyncSession):
-            prev = await self.store.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
-            if prev:
-                # if exist: update
-                FeedOrm.set_by(prev, feed)
-            else:
-                # not exist: add
-                sess.add(FeedOrm.from_base(feed))
-
-        async with self.sess_maker() as sess:
-            async with sess.begin():
-                # BUG: asyncio.wait/gather raises error at the end of a transaction
-                await self._update_message_ids(feed, mids, sess=sess, flush=False)
-                await _update_feed(feed, sess=sess)
-
-    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
-        mo = await self.store.get_msg_orms(MessageOrm.mid == mid)
-        if not mo:
-            return
-        orm = await self.store.get_feed_orm(
-            FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
-        )
-        if orm is None:
-            return
-        return BaseFeed(**orm.dict())  # type: ignore
 
 
 class BaseApp(StorageMixin):
@@ -129,6 +46,8 @@ class BaseApp(StorageMixin):
         self,
         conf: Settings,
     ) -> None:
+        super().__init__()
+
         assert conf.bot.token
         # init logger at first
         self.conf = conf
@@ -189,7 +108,7 @@ class BaseApp(StorageMixin):
 
     def init_queue(self):
         self.store = StorageMan(self.engine)
-        self.queue = MsgQueue(
+        self.queue = SendQueue(
             self.bot,
             FetchSplitter(self.client),
             defaultdict(lambda: self.admin),
@@ -236,12 +155,12 @@ class BaseApp(StorageMixin):
         self.log.debug("init_timers done")
 
     def init_hooks(self):
-        from ._hook import feedevent_hook, heartbeatevent_hook, qrevent_hook, upevent_hook
+        from ._hook import add_feed_impls, add_hb_impls, add_up_impls, qrevent_hook
 
-        feedevent_hook(self)
-        heartbeatevent_hook(self)
+        add_feed_impls(self)
+        add_hb_impls(self)
         qrevent_hook(self)
-        upevent_hook(self)
+        add_up_impls(self)
 
         self.log.info("TG端初始化完成")
 
@@ -434,7 +353,7 @@ class BaseApp(StorageMixin):
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
         except RetryError:
-            return
+            return  # TODO
 
         if not is_period:
             # reschedule heartbeat timer
@@ -452,19 +371,37 @@ class BaseApp(StorageMixin):
 
         # wait for all hook to finish
         await asyncio.gather(self.qzone.ch_feed_dispatch.wait(), self.qzone.ch_feed_notify.wait())
-        got -= self.queue.skip_num
+        got -= self.queue.drop_num
         if got <= 0:
             if not is_period:
                 await self.bot.send_message(to, "您已跟上时代🎉")
             return
+
+        await self._send_save()
+
+        if is_period:
+            return  # skip summary if this is called by heartbeat
+
+        # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
+        errs = self.queue.exc_num
+        summary = f"发送结束，共{got}条，{errs}条错误。"
+        if errs:
+            summary += f"\n查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
+            if self.log.level > 10:
+                summary += f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。"
+
+        await self.bot.send_message(to, summary)
+
+    async def _send_save(self):
+        """wrap `.queue.send_all` with some post-sent database operation."""
 
         # forward
         def _post_sent(task: asyncio.Future[None], feed: FeedContent):
             if e := task.exception():
                 return self.log.error(f"发送feed时出现错误：{feed}", exc_info=e)
 
-            mids = self.queue.Q[feed]
-            assert is_mids(mids)
+            mids = self.queue.feed_state[feed]
+            assert all_is_mid(mids)
             self.ch_db_write.add_awaitable(self.SaveFeed(feed, mids))
 
         feed_send = self.queue.send_all()
@@ -474,21 +411,6 @@ class BaseApp(StorageMixin):
                 t.add_done_callback(partial(_post_sent, feed=feed.forward))
 
         await self.queue.wait_all()
-
-        if is_period:
-            return  # skip summary if this is called by heartbeat
-
-        # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
-        errs = self.queue.exc_num
-        log_level_helper = (
-            f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。" if self.log.level > 10 else ""
-        )
-        summary = f"发送结束，共{got}条，{errs}条错误。"
-        if errs:
-            summary += f"查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
-            summary += log_level_helper
-
-        await self.bot.send_message(to, summary)
 
     async def license(self, to: ChatId):
         LICENSE_TEXT = f"""继续使用即代表您同意<a href="{AGREEMENT}">用户协议</a>。"""

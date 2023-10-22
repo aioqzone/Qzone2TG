@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from bisect import insort
 from collections import defaultdict
 from typing import Mapping, Sequence, TypeGuard
 
@@ -23,25 +24,37 @@ MidOrFeed = FeedContent | list[int]
 log = logging.getLogger(__name__)
 
 
-def is_mids(l: MidOrAtoms) -> TypeGuard[list[int]]:
+def all_is_mid(l: MidOrAtoms) -> TypeGuard[list[int]]:
     assert l
     if all(isinstance(i, int) for i in l):
         return True
     return False
 
 
-def is_atoms(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
+def all_is_atom(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
     assert l
     if all(isinstance(i, MsgPartial) for i in l):
         return True
     return False
 
 
-class MsgQueue:
+class QueueHook:
+    async def reply_markup(self, feed: FeedContent) -> ReplyMarkup | None:
+        """Allow app to generate `reply_markup` according to its own policy.
+
+        :param feed: the feed to generate reply_markup
+        :return: `ReplyMarkup` or None."""
+
+
+class SendQueue(QueueHook):
     bid = -1
-    Q: dict[FeedContent, MidOrAtoms]
-    T: dict[FeedContent, FutureStore]
-    _send_order: dict[int, FeedContent]
+    feed_state: dict[FeedContent, MidOrAtoms]
+    """Feed to sent/unsent atoms."""
+    ch_feed: dict[FeedContent, FutureStore]
+    """Future store per feed."""
+    _send_order: list[FeedContent]
+    _dup_cache: dict[int, FeedContent]
+    """A cache that saves feed according to uin. It is used to check if two feeds are duplicated."""
 
     def __init__(
         self,
@@ -51,24 +64,38 @@ class MsgQueue:
         max_retry: int = 2,
     ) -> None:
         super().__init__()
-        self.Q = defaultdict(lambda: [])
-        self.T = defaultdict(lambda: FutureStore())
-        self._send_order = {}
-        self._uin2lastfeed: dict[int, FeedContent] = {}
+        self.feed_state = defaultdict(list)
+        self.ch_feed = defaultdict(lambda: FutureStore())
+        self._send_order = []
+        self._dup_cache = {}
 
         self.bot = bot
         self.splitter = splitter
         self.forward_map = forward_map
         self.exc_groups = defaultdict(list)
         self.max_retry = max_retry
-        self.skip_num = 0
+        self.drop_num = 0
+        """number of dropped feeds in this batch"""
 
-    async def reply_markup(self, feed: FeedContent) -> ReplyMarkup | None:
-        """Allow app to generate `reply_markup` according to its own policy.
+    @property
+    def exc_num(self):
+        return countif(self.exc_groups.values(), lambda i: len(i) == self.max_retry)
 
-        :param feed: the feed to generate reply_markup
-        :return: `ReplyMarkup` or None."""
-        return None
+    def new_batch(self, bid: int):
+        assert bid != self.bid
+        self.drop_num = 0
+        self.feed_state.clear()
+        self.ch_feed.clear()
+        self._send_order.clear()
+        self._dup_cache.clear()
+        self.exc_groups.clear()
+        self.bid = bid
+
+    def drop(self, bid: int, feed: FeedContent):
+        if bid != self.bid:
+            log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), skipped.")
+            return
+        self.drop_num += 1
 
     def add(self, bid: int, feed: FeedContent, forward_mid: list[int] | None = None):
         """Add a feed into queue. The :obj:`bid` should equal to current :obj:`~MsgQueue.bid`, or
@@ -85,13 +112,18 @@ class MsgQueue:
         :param forward_mid: forward message ids.
         """
         if bid != self.bid:
-            log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), dropped.")
+            log.warning(f"incoming bid ({bid}) != current bid ({self.bid}), skipped.")
             return
 
-        last_feed = self._uin2lastfeed.get(feed.uin)
-        self._uin2lastfeed[feed.uin] = feed
+        last_feed = self._dup_cache.get(feed.uin)
+        self._dup_cache[feed.uin] = feed
 
-        if last_feed and self.Q[last_feed] and abs(feed.abstime - last_feed.abstime) < 1000:
+        # check if this is duplicated
+        if (
+            last_feed
+            and self.feed_state[last_feed]
+            and abs(feed.abstime - last_feed.abstime) < 1000
+        ):
             # compare with last feed
             if last_feed.entities == feed.entities:
                 log.info(f"Feed {last_feed} and {feed} has the same content. Skip the last one.")
@@ -119,10 +151,11 @@ class MsgQueue:
                     part.reply_markup = reply_markup
 
             # push into queue
-            self.Q[feed] = list(atoms)
+            self.feed_state[feed] = list(atoms)
 
+        insort(self._send_order, feed)
         self._send_order[feed.abstime] = feed
-        self.T[feed].add_awaitable(
+        self.ch_feed[feed].add_awaitable(
             asyncio.gather(
                 self.splitter.split(feed),
                 self.reply_markup(feed),
@@ -131,39 +164,24 @@ class MsgQueue:
 
         if forward_mid:
             assert isinstance(feed.forward, FeedContent)
-            self.Q[feed.forward] = forward_mid
+            self.feed_state[feed.forward] = forward_mid
         elif isinstance(feed.forward, FeedContent):
-            self.T[feed.forward].add_awaitable(
+            self.ch_feed[feed.forward].add_awaitable(
                 asyncio.gather(
                     self.splitter.split(feed.forward),
                     self.reply_markup(feed.forward),
                 ),
             ).add_done_callback(lambda s: set_atom_keywords(*s.result()))
 
-    @property
-    def exc_num(self):
-        return countif(self.exc_groups.values(), lambda i: len(i) == self.max_retry)
-
-    def new_batch(self, bid: int):
-        assert bid != self.bid
-        self.skip_num = 0
-        self.Q.clear()
-        self.T.clear()
-        self._send_order.clear()
-        self._uin2lastfeed.clear()
-        self.exc_groups.clear()
-        self.bid = bid
-
     def send_all(self) -> dict[FeedContent, asyncio.Future[None]]:
         task_dict: dict[FeedContent, asyncio.Future[None]] = {}
         uin2lastfeed: dict[int, FeedContent] = {}
 
-        for t in sorted(self._send_order):
-            feed = self._send_order[t]
+        for feed in self._send_order:
             if (
                 (last_feed := uin2lastfeed.get(feed.uin))
-                and self.Q[last_feed]
-                and is_mids(last_mids := self.Q[last_feed])
+                and self.feed_state[last_feed]
+                and all_is_mid(last_mids := self.feed_state[last_feed])
                 and feed.abstime - last_feed.abstime < 1000
             ):
                 # compare with last feed
@@ -172,22 +190,22 @@ class MsgQueue:
                         f"Feed {last_feed} and {feed} has the same content. Skip the last one."
                     )
                     # if all entities are the same, save the last mid and continue.
-                    self.Q[feed] = last_mids
+                    self.feed_state[feed] = last_mids
                     uin2lastfeed[feed.uin] = feed
                     continue
 
-            task_dict[feed] = self.T[feed].add_awaitable(self._send_one_feed(feed))
+            task_dict[feed] = self.ch_feed[feed].add_awaitable(self._send_one_feed(feed))
             uin2lastfeed[feed.uin] = feed
 
         return task_dict
 
     async def _send_one_feed(self, feed: FeedContent) -> None:
-        assert feed in self.Q
+        assert feed in self.feed_state
         log.debug(f"sending feed {feed.uin}{feed.abstime}.")
 
-        await self.T[feed].wait(wait_new=False)
+        await self.ch_feed[feed].wait(wait_new=False)
 
-        atoms = self.Q[feed]
+        atoms = self.feed_state[feed]
         reply: int | None = None
 
         async def _send_atom_with_reply(atom: Atom, feed: FeedContent):
@@ -199,25 +217,27 @@ class MsgQueue:
             return r
 
         # send forward
-        if isinstance(feed.forward, FeedContent) and (atoms_forward := self.Q[feed.forward]):
-            if is_atoms(atoms_forward):
+        if isinstance(feed.forward, FeedContent) and (
+            atoms_forward := self.feed_state[feed.forward]
+        ):
+            if all_is_atom(atoms_forward):
                 mids = sum(
                     [await _send_atom_with_reply(p, feed.forward) for p in atoms_forward], []
                 )
-                self.Q[feed.forward] = mids
+                self.feed_state[feed.forward] = mids
             else:
-                assert is_mids(atoms_forward)
+                assert all_is_mid(atoms_forward)
                 log.info(f"Forward feed is skipped with message ids {atoms_forward}")
                 if atoms_forward:
                     reply = atoms_forward[-1]
 
         # send feed
         assert atoms
-        if is_atoms(atoms):
+        if all_is_atom(atoms):
             mids = sum([await _send_atom_with_reply(p, feed) for p in atoms], [])
-            self.Q[feed] = mids
+            self.feed_state[feed] = mids
         else:
-            assert is_mids(atoms)
+            assert all_is_mid(atoms)
             log.info(f"Feed is skipped with message ids {atoms}")
             if atoms:
                 reply = atoms[-1]
@@ -235,7 +255,7 @@ class MsgQueue:
 
     async def _send_atom_once(self, atom: Atom, feed: FeedContent) -> list[int] | Atom | None:
         """
-        :param f: a :class:`MsgPartial` object
+        :param atom: a :class:`MsgPartial` object
         :param feed: the feed to be sent
         :return: a list of message ids if success, or a `MsgPartial` if resend, or None if skip.
         """
@@ -287,7 +307,7 @@ class MsgQueue:
         return None
 
     def wait_all(self):
-        tasks = [asyncio.create_task(i.wait()) for i in self.T.values()]
+        tasks = [asyncio.create_task(i.wait()) for i in self.ch_feed.values()]
         if tasks:
             return asyncio.wait(tasks)
         return asyncio.sleep(0)

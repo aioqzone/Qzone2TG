@@ -1,7 +1,7 @@
 """This module read user config as a global object."""
 
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from aioqzone.api import QrLoginConfig as _QrConfig
 from aioqzone.api import UpLoginConfig as _UpConfig
@@ -14,8 +14,8 @@ from pydantic import (
     FilePath,
     HttpUrl,
     SecretStr,
+    field_validator,
     model_validator,
-    validator,
 )
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
@@ -25,18 +25,23 @@ SUPPORTED_WEBHOOK_PORTS = (443, 80, 88, 8443)
 
 
 class QrLoginConfig(_QrConfig):
-    uin = 0
+    uin: int = 0
 
 
 class UpLoginConfig(_UpConfig):
-    uin = 0
+    uin: int = 0
+    vcode_timeout: float = 30
+    """等待动态验证码的超时时间，单位秒，默认30。
+
+    .. versionadded:: 0.4.1a1
+    """
 
 
 class StorageConfig(BaseModel):
     """Bot 存储配置，对应 :obj:`bot.storage <.BotConf.storage>`。Bot 将保留说说的一部分必要参数，用于验证说说是否已爬取、已发送，以及用于点赞、取消赞等.
     存储的信息不包括说说内容, 但通常能够通过存储的参数复原说说内容."""
 
-    database: Optional[Path] = None
+    database: Path | None = None
     """数据库地址. Bot 会在此位置建立一个 sqlite3 数据库. 如果目录不存在，会自动新建目录.
     如果传入值为 ``None``，则不建立文件数据库，而是维持一个内存数据库。"""
 
@@ -107,10 +112,10 @@ class WebhookConf(BaseModel):
     受 Telegram :obj:`限制 <SUPPORTED_WEBHOOK_PORTS>`, 端口只能在 443, 80, 88, 8443 中选择。
     """
 
-    cert: Optional[FilePath] = None
+    cert: FilePath | None = None
     """证书. 用于开启 SSL 认证. 若您使用反向代理，则应该在反向代理服务器设置证书，此处留空即可."""
 
-    key: Optional[FilePath] = None
+    key: FilePath | None = None
     """证书私钥. 用于开启 SSL 认证. 若您使用反向代理，则应该在反向代理服务器设置证书，此处留空即可."""
 
     bootstrap_retries: int = 0
@@ -118,14 +123,15 @@ class WebhookConf(BaseModel):
     """Bot 启动后不响应启动前等待的命令. """
     max_connections: int = 40
     """服务器最大连接数"""
-    secret_token: Optional[str] = None
+    secret_token: str | None = None
     """用于确保 webhook 请求确实是您所设置的。实际上是校验每个请求头的``X-Telegram-Bot-Api-Secret-Token``字段。
     默认为 None, 不校验。
 
     .. versionadded:: 0.5.0a3
     """
 
-    @validator("destination")
+    @field_validator("destination")
+    @classmethod
     def force_https(cls, v: HttpUrl):
         """webhook 地址强制启用 SSL"""
         assert v.scheme == "https", "webhook needs a https server"
@@ -140,7 +146,8 @@ class WebhookConf(BaseModel):
         urljoin = lambda u, p: str(u) + ("" if str.endswith(u, "/") else "/") + p
         return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
 
-    @validator("port")
+    @field_validator("port")
+    @classmethod
     def port_choice(cls, v: int):
         assert v in SUPPORTED_WEBHOOK_PORTS
         return v
@@ -149,7 +156,7 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置，对应配置文件中的 :obj:`bot.network <.BotConf.network>`. 包括代理和自定义等待时间等。"""
 
-    proxy: Optional[AnyUrl] = Field(None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
+    proxy: AnyUrl | None = Field(None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
     """代理设置，支持 :term:`http <http_proxy>` 和 :term:`socks <socks_proxy>` 代理.
     代理将用于向 `!telegram api` 和 `!github` 发送请求. 也支持读取系统全局代理 :envvar:`HTTPS_PROXY`,
     但优先级 **低于** 配置文件提供的值。
@@ -165,13 +172,15 @@ class NetworkConf(BaseModel):
         PTB v20.0 使用 httpx 作为后端，httpx 默认在（代理）服务器端解析 DNS，且 httpx 不支持 socks5h 协议。
     """
 
-    @validator("proxy")
-    def proxy_scheme(cls, v):
+    @field_validator("proxy")
+    @classmethod
+    def proxy_scheme(cls, v: AnyUrl | None):
         """验证代理 url 协议"""
-        assert v.scheme in ("http", "https", "socks", "socks5", "socks5h")
-        return v
+        if v:
+            assert v.scheme in ("http", "https", "socks", "socks5", "socks5h")
+            return v
 
-    connect_timeout: Optional[float] = 20
+    connect_timeout: float | None = 20
     """服务器向 telegram 和 Qzone 发起连接的最长耗时。单位为秒，默认为20
 
     .. versionadded:: 0.5.0a8
@@ -187,7 +196,7 @@ class BotConf(BaseModel):
     admin: int
     """管理员用户ID，唯一指明管理员. bot 只响应管理员的指令. """
 
-    token: Optional[SecretStr] = None
+    token: SecretStr | None = None
     network: NetworkConf = NetworkConf()  # type: ignore
     """网络配置。包括代理和等待时间自定义优化。"""
 
@@ -198,7 +207,7 @@ class BotConf(BaseModel):
     default: BotDefaultConf = BotDefaultConf()
     """Bot 的默认行为配置。包括禁止通知、禁止链接预览等."""
 
-    init_args: Union[WebhookConf, PollingConf] = PollingConf()
+    init_args: WebhookConf | PollingConf = PollingConf()
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
 
     * 按照 :class:`.PollingConf` 填写，对应 :term:`polling` 模式（默认）；
@@ -217,25 +226,19 @@ class QzoneConf(BaseModel):
     uin: int = Field(validation_alias=AliasChoices("uin", "qq"))
     """QQ账号"""
 
-    password: Optional[SecretStr] = None
-    up_config: UpLoginConfig
+    password: SecretStr | None = None
+    up_config: UpLoginConfig = Field(default_factory=UpLoginConfig)
     """密码登录配置
 
     .. versionadded:: 0.7.7.dev2"""
-    qr_config: QrLoginConfig
+    qr_config: QrLoginConfig = Field(default_factory=QrLoginConfig)
     """二维码登录配置
 
     .. versionadded:: 0.7.7.dev2"""
 
-    vcode_timeout: float = 30
-    """等待动态验证码的超时时间，单位秒，默认30。
-
-    .. versionadded:: 0.4.1a1
-    """
-
     dayspac: float = 3
     """最多爬取从现在起多长时间内的说说，以天为单位. 默认为3."""
-    block: Optional[list[int]] = None
+    block: list[int] | None = None
     """黑名单 qq. 列表中的用户发布的任何内容会被直接丢弃."""
     block_self: bool = True
     """是否舍弃当前登录账号发布的内容. 等同于在 :obj:`.block` 中加入当前 :obj:`.uin`"""
@@ -253,7 +256,7 @@ class LogConf(BaseModel):
     .. seealso:: :external+python:mod:`logging 模块 <logging>`
     """
 
-    level: Optional[str] = "INFO"
+    level: str | None = "INFO"
     """日志等级。``NOTSET`` < ``DEBUG`` < ``INFO`` < ``WARNING`` < ``ERROR`` < ``FATAL``."""
     format: str = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
     """日志格式。
@@ -270,13 +273,13 @@ class LogConf(BaseModel):
 
     .. versionadded:: 0.3.2
     """
-    datefmt: Optional[str] = None
+    datefmt: str | None = None
     """
     .. seealso::
 
         :external+python:obj:`time.strftime`
     """
-    conf: Optional[FilePath] = None
+    conf: FilePath | None = None
     r"""日志配置文件，指定此项将导致其他配置被忽略，因为您可以在 `日志配置文件`_ 中指定更详细更复杂的配置。
 
     .. versionchanged:: 0.3.2
@@ -301,8 +304,8 @@ class UserSecrets(BaseSettings):
     用户可以通过 :term:`docker secrets` 或环境变量来传递密码/密钥。
     """
 
-    password: Optional[SecretStr] = Field(
-        default=None, validation_alias=AliasChoices("password", "test_password")
+    password: SecretStr = Field(
+        default="", validation_alias=AliasChoices("password", "test_password")
     )
     """QQ密码，支持以下两种输入：
 
@@ -343,8 +346,8 @@ class Settings(BaseSettings):
     bot: BotConf
     """bot配置: :class:`.BotConf`, 对应 :doc:`bot <bot>` 项"""
 
-    def load_secrets(self, secrets_dir: Optional[DirectoryPath] = None):
+    def load_secrets(self, secrets_dir: DirectoryPath | None = None):
         secrets = UserSecrets(_secrets_dir=secrets_dir and secrets_dir.as_posix())  # type: ignore
-        self.qzone.password = secrets.password
+        self.qzone.up_config.pwd = secrets.password
         self.bot.token = secrets.token
         return self

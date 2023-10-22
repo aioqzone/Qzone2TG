@@ -109,7 +109,6 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
         if query.message is None:
             return True
 
-        nonlocal unlike, data
         if unlike:
             btn = InlineKeyboardButton(text="Like", callback_data="like:" + data)
         else:

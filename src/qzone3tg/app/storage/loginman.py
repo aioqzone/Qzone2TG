@@ -1,7 +1,7 @@
 from typing import cast
 
 from sqlalchemy import Connection, Table, inspect, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from .orm import CookieOrm
 
@@ -37,7 +37,7 @@ async def table_exists(engine: AsyncEngine) -> bool:
 
 
 async def load_cached_cookie(uin: int, engine: AsyncEngine) -> dict[str, str] | None:
-    async with async_sessionmaker(engine)() as sess:
+    async with AsyncSession(engine) as sess:
         stmt = select(CookieOrm).where(CookieOrm.uin == uin)
         prev = await sess.scalar(stmt)
 

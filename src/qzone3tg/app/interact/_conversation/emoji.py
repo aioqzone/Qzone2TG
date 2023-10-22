@@ -213,7 +213,7 @@ def build_router(self: InteractApp) -> Router:
     router = Router(name="emoji")
     CA = F.from_user.id.in_({self.conf.bot.admin})
 
-    router.message.register(self.em, CA, filter.Command(command_em))
+    # router.message.register(self.em, CA, filter.Command(command_em))
     router.callback_query.register(btn_emoji, SerialCbData.filter(F.command == "emoji"))
     router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"), EmForm.GET_EID)
     router.message.register(input_text, CA, F.text, ~filter.Command(), EmForm.GET_TEXT)

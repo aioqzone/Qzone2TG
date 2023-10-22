@@ -95,3 +95,79 @@ class StorageMan(AsyncSessionProvider):
                     await asyncio.wait(taskm)
                 if taskf:
                     await asyncio.wait(taskf)
+
+
+class StorageMixin:
+    store: StorageMan
+
+    def __init__(self, *args, **kwds) -> None:
+        super().__init__(*args, **kwds)
+
+    @property
+    def sess_maker(self):
+        return self.store.sess
+
+    async def _update_message_ids(
+        self,
+        feed: BaseFeed,
+        mids: list[int] | None,
+        sess: AsyncSession | None = None,
+        flush: bool = True,
+    ):
+        if sess is None:
+            async with self.sess_maker() as newsess:
+                await self._update_message_ids(feed, mids, sess=newsess, flush=flush)
+            return
+
+        if flush:
+            await self._update_message_ids(feed, mids, sess=sess, flush=False)
+            await sess.commit()
+            return
+
+        # query existing mids
+        stmt = select(MessageOrm)
+        stmt = stmt.where(*MessageOrm.fkey(feed))
+        result = await sess.scalars(stmt)
+
+        # delete existing mids
+        tasks = [asyncio.create_task(sess.delete(i)) for i in result]
+        if tasks:
+            await asyncio.wait(tasks)
+
+        if mids is None:
+            return
+        for mid in mids:
+            sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
+
+    async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
+        """Add/Update an record by the given feed and messages id.
+
+        :param feed: feed
+        :param mids: message id list, defaults to None
+        """
+
+        async def _update_feed(feed, sess: AsyncSession):
+            prev = await self.store.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
+            if prev:
+                # if exist: update
+                FeedOrm.set_by(prev, feed)
+            else:
+                # not exist: add
+                sess.add(FeedOrm.from_base(feed))
+
+        async with self.sess_maker() as sess:
+            async with sess.begin():
+                # BUG: asyncio.wait/gather raises error at the end of a transaction
+                await self._update_message_ids(feed, mids, sess=sess, flush=False)
+                await _update_feed(feed, sess=sess)
+
+    async def Mid2Feed(self, mid: int) -> BaseFeed | None:
+        mo = await self.store.get_msg_orms(MessageOrm.mid == mid)
+        if not mo:
+            return
+        orm = await self.store.get_feed_orm(
+            FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
+        )
+        if orm is None:
+            return
+        return BaseFeed(**orm.dict())  # type: ignore

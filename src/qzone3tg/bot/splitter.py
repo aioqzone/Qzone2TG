@@ -10,11 +10,8 @@ from typing import TYPE_CHECKING, Sequence, overload
 
 import qzemoji.utils as qeu
 from aiogram.enums.input_media_type import InputMediaType
-from aiogram.types.input_file import BufferedInputFile, InputFile
-from aiogram.types.input_media_animation import InputMediaAnimation as Anim
-from aiogram.types.input_media_document import InputMediaDocument as Doc
-from aiogram.types.input_media_photo import InputMediaPhoto as Pic
-from aiogram.types.input_media_video import InputMediaVideo as Video
+from aiogram.types import BufferedInputFile, InputFile, InputMediaDocument
+from aiogram.utils.formatting import Pre, Text, TextLink, as_list
 from aiogram.utils.media_group import MediaType as GroupMedia
 from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
@@ -23,13 +20,12 @@ from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
 from yarl import URL
 
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href, url_basename
+from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, url_basename
 
 log = logging.getLogger(__name__)
-html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 
 
-async def stringify_entities(entities: list[ConEntity] | None) -> str:
+async def stringify_entities(entities: list[ConEntity] | None) -> Text:
     """Stringify all entities and concatenate them.
 
     .. deprecated:: 0.4.0a1.dev5
@@ -41,24 +37,25 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
         support `~aioqzone.type.entity.LinkEntity`.
     """
     if not entities:
-        return ""
-    s = ""
+        return Text()
+
+    s: list[Text | str] = []
     for e in entities:
         match e:
             case TextEntity():
-                s += e.con.translate(html_trans)
+                s.append(e.con)
             case AtEntity():
-                s += f"@{href(e.nick.translate(html_trans), f'user.qzone.qq.com/{e.uin}')}"
+                s.append(TextLink(e.nick, url=f"user.qzone.qq.com/{e.uin}"))
             case LinkEntity():
                 if isinstance(e.url, HttpUrl):
-                    s += href(e.text, str(e.url))
+                    s.append(TextLink(e.text, url=str(e.url)))
                 else:
-                    s += f"{e.text}({e.url})"
+                    s.append(f"{e.text}({e.url})")
             case EmEntity():
-                s += await qeu.query_wrap(e.eid)
+                s.append(await qeu.query_wrap(e.eid))
             case _:
-                s += str(e.dict(exclude={"type"})).translate(html_trans)
-    return s
+                s.append(Pre(e.model_dump_json(exclude={"type"})))
+    return Text(*s)
 
 
 def supported_video(url: str | URL):
@@ -113,7 +110,7 @@ class LocalSplitter(Splitter):
     async def split(self, feed: FeedContent) -> list[MsgPartial]:
         atoms: list[MsgPartial] = []
 
-        txt = self.header(feed) + await stringify_entities(feed.entities)
+        txt = as_list(self.header(feed), await stringify_entities(feed.entities), sep="：\n\n")
         metas = feed.media or []
         probe_media = list(await asyncio.gather(*(self.probe(i) for i in metas)))
         md_types = [self.guess_md_type(i or m) for i, m in zip(probe_media, metas)]
@@ -123,7 +120,7 @@ class LocalSplitter(Splitter):
         while pipe_objs[0] or pipe_objs[1]:
             if pipe_objs[1]:
                 if len(md_types) > 1 and (
-                    (md_types[0] == InputMediaType.DOCUMENT) == (md_types[1] == Doc)
+                    (md_types[0] == InputMediaType.DOCUMENT) == (md_types[1] == InputMediaDocument)
                 ):
                     p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
                 else:
@@ -142,32 +139,36 @@ class LocalSplitter(Splitter):
 
         return atoms
 
-    def header(self, feed: FeedContent) -> str:
+    def header(self, feed: FeedContent) -> Text:
         """Generate a header for a feed according to feed type.
 
         :param feed: feed to generate a header
         """
         semt = sementic_time(feed.abstime)
-        uname = feed.nickname.translate(html_trans) or str(feed.uin)
-        nickname = href(uname, f"user.qzone.qq.com/{feed.uin}")
+        uname = feed.nickname or str(feed.uin)
+        richname = TextLink(uname, url=f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
-            return f"{nickname}{semt}发布了{href('说说', str(feed.unikey))}：\n\n"
+            return Text(richname, semt, "发布了", TextLink("说说", url=str(feed.unikey)))
 
         if isinstance(feed.forward, BaseFeed):
-            return (
-                f"{nickname}{semt}转发了"
-                f"{href(feed.forward.nickname, f'user.qzone.qq.com/{feed.forward.uin}')}"
-                f"的{href('说说', str(feed.unikey))}：\n\n"
+            return Text(
+                richname,
+                semt,
+                "转发了",
+                TextLink(feed.forward.nickname, url=f"user.qzone.qq.com/{feed.forward.uin}"),
+                f"的",
+                TextLink("说说", url=str(feed.unikey)),
             )
-        elif isinstance(feed.forward, str):
-            share = str(feed.forward)
+
+        fwd_url = URL(feed.forward)
+        if fwd_url.scheme in ["https", "http"]:
             # here we ensure share url is the first url entity, so telegram's preview link feature
             # will fetch the app for user.
-            return f"{uname}{semt}分享了{href('应用', share)}：\n\n"
+            return Text(uname, semt, "分享了", TextLink("应用", url=feed.forward))
 
         # should not send in <a> since it is not a valid url
-        return f"{nickname}{semt}分享了应用: ({feed.forward})：\n\n"
+        return Text(richname, semt, f"分享了应用 ({feed.forward})")
 
     async def probe(self, media: VisualMedia, **kw) -> bytes | None:
         """:class:`LocalSpliter` does not probe any media."""

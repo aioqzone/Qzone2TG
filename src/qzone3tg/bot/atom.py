@@ -3,35 +3,21 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Sequence
+from typing import ClassVar, Self, Sequence
 
 from aiogram import Bot
 from aiogram.enums import InputMediaType
-from aiogram.types import (
-    BufferedInputFile,
-    InputMediaAnimation,
-    InputMediaDocument,
-    InputMediaPhoto,
-    InputMediaVideo,
-    Message,
-)
+from aiogram.types import BufferedInputFile, Message
+from aiogram.utils.formatting import Text, TextLink, as_list
 from aiogram.utils.media_group import MediaGroupBuilder
 from aioqzone_feed.type import VisualMedia
 
 from . import *
 
-if TYPE_CHECKING:
-    from typing_extensions import Self
-
-    PIPE_OBJS = tuple[str, list[VisualMedia], list[bytes | None], list[InputMediaType]]
+PIPE_OBJS = tuple[Text, list[VisualMedia], list[bytes | None], list[InputMediaType]]
 
 
 log = logging.getLogger(__name__)
-
-
-def href(txt: str, url: str):
-    url = url.replace("'", "\\'")
-    return f"<a href='{url}'>{txt}</a>"
 
 
 def url_basename(url: str):
@@ -45,7 +31,7 @@ class MsgPartial(ABC):
 
     __slots__ = ("kwds", "meth", "text")
     meth: ClassVar[str]
-    text: str | None
+    text: Text | None
 
     def __init__(self, **kw) -> None:
         self.kwds = kw
@@ -105,18 +91,18 @@ class TextPartial(MsgPartial):
 
     meth = "message"
 
-    def __init__(self, text: str, **kw) -> None:
+    def __init__(self, text: Text, **kw) -> None:
         super().__init__(**kw)
         self.text = text
 
     async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         assert self.text
-        return await bot.send_message(*args, text=self.text, **(self.kwds | kwds))
+        return await bot.send_message(*args, **self.text.as_kwargs(), **(self.kwds | kwds))
 
     @classmethod
     def pipeline(
         cls,
-        txt: str,
+        txt: Text,
         metas: list[VisualMedia],
         raws: list[bytes | None],
         md_types: list[InputMediaType],
@@ -139,7 +125,7 @@ class MediaPartial(MsgPartial):
         self,
         media: VisualMedia,
         raw: bytes | None,
-        text: str | None = None,
+        text: Text | None = None,
         **kw,
     ) -> None:
         super().__init__(**kw)
@@ -155,12 +141,14 @@ class MediaPartial(MsgPartial):
     async def __call__(self, bot: Bot, *args, **kwds) -> Message:
         f = getattr(bot, f"send_{self.meth}")
         kwds[self.meth] = self.content
-        return await f(*args, caption=self.text, **(self.kwds | kwds))
+        if self.text:
+            kwds.update(**self.text.as_kwargs(text_key="caption"))
+        return await f(*args, **(self.kwds | kwds))
 
     @classmethod
     def pipeline(
         cls,
-        txt: str,
+        txt: Text,
         metas: list[VisualMedia],
         raws: list[bytes | None],
         md_types: list[InputMediaType],
@@ -222,7 +210,7 @@ class MediaGroupPartial(MsgPartial):
         .. note:: If True, then any other medias in this partial **MUST** be document.
     """
 
-    def __init__(self, text: str | None = None, **kw) -> None:
+    def __init__(self, text: Text | None = None, **kw) -> None:
         super().__init__(**kw)
         self.text = text
         self.builder = MediaGroupBuilder()
@@ -237,7 +225,8 @@ class MediaGroupPartial(MsgPartial):
 
     async def __call__(self, bot: Bot, *args, **kwds) -> Sequence[Message]:
         assert self.builder._media
-        self.builder.caption = self.text
+        if self.text:
+            self.builder.caption, self.builder.caption_entities = self.text.render()
         return await bot.send_media_group(*args, media=self.builder.build(), **(self.kwds | kwds))
 
     def append(self, meta: VisualMedia, raw: bytes | None, cls: InputMediaType, **kw):
@@ -254,7 +243,7 @@ class MediaGroupPartial(MsgPartial):
     @classmethod
     def pipeline(
         cls,
-        txt: str,
+        txt: Text,
         metas: list[VisualMedia],
         raws: list[bytes | None],
         md_types: list[InputMediaType],
@@ -268,7 +257,7 @@ class MediaGroupPartial(MsgPartial):
             is document, this media will be sent as a link in caption, with a reason.
         """
         self = cls(**kwds)
-        hint = ""
+        hint = Text()
         n_pipe = n_media = 0
 
         while n_media < MAX_GROUP_MEDIA:
@@ -279,34 +268,42 @@ class MediaGroupPartial(MsgPartial):
             meta = metas[0]
             ty = md_types[0]
 
-            if ty == InputMediaType.DOCUMENT and self.builder and not self.is_doc:
-                if meta.is_video:
-                    note = f"\nP{n_pipe}: 不支持的视频格式，点击查看{href('原视频', meta.raw)}"
-                else:
-                    note = f"\nP{n_pipe}: 图片过大无法发送/显示，点击查看{href('原图', meta.raw)}"
+            match ty:
+                case InputMediaType.DOCUMENT if self.builder._media and not self.is_doc:
+                    if meta.is_video:
+                        note = Text(f"P{n_pipe}: 不支持的视频格式，点击查看", TextLink("原视频", url=meta.raw))
+                    else:
+                        note = Text(f"P{n_pipe}: 图片过大无法发送/显示，点击查看", TextLink("原图", url=meta.raw))
 
-                if len(hint) + len(note) <= LIM_MD_TXT - 1:
-                    hint += note
-                    metas.pop(0)
-                    raws.pop(0)
-                    md_types.pop(0)
-                    continue
-                else:
-                    break
-            if self.builder and self.is_doc and not ty == InputMediaType.DOCUMENT:
-                break
+                    if len(hint) + len(note) <= LIM_MD_TXT - 1:
+                        hint += note
+                        metas.pop(0)
+                        raws.pop(0)
+                        md_types.pop(0)
+                        continue
+                    else:
+                        break
 
-            if ty == InputMediaType.ANIMATION:
-                ty = InputMediaType.PHOTO
-                hint += f"\nP{n_pipe}: 不支持动图，点击查看{href('原图', meta.raw)}"
+                case InputMediaType.ANIMATION:
+                    ty = InputMediaType.PHOTO
+                    note = Text("P{n_pipe}: 不支持动图，点击查看", TextLink("原图", url=meta.raw))
+                    if len(hint) + len(note) <= LIM_MD_TXT - 1:
+                        hint += note
+                    else:
+                        break
+
+                case _:
+                    if ty != InputMediaType.DOCUMENT and self.builder._media and self.is_doc:
+                        break
 
             self.append(metas.pop(0), raws.pop(0), ty)
             md_types.pop(0)
             n_media += 1
 
-        if hint:
-            hint = "\n" + hint
-        rest = LIM_MD_TXT - len(hint)
+        if n_hint := len(hint):
+            rest = LIM_MD_TXT - n_hint - 2
+        else:
+            rest = LIM_MD_TXT
 
-        self.text = txt[:rest] + hint
+        self.text = as_list(txt[:rest], hint, sep="\n\n")
         return self, (txt[rest:], metas, raws, md_types)

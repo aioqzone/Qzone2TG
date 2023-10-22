@@ -17,9 +17,13 @@ qzone:
   dayspac: 1
   block: [2333, 1234]
   block_self: false
-  min_qr_interval: 86400
-  min_up_interval: 1800
-  vcode_timeout: 60
+  qr_config:
+    min_login_interval: 86400
+    max_refresh_times: 6
+    poll_freq: 3.0
+  up_config:
+    min_login_interval: 1800
+    vcode_timeout: 60
 
 bot:
   admin: 456

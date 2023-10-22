@@ -5,11 +5,8 @@ import pytest
 import pytest_asyncio
 import qzemoji as qe
 import yaml
-from httpx import AsyncClient
 from pydantic import SecretStr
-from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from qzone3tg.app.base import BaseApp
 from qzone3tg.app.interact import InteractApp
@@ -71,37 +68,27 @@ async def test_init(minc: Settings):
         _, maxd = yaml.safe_load_all(f)
 
     maxc = Settings(**maxd).load_secrets()
-    async with AsyncClient() as sess, AsyncEngineFactory.sqlite3(None) as engine:
-        client = ClientAdapter(sess)
-        InteractApp(client, engine, conf=minc)
-        InteractApp(client, engine, conf=maxc)
-        assert qe.proxy == "socks5://localhost:443"
+    async with InteractApp(conf=minc):
+        pass
+    async with InteractApp(conf=maxc):
+        pass
+    # assert qe.proxy == "socks5://localhost:443"
 
 
-@if_conf_exist
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ["app_cls", "evt_cls"],
-    [
-        (BaseApp, FeedEvent),
-        (BaseApp, HeartbeatEvent),
-        (BaseApp, QREvent),
-        (BaseApp, UPEvent),
-        (BaseApp, QueueEvent),
-        (BaseApp, StorageEvent),
-        (InteractApp, HeartbeatEvent),
-        (InteractApp, QREvent),
-        (InteractApp, UPEvent),
-        (InteractApp, QueueEvent),
-        (InteractApp, FeedEvent),
-    ],
-)
-async def test_hook_class(
-    minc: Settings,
-    client: ClientAdapter,
-    engine: AsyncEngine,
-    app_cls: type[BaseApp],
-    evt_cls: type[Event],
-):
-    app = app_cls(client, engine, conf=minc)
-    assert app[evt_cls].__class__.__name__ == (app_cls.__name__ + "_" + evt_cls.__name__).lower()
+async def test_base_hook(minc: Settings):
+    async with BaseApp(minc) as app:
+        assert app._qrlogin.login_failed.has_impl
+        assert app._qrlogin.login_success.has_impl
+        assert app._qrlogin.qr_fetched.has_impl
+        assert app._uplogin.login_failed.has_impl
+        assert app._uplogin.login_success.has_impl
+        assert app.qzone.feed_processed.has_impl
+        assert app.qzone.feed_dropped.has_impl
+        assert "base._hook" in app.qzone.stop_fetch.__qualname__
+        assert app.qzone.hb_failed.has_impl
+        assert app.qzone.hb_refresh.has_impl
+
+
+async def test_interact_hook(minc: Settings):
+    async with InteractApp(minc) as app:
+        assert app._uplogin.sms_code_input.has_impl

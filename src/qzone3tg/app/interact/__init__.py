@@ -13,6 +13,7 @@ from qzone3tg.app.storage.blockset import BlockSet
 from qzone3tg.settings import Settings, WebhookConf
 
 from ..base import BaseApp
+from ._block import command_block
 from ._conversation.emoji import command_em
 from .types import SerialCbData
 
@@ -27,6 +28,7 @@ class InteractApp(BaseApp):
         BotCommand(command="help", description="帮助"),
         BotCommand(command="block", description="黑名单管理"),
         command_em,
+        command_block,
     ]
 
     def __init__(self, conf: Settings) -> None:
@@ -36,13 +38,21 @@ class InteractApp(BaseApp):
     #            hook init
     # --------------------------------
     from ._button import queueevent_hook as _sub_queueevent
-    from ._hook import upevent_hook as _sub_upevent
 
     def init_queue(self):
         super().init_queue()
         self.dyn_blockset = BlockSet(self.engine)
 
+    def init_hooks(self):
+        super().init_hooks()
+        from ._hook import add_up_impls
+
+        add_up_impls(self)
+
     def register_handlers(self):
+        from ._button import build_router as _button_router
+        from ._conversation.emoji import build_router as _emoji_router
+
         # build chat filters
         CA = F.from_user.id.in_({self.conf.bot.admin})
 
@@ -64,8 +74,7 @@ class InteractApp(BaseApp):
             SerialCbData.filter(F.sub_command.regexp(r"-?\d+")),
         )
 
-        self.em_cvs = self.build_router()
-        self.dp.include_router(self.em_cvs)
+        self.dp.include_routers(_emoji_router(self), _button_router(self))
 
     async def set_commands(self):
         try:
@@ -221,4 +230,4 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._block import block
     from ._button import btn_like, btn_qr
-    from ._conversation.emoji import build_router, em, input_eid
+    from ._conversation.emoji import em, input_eid
