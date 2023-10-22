@@ -142,4 +142,4 @@ class TestFetch:
             assert isinstance(i.media, BufferedInputFile)
 
         p = await fetch.force_bytes(ps[1])
-        assert isinstance(p.content, bytes)
+        assert isinstance(p.content, BufferedInputFile)

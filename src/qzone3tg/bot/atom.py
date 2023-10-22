@@ -269,7 +269,7 @@ class MediaGroupPartial(MsgPartial):
             ty = md_types[0]
 
             match ty:
-                case InputMediaType.DOCUMENT if self.builder._media and not self.is_doc:
+                case InputMediaType.DOCUMENT if self.is_doc is not False:
                     if meta.is_video:
                         note = Text(f"P{n_pipe}: 不支持的视频格式，点击查看", TextLink("原视频", url=meta.raw))
                     else:
@@ -277,10 +277,7 @@ class MediaGroupPartial(MsgPartial):
 
                     if len(hint) + len(note) <= LIM_MD_TXT - 1:
                         hint += note
-                        metas.pop(0)
-                        raws.pop(0)
-                        md_types.pop(0)
-                        continue
+                        self.is_doc = True
                     else:
                         break
 
@@ -293,8 +290,9 @@ class MediaGroupPartial(MsgPartial):
                         break
 
                 case _:
-                    if ty != InputMediaType.DOCUMENT and self.builder._media and self.is_doc:
+                    if ty != InputMediaType.DOCUMENT and self.is_doc is True:
                         break
+                    self.is_doc = False
 
             self.append(metas.pop(0), raws.pop(0), ty)
             md_types.pop(0)

@@ -97,7 +97,7 @@ class Splitter(ABC):
         """
 
         if isinstance(feed.forward, FeedContent):
-            a, b = await asyncio.gather(self.split(feed), self.split(feed.forward))
+            a, b = await asyncio.gather(self.split(feed.forward), self.split(feed))
             return *a, *b
         return await self.split(feed)
 
@@ -120,7 +120,8 @@ class LocalSplitter(Splitter):
         while pipe_objs[0] or pipe_objs[1]:
             if pipe_objs[1]:
                 if len(md_types) > 1 and (
-                    (md_types[0] == InputMediaType.DOCUMENT) == (md_types[1] == InputMediaDocument)
+                    (md_types[0] == InputMediaType.DOCUMENT)
+                    == (md_types[1] == InputMediaType.DOCUMENT)
                 ):
                     p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
                 else:
