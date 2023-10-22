@@ -162,7 +162,7 @@ class NetworkConf(BaseModel):
     def proxy_scheme(cls, v: AnyUrl | None):
         """验证代理 url 协议"""
         if v:
-            assert v.scheme in ("http", "https", "socks", "socks5", "socks5h")
+            assert v.scheme in ("http", "socks4", "socks5")
             return v
 
     connect_timeout: float | None = 20

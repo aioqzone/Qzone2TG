@@ -44,10 +44,11 @@ class InteractApp(BaseApp):
         self.dyn_blockset = BlockSet(self.engine)
 
     def init_hooks(self):
-        super().init_hooks()
-        from ._hook import add_up_impls
+        from ._hook import add_qr_impls, add_up_impls
 
+        add_qr_impls(self)
         add_up_impls(self)
+        super().init_hooks()
 
     def register_handlers(self):
         from ._button import build_router as _button_router

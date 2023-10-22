@@ -75,20 +75,22 @@ async def test_init(minc: Settings):
     # assert qe.proxy == "socks5://localhost:443"
 
 
+@pytest.mark.asyncio
 async def test_base_hook(minc: Settings):
     async with BaseApp(minc) as app:
-        assert app._qrlogin.login_failed.has_impl
-        assert app._qrlogin.login_success.has_impl
-        assert app._qrlogin.qr_fetched.has_impl
         assert app._uplogin.login_failed.has_impl
         assert app._uplogin.login_success.has_impl
         assert app.qzone.feed_processed.has_impl
         assert app.qzone.feed_dropped.has_impl
-        assert "base._hook" in app.qzone.stop_fetch.__qualname__
+        assert "local" in app.qzone.stop_fetch.__qualname__
         assert app.qzone.hb_failed.has_impl
         assert app.qzone.hb_refresh.has_impl
 
 
+@pytest.mark.asyncio
 async def test_interact_hook(minc: Settings):
     async with InteractApp(minc) as app:
+        assert app._qrlogin.login_failed.has_impl
+        assert app._qrlogin.login_success.has_impl
+        assert app._qrlogin.qr_fetched.has_impl
         assert app._uplogin.sms_code_input.has_impl

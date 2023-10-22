@@ -98,7 +98,7 @@ class BaseApp(StorageMixin):
         conf = self.conf.bot
         assert conf.token
 
-        session = self._build_session()
+        session = self._init_network()
 
         self.dp = Dispatcher()
         self.bot = Bot(conf.token.get_secret_value(), session)
@@ -134,7 +134,7 @@ class BaseApp(StorageMixin):
 
         self.timers["cl"] = self.scheduler.add_job(clean, "interval", days=1, id="clean")
 
-        async def lst_forever(_):
+        async def lst_forever():
             self.log.info(self._status_dict(debug=True))
 
         self.timers["ls"] = self.scheduler.add_job(lst_forever, "interval", hours=1, id="status")
@@ -217,7 +217,7 @@ class BaseApp(StorageMixin):
     # --------------------------------
     #          init network
     # --------------------------------
-    def _build_session(self) -> AiohttpSession | None:
+    def _init_network(self) -> AiohttpSession | None:
         """(internal use only) Build netowrk args for PTB app.
         This will Set QzEmoji proxy as well.
 
@@ -234,14 +234,13 @@ class BaseApp(StorageMixin):
         # TODO: default timeouts
         self.client._timeout = ClientTimeout(60, connect=conf.connect_timeout)
 
-        if proxy and proxy.scheme == "socks5":
-            self.log.warning("socks5 已替换为 socks5h")
-            proxy = URL(str(proxy)).with_scheme("socks5h")
-
         if proxy:
             # expect to support https and socks
-            proxy = str(proxy)
-            return AiohttpSession(proxy=proxy)
+            session = AiohttpSession(proxy=str(proxy))
+            if proxy.scheme == "socks5":
+                session._connector_init["rdns"] = True
+                self.log.warning("socks5 已替换为 socks5h")
+            return session
 
     # --------------------------------
     #          graceful stop
@@ -442,8 +441,7 @@ class BaseApp(StorageMixin):
     async def status(self, to: ChatId, *, debug: bool = False):
         stat_dic = self._status_dict(debug=debug, hf=True)
         statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
-        dn = debug or self.conf.bot.default.disable_notification
-        await self.bot.send_message(to, statm, disable_notification=dn)
+        await self.bot.send_message(to, statm, disable_notification=debug)
 
     async def restart_heartbeat(self, *_):
         """

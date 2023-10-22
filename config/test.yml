@@ -37,5 +37,5 @@ bot:
     bootstrap_retries: -1
     drop_pending_updates: True
   network:
-    proxy: socks5h://localhost:443
+    proxy: socks5://localhost:443
   auto_start: True
