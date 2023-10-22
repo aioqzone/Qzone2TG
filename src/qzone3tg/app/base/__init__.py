@@ -415,7 +415,7 @@ class BaseApp(StorageMixin):
             if isinstance(feed.forward, FeedContent):
                 t.add_done_callback(partial(_post_sent, feed=feed.forward))
 
-        await self.queue.wait_all()
+        await asyncio.wait(feed_send.values())
 
     async def license(self, to: ChatId):
         LICENSE_TEXT = f"""继续使用即代表您同意<a href="{AGREEMENT}">用户协议</a>。"""

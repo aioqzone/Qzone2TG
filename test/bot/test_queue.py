@@ -1,6 +1,5 @@
 import asyncio
 from collections import defaultdict
-from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -43,12 +42,14 @@ class TestQueue:
         queue.add(0, f)
         await queue.ch_feed[f].wait()
         assert len(queue.feed_state) == 1
-        assert queue.feed_state[f] and all_is_mid(queue.feed_state[f])
+        assert len(queue._send_order) == 1
+        assert queue.feed_state[f] and all_is_atom(queue.feed_state[f])
 
         # test batch mismatch
         queue.add(1, f)
         await queue.ch_feed[f].wait()
         assert len(queue.feed_state) == 1
+        assert len(queue._send_order) == 1
 
         # test add another uin but the same abstime
         f = fake_feed(1)
@@ -56,6 +57,7 @@ class TestQueue:
         queue.add(0, f)
         await queue.ch_feed[f].wait()
         assert len(queue.feed_state) == 2
+        assert len(queue._send_order) == 2
         assert queue.feed_state[f] and all_is_atom(queue.feed_state[f])
 
         # reference the first feed
@@ -63,8 +65,9 @@ class TestQueue:
         f.abstime = 2000
         f.forward = fake_feed(0)
         queue.add(0, f)
-        assert len(queue.feed_state) == 3
         await queue.ch_feed[f].wait()
+        assert len(queue.feed_state) == 3
+        assert len(queue._send_order) == 3
         assert queue.feed_state[f] and all_is_atom(queue.feed_state[f])
 
     async def test_drop_dup_feed(self, queue: SendQueue):
@@ -75,43 +78,40 @@ class TestQueue:
 
         f = fake_feed(1)
         f.abstime = 1
-        queue.add(3, f)
+        queue.add(3, f)  # dup
+        assert len(queue._send_order) == 1
 
         f = fake_feed(1)
         f.uin = f.abstime = 2
-        queue.add(3, f)
+        queue.add(3, f)  # not dup
+        assert len(queue._send_order) == 2
 
         f = fake_feed(1)
         f.abstime = 3
-        queue.add(3, f)
+        queue.add(3, f)  # dup
+        assert len(queue._send_order) == 2
 
-        queue.send_all()
-        await queue.wait_all()
-        bot = cast(FakeBot, queue.bot)
-        assert len(bot.log) == 2
-
-    async def test_send_norm(self, queue: SendQueue):
+    async def test_send_norm(self, queue: SendQueue, fake_bot: FakeBot):
         queue.new_batch(1)
         for i in range(3):
             f = fake_feed(i + 1)
             f.abstime = i * 1000
             queue.add(1, f)
-        queue.send_all()
-        await queue.wait_all()
-        bot = cast(FakeBot, queue.bot)
-        assert len(bot.log) == 3
-        assert "".join(i[2][-1] for i in bot.log) == "123"
+        await asyncio.wait(queue.send_all().values())
+        assert len(fake_bot.log) == 3
+        assert "".join(i[2][-1] for i in fake_bot.log) == "123"
 
-    async def test_reply_markup(self, queue: SendQueue):
+    async def test_reply_markup(self, queue: SendQueue, fake_bot: FakeBot):
         f = fake_feed(2)
         f.forward = fake_feed(1)
+        f.forward.uin = 1
+
         queue.new_batch(2)
         queue.add(2, f)
-        queue.send_all()
-        await queue.wait_all()
-        bot = cast(FakeBot, queue.bot)
-        assert len(bot.log) == 2
-        for i in bot.log:
+        await asyncio.wait(queue.send_all().values())
+        assert len(queue.feed_state) == 2
+        assert len(fake_bot.log) == 2
+        for i in fake_bot.log:
             assert isinstance(i[-1]["reply_markup"], InlineKeyboardMarkup)
 
     @pytest.mark.parametrize(
@@ -122,15 +122,15 @@ class TestQueue:
             (RuntimeError, 1),
         ],
     )
-    async def test_send_retry(self, queue: SendQueue, exc2r: Exception, grp_len: int):
+    async def test_send_retry(
+        self, queue: SendQueue, fake_bot: FakeBot, exc2r: Exception, grp_len: int
+    ):
         queue.new_batch(0)
         with patch.object(FakeBot, "send_photo", side_effect=exc2r):
             f = fake_feed(1)
             f.media = [fake_media(build_html(100))]
             queue.add(0, f)
-            queue.send_all()
-            await queue.wait_all()
+            await asyncio.wait(queue.send_all().values())
 
-        bot = cast(FakeBot, queue.bot)
-        assert not bot.log
+        assert not fake_bot.log
         assert len(queue.exc_groups[f]) == grp_len
