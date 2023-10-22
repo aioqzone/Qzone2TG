@@ -49,21 +49,6 @@ class StorageConfig(BaseModel):
     """一条记录要保存多长时间，以天为单位. 默认为30."""
 
 
-class BotDefaultConf(BaseModel):
-    """对应 :obj:`bot.default <.BotConf.default>`. Bot 的一些默认值配置。包括禁止通知、禁止链接预览等.
-
-    .. seealso:: :external:class:`telegram.ext.Defaults`
-
-    .. versionchanged:: 0.5.0a1
-
-        Removed ``timeout``, added :obj:`.protect_content`
-    """
-
-    disable_notification: bool = False
-    disable_web_page_preview: bool = False
-    protect_content: bool = False
-
-
 class PollingConf(BaseModel):
     """对应 :obj:`bot.init_args <.BotConf.init_args>`. 顾名思义，:term:`polling` 模式通过频繁地向 telegram 查询消息来确保能够响应用户的命令.
     比 :term:`webhook` 简单、要求低，适合测试使用.
@@ -203,9 +188,6 @@ class BotConf(BaseModel):
     storage: StorageConfig = StorageConfig(keepdays=1)
     """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容.
     默认只在内存中建立 :program:`sqlite3` 数据库。"""
-
-    default: BotDefaultConf = BotDefaultConf()
-    """Bot 的默认行为配置。包括禁止通知、禁止链接预览等."""
 
     init_args: WebhookConf | PollingConf = PollingConf()
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.

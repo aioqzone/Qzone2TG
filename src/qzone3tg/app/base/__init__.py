@@ -99,11 +99,9 @@ class BaseApp(StorageMixin):
         assert conf.token
 
         session = self._build_session()
-        default: dict = dict(parse_mode=ParseMode.HTML)
-        default |= conf.default.model_dump()
 
         self.dp = Dispatcher()
-        self.bot = Bot(conf.token.get_secret_value(), session, **default)
+        self.bot = Bot(conf.token.get_secret_value(), session)
         self.log.debug("init_gram done")
 
     def init_queue(self):
@@ -155,11 +153,10 @@ class BaseApp(StorageMixin):
         self.log.debug("init_timers done")
 
     def init_hooks(self):
-        from ._hook import add_feed_impls, add_hb_impls, add_up_impls, qrevent_hook
+        from ._hook import add_feed_impls, add_hb_impls, add_up_impls
 
         add_feed_impls(self)
         add_hb_impls(self)
-        qrevent_hook(self)
         add_up_impls(self)
 
         self.log.info("TG端初始化完成")

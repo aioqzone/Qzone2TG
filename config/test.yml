@@ -38,8 +38,4 @@ bot:
     drop_pending_updates: True
   network:
     proxy: socks5h://localhost:443
-  default:
-    disable_notification: True
-    disable_web_page_preview: False
-    protect_content: True
   auto_start: True
