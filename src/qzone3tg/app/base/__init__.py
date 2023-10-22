@@ -195,7 +195,7 @@ class BaseApp(StorageMixin):
                     Path(hconf["filename"]).parent.mkdir(parents=True, exist_ok=True)
             logging.config.dictConfig(dic)
         else:
-            logging.basicConfig(**conf.dict(include={"level", "format", "datefmt", "style"}))
+            logging.basicConfig(**conf.model_dump(include={"level", "format", "datefmt", "style"}))
 
         log = logging.getLogger(self.__class__.__name__)
 
@@ -302,14 +302,17 @@ class BaseApp(StorageMixin):
         self.register_signal()
         self.log.info("等待异步初始化任务...")
 
-        cookie, _, _ = await asyncio.gather(
-            load_cached_cookie(self.conf.qzone.uin, self.engine),
+        tasks = [
             qe.auto_update(),
             self.store.create(),
-        )
+        ]
 
         if first_run:
-            await self.license(self.conf.bot.admin)
+            tasks.append(self.license(self.conf.bot.admin))
+        else:
+            tasks.append(self._load_cookies())
+
+        await asyncio.wait(asyncio.ensure_future(i) for i in tasks)
 
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
@@ -387,6 +390,12 @@ class BaseApp(StorageMixin):
                 summary += f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。"
 
         await self.bot.send_message(to, summary)
+
+    async def _load_cookies(self):
+        cookie = await load_cached_cookie(self.conf.qzone.uin, self.engine)
+        if cookie:
+            self._qrlogin.cookie = cookie
+            self._uplogin.cookie = cookie
 
     async def _send_save(self):
         """wrap `.queue.send_all` with some post-sent database operation."""

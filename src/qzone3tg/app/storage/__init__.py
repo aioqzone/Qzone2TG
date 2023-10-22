@@ -12,7 +12,9 @@ from .orm import FeedOrm, MessageOrm
 
 class StorageMan(AsyncSessionProvider):
     async def create(self):
-        await self._create(FeedOrm)
+        async with self.engine.begin() as conn:
+            await self._create(FeedOrm, conn)
+            await self._create(MessageOrm, conn)
 
     async def exists(self, *pred) -> bool:
         """check if a feed exists in this database _AND_ it has a message id.

@@ -71,15 +71,14 @@ class TestFeedStore:
         assert not await store.exists(*FeedOrm.primkey(fixed[1]))
         assert await store.exists(*FeedOrm.primkey(fixed[2]))
 
-    async def test_update(self, store: StorageMan, app: StorageMixin, fixed: list):
+    async def test_update(self, store: StorageMan, fixed: list):
         pack = await store.get(*FeedOrm.primkey(fixed[1]))
         assert pack
         feed, mids = pack
         assert not mids
 
-        # await app._update_message_ids(fixed[2], [1, 2])
-
     async def test_mid2feed(self, app: StorageMixin, fixed: list):
+        await app._update_message_ids(fixed[2], [1, 2])
         feed = await app.Mid2Feed(1)
         assert feed == fixed[2]
 
