@@ -20,7 +20,7 @@ from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
 from yarl import URL
 
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, url_basename
+from .atom import MediaAtom, MediaGroupAtom, MsgAtom, TextAtom, url_basename
 
 log = logging.getLogger(__name__)
 
@@ -80,13 +80,13 @@ class Splitter(ABC):
     """
 
     @abstractmethod
-    async def split(self, feed: FeedContent) -> Sequence[MsgPartial]:
+    async def split(self, feed: FeedContent) -> Sequence[MsgAtom]:
         """
         :param feed: feed to split into partials
         :return: a :class:`FeedPair` object containing atoms sequence."""
         raise NotImplementedError
 
-    async def unify_send(self, feed: FeedContent) -> Sequence[MsgPartial]:
+    async def unify_send(self, feed: FeedContent) -> Sequence[MsgAtom]:
         """
         The unify_send function is a unified function to generate atomic unit to be sent.
         It will split the feed into multiple callable partials no matter
@@ -107,8 +107,8 @@ class LocalSplitter(Splitter):
     It will guess the media type using its metadata.
     """
 
-    async def split(self, feed: FeedContent) -> list[MsgPartial]:
-        atoms: list[MsgPartial] = []
+    async def split(self, feed: FeedContent) -> list[MsgAtom]:
+        atoms: list[MsgAtom] = []
 
         txt = as_list(self.header(feed), await stringify_entities(feed.entities), sep="：\n\n")
         metas = feed.media or []
@@ -123,19 +123,19 @@ class LocalSplitter(Splitter):
                     (md_types[0] == InputMediaType.DOCUMENT)
                     == (md_types[1] == InputMediaType.DOCUMENT)
                 ):
-                    p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
+                    p, pipe_objs = MediaGroupAtom.pipeline(*pipe_objs)
                 else:
-                    p, pipe_objs = MediaPartial.pipeline(*pipe_objs)
+                    p, pipe_objs = MediaAtom.pipeline(*pipe_objs)
             else:
-                p, pipe_objs = TextPartial.pipeline(*pipe_objs)
+                p, pipe_objs = TextAtom.pipeline(*pipe_objs)
             atoms.append(p)
 
         if isinstance(feed.forward, str):
             # override disable_web_page_preview if forwarding an app.
             match atoms[0]:
-                case MediaGroupPartial():
+                case MediaGroupAtom():
                     log.warning(f"Forward url and media coexist: {feed}")
-                case TextPartial():
+                case TextAtom():
                     atoms[0].kwds["disable_web_page_preview"] = False
 
         return atoms
@@ -250,19 +250,19 @@ class FetchSplitter(LocalSplitter):
         if isinstance(feed.forward, FeedContent):
             feed = feed.forward
         for group in await self.split(feed):
-            if isinstance(group, (MediaPartial, MediaGroupPartial)):
+            if isinstance(group, (MediaAtom, MediaGroupAtom)):
                 yield group
                 continue
             return
 
     # fmt: off
     @overload
-    async def force_bytes(self, call: MediaPartial) -> MediaPartial: ...
+    async def force_bytes(self, call: MediaAtom) -> MediaAtom: ...
     @overload
-    async def force_bytes(self, call: MediaGroupPartial) -> MediaGroupPartial: ...
+    async def force_bytes(self, call: MediaGroupAtom) -> MediaGroupAtom: ...
     # fmt: on
 
-    async def force_bytes(self, call: MsgPartial) -> MsgPartial:
+    async def force_bytes(self, call: MsgAtom) -> MsgAtom:
         """This method will be called when a partial got :exc:`telegram.error.BadRequest` from aiogram.
         We will force fetch the url by ourself and send the raw data instead of the url to telegram.
 
@@ -271,7 +271,7 @@ class FetchSplitter(LocalSplitter):
         """
         match call.meth:
             case "animation" | "document" | "photo" | "video":
-                assert isinstance(call, MediaPartial)
+                assert isinstance(call, MediaAtom)
                 media = call.content
                 if isinstance(media, InputFile):
                     log.error("force fetch the raws")
@@ -286,7 +286,7 @@ class FetchSplitter(LocalSplitter):
                 return call
 
             case "media_group":
-                assert isinstance(call, MediaGroupPartial)
+                assert isinstance(call, MediaGroupAtom)
                 for i, im in enumerate(call.builder._media):
                     call.builder._media[i] = await self.force_bytes_inputmedia(im)
         return call

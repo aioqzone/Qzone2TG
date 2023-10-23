@@ -24,7 +24,7 @@ def url_basename(url: str):
     return url[url.rfind("/") + 1 :]
 
 
-class MsgPartial(ABC):
+class MsgAtom(ABC):
     """Message partial is the atomic unit to send/retry in sending progress.
     One feed can be seperated into more than one partials. One partial corresponds
     to one function call in aspect of behavior."""
@@ -84,7 +84,7 @@ class MsgPartial(ABC):
         self.kwds["reply_markup"] = value
 
 
-class TextPartial(MsgPartial):
+class TextAtom(MsgAtom):
     """Text partial represents a pure text message.
     Calling this will trigger :meth:`Bot.send_message`.
     """
@@ -111,7 +111,7 @@ class TextPartial(MsgPartial):
         return cls(txt[:LIM_TXT], **kwds), (txt[LIM_TXT:], metas, raws, md_types)
 
 
-class MediaPartial(MsgPartial):
+class MediaAtom(MsgAtom):
     """Media partial represents a message with **ONE** media. Each MediaPartial should have
     a :obj:`.meth` field which indicates what kind of media it contains. The meth is also used
     when MediaPartial is called. Thus "send_{meth}" must be a callable in :class:`Bot`.
@@ -153,7 +153,7 @@ class MediaPartial(MsgPartial):
         raws: list[bytes | None],
         md_types: list[InputMediaType],
         **kwds,
-    ) -> tuple["MediaPartial", PIPE_OBJS]:
+    ) -> tuple["MediaAtom", PIPE_OBJS]:
         cls = InputMedia2Partial[md_types[0]]
 
         return (
@@ -162,7 +162,7 @@ class MediaPartial(MsgPartial):
         )
 
 
-class AnimPartial(MediaPartial):
+class AnimAtom(MediaAtom):
     meth = "animation"
     __md_cls__ = InputMediaAnimation
 
@@ -171,17 +171,17 @@ class AnimPartial(MediaPartial):
         return str(self.meta.thumbnail)
 
 
-class DocPartial(MediaPartial):
+class DocAtom(MediaAtom):
     meth = "document"
     __md_cls__ = InputMediaDocument
 
 
-class PicPartial(MediaPartial):
+class PicAtom(MediaAtom):
     meth = "photo"
     __md_cls__ = InputMediaPhoto
 
 
-class VideoPartial(MediaPartial):
+class VideoAtom(MediaAtom):
     meth = "video"
     __md_cls__ = InputMediaVideo
 
@@ -191,14 +191,14 @@ class VideoPartial(MediaPartial):
 
 
 InputMedia2Partial = {
-    InputMediaType.ANIMATION: AnimPartial,
-    InputMediaType.DOCUMENT: DocPartial,
-    InputMediaType.PHOTO: PicPartial,
-    InputMediaType.VIDEO: VideoPartial,
+    InputMediaType.ANIMATION: AnimAtom,
+    InputMediaType.DOCUMENT: DocAtom,
+    InputMediaType.PHOTO: PicAtom,
+    InputMediaType.VIDEO: VideoAtom,
 }
 
 
-class MediaGroupPartial(MsgPartial):
+class MediaGroupAtom(MsgAtom):
     """MediaGroupPartial represents a group of medias in one message. Calling this will trigger
     :meth:`Bot.send_media_group`.
     """
@@ -215,7 +215,7 @@ class MediaGroupPartial(MsgPartial):
         self.text = text
         self.builder = MediaGroupBuilder()
 
-    @MsgPartial.reply_markup.getter
+    @MsgAtom.reply_markup.getter
     def reply_markup(self):
         return None
 

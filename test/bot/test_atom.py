@@ -36,33 +36,33 @@ class TestLocal:
         f.media = [fake_media(build_html(100))]
         atoms = await local.split(f)
         assert len(atoms) == 1
-        assert isinstance(atoms[0], atom.PicPartial)
+        assert isinstance(atoms[0], atom.PicAtom)
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
         atoms = await local.split(f)
         assert len(atoms) == 1
-        assert isinstance(atoms[0], atom.AnimPartial)
+        assert isinstance(atoms[0], atom.AnimAtom)
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
         atoms = await local.split(f)
         assert len(atoms) == 1
-        assert isinstance(atoms[0], atom.VideoPartial)
+        assert isinstance(atoms[0], atom.VideoAtom)
 
     async def test_media_long(self, local: LocalSplitter):
         f = fake_feed("a" * atom.LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
         atoms = await local.split(f)
         assert len(atoms) == 2
-        assert isinstance(atoms[0], atom.PicPartial)
-        assert isinstance(atoms[1], atom.TextPartial)
+        assert isinstance(atoms[0], atom.PicAtom)
+        assert isinstance(atoms[1], atom.TextAtom)
 
     async def test_media_group(self, local: LocalSplitter):
         f = fake_feed(1)
         f.media = [fake_media(build_html(100))] * 2
         atoms = await local.split(f)
         assert len(atoms) == 1
-        assert isinstance(gp := atoms[0], atom.MediaGroupPartial)
+        assert isinstance(gp := atoms[0], atom.MediaGroupAtom)
 
         medias = gp.builder._media
         assert all(isinstance(i, InputMedia) for i in medias)
@@ -72,8 +72,8 @@ class TestLocal:
         f.media = [fake_media(build_html(100))] * 11
         pair = await local.split(f)
         assert len(pair) == 2
-        assert isinstance(gp := pair[0], atom.MediaGroupPartial)
-        assert isinstance(pair[1], atom.PicPartial)
+        assert isinstance(gp := pair[0], atom.MediaGroupAtom)
+        assert isinstance(pair[1], atom.PicAtom)
         assert pair[0].text
         assert pair[1].text
 
@@ -87,17 +87,17 @@ class TestFetch:
         f.media = [fake_media(build_html(100))]
         pair = await fetch.split(f)
         assert len(pair) == 1
-        assert isinstance(pair[0], atom.PicPartial)
+        assert isinstance(pair[0], atom.PicAtom)
         assert pair[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="gif"))
         pair = await fetch.split(f)
         assert len(pair) == 1
-        assert isinstance(pair[0], atom.AnimPartial)
+        assert isinstance(pair[0], atom.AnimAtom)
         assert pair[0]._raw
 
         f.media[0] = fake_media(build_html(100, ext="mp4"))
         f.media[0].is_video = True
         pair = await fetch.split(f)
         assert len(pair) == 1
-        assert isinstance(pair[0], atom.VideoPartial)
+        assert isinstance(pair[0], atom.VideoAtom)

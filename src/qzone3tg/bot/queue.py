@@ -15,10 +15,10 @@ from tylisten.futstore import FutureStore
 from qzone3tg.utils.iter import countif
 
 from . import *
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial
+from .atom import MediaAtom, MediaGroupAtom, MsgAtom
 from .splitter import FetchSplitter, Splitter
 
-Atom = MediaGroupPartial | MsgPartial
+Atom = MediaGroupAtom | MsgAtom
 MidOrAtoms = list[Atom] | list[int]
 MidOrFeed = FeedContent | list[int]
 
@@ -34,7 +34,7 @@ def all_is_mid(l: MidOrAtoms) -> TypeGuard[list[int]]:
 
 def all_is_atom(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
     assert l
-    if all(isinstance(i, MsgPartial) for i in l):
+    if all(isinstance(i, MsgAtom) for i in l):
         return True
     return False
 
@@ -134,7 +134,7 @@ class SendQueue(QueueHook):
 
         def set_atom_keywords(
             f: FeedContent,
-            atoms: Sequence[MsgPartial],
+            atoms: Sequence[MsgAtom],
             reply_markup: ReplyMarkup | None,
         ):
             # log input
@@ -148,9 +148,7 @@ class SendQueue(QueueHook):
 
             # set reply_markup fields
             if reply_markup:
-                if part := next(
-                    filter(lambda p: not isinstance(p, MediaGroupPartial), atoms), None
-                ):
+                if part := next(filter(lambda p: not isinstance(p, MediaGroupAtom), atoms), None):
                     part.reply_markup = reply_markup
 
             # push into queue
@@ -214,7 +212,7 @@ class SendQueue(QueueHook):
                 return None
             elif "wrong file" in reason:
                 if isinstance(self.splitter, FetchSplitter):
-                    if isinstance(atom, (MediaPartial, MediaGroupPartial)):
+                    if isinstance(atom, (MediaAtom, MediaGroupAtom)):
                         return await self.splitter.force_bytes(atom)
                     log.error("no file is to be sent, skip.")
                     log.debug(atom)
@@ -231,7 +229,7 @@ class SendQueue(QueueHook):
     async def _send_atom(self, atom: Atom, feed: FeedContent) -> list[int]:
         for _ in range(self.max_retry):
             match await self._send_atom_once(atom, feed):
-                case MsgPartial() as atom:
+                case MsgAtom() as atom:
                     continue
                 case None:
                     break
