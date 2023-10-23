@@ -13,8 +13,8 @@ import qzemoji as qe
 import yaml
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.enums import ParseMode
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
+from aiogram.utils.formatting import Pre, Text, TextLink
 from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
 from aioqzone.api import QrLoginManager, UpLoginManager
 from aioqzone_feed.api import FeedApi
@@ -25,7 +25,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 from qzemoji.base import AsyncEngineFactory
 from tenacity import RetryError
 from tylisten.futstore import FutureStore
-from yarl import URL
 
 from qzone3tg import AGREEMENT, DISCUSS
 from qzone3tg.app.storage import StorageMan, StorageMixin
@@ -35,7 +34,7 @@ from qzone3tg.bot.queue import SendQueue, all_is_mid
 from qzone3tg.bot.splitter import FetchSplitter
 from qzone3tg.settings import Settings, WebhookConf
 
-DISCUSS_HTML = f"<a href='{DISCUSS}'>Qzone2TG Discussion</a>"
+DISCUSS_HTML = TextLink("Qzone2TG Discussion", url=DISCUSS)
 
 
 class BaseApp(StorageMixin):
@@ -344,26 +343,27 @@ class BaseApp(StorageMixin):
                 return await self._fetch(to, is_period=is_period)
 
         self.log.info(f"Start fetch with period={is_period}")
-        echo = ""
+        echo = Text()
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
         got = -1
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
-        except RetryError:
-            return  # TODO
+        except RetryError as e:
+            echo = Text("爬取失败 ", Pre(str(e.last_attempt.result())))
+        except BaseException as e:
+            echo = Text("未捕获的异常 ", Pre(str(e)))
 
         if not is_period:
             # reschedule heartbeat timer
             self.timers["hb"].reschedule("interval", minutes=5)
 
         if got == 0 and not is_period:
-            echo = "您已跟上时代🎉"
+            echo = Text("您已跟上时代🎉")
 
-        if echo:
-            await self.bot.send_message(to, echo)
-            echo = ""
+        if (t := echo.render()) and t[0]:
+            await self.bot.send_message(to, text=t[0], entities=t[1])
 
         if got <= 0:
             return

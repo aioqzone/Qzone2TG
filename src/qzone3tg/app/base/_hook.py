@@ -76,15 +76,28 @@ def add_feed_impls(self: BaseApp):
 
 def add_hb_impls(self: BaseApp):
     from aioqzone.exception import QzoneError
+    from tenacity import RetryError
 
-    STOP_HB_EXC = []
+    STOP_HB_EXC = [QzoneError]
+    last_fail_cause: BaseException | None = None
 
     @self.qzone.hb_failed.add_impl
     async def HeartbeatFailed(exc: BaseException):
+        # unpack wrapped exceptions
+        if isinstance(exc, RetryError):
+            exc = exc.last_attempt.result()
         self.log.debug(f"heartbeat failed: {exc}")
-        if any(isinstance(exc, i) for i in STOP_HB_EXC):
-            self.timers["hb"].pause()
-            self.log.warning(f"因{exc.__class__.__name__}暂停心跳")
+
+        if not any(isinstance(exc, i) for i in STOP_HB_EXC):
+            nonlocal last_fail_cause
+            if last_fail_cause is None or last_fail_cause != exc:
+                last_fail_cause = exc
+                return
+            else:
+                self.log.debug(f"连续两次因{exc.__class__.__name__}心跳异常", exc_info=exc)
+
+        self.timers["hb"].pause()
+        self.log.warning(f"因{exc.__class__.__name__}暂停心跳")
 
     @self.qzone.hb_refresh.add_impl
     async def HeartbeatRefresh(num: int):
