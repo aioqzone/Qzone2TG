@@ -14,7 +14,7 @@ import yaml
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
-from aiogram.utils.formatting import Pre, Text, TextLink
+from aiogram.utils.formatting import Pre, Text, TextLink, as_key_value, as_marked_list
 from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
 from aioqzone.api import QrLoginManager, UpLoginManager
 from aioqzone_feed.api import FeedApi
@@ -217,8 +217,7 @@ class BaseApp(StorageMixin):
     #          init network
     # --------------------------------
     def _init_network(self) -> AiohttpSession | None:
-        """(internal use only) Build netowrk args for PTB app.
-        This will Set QzEmoji proxy as well.
+        """(internal use only) init interanl network settings.
 
         :param conf: NetworkConf from settings.
         :return: application builder
@@ -236,7 +235,7 @@ class BaseApp(StorageMixin):
         if proxy:
             # expect to support https and socks
             session = AiohttpSession(proxy=str(proxy))
-            if proxy.scheme == "socks5":
+            if proxy.scheme.startswith("socks"):
                 session._connector_init["rdns"] = True
                 self.log.warning("socks5 已替换为 socks5h")
             return session
@@ -440,7 +439,9 @@ class BaseApp(StorageMixin):
             "启动时间": ts2a(self.start_time),
             "上次密码登录": ts2a(self._uplogin.last_login),
             "上次二维码登录": ts2a(self._qrlogin.last_login),
-            "PTB应用状态": friendly(self.dp._stopped_signal and not self.dp._stopped_signal.is_set()),
+            "dispatcher状态": friendly(
+                self.dp._stopped_signal and not self.dp._stopped_signal.is_set()
+            ),
             "心跳状态": friendly(self.timers["hb"].next_run_time is not None),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
@@ -452,8 +453,8 @@ class BaseApp(StorageMixin):
 
     async def status(self, to: ChatId, *, debug: bool = False):
         stat_dic = self._status_dict(debug=debug, hf=True)
-        statm = "\n".join(f"{k}: {v}" for k, v in stat_dic.items())
-        await self.bot.send_message(to, statm, disable_notification=debug)
+        statm = as_marked_list(*(as_key_value(k, v) for k, v in stat_dic.items()))
+        await self.bot.send_message(to, **statm.as_kwargs(), disable_notification=debug)
 
     async def restart_heartbeat(self, *_):
         """

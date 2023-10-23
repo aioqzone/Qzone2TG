@@ -91,7 +91,7 @@ class WebhookConf(BaseModel):
     - `!https://this.server.xyz:443/any/prefix/you/like` 若您配置的反向代理会将 url 转发到 :obj:`.port` 指明的端口，则填写这个 url."""
 
     port: int = Field(default=443, examples=list(SUPPORTED_WEBHOOK_PORTS))
-    """webhook 端口. :abbr:`PTB (Python Telgram Bot)` 会在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
+    """webhook 端口. 在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
     或经反向代理等中间环节间接访问此端口.
 
     受 Telegram :obj:`限制 <SUPPORTED_WEBHOOK_PORTS>`, 端口只能在 443, 80, 88, 8443 中选择。
@@ -152,9 +152,9 @@ class NetworkConf(BaseModel):
     - `!https://username:password@your.proxy.com:1234`
     - `!socks5://user:pass@host:port`
 
-    .. versionchanged:: 0.5.0a3
+    .. versionchanged:: 0.9.0
 
-        PTB v20.0 使用 httpx 作为后端，httpx 默认在（代理）服务器端解析 DNS，且 httpx 不支持 socks5h 协议。
+        socks 代理自动开启 rdns。
     """
 
     @field_validator("proxy")

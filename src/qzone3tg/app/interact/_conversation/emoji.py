@@ -74,7 +74,7 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
 
             await message.reply_photo(
                 file,
-                **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(),
+                **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
             await state.update_data(eid=int(eid))
@@ -162,7 +162,7 @@ async def input_eid(self: InteractApp, message: Message, state: FSMContext):
 
     await message.reply_photo(
         file,
-        **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(),
+        **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
         reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
     )
     await state.set_state(EmForm.GET_TEXT)

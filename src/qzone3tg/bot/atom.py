@@ -142,7 +142,7 @@ class MediaPartial(MsgPartial):
         f = getattr(bot, f"send_{self.meth}")
         kwds[self.meth] = self.content
         if self.text:
-            kwds.update(**self.text.as_kwargs(text_key="caption"))
+            kwds.update(self.text.as_kwargs(text_key="caption"))
         return await f(*args, **(self.kwds | kwds))
 
     @classmethod

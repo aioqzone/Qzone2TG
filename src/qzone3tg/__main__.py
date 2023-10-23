@@ -15,9 +15,6 @@ DEFAULT_SECRETS = Path("/run/secrets")
 
 async def main(conf: Settings) -> int:
     async with InteractApp(conf) as app:
-        # this client is used for QzoneApi/BotFetcher. So set the ssl context, unset the proxy.
-        # UA will be set by qqqr once this client is used for login.
-        # telegram proxy will be set by App._request_args, through PTB app.
         try:
             await app.run()
             return 0
