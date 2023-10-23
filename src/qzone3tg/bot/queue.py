@@ -5,11 +5,18 @@ from collections import defaultdict
 from typing import Mapping, Sequence, TypeGuard
 
 from aiogram import Bot
-from aiogram.exceptions import AiogramError
 from aiogram.exceptions import TelegramBadRequest as BadRequest
 from aiogram.types.message import Message
 from aiogram.utils.formatting import Text
 from aioqzone_feed.type import FeedContent
+from tenacity import (
+    RetryError,
+    TryAgain,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 from tylisten.futstore import FutureStore
 
 from qzone3tg.utils.iter import countif
@@ -21,6 +28,7 @@ from .splitter import FetchSplitter, Splitter
 Atom = MediaGroupAtom | MsgAtom
 MidOrAtoms = list[Atom] | list[int]
 MidOrFeed = FeedContent | list[int]
+MAX_RETRY: Final[int] = 2
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +70,6 @@ class SendQueue(QueueHook):
         bot: Bot,
         splitter: Splitter,
         forward_map: Mapping[int, ChatId],
-        max_retry: int = 2,
     ) -> None:
         super().__init__()
         self.feed_state = defaultdict(list)
@@ -74,13 +81,12 @@ class SendQueue(QueueHook):
         self.splitter = splitter
         self.forward_map = forward_map
         self.exc_groups = defaultdict(list)
-        self.max_retry = max_retry
         self.drop_num = 0
         """number of dropped feeds in this batch"""
 
     @property
     def exc_num(self):
-        return countif(self.exc_groups.values(), lambda i: len(i) == self.max_retry)
+        return countif(self.exc_groups.values(), lambda i: len(i) == MAX_RETRY)
 
     def new_batch(self, bid: int):
         assert bid != self.bid
@@ -173,7 +179,12 @@ class SendQueue(QueueHook):
                 ),
             ).add_done_callback(lambda s: set_atom_keywords(ff, *s.result()))
 
-    async def _send_atom_once(self, atom: Atom, feed: FeedContent) -> list[int] | Atom | None:
+    @retry(
+        stop=stop_after_attempt(MAX_RETRY),
+        wait=wait_exponential(max=60),
+        retry=retry_if_exception_type(TryAgain),
+    )
+    async def _send_atom(self, atom: Atom, feed: FeedContent) -> list[int]:
         """
         :param atom: a :class:`MsgPartial` object
         :param feed: the feed to be sent
@@ -188,6 +199,8 @@ class SendQueue(QueueHook):
                 case r if isinstance(r, Sequence):
                     log.debug("atom is sent successfully.")
                     return [i.message_id for i in r]
+                case _:
+                    raise ValueError
         except asyncio.TimeoutError as e:
             self.exc_groups[feed].append(e)
             log.debug(f"current timeout={atom.timeout:.2f}")
@@ -197,7 +210,7 @@ class SendQueue(QueueHook):
                 atom.text = Text("🔁")
             elif len(atom.text) < (MAX_TEXT_LENGTH if atom.meth == "message" else CAPTION_LENGTH):
                 atom.text = Text("🔁", atom.text)
-            return atom
+            raise TryAgain
         except BadRequest as e:
             self.exc_groups[feed].append(e)
             reason = e.message.lower()
@@ -206,36 +219,23 @@ class SendQueue(QueueHook):
                 if "reply_to_message_id" in atom.kwds:
                     atom.kwds.pop("reply_to_message_id")
                     log.warning("'reply_to_message_id' keyword removed.")
-                    return atom
+                    raise TryAgain
                 log.error("'reply_to_message_id' keyword not found, skip.")
                 log.debug(atom)
-                return None
             elif "wrong file" in reason:
                 if isinstance(self.splitter, FetchSplitter):
                     if isinstance(atom, (MediaAtom, MediaGroupAtom)):
-                        return await self.splitter.force_bytes(atom)
+                        await self.splitter.force_bytes(atom)
+                        raise TryAgain
                     log.error("no file is to be sent, skip.")
                     log.debug(atom)
-                    return None
+                    raise
                 log.warning("fetch is not enabled, skip.")
-        except AiogramError as e:
-            self.exc_groups[feed].append(e)
-            log.error("Uncaught AiogramError in send_%s.", atom.meth, exc_info=e)
+            raise
         except BaseException as e:
             self.exc_groups[feed].append(e)
-            log.error("Uncaught error in send_%s.", atom.meth, exc_info=e)
-        return None
-
-    async def _send_atom(self, atom: Atom, feed: FeedContent) -> list[int]:
-        for _ in range(self.max_retry):
-            match await self._send_atom_once(atom, feed):
-                case MsgAtom() as atom:
-                    continue
-                case None:
-                    break
-                case list() as r:
-                    return r
-        return []
+            log.error("Uncaught %s in send_%s.", e.__class__.__name__, atom.meth, exc_info=e)
+            raise
 
     async def _send_one_feed(self, feed: FeedContent) -> None:
         await self.ch_feed[feed].wait(wait_new=False)
@@ -249,7 +249,11 @@ class SendQueue(QueueHook):
             nonlocal reply
             if reply is not None:
                 atom.kwds.update(reply_to_message_id=reply)
-            if r := await self._send_atom(atom, feed):
+            try:
+                r = await self._send_atom(atom, feed)
+            except RetryError:
+                return []
+            if r:
                 reply = r[-1]
             return r
 
@@ -281,5 +285,5 @@ class SendQueue(QueueHook):
             if atoms:
                 reply = atoms[-1]
 
-    def send_all(self) -> dict[FeedContent, asyncio.Task]:
+    def send_all(self) -> dict[FeedContent, asyncio.Task[None]]:
         return {feed: asyncio.create_task(self._send_one_feed(feed)) for feed in self._send_order}
