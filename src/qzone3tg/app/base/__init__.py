@@ -252,18 +252,21 @@ class BaseApp(StorageMixin):
 
         signal.signal(signal.SIGTERM, sigterm_handler)
 
-        @self.dp.error()
-        async def ptb_error_handler(event: ErrorEvent):
+        async def router_error_handler(event: ErrorEvent):
             if isinstance(event.exception, ClientConnectionError):
                 self.log.fatal(f"请检查网络连接 ({event.exception})")
                 if not self.conf.bot.network.proxy:
                     self.log.warning("提示：您是否忘记了设置代理？")
+                    await self.shutdown()
                 if not isinstance(self.conf.bot.init_args, WebhookConf):
                     self.log.info("提示：使用 webhook 能够减少向 Telegram 发起连接的次数，从而间接降低代理出错的频率。")
-                await self.shutdown()
                 return
 
-            self.log.fatal("PTB错误处理收到未被捕捉的异常：", exc_info=event.exception)
+            self.log.fatal("router错误处理收到未被捕捉的异常：", exc_info=event.exception)
+
+        self.dp.error.register(router_error_handler)
+        for router in self.dp.sub_routers:
+            router.error.register(router_error_handler)
 
     async def shutdown(self):
         """Shutdown App. `@noexcept`
