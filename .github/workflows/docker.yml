@@ -67,4 +67,4 @@ jobs:
           file: ./docker/Dockerfile
           tags: |
             ghcr.io/aioqzone/qzone3tg:${{ steps.match.outputs.tag }}
-            ghcr.io/aioqzone/qzone3tg:latest-beta
+            ghcr.io/aioqzone/qzone3tg:latest-alpha
