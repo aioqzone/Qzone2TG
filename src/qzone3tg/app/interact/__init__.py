@@ -90,6 +90,15 @@ class InteractApp(BaseApp):
         token = self.conf.bot.token
         assert token
 
+        @self.dp.startup()
+        async def on_startup(bot: Bot) -> None:
+            # If you have a self-signed SSL certificate, then you will need to send a public
+            # certificate to Telegram
+            await bot.set_webhook(
+                conf.webhook_url(token).get_secret_value(),
+                secret_token=token.get_secret_value(),
+            )
+
         # Create aiohttp.web.Application instance
         app = web.Application()
 
@@ -99,16 +108,6 @@ class InteractApp(BaseApp):
         webhook_requests_handler = SimpleRequestHandler(dispatcher=self.dp, bot=self.bot)
         # Register webhook handler on application
         webhook_requests_handler.register(app, path=conf.webhook_url(token).get_secret_value())
-
-        async def on_startup(bot: Bot) -> None:
-            # If you have a self-signed SSL certificate, then you will need to send a public
-            # certificate to Telegram
-            await bot.set_webhook(
-                conf.webhook_url(token).get_secret_value(),
-                secret_token=token.get_secret_value(),
-            )
-
-        self.dp.startup.register(on_startup)
 
         # Mount dispatcher startup and shutdown hooks to aiohttp application
         setup_application(app, self.dp, bot=self.bot)

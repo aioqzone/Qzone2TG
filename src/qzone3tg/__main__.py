@@ -15,6 +15,7 @@ DEFAULT_SECRETS = Path("/run/secrets")
 
 async def main(conf: Settings) -> int:
     async with InteractApp(conf) as app:
+        app.log.debug(conf)
         try:
             await app.run()
             return 0
