@@ -210,6 +210,8 @@ async def cancel_custom(message: Message, state: FSMContext):
 
 
 def build_router(self: InteractApp) -> Router:
+    from .. import SerialCbData
+
     router = Router(name="emoji")
     CA = F.from_user.id.in_({self.conf.bot.admin})
 
