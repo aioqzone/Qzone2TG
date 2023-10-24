@@ -276,11 +276,13 @@ class BaseApp(StorageMixin):
         """
         try:
             self.log.warning("App stopping...")
+            if isinstance(self.conf.bot.init_args, WebhookConf):
+                if await self.bot.delete_webhook():
+                    self.log.info("webhook deleted")
             self.qzone.stop()
             self.scheduler.shutdown(False)
             if self.dp._stop_signal:
                 self.dp._stop_signal.set()
-
         except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
             self.log.error("Force stopping...", exc_info=True)
             return
