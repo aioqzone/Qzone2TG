@@ -25,8 +25,8 @@ def url_basename(url: str):
 
 
 class MsgAtom(ABC):
-    """Message partial is the atomic unit to send/retry in sending progress.
-    One feed can be seperated into more than one partials. One partial corresponds
+    """Message atom is the atomic unit to send/retry in sending progress.
+    One feed can be seperated into more than one atoms. One atom corresponds
     to one function call in aspect of behavior."""
 
     __slots__ = ("kwds", "meth", "text")
@@ -64,8 +64,8 @@ class MsgAtom(ABC):
 
     @property
     def timeout(self) -> float:
-        """Partial timeout. Since one partial is the atomic unit to send/retry in sending progress,
-        every partial has its own timeout.
+        """Partial timeout. Since one atom is the atomic unit to send/retry in sending progress,
+        every atom has its own timeout.
         """
         return self.kwds.get("read_timeout", 5.0)
 
@@ -83,9 +83,21 @@ class MsgAtom(ABC):
     def reply_markup(self, value: ReplyMarkup | None):
         self.kwds["reply_markup"] = value
 
+    @property
+    def reply_to_message_id(self) -> int | None:
+        return self.kwds.get("reply_to_message_id")
+
+    @reply_to_message_id.setter
+    def reply_to_message_id(self, i: Message | int | None):
+        match i:
+            case Message():
+                self.kwds["reply_to_message_id"] = i.message_id
+            case _:
+                self.kwds["reply_to_message_id"] = i
+
 
 class TextAtom(MsgAtom):
-    """Text partial represents a pure text message.
+    """Text atom represents a pure text message.
     Calling this will trigger :meth:`Bot.send_message`.
     """
 
@@ -112,7 +124,7 @@ class TextAtom(MsgAtom):
 
 
 class MediaAtom(MsgAtom):
-    """Media partial represents a message with **ONE** media. Each MediaPartial should have
+    """MediaAtom represents a message with **ONE** media. Each MediaPartial should have
     a :obj:`.meth` field which indicates what kind of media it contains. The meth is also used
     when MediaPartial is called. Thus "send_{meth}" must be a callable in :class:`Bot`.
     """
@@ -207,7 +219,7 @@ class MediaGroupAtom(MsgAtom):
     is_doc: bool | None = None
     """If the first media is Document.
 
-        .. note:: If True, then any other medias in this partial **MUST** be document.
+        .. note:: If True, then any other medias in this atom **MUST** be document.
     """
 
     def __init__(self, text: Text | None = None, **kw) -> None:
@@ -230,7 +242,7 @@ class MediaGroupAtom(MsgAtom):
         return await bot.send_media_group(*args, media=self.builder.build(), **(self.kwds | kwds))
 
     def append(self, meta: VisualMedia, raw: bytes | None, cls: InputMediaType, **kw):
-        """append a media into this partial."""
+        """append a media into this atom."""
         assert cls in (InputMediaType.PHOTO, InputMediaType.DOCUMENT, InputMediaType.VIDEO)
         assert len(self.builder._media) < MAX_GROUP_MEDIA
 
@@ -253,7 +265,7 @@ class MediaGroupAtom(MsgAtom):
 
         .. note::
 
-            If one media will be sent as a document, and not all of medias in this partial
+            If one media will be sent as a document, and not all of medias in this atom
             is document, this media will be sent as a link in caption, with a reason.
         """
         self = cls(**kwds)

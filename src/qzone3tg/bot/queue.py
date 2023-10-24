@@ -2,6 +2,7 @@ import asyncio
 import logging
 from bisect import insort
 from collections import defaultdict
+from contextlib import suppress
 from typing import Mapping, Sequence, TypeGuard
 
 from aiogram import Bot
@@ -90,12 +91,14 @@ class SendQueue(QueueHook):
 
     def new_batch(self, bid: int):
         assert bid != self.bid
+        # clear states
         self.drop_num = 0
         self.feed_state.clear()
         self.ch_feed.clear()
         self._send_order.clear()
         self._dup_cache.clear()
         self.exc_groups.clear()
+
         self.bid = bid
 
     def drop(self, bid: int, feed: FeedContent):
@@ -216,8 +219,8 @@ class SendQueue(QueueHook):
             reason = e.message.lower()
             log.error(f"BadRequest in _send_atom_once: {reason}")
             if "replied message not found" in reason:
-                if "reply_to_message_id" in atom.kwds:
-                    atom.kwds.pop("reply_to_message_id")
+                if atom.reply_to_message_id is not None:
+                    atom.reply_to_message_id = None
                     log.warning("'reply_to_message_id' keyword removed.")
                     raise TryAgain
                 log.error("'reply_to_message_id' keyword not found, skip.")
@@ -248,11 +251,11 @@ class SendQueue(QueueHook):
         async def _send_atom_with_reply(atom: Atom, feed: FeedContent):
             nonlocal reply
             if reply is not None:
-                atom.kwds.update(reply_to_message_id=reply)
-            try:
+                atom.reply_to_message_id = reply
+
+            r = []
+            with suppress(RetryError):
                 r = await self._send_atom(atom, feed)
-            except RetryError:
-                return []
             if r:
                 reply = r[-1]
             return r
