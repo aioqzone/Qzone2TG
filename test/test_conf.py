@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-import qzemoji as qe
 import yaml
 from pydantic import SecretStr
 from qzemoji.base import AsyncEngineFactory
@@ -38,6 +37,22 @@ def test_load(minc: Settings):
         _, maxd = yaml.safe_load_all(f)
     maxc = Settings(**maxd)
     assert maxc
+
+
+@pytest.mark.skip
+def test_env():
+    from os import environ as env
+
+    env["qzone.qq"] = "123"
+    env["bot.admin"] = "456"
+    env["bot.init_args.port"] = "8443"
+    env["bot.init_args.destination"] = "https://example.xyz/prefix"
+
+    conf = Settings(**{}).load_secrets()
+
+    assert conf.qzone.uin == 123
+    assert conf.bot.admin == 456
+    assert isinstance(conf.bot.init_args, WebhookConf)
 
 
 @pytest.mark.skipif("TEST_TOKEN" not in env, reason="test env not exist")

@@ -127,6 +127,10 @@ class InteractApp(BaseApp):
         if isinstance(conf, WebhookConf):
             self._start_webhook(conf)
         else:
+            info = await self.bot.get_webhook_info()
+            if info.url:
+                await self.bot.delete_webhook(drop_pending_updates=False)
+                self.log.warning("webhook deleted.")
             await self.dp.start_polling(self.bot, **conf.model_dump())
 
         self.register_handlers()

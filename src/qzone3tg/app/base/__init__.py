@@ -235,7 +235,7 @@ class BaseApp(StorageMixin):
         if proxy:
             # expect to support https and socks
             session = AiohttpSession(proxy=str(proxy))
-            if proxy.scheme.startswith("socks"):
+            if conf.rdns:
                 session._connector_init["rdns"] = True
                 self.log.warning("socks5 已替换为 socks5h")
             return session

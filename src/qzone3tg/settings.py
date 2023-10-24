@@ -1,5 +1,6 @@
 """This module read user config as a global object."""
 
+from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 
@@ -141,7 +142,9 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置，对应配置文件中的 :obj:`bot.network <.BotConf.network>`. 包括代理和自定义等待时间等。"""
 
-    proxy: AnyUrl | None = Field(None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
+    proxy: AnyUrl | None = Field(
+        default=None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY")
+    )
     """代理设置，支持 :term:`http <http_proxy>` 和 :term:`socks <socks_proxy>` 代理.
     代理将用于向 `!telegram api` 和 `!github` 发送请求. 也支持读取系统全局代理 :envvar:`HTTPS_PROXY`,
     但优先级 **低于** 配置文件提供的值。
@@ -165,6 +168,11 @@ class NetworkConf(BaseModel):
             assert v.scheme in ("http", "socks4", "socks5")
             return v
 
+    rdns: bool = False
+    """远程解析 DNS. 仅在使用 `.proxy` 时生效.
+
+    .. versionadded:: 0.9.1.dev5"""
+
     connect_timeout: float | None = 20
     """服务器向 telegram 和 Qzone 发起连接的最长耗时。单位为秒，默认为20
 
@@ -182,14 +190,14 @@ class BotConf(BaseModel):
     """管理员用户ID，唯一指明管理员. bot 只响应管理员的指令. """
 
     token: SecretStr | None = None
-    network: NetworkConf = NetworkConf()  # type: ignore
+    network: NetworkConf = Field(default_factory=NetworkConf)
     """网络配置。包括代理和等待时间自定义优化。"""
 
-    storage: StorageConfig = StorageConfig(keepdays=1)
+    storage: StorageConfig = Field(default_factory=lambda: StorageConfig(keepdays=1))
     """存储配置。Bot 将保留说说的一部分必要参数，用于点赞/取消赞/转发/评论等. 存储的信息不包括说说内容.
     默认只在内存中建立 :program:`sqlite3` 数据库。"""
 
-    init_args: WebhookConf | PollingConf = PollingConf()
+    init_args: WebhookConf | PollingConf = Field(default_factory=PollingConf)
     """Bot 的启动配置. 根据启动配置的类型不同, bot 会以不同的模式启动.
 
     * 按照 :class:`.PollingConf` 填写，对应 :term:`polling` 模式（默认）；
@@ -200,6 +208,12 @@ class BotConf(BaseModel):
 
     .. versionadded:: 0.2.7.dev2
     """
+
+    @model_validator(mode="before")
+    def webhook_first(cls, v: dict):
+        with suppress(BaseException):
+            v["init_args"] = WebhookConf.model_validate(v["init_args"])
+        return v
 
 
 class QzoneConf(BaseModel):
@@ -319,7 +333,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_nested_delimiter=".")
 
-    log: LogConf = LogConf()
+    log: LogConf = Field(default_factory=LogConf)
     """日志配置: :class:`.LogConf`, 对应 :doc:`log <log>` 项"""
 
     qzone: QzoneConf

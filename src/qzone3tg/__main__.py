@@ -4,7 +4,6 @@ from pathlib import Path
 
 import yaml
 from pydantic import ValidationError
-from qqqr.utils.net import ClientAdapter
 
 from qzone3tg.app.interact import InteractApp
 from qzone3tg.settings import Settings
