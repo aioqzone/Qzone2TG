@@ -2,22 +2,22 @@
 
 from contextlib import suppress
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from aioqzone.api import QrLoginConfig as _QrConfig
 from aioqzone.api import UpLoginConfig as _UpConfig
 from pydantic import (
     AliasChoices,
-    AnyUrl,
     BaseModel,
     DirectoryPath,
     Field,
     FilePath,
-    HttpUrl,
     SecretStr,
+    UrlConstraints,
     field_validator,
     model_validator,
 )
+from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 __all__ = ["Settings"]
@@ -83,7 +83,7 @@ class WebhookConf(BaseModel):
 
     .. seealso:: :external:meth:`telegram.ext.Updater.start_webhook`"""
 
-    destination: HttpUrl
+    destination: Annotated[Url, UrlConstraints(allowed_schemes=["https"])]
     """webhook url. `!telegram api` 将向此地址发送数据. 如果您配置了反向代理，可填写反向代理的转发地址.
 
     Example:
@@ -116,22 +116,6 @@ class WebhookConf(BaseModel):
     .. versionadded:: 0.5.0a3
     """
 
-    @field_validator("destination")
-    @classmethod
-    def force_https(cls, v: HttpUrl):
-        """webhook 地址强制启用 SSL"""
-        assert v.scheme == "https", "webhook needs a https server"
-        return v
-
-    def webhook_url(self, token: SecretStr | None = None):
-        """获取实际的 webhook url. `!telegram api` 实际访问的 url 是 ``destination/bot_token``.
-        用户不需要考虑这一连接过程，由程序完成拼接. 用户应该注意的是，如果要使用反向代理，对 :obj:`.destination`
-        路径的一切访问都应该转发."""
-        if token is None:
-            return SecretStr(str(self.destination))
-        urljoin = lambda u, p: str(u) + ("" if str.endswith(u, "/") else "/") + p
-        return SecretStr(urljoin(str(self.destination), token.get_secret_value()))
-
     @field_validator("port")
     @classmethod
     def port_choice(cls, v: int):
@@ -142,9 +126,9 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置，对应配置文件中的 :obj:`bot.network <.BotConf.network>`. 包括代理和自定义等待时间等。"""
 
-    proxy: AnyUrl | None = Field(
-        default=None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY")
-    )
+    proxy: Annotated[
+        Url, UrlConstraints(allowed_schemes=["http", "socks4", "socks5"])
+    ] | None = Field(default=None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
     """代理设置，支持 :term:`http <http_proxy>` 和 :term:`socks <socks_proxy>` 代理.
     代理将用于向 `!telegram api` 和 `!github` 发送请求. 也支持读取系统全局代理 :envvar:`HTTPS_PROXY`,
     但优先级 **低于** 配置文件提供的值。
@@ -159,14 +143,6 @@ class NetworkConf(BaseModel):
 
         socks 代理自动开启 rdns。
     """
-
-    @field_validator("proxy")
-    @classmethod
-    def proxy_scheme(cls, v: AnyUrl | None):
-        """验证代理 url 协议"""
-        if v:
-            assert v.scheme in ("http", "socks4", "socks5")
-            return v
 
     rdns: bool = False
     """远程解析 DNS. 仅在使用 `.proxy` 时生效.

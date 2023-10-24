@@ -95,7 +95,7 @@ class InteractApp(BaseApp):
             # If you have a self-signed SSL certificate, then you will need to send a public
             # certificate to Telegram
             await bot.set_webhook(
-                conf.webhook_url(token).get_secret_value(),
+                str(conf.destination),
                 secret_token=token.get_secret_value(),
             )
 
@@ -105,9 +105,11 @@ class InteractApp(BaseApp):
         # Create an instance of request handler,
         # aiogram has few implementations for different cases of usage
         # In this example we use SimpleRequestHandler which is designed to handle simple cases
-        webhook_requests_handler = SimpleRequestHandler(dispatcher=self.dp, bot=self.bot)
+        webhook_requests_handler = SimpleRequestHandler(
+            dispatcher=self.dp, bot=self.bot, secret_token=token.get_secret_value()
+        )
         # Register webhook handler on application
-        webhook_requests_handler.register(app, path=conf.webhook_url(token).get_secret_value())
+        webhook_requests_handler.register(app, path=conf.destination.path or "/")
 
         # Mount dispatcher startup and shutdown hooks to aiohttp application
         setup_application(app, self.dp, bot=self.bot)

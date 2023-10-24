@@ -62,18 +62,6 @@ def test_secrets():
     assert sc.password
 
 
-def test_webhook_url():
-    wh = WebhookConf.model_validate(dict(destination="https://example.xyz/prefix/"))
-    url = wh.webhook_url(SecretStr("hello")).get_secret_value()
-    assert url == "https://example.xyz/prefix/hello"
-    wh = WebhookConf.model_validate(dict(destination="https://example.xyz/prefix"))
-    url = wh.webhook_url(SecretStr("hello")).get_secret_value()
-    assert url == "https://example.xyz/prefix/hello"
-    wh = WebhookConf.model_validate(dict(destination="https://example.xyz"))
-    url = wh.webhook_url(SecretStr("hello")).get_secret_value()
-    assert url == "https://example.xyz/hello"
-
-
 @if_conf_exist
 @pytest.mark.asyncio
 async def test_init(minc: Settings):
