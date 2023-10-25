@@ -67,15 +67,21 @@ def test_secrets():
 async def test_init(minc: Settings):
     from qzone3tg.app.interact import InteractApp
 
+    async def empty_idle():
+        pass
+
     with open("config/test.yml") as f:
         _, maxd = yaml.safe_load_all(f)
 
     maxc = Settings(**maxd).load_secrets()
-    async with InteractApp(conf=minc):
-        pass
-    async with InteractApp(conf=maxc):
-        pass
-    # assert qe.proxy == "socks5://localhost:443"
+
+    async with InteractApp(conf=minc) as app:
+        app.idle = empty_idle
+        await app.run()
+
+    async with InteractApp(conf=maxc) as app:
+        app.idle = empty_idle
+        await app.run()
 
 
 @pytest.mark.asyncio

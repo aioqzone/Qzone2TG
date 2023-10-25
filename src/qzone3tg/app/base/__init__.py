@@ -315,7 +315,7 @@ class BaseApp(StorageMixin):
         else:
             tasks.append(self._load_cookies())
 
-        await asyncio.wait(asyncio.ensure_future(i) for i in tasks)
+        await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
 
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
