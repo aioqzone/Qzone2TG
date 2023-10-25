@@ -56,22 +56,9 @@ class PollingConf(BaseModel):
 
     .. seealso:: :external:meth:`telegram.ext.Updater.start_polling`"""
 
-    poll_interval: float = 0.0
-    """查询间隔. 较大的间隔会导致响应不及时."""
-
-    timeout: float = 10
+    polling_timeout: int = 10
     """查询超时."""
-
-    bootstrap_retries: int = -1
-    read_timeout: float = 2.0
-    """Timeout when reading from aiogram.
-
-    .. versionchanged:: 0.5.0a3
-
-        renamed to `read_timeout`
-    """
-    drop_pending_updates: bool = False
-    """Bot 启动后不响应启动前等待的命令. """
+    # backoff_config: BackoffConfig = DEFAULT_BACKOFF_CONFIG
 
 
 class WebhookConf(BaseModel):

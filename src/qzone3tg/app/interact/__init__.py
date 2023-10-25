@@ -1,4 +1,6 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
+import asyncio
+
 import aiogram.filters as filter
 from aiogram import Bot, F
 from aiogram.filters.command import CommandObject
@@ -83,7 +85,7 @@ class InteractApp(BaseApp):
         except:
             self.log.error("Error in setting commands", exc_info=True)
 
-    def _start_webhook(self, conf: WebhookConf):
+    async def _start_webhook(self, conf: WebhookConf):
         from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
         from aiohttp import web
 
@@ -115,7 +117,10 @@ class InteractApp(BaseApp):
         setup_application(app, self.dp, bot=self.bot)
 
         # And finally start webserver
-        web.run_app(app, host="0.0.0.0", port=conf.port)
+        try:
+            await web._run_app(app, host="0.0.0.0", port=conf.port)
+        except (web.GracefulExit, KeyboardInterrupt):
+            pass
 
     async def run(self):
         """
@@ -125,21 +130,22 @@ class InteractApp(BaseApp):
         :return: None
         """
 
-        conf = self.conf.bot.init_args
-        if isinstance(conf, WebhookConf):
-            self._start_webhook(conf)
-        else:
-            info = await self.bot.get_webhook_info()
-            if info.url:
-                await self.bot.delete_webhook(drop_pending_updates=False)
-                self.log.warning("webhook deleted.")
-            await self.dp.start_polling(self.bot, **conf.model_dump())
-
         self.register_handlers()
         await self.set_commands()
         # 加载动态黑名单
         self.blockset.update(await self.dyn_blockset.all())
         return await super().run()
+
+    async def idle(self):
+        conf = self.conf.bot.init_args
+        if isinstance(conf, WebhookConf):
+            return await self._start_webhook(conf)
+
+        info = await self.bot.get_webhook_info()
+        if info.url:
+            await self.bot.delete_webhook(drop_pending_updates=False)
+            self.log.warning("webhook deleted.")
+        await self.dp.start_polling(self.bot, **conf.model_dump())
 
     # --------------------------------
     #            command

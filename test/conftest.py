@@ -9,6 +9,7 @@ from qqqr.utils.net import ClientAdapter
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
+    loop.run_until_complete(loop.shutdown_asyncgens())
     loop.close()
 
 
