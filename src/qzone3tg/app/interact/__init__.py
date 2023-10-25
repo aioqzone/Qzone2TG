@@ -4,7 +4,7 @@ import asyncio
 import aiogram.filters as filter
 from aiogram import Bot, F
 from aiogram.filters.command import CommandObject
-from aiogram.types import BotCommand, Message
+from aiogram.types import BotCommand, FSInputFile, Message
 from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Url as UrlText
 from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
@@ -94,16 +94,17 @@ class InteractApp(BaseApp):
         from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
         from aiohttp import web
 
-        token = self.conf.bot.token
-        assert token
-
         @self.dp.startup()
         async def on_startup(bot: Bot) -> None:
             # If you have a self-signed SSL certificate, then you will need to send a public
             # certificate to Telegram
+            cert = FSInputFile(conf.cert) if conf.cert else None
             await bot.set_webhook(
                 str(conf.destination),
-                secret_token=token.get_secret_value(),
+                certificate=cert,
+                max_connections=conf.max_connections,
+                drop_pending_updates=conf.drop_pending_updates,
+                secret_token=conf.secret_token,
             )
 
         # Create aiohttp.web.Application instance
@@ -113,7 +114,7 @@ class InteractApp(BaseApp):
         # aiogram has few implementations for different cases of usage
         # In this example we use SimpleRequestHandler which is designed to handle simple cases
         webhook_requests_handler = SimpleRequestHandler(
-            dispatcher=self.dp, bot=self.bot, secret_token=token.get_secret_value()
+            dispatcher=self.dp, bot=self.bot, secret_token=conf.secret_token
         )
         # Register webhook handler on application
         webhook_requests_handler.register(app, path=conf.destination.path or "/")

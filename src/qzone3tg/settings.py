@@ -91,7 +91,6 @@ class WebhookConf(BaseModel):
     key: FilePath | None = None
     """证书私钥. 用于开启 SSL 认证. 若您使用反向代理，则应该在反向代理服务器设置证书，此处留空即可."""
 
-    bootstrap_retries: int = 0
     drop_pending_updates: bool = False
     """Bot 启动后不响应启动前等待的命令. """
     max_connections: int = 40
