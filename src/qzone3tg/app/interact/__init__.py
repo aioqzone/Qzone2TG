@@ -52,6 +52,11 @@ class InteractApp(BaseApp):
         add_up_impls(self)
         super().init_hooks()
 
+    async def __aenter__(self):
+        await super().__aenter__()
+        self.register_handlers()
+        return self
+
     def register_handlers(self):
         from ._button import build_router as _button_router
         from ._conversation.emoji import build_router as _emoji_router
@@ -129,8 +134,6 @@ class InteractApp(BaseApp):
 
         :return: None
         """
-
-        self.register_handlers()
         await self.set_commands()
         # 加载动态黑名单
         self.blockset.update(await self.dyn_blockset.all())

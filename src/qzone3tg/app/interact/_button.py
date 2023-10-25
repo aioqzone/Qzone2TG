@@ -156,6 +156,6 @@ def build_router(self: InteractApp) -> Router:
     router = Router(name="inline_button")
     router.callback_query.register(self.btn_qr, SerialCbData.filter(F.command == "qr"))
     router.callback_query.register(
-        self.btn_like, SerialCbData.filter(F.command._in(["like", "unlike"]))
+        self.btn_like, SerialCbData.filter(F.command.in_(["like", "unlike"]))
     )
     return router

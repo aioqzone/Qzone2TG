@@ -203,6 +203,8 @@ async def cancel_custom(message: Message, state: FSMContext):
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
+    if await state.get_state() is None:
+        return
     await message.reply(
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
     )
@@ -218,7 +220,7 @@ def build_router(self: InteractApp) -> Router:
     # router.message.register(self.em, CA, filter.Command(command_em))
     router.callback_query.register(btn_emoji, SerialCbData.filter(F.command == "emoji"))
     router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"), EmForm.GET_EID)
-    router.message.register(input_text, CA, F.text, ~filter.Command(), EmForm.GET_TEXT)
+    router.message.register(input_text, CA, F.text, EmForm.GET_TEXT)
     router.message.register(cancel_custom, CA, filter.Command("cancel"))
 
     return router
