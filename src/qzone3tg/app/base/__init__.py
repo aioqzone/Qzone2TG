@@ -13,9 +13,10 @@ import qzemoji as qe
 import yaml
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
 from aiogram.utils.formatting import Pre, Text, TextLink, as_key_value, as_marked_list
-from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout
 from aioqzone.api import QrLoginManager, UpLoginManager
 from aioqzone_feed.api import FeedApi
 from aioqzone_feed.type import FeedContent
@@ -252,7 +253,7 @@ class BaseApp(StorageMixin):
         signal.signal(signal.SIGTERM, sigterm_handler)
 
         async def router_error_handler(event: ErrorEvent):
-            if isinstance(event.exception, ClientConnectionError):
+            if isinstance(event.exception, TelegramNetworkError):
                 self.log.fatal(f"请检查网络连接 ({event.exception})")
                 if not self.conf.bot.network.proxy:
                     self.log.warning("提示：您是否忘记了设置代理？")

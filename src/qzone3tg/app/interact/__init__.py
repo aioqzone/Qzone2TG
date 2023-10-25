@@ -134,7 +134,10 @@ class InteractApp(BaseApp):
 
         :return: None
         """
-        await self.set_commands()
+        await asyncio.gather(
+            self.set_commands(),
+            self.dyn_blockset.create(),
+        )
         # 加载动态黑名单
         self.blockset.update(await self.dyn_blockset.all())
         return await super().run()
