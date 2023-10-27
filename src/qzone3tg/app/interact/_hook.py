@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-from re import Match
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,46 +7,11 @@ if TYPE_CHECKING:
 
 
 def add_up_impls(self: InteractApp):
-    from aiogram import F, Router
-    from aiogram.types import ForceReply, Message
+    from aiogram import F
+    from aiogram.types import BufferedInputFile, ForceReply
+    from aiogram.utils.media_group import MediaGroupBuilder
 
     CA = F.from_user.id.in_({self.conf.bot.admin})
-    router = Router(name="input")
-
-    code: str = ""
-    evt = asyncio.Event()
-
-    @router.message(CA, F.message.regexp(r"\s*(\d{6})\s*").as_("input_code"))
-    async def _input_verify_code(message: Message, input_code: Match[str]):
-        nonlocal code, evt
-        code = input_code.group(1)
-        evt.set()
-
-    @router.message(CA)
-    async def _wrong_verify_code(message: Message):
-        await message.reply("应回复六位数字验证码")
-
-    async def force_reply_answer(msg: Message) -> str | None:
-        """A hook cannot get answer from the user. This should be done by handler in app.
-        So this method should be implemented in app level.
-
-        :param msg: The force reply message to wait for the reply from user.
-        :param timeout: wait timeout
-        :return: None if timeout, else the reply string.
-        """
-        nonlocal evt, code
-        self.dp.include_router(router)
-        try:
-            await asyncio.wait_for(evt.wait(), timeout=self.conf.qzone.up_config.vcode_timeout)
-        except asyncio.CancelledError:
-            return
-        except asyncio.TimeoutError:
-            await msg.reply("超时未回复")
-            return
-        else:
-            return code
-        finally:
-            self.dp.sub_routers.remove(router)
 
     @self._uplogin.sms_code_input.add_impl
     async def GetSmsCode(uin: int, phone: str, nickname: str) -> str | None:
@@ -58,13 +21,41 @@ def add_up_impls(self: InteractApp):
             disable_notification=False,
             reply_markup=ForceReply(input_field_placeholder="012345"),
         )
-        code = await force_reply_answer(m)
-        if code is None:
-            await self.bot.send_message(self.admin, "超时未回复")
-            await m.edit_reply_markup(reply_markup=None)
-            return
+        CR = F.reply_to_message_id == m.message_id
+        return await self.input(
+            prompt_message=m,
+            pattern=r"\s*(\d{6})\s*",
+            retry_prompt="应输入六位数字验证码",
+            timeout=self.conf.qzone.up_config.vcode_timeout,
+            filters=(CA, CR),
+        )
 
-        return code
+    @self._uplogin.select_captcha_input.add_impl
+    async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> int:
+        n = len(imgs)
+        builder = MediaGroupBuilder(caption=prompt)
+        for i, b in enumerate(imgs):
+            builder.add_photo(BufferedInputFile(b, f"select_captcha_{i}.png"))
+
+        await self.bot.send_media_group(self.admin, builder.build())
+        m = await self.bot.send_message(
+            self.admin,
+            f"请输入1-{n}之间的数字",
+            disable_notification=False,
+            reply_markup=ForceReply(input_field_placeholder="012345"),
+        )
+        CR = F.reply_to_message_id == m.message_id
+
+        ans = await self.input(
+            m,
+            pattern=rf"\s*([1-{n}])\s*",
+            retry_prompt=f"请输入1~{n}之间的数字",
+            timeout=self.conf.qzone.up_config.vcode_timeout,
+            filters=(CA, CR),
+        )
+        if ans is None:
+            return -1
+        return int(ans) - 1
 
 
 def add_qr_impls(self: InteractApp):

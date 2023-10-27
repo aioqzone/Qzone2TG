@@ -1,8 +1,12 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
 import asyncio
+import re
+from contextlib import suppress
+from typing import Callable
 
 import aiogram.filters as filter
-from aiogram import Bot, F
+from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.command import CommandObject
 from aiogram.types import BotCommand, FSInputFile, Message
 from aiogram.utils.formatting import BotCommand as CommandText
@@ -243,6 +247,43 @@ class InteractApp(BaseApp):
         if likedata is None:
             return
         await like_trans(likedata)
+
+    async def input(
+        self,
+        prompt_message: Message,
+        pattern: re.Pattern[str] | str,
+        retry_prompt: str,
+        timeout: float,
+        *,
+        filters: tuple[Callable, ...] = (),
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> str | None:
+        self.dp.include_router(router := Router(name="input"))
+        fut: asyncio.Future[str] = (loop or asyncio.get_event_loop()).create_future()
+        fut.add_done_callback(lambda _: self.dp.sub_routers.remove(router))
+
+        @router.message(*filters, F.message.regexp(pattern).as_("match"))
+        async def _valid_input(message: Message, match: re.Match[str]):
+            fut.set_result(ret := match.group(1))
+            prompt_message.reply(f"合法的输入：{ret}")
+
+        @router.message(*filters)
+        async def _invalid_input(message: Message):
+            await message.reply(retry_prompt.format(text=message.text))
+
+        try:
+            return await asyncio.wait_for(fut, timeout=timeout)
+        except asyncio.CancelledError:
+            await prompt_message.reply(f"已取消")
+        except asyncio.TimeoutError:
+            await prompt_message.reply(f"在{timeout}秒内未取得符合条件的输入。")
+        finally:
+            if not fut.done():
+                fut.cancel()
+
+        with suppress(TelegramBadRequest):
+            await prompt_message.delete_reply_markup()
+        return None
 
     # --------------------------------
     #              query
