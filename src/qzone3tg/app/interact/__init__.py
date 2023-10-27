@@ -271,9 +271,6 @@ class InteractApp(BaseApp):
         async def _invalid_input(message: Message):
             await message.reply(retry_prompt.format(text=message.text))
 
-        self.log.debug(self.dp.sub_routers)
-        self.log.debug(router.message.handlers)
-
         try:
             return await asyncio.wait_for(fut, timeout=timeout)
         except asyncio.CancelledError:

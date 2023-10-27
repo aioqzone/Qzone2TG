@@ -21,7 +21,7 @@ def add_up_impls(self: InteractApp):
             disable_notification=False,
             reply_markup=ForceReply(input_field_placeholder="012345"),
         )
-        CR = F.reply_to_message_id == m.message_id
+        CR = F.reply_to_message.message_id == m.message_id
         return await self.input(
             prompt_message=m,
             pattern=r"\s*(\d{6})\s*",
@@ -40,11 +40,11 @@ def add_up_impls(self: InteractApp):
         await self.bot.send_media_group(self.admin, builder.build())
         m = await self.bot.send_message(
             self.admin,
-            f"请输入1-{n}之间的数字",
+            f"请输入1~{n}之间的数字",
             disable_notification=False,
-            reply_markup=ForceReply(input_field_placeholder="012345"),
+            reply_markup=ForceReply(input_field_placeholder="1"),
         )
-        CR = F.reply_to_message_id == m.message_id
+        CR = F.reply_to_message.message_id == m.message_id
 
         ans = await self.input(
             m,
