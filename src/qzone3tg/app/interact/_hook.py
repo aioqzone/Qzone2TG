@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -31,8 +32,9 @@ def add_up_impls(self: InteractApp):
         )
 
     @self._uplogin.select_captcha_input.add_impl
-    async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> int:
+    async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> list[int]:
         n = len(imgs)
+        assert n < 10
         builder = MediaGroupBuilder(caption=prompt)
         for i, b in enumerate(imgs):
             builder.add_photo(BufferedInputFile(b, f"select_captcha_{i}.png"))
@@ -40,22 +42,23 @@ def add_up_impls(self: InteractApp):
         await self.bot.send_media_group(self.admin, builder.build())
         m = await self.bot.send_message(
             self.admin,
-            f"请输入1~{n}之间的数字",
+            f"请输入1~{n}之间的数字，如有多个可连续输入，或用逗号或空格分隔",
             disable_notification=False,
-            reply_markup=ForceReply(input_field_placeholder="1"),
+            reply_markup=ForceReply(input_field_placeholder="1,23,456,"),
         )
         CR = F.reply_to_message.message_id == m.message_id
 
         ans = await self.input(
             m,
-            pattern=rf"\s*([1-{n}])\s*",
-            retry_prompt="请输入1~%d之间的数字，当前输入：{text}" % n,
+            pattern=rf"^([\s,1-{n}]+?)$",
+            retry_prompt="请输入1~%d之间的数字，如分隔请使用英文逗号或空格。当前输入：{text}" % n,
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )
         if ans is None:
-            return -1
-        return int(ans) - 1
+            return []
+        ans = re.sub(r"[\s,]", "", ans)
+        return [int(c) for c in ans]
 
 
 def add_qr_impls(self: InteractApp):
