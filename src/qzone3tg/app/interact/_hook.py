@@ -25,7 +25,7 @@ def add_up_impls(self: InteractApp):
         return await self.input(
             prompt_message=m,
             pattern=r"\s*(\d{6})\s*",
-            retry_prompt="应输入六位数字验证码",
+            retry_prompt="应输入六位数字验证码，当前输入：{text}",
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )
@@ -49,7 +49,7 @@ def add_up_impls(self: InteractApp):
         ans = await self.input(
             m,
             pattern=rf"\s*([1-{n}])\s*",
-            retry_prompt=f"请输入1~{n}之间的数字",
+            retry_prompt="请输入1~%d之间的数字，当前输入：{text}" % n,
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )

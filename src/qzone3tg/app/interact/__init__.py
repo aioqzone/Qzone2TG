@@ -262,7 +262,7 @@ class InteractApp(BaseApp):
         fut: asyncio.Future[str] = (loop or asyncio.get_event_loop()).create_future()
         fut.add_done_callback(lambda _: self.dp.sub_routers.remove(router))
 
-        @router.message(*filters, F.message.regexp(pattern).as_("match"))
+        @router.message(*filters, F.text.regexp(pattern).as_("match"))
         async def _valid_input(message: Message, match: re.Match[str]):
             fut.set_result(ret := match.group(1))
             prompt_message.reply(f"合法的输入：{ret}")
