@@ -265,7 +265,7 @@ class InteractApp(BaseApp):
         @router.message(*filters, F.text.regexp(pattern).as_("match"))
         async def _valid_input(message: Message, match: re.Match[str]):
             fut.set_result(ret := match.group(1))
-            prompt_message.reply(f"合法的输入：{ret}")
+            await prompt_message.reply(f"合法的输入：{ret}")
 
         @router.message(*filters)
         async def _invalid_input(message: Message):
