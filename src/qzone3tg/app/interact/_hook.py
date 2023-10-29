@@ -31,7 +31,7 @@ def add_up_impls(self: InteractApp):
             filters=(CA, CR),
         )
 
-    @self._uplogin.select_captcha_input.add_impl
+    @self._uplogin.solve_select_captcha.add_impl
     async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> list[int]:
         n = len(imgs)
         assert n < 10
