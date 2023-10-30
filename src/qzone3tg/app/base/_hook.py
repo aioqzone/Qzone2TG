@@ -21,12 +21,12 @@ def add_up_impls(self: BaseApp):
 
     @self._uplogin.login_success.add_impl
     async def LoginSuccess(uin: int):
-        await self.restart_heartbeat()
+        self.restart_heartbeat()
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
-        self._qrlogin.cookie.update(self._uplogin.cookie)
+        self.qzone.login.cookie.update(self._uplogin.cookie)
         async with AsyncSession(self.engine) as sess:
-            await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)
+            await save_cookie(self._uplogin.cookie, self.conf.qzone.uin, sess)
 
 
 def add_feed_impls(self: BaseApp):

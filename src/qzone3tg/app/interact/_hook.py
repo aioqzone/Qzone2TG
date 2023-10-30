@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import TYPE_CHECKING
 
@@ -87,10 +88,12 @@ def add_qr_impls(self: InteractApp):
 
     @self._qrlogin.login_success.add_impl
     async def LoginSuccess(uin: int):
-        await self.restart_heartbeat()
-        await _cleanup()
-        await self.bot.send_message(self.admin, "二维码登录成功")
-        self._uplogin.cookie.update(self._qrlogin.cookie)
+        self.restart_heartbeat()
+        await asyncio.gather(
+            _cleanup(),
+            self.bot.send_message(self.admin, "二维码登录成功"),
+        )
+        self.qzone.login.cookie.update(self._qrlogin.cookie)
         async with AsyncSession(self.engine) as sess:
             await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)
 

@@ -15,9 +15,10 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
+from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Pre, Text, TextLink, as_key_value, as_marked_list
 from aiohttp import ClientSession, ClientTimeout
-from aioqzone.api import QrLoginManager, UpLoginManager
+from aioqzone.api import ConstLoginMan, QrLoginManager, UpLoginManager
 from aioqzone_feed.api import FeedApi
 from aioqzone_feed.type import FeedContent
 from apscheduler.job import Job
@@ -91,7 +92,9 @@ class BaseApp(StorageMixin):
         conf = self.conf.qzone
         self._uplogin = UpLoginManager(self.client, conf.up_config)
         self._qrlogin = QrLoginManager(self.client, conf.qr_config)
-        self.qzone = FeedApi(self.client, self._uplogin)
+        self.qzone = FeedApi(
+            self.client, ConstLoginMan(self.conf.qzone.uin, {}), retry_if_login_expire=False
+        )
         self.log.debug("init_qzone done")
 
     def init_gram(self):
@@ -322,14 +325,16 @@ class BaseApp(StorageMixin):
 
         await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
 
+        self.log.info("启动所有定时器")
+        self.scheduler.resume()
+
         if self.conf.bot.auto_start:
             await self.bot.send_message(self.admin, "Auto Start 🚀")
             self.ch_fetch.add_awaitable(self._fetch(self.admin))
         else:
-            await self.bot.send_message(self.admin, "bot初始化完成，发送 /start 启动 🚀")
-
-        self.log.info("启动所有定时器")
-        self.scheduler.resume()
+            await self.bot.send_message(
+                self.admin, **Text("初始化完成，发送", CommandText("/start"), "启动 🚀").as_kwargs()
+            )
 
         self.start_time = time()
         return await self.idle()
@@ -352,7 +357,7 @@ class BaseApp(StorageMixin):
                 return await self._fetch(to, is_period=is_period)
 
         self.log.info(f"Start fetch with period={is_period}")
-        echo = Text()
+        err_msg = Text()
         # start a new batch
         self.queue.new_batch(self.qzone.new_batch())
         # fetch feed
@@ -360,18 +365,19 @@ class BaseApp(StorageMixin):
         try:
             got = await self.qzone.get_feeds_by_second(self.conf.qzone.dayspac * 86400)
         except RetryError as e:
-            echo = Text("爬取失败 ", Pre(str(e.last_attempt.result())))
+            err_msg = Text("爬取失败 ", Pre(str(e.last_attempt.exception())))
         except BaseException as e:
-            echo = Text("未捕获的异常 ", Pre(str(e)))
+            self.log.debug("未捕获的异常", exc_info=e)
+            err_msg = Text("未捕获的异常 ", Pre(str(e)))
 
         if not is_period:
             # reschedule heartbeat timer
             self.timers["hb"].reschedule("interval", minutes=5)
 
         if got == 0 and not is_period:
-            echo = Text("您已跟上时代🎉")
+            err_msg = Text("您已跟上时代🎉")
 
-        if (t := echo.render()) and t[0]:
+        if (t := err_msg.render()) and t[0]:
             await self.bot.send_message(to, text=t[0], entities=t[1])
 
         if got <= 0:
@@ -403,8 +409,7 @@ class BaseApp(StorageMixin):
     async def _load_cookies(self):
         cookie = await load_cached_cookie(self.conf.qzone.uin, self.engine)
         if cookie:
-            self._qrlogin.cookie = cookie
-            self._uplogin.cookie = cookie
+            self.qzone.login.cookie.update(cookie)
 
     async def _send_save(self):
         """wrap `.queue.send_all` with some post-sent database operation."""
@@ -463,7 +468,7 @@ class BaseApp(StorageMixin):
         statm = as_marked_list(*(as_key_value(k, v) for k, v in stat_dic.items()))
         await self.bot.send_message(to, **statm.as_kwargs(), disable_notification=debug)
 
-    async def restart_heartbeat(self, *_):
+    def restart_heartbeat(self, *_):
         """
         :return: `True` if heartbeat restarted. `False` if no need to restart / restart failed, etc.
         """
