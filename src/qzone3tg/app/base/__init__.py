@@ -59,7 +59,7 @@ class BaseApp(StorageMixin):
         self.fetch_lock = asyncio.Lock()
 
         self.log = self._get_logger()
-        self.silent_noisy_logger()
+        self._silent_noisy_logger()
 
     async def __aenter__(self):
         self.client = await ClientSession().__aenter__()
@@ -203,16 +203,20 @@ class BaseApp(StorageMixin):
             log.error(f"{conf.conf.as_posix()} 不存在，已忽略此条目。")
         return log
 
-    def silent_noisy_logger(self):
+    def _silent_noisy_logger(self):
         """Silent some noisy logger in other packages."""
 
         if self.log.level >= logging.WARN or self.log.level == logging.DEBUG:
             return
-        logging.getLogger("apscheduler.scheduler").setLevel(logging.WARN)
-        logging.getLogger("apscheduler.executors.default").setLevel(logging.WARN)
-        logging.getLogger("charset_normalizer").setLevel(logging.WARN)
-        logging.getLogger("aiosqlite").setLevel(logging.WARN)
-        logging.getLogger("hpack.hpack").setLevel(logging.WARN)
+
+        for name in [
+            "apscheduler.scheduler",
+            "apscheduler.executors.default",
+            "charset_normalizer",
+            "aiosqlite",
+            "aiohttp.server",
+        ]:
+            logging.getLogger(name).setLevel(logging.WARNING)
 
     # --------------------------------
     #          init network
@@ -334,8 +338,8 @@ class BaseApp(StorageMixin):
         """Idle. :exc:`asyncio.CancelledError` will be omitted.
         Return when :obj:`.app` is stopped.
         """
-        assert self.dp._stopped_signal
-        await self.dp._stopped_signal.wait()
+        while True:
+            await asyncio.sleep(0.25)
 
     async def _fetch(self, to: ChatId, *, is_period: bool = False) -> None:
         """fetch feeds.
@@ -442,16 +446,16 @@ class BaseApp(StorageMixin):
             "启动时间": ts2a(self.start_time),
             "上次密码登录": ts2a(self._uplogin.last_login),
             "上次二维码登录": ts2a(self._qrlogin.last_login),
-            "dispatcher状态": friendly(
-                self.dp._stopped_signal and not self.dp._stopped_signal.is_set()
-            ),
             "心跳状态": friendly(self.timers["hb"].next_run_time is not None),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),
         }
+        if not isinstance(self.conf.bot.init_args, WebhookConf):
+            stat_dic["polling"] = friendly(
+                self.dp._stopped_signal and not self.dp._stopped_signal.is_set()
+            )
         if debug:
-            add_dic = {}
-            stat_dic.update(add_dic)
+            pass
         return stat_dic
 
     async def status(self, to: ChatId, *, debug: bool = False):

@@ -89,7 +89,7 @@ def add_qr_impls(self: InteractApp):
     async def LoginSuccess(uin: int):
         await self.restart_heartbeat()
         await _cleanup()
-        await self.bot.send_message(self.admin, "登录成功")
+        await self.bot.send_message(self.admin, "二维码登录成功")
         self._uplogin.cookie.update(self._qrlogin.cookie)
         async with AsyncSession(self.engine) as sess:
             await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)

@@ -22,7 +22,7 @@ def add_up_impls(self: BaseApp):
     @self._uplogin.login_success.add_impl
     async def LoginSuccess(uin: int):
         await self.restart_heartbeat()
-        await self.bot.send_message(self.admin, "登录成功", disable_notification=True)
+        await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
         self._qrlogin.cookie.update(self._uplogin.cookie)
         async with AsyncSession(self.engine) as sess:
@@ -56,7 +56,10 @@ def add_feed_impls(self: BaseApp):
             return await FeedDropped(bid, feed)
 
         await self.ch_db_write.wait()
-        if await get_mids(feed):
+        if feed_mids := await get_mids(feed):
+            self.log.info(f"Feed {feed.fid} is sent before. Skipped.", extra=dict(feed=feed))
+            self.log.debug(f"mids={feed_mids}")
+        else:
             self.queue.add(
                 bid,
                 feed,
