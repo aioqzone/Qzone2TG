@@ -40,11 +40,12 @@ def add_up_impls(self: InteractApp):
         for i, b in enumerate(imgs):
             builder.add_photo(BufferedInputFile(b, f"select_captcha_{i}.png"))
 
-        await self.bot.send_media_group(self.admin, builder.build())
+        _m = await self.bot.send_media_group(self.admin, builder.build())
         m = await self.bot.send_message(
             self.admin,
             f"请输入1~{n}之间的数字，如有多个可连续输入，或用逗号或空格分隔",
             disable_notification=False,
+            reply_to_message_id=_m[0].message_id,
             reply_markup=ForceReply(input_field_placeholder="1,23,456,"),
         )
         CR = F.reply_to_message.message_id == m.message_id

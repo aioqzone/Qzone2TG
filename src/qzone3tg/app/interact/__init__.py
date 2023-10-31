@@ -43,17 +43,18 @@ class InteractApp(BaseApp):
     # --------------------------------
     #            hook init
     # --------------------------------
-    from ._button import queueevent_hook as _sub_queueevent
 
     def init_queue(self):
         super().init_queue()
         self.dyn_blockset = BlockSet(self.engine)
 
     def init_hooks(self):
+        from ._button import add_button_impls
         from ._hook import add_qr_impls, add_up_impls
 
         add_qr_impls(self)
         add_up_impls(self)
+        add_button_impls(self)
         super().init_hooks()
 
     async def __aenter__(self):

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from . import InteractApp
 
 
-def queueevent_hook(app: InteractApp):
+def add_button_impls(self: InteractApp):
     from aioqzone_feed.type import FeedContent
 
     def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
@@ -57,8 +57,8 @@ def queueevent_hook(app: InteractApp):
         btncancel = InlineKeyboardButton(text="取消", callback_data="qr:cancel")
         return InlineKeyboardMarkup(inline_keyboard=[[btnrefresh, btncancel]])
 
-    app.queue.reply_markup = reply_markup
-    app._make_qr_markup = qr_markup
+    self.queue.reply_markup = reply_markup
+    self._make_qr_markup = qr_markup
 
 
 async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):

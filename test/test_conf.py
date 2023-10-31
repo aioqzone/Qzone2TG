@@ -99,3 +99,5 @@ async def test_interact_hook(minc: Settings):
         assert app._qrlogin.qr_fetched.has_impl
         assert app._uplogin.sms_code_input.has_impl
         assert app._uplogin.solve_select_captcha.has_impl
+        assert "local" in app.queue.reply_markup.__qualname__
+        assert "local" in app._make_qr_markup.__qualname__
