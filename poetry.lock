@@ -166,13 +166,13 @@ python-socks = {version = ">=2.4.3,<3.0.0", extras = ["asyncio"]}
 
 [[package]]
 name = "aioqzone"
-version = "1.4.3.dev3"
+version = "1.4.3.dev4"
 description = "A Python wrapper for Qzone login and H5 APIs."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-1.4.3.dev3-py3-none-any.whl", hash = "sha256:712a3b9acbaa2275577dd31f89067a85bedbad09e7bc57c926a32a4e50151f99"},
-    {file = "aioqzone-1.4.3.dev3.tar.gz", hash = "sha256:152aa5b3206f134d2ff744e5fb1b792df10105feb650e44d27ea1a7195e38512"},
+    {file = "aioqzone-1.4.3.dev4-py3-none-any.whl", hash = "sha256:e9474b5cbb70fc2796b207a9bd931f26935940d60d6134dfe4cd3826b22a416a"},
+    {file = "aioqzone-1.4.3.dev4.tar.gz", hash = "sha256:742c5f292905851ce8ecda6caaa6c9215012b84bb17158ab6a525bb70c2a1304"},
 ]
 
 [package.dependencies]
