@@ -94,6 +94,7 @@ def add_qr_impls(self: InteractApp):
             self.bot.send_message(self.admin, "二维码登录成功"),
         )
         self.qzone.login.cookie.update(self._qrlogin.cookie)
+        self.log.debug(f"update cookie from qrlogin: {self.qzone.login.cookie}")
         async with AsyncSession(self.engine) as sess:
             await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)
 

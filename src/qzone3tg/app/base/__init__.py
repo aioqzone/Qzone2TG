@@ -410,6 +410,7 @@ class BaseApp(StorageMixin):
         cookie = await load_cached_cookie(self.conf.qzone.uin, self.engine)
         if cookie:
             self.qzone.login.cookie.update(cookie)
+            self.log.debug(f"update cookie from storage: {self.qzone.login.cookie}")
 
     async def _send_save(self):
         """wrap `.queue.send_all` with some post-sent database operation."""

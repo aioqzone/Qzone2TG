@@ -25,6 +25,7 @@ def add_up_impls(self: BaseApp):
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
         self.qzone.login.cookie.update(self._uplogin.cookie)
+        self.log.debug(f"update cookie from uplogin: {self.qzone.login.cookie}")
         async with AsyncSession(self.engine) as sess:
             await save_cookie(self._uplogin.cookie, self.conf.qzone.uin, sess)
 
