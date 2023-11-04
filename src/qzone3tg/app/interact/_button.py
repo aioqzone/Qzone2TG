@@ -24,7 +24,7 @@ def add_button_impls(self: InteractApp):
             return
         curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
         cbd = SerialCbData(command=("unlike" if feed.islike else "like"), sub_command=curkey)
-        return InlineKeyboardButton(text="Unlike", callback_data=cbd.pack())
+        return InlineKeyboardButton(text=cbd.command.capitalize(), callback_data=cbd.pack())
 
     def _emoji_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         if not feed.entities:
@@ -53,8 +53,9 @@ def add_button_impls(self: InteractApp):
             return InlineKeyboardMarkup(inline_keyboard=[row])
 
     def qr_markup() -> InlineKeyboardMarkup | None:
-        btnrefresh = InlineKeyboardButton(text="刷新", callback_data="qr:refresh")
-        btncancel = InlineKeyboardButton(text="取消", callback_data="qr:cancel")
+        cbd = lambda sub_command: SerialCbData(command="qr", sub_command=sub_command).pack()
+        btnrefresh = InlineKeyboardButton(text="刷新", callback_data=cbd("refresh"))
+        btncancel = InlineKeyboardButton(text="取消", callback_data=cbd("cancel"))
         return InlineKeyboardMarkup(inline_keyboard=[[btnrefresh, btncancel]])
 
     self.queue.reply_markup = reply_markup
@@ -109,10 +110,11 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
         if query.message is None:
             return True
 
-        if unlike:
-            btn = InlineKeyboardButton(text="Like", callback_data="like:" + data)
-        else:
-            btn = InlineKeyboardButton(text="Unlike", callback_data="unlike:" + data)
+        make_btn = lambda like: InlineKeyboardButton(
+            text=str.capitalize(like),
+            callback_data=SerialCbData(command=like, sub_command=data).pack(),
+        )
+        btn = make_btn("like" if unlike else "unlike")
 
         if isinstance(query.message.reply_markup, InlineKeyboardMarkup):
             kbd = query.message.reply_markup.inline_keyboard
