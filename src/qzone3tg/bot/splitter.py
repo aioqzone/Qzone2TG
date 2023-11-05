@@ -1,22 +1,19 @@
 """Splitters split a feed object into several atoms. They provide :meth:`~Splitter.unify_send` interface to split
 a feed object into a chain of atom objects.
 """
-from __future__ import annotations
-
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Sequence, overload
+from typing import Sequence, overload
 
 import qzemoji.utils as qeu
 from aiogram.enums.input_media_type import InputMediaType
-from aiogram.types import BufferedInputFile, InputFile, InputMediaDocument
+from aiogram.types import BufferedInputFile, InputFile
 from aiogram.utils.formatting import Pre, Text, TextLink, as_list
 from aiogram.utils.media_group import MediaType as GroupMedia
 from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
-from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
 from yarl import URL
 

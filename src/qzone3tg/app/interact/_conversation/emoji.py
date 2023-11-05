@@ -80,10 +80,15 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
             await state.update_data(eid=int(eid))
             return await state.set_state(EmForm.GET_TEXT)
         case [eid, name] if str.isdigit(eid):
-            await asyncio.gather(
-                qe.set(int(eid), name),
-                message.delete(),
-                message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+            await asyncio.wait(
+                [
+                    asyncio.ensure_future(i)
+                    for i in (
+                        qe.set(int(eid), name),
+                        message.delete(),
+                        message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                    )
+                ],
             )
         case _:
             await message.reply(**EM_HELP.as_kwargs())
@@ -188,10 +193,15 @@ async def input_text(message: Message, state: FSMContext):
     eid = int(data["eid"])
     name = message.text.strip()
 
-    await asyncio.gather(
-        qe.set(eid, name),
-        message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
-        message.delete(),
+    await asyncio.wait(
+        [
+            asyncio.ensure_future(i)
+            for i in (
+                qe.set(eid, name),
+                message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                message.delete(),
+            )
+        ]
     )
     await state.clear()
 
