@@ -416,11 +416,13 @@ class BaseApp(StorageMixin):
         """wrap `.queue.send_all` with some post-sent database operation."""
 
         # forward
-        def _post_sent(task: asyncio.Future[None], feed: FeedContent):
+        def _post_sent(task: asyncio.Future[None], feed: FeedContent) -> None:
             if e := task.exception():
                 return self.log.error(f"发送feed时出现错误：{feed}", exc_info=e)
 
             mids = self.queue.feed_state[feed]
+            if not mids:
+                return self.log.error(f"feed似乎未发送，请检查日志. fid={feed.fid}")
             assert all_is_mid(mids)
             self.ch_db_write.add_awaitable(self.SaveFeed(feed, mids))
 

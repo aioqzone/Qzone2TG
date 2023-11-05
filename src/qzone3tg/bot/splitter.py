@@ -47,10 +47,10 @@ async def stringify_entities(entities: list[ConEntity] | None) -> Text:
             case AtEntity():
                 s.append(TextLink(e.nick, url=f"user.qzone.qq.com/{e.uin}"))
             case LinkEntity():
-                if isinstance(e.url, HttpUrl):
-                    s.append(TextLink(e.text, url=str(e.url)))
-                else:
+                if isinstance(e.url, str):
                     s.append(f"{e.text}({e.url})")
+                else:
+                    s.append(TextLink(e.text, url=str(e.url)))
             case EmEntity():
                 s.append(await qeu.query_wrap(e.eid))
             case _:
