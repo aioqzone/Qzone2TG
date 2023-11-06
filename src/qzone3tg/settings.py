@@ -54,7 +54,7 @@ class PollingConf(BaseModel):
     """对应 :obj:`bot.init_args <.BotConf.init_args>`. 顾名思义，:term:`polling` 模式通过频繁地向 telegram 查询消息来确保能够响应用户的命令.
     比 :term:`webhook` 简单、要求低，适合测试使用.
 
-    .. seealso:: :external:meth:`telegram.ext.Updater.start_polling`"""
+    .. seealso:: :external:meth:`~aiogram.dispatcher.dispatcher.Dispatcher.start_polling`"""
 
     polling_timeout: int = 10
     """查询超时."""
@@ -68,7 +68,11 @@ class WebhookConf(BaseModel):
     此外，由于 `!telegram api` 的限制，对 :obj:`webhook destination <.destination>` 的请求必须开启 SSL.
     因此您可能需要域名（和证书）才能使用 :term:`webhook`.
 
-    .. seealso:: :external:meth:`telegram.ext.Updater.start_webhook`"""
+    .. seealso::
+
+        :external+aiogram:doc:`dispatcher/webhook`
+        :external:obj:`aiohttp.web.run_app`
+    """
 
     destination: Annotated[Url, UrlConstraints(allowed_schemes=["https"])]
     """webhook url. `!telegram api` 将向此地址发送数据. 如果您配置了反向代理，可填写反向代理的转发地址.
@@ -131,7 +135,7 @@ class NetworkConf(BaseModel):
     """
 
     rdns: bool = False
-    """远程解析 DNS. 仅在使用 `.proxy` 时生效.
+    """远程解析 DNS. 仅在使用 :obj:`.proxy` 时生效.
 
     .. versionadded:: 0.9.1.dev5"""
 

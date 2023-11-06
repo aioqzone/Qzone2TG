@@ -19,7 +19,7 @@
       发送更新。因为需要让 `!telegram api` 能够访问到此服务器，因此需要满足更复杂的条件：域名、公网IP、开启SSL等。
       相比 :term:`polling` 更节省资源。
 
-      .. seealso:: :external:meth:`telegram.ext.Updater.start_polling`
+      .. seealso:: :external:meth:`~aiogram.dispatcher.dispatcher.Dispatcher.start_polling`
 
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -11,6 +11,4 @@ Bot 配置
 
 .. autopydantic_settings:: PollingConf
 
-.. autopydantic_settings:: BotDefaultConf
-
 .. autopydantic_settings:: StorageConfig
