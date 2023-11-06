@@ -258,19 +258,23 @@ class InteractApp(BaseApp):
         *,
         filters: tuple[Callable, ...] = (),
         loop: asyncio.AbstractEventLoop | None = None,
+        delete_conversations=True,
     ) -> str | None:
         self.dp.include_router(router := Router(name="input"))
         fut: asyncio.Future[str] = (loop or asyncio.get_event_loop()).create_future()
         fut.add_done_callback(lambda _: self.dp.sub_routers.remove(router))
+        conversations: list[Message] = [prompt_message]
 
         @router.message(*filters, F.text.regexp(pattern).as_("match"))
         async def _valid_input(message: Message, match: re.Match[str]):
+            conversations.append(message)
             fut.set_result(ret := match.group(1))
-            await prompt_message.reply(f"合法的输入：{ret}")
+            conversations.append(await prompt_message.reply(f"合法的输入：{ret}"))
 
         @router.message(*filters)
         async def _invalid_input(message: Message):
-            await message.reply(retry_prompt.format(text=message.text))
+            conversations.append(message)
+            conversations.append(await message.reply(retry_prompt.format(text=message.text)))
 
         try:
             return await asyncio.wait_for(fut, timeout=timeout)
@@ -281,9 +285,11 @@ class InteractApp(BaseApp):
         finally:
             if not fut.done():
                 fut.cancel()
+            with suppress(TelegramBadRequest):
+                await prompt_message.delete_reply_markup()
+            if delete_conversations:
+                await asyncio.wait([asyncio.ensure_future(m.delete()) for m in conversations])
 
-        with suppress(TelegramBadRequest):
-            await prompt_message.delete_reply_markup()
         return None
 
     # --------------------------------

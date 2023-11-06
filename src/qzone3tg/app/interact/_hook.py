@@ -57,6 +57,8 @@ def add_up_impls(self: InteractApp):
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )
+        await _m[0].delete()
+
         if ans is None:
             return []
         ans = re.sub(r"[\s,]", "", ans)
