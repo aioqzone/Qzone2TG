@@ -87,7 +87,7 @@ class SendQueue(QueueHook):
 
     @property
     def exc_num(self):
-        return countif(self.exc_groups.values(), lambda i: len(i) == MAX_RETRY)
+        return countif(self.exc_groups.values(), lambda i: len(i) >= MAX_RETRY)
 
     def new_batch(self, bid: int):
         assert bid != self.bid
@@ -263,7 +263,7 @@ class SendQueue(QueueHook):
         # send forward
         if isinstance(feed.forward, FeedContent):
             await self.ch_feed[feed.forward].wait(wait_new=False)
-            assert feed.forward in self.ch_feed
+            assert feed.forward in self.feed_state
 
             if atoms_forward := self.feed_state[feed.forward]:
                 if all_is_atom(atoms_forward):
