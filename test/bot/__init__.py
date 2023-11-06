@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from aioqzone.type.entity import TextEntity
+from aiogram.types import Chat, Message
+from aioqzone.model import TextEntity
 from aioqzone_feed.type import FeedContent, VisualMedia
-from telegram import Chat, Message
 
 from qzone3tg.bot import ChatId
 
@@ -50,7 +50,7 @@ class Feed4Test(FeedContent):
 
 
 def fake_message(id: int):
-    return Message(id, datetime.now(), Chat(1, "private"))
+    return Message(message_id=id, date=datetime.now(), chat=Chat(id=1, type="private"))
 
 
 def fake_feed(i: int | str) -> FeedContent:

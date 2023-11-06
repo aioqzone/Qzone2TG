@@ -1,119 +1,86 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from contextlib import suppress
+from typing import TYPE_CHECKING, Final
 
-from aioqzone.event import QREvent
-from aioqzone.type.entity import EmEntity
-from aioqzone.type.internal import LikeData, PersudoCurkey
-from qqqr.event import sub_of
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram import F, Router
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aioqzone.model import EmEntity, LikeData, PersudoCurkey
 
-from ...bot.queue import QueueEvent
 from ..storage.orm import FeedOrm
+from .types import SerialCbData
+
+MAX_CALLBACK_DATA: Final[int] = 64
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
-
     from . import InteractApp
 
 
-@sub_of(QueueEvent)
-def queueevent_hook(_self: InteractApp, base: type[QueueEvent]):
+def add_button_impls(self: InteractApp):
     from aioqzone_feed.type import FeedContent
-    from telegram.constants import InlineKeyboardButtonLimit
 
-    from qzone3tg.type import FeedPair
+    def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
+        if feed.unikey is None:
+            return
+        curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
+        cbd = SerialCbData(command=("unlike" if feed.islike else "like"), sub_command=curkey)
+        return InlineKeyboardButton(text=cbd.command.capitalize(), callback_data=cbd.pack())
 
-    class interactapp_queueevent(base):
-        def _like_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
-            if feed.unikey is None:
-                return
-            curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
-            if feed.islike:
-                return InlineKeyboardButton("Unlike", callback_data="like:-" + curkey)
+    def _emoji_markup(feed: FeedContent) -> InlineKeyboardButton | None:
+        if not feed.entities:
+            return
+        eids = [e.eid for e in feed.entities if isinstance(e, EmEntity)]
+        if not eids:
+            return
+
+        # NOTE: maybe a more compact encoding
+        eids = [str(i) for i in set(eids)]
+        cb = "emoji:"
+        for i in eids:
+            if len(cb) + len(i) <= MAX_CALLBACK_DATA:
+                cb += i + ","
             else:
-                return InlineKeyboardButton("Like", callback_data="like:" + curkey)
+                break
+        cb = cb.removesuffix(",")
 
-        def _emoji_markup(self, feed: FeedContent) -> InlineKeyboardButton | None:
-            if not feed.entities:
-                return
-            eids = [e.eid for e in feed.entities if isinstance(e, EmEntity)]
-            if not eids:
-                return
+        assert len(cb) <= MAX_CALLBACK_DATA
+        return InlineKeyboardButton(text="Customize Emoji", callback_data=cb)
 
-            # NOTE: maybe a more compact encoding
-            eids = [str(i) for i in set(eids)]
-            cb = "emoji:"
-            for i in eids:
-                if len(cb) + len(i) <= InlineKeyboardButtonLimit.MAX_CALLBACK_DATA:
-                    cb += i + ","
-                else:
-                    break
-            cb = cb.removesuffix(",")
+    async def reply_markup(feed: FeedContent) -> InlineKeyboardMarkup | None:
+        row = [_emoji_markup(feed), _like_markup(feed)]
+        row = list(filter(None, row))
+        if row:
+            return InlineKeyboardMarkup(inline_keyboard=[row])
 
-            assert len(cb) <= InlineKeyboardButtonLimit.MAX_CALLBACK_DATA
-            return InlineKeyboardButton("Customize Emoji", callback_data=cb)
+    def qr_markup() -> InlineKeyboardMarkup | None:
+        cbd = lambda sub_command: SerialCbData(command="qr", sub_command=sub_command).pack()
+        btnrefresh = InlineKeyboardButton(text="刷新", callback_data=cbd("refresh"))
+        btncancel = InlineKeyboardButton(text="取消", callback_data=cbd("cancel"))
+        return InlineKeyboardMarkup(inline_keyboard=[[btnrefresh, btncancel]])
 
-        def _reply_markup_one_feed(self, feed: FeedContent) -> InlineKeyboardMarkup | None:
-            row = [self._emoji_markup(feed), self._like_markup(feed)]
-            row = list(filter(None, row))
-            if row:
-                return InlineKeyboardMarkup([row])
-
-        async def reply_markup(self, feed: FeedContent, need_forward: bool):
-            pair = FeedPair(None, None)  # type: FeedPair[InlineKeyboardMarkup | None]
-            if need_forward and isinstance(feed.forward, FeedContent):
-                pair.forward = self._reply_markup_one_feed(feed.forward)
-            pair.feed = self._reply_markup_one_feed(feed)
-            return pair
-
-    return interactapp_queueevent
+    self.queue.reply_markup = reply_markup
+    self._make_qr_markup = qr_markup
 
 
-@sub_of(QREvent)
-def qrevent_hook(_self: InteractApp, base: type[QREvent]):
-    class interactapp_qrevent(base):
-        def qr_markup(self):
-            btnrefresh = InlineKeyboardButton("刷新", callback_data="qr:refresh")
-            btncancel = InlineKeyboardButton("取消", callback_data="qr:cancel")
-            return InlineKeyboardMarkup([[btnrefresh, btncancel]])
-
-    return interactapp_qrevent
-
-
-async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    assert query
-    if query.data is None or ":" not in query.data:
-        self.log.warning(f"wrong callback data from update {update.update_id}")
-        self.log.debug(query)
-        await query.answer(f"invalid query data: {query.data}", show_alert=True)
-        return
-
-    self.log.info(f"Like! query={query.data}")
-    _, data = str.split(query.data, ":", maxsplit=1)
-    if unlike := data.startswith("-"):
-        data = data.removeprefix("-")
+async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
+    data = callback_data.sub_command
+    unlike = callback_data.command == "unlike"
+    self.log.info(f"Like! query={data}")
 
     async def query_likedata(persudo_curkey: str) -> LikeData | None:
         p = PersudoCurkey.from_str(persudo_curkey)
-        feed = await self.store.get_feed_orm(FeedOrm.uin == p.uin, FeedOrm.abstime == p.abstime)
+        feed = await self.store.get_feed_orm(*FeedOrm.primkey(p))
 
         if feed is None or feed.unikey is None:
-            for c in [
-                query.answer(
-                    text=f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。"
-                    if feed is None
-                    else "该说说不支持点赞。",
-                    show_alert=True,
-                ),
-                query.edit_message_reply_markup(reply_markup=None),
-            ]:
-                try:
-                    await c
-                except:
-                    pass
+            await query.answer(
+                text=f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。"
+                if feed is None
+                else "该说说不支持点赞。",
+                show_alert=True,
+            )
+            if query.message:
+                await query.message.edit_reply_markup(reply_markup=None)
+
             return
 
         return LikeData(
@@ -125,63 +92,72 @@ async def btn_like(self: InteractApp, update: Update, context: ContextTypes.DEFA
             abstime=feed.abstime,
         )
 
-    async def like_trans(likedata: LikeData):
-        assert query
-        assert query.message
+    async def like_trans(likedata: LikeData | None) -> bool:
+        if likedata is None:
+            return False
 
-        with self.loginman.disable_suppress():
-            try:
-                succ = await self.qzone.internal_dolike_app(
-                    likedata.appid, likedata.unikey, likedata.curkey, not unlike
-                )
-            except:
-                self.log.error("点赞失败", exc_info=True)
-                succ = False
+        try:
+            succ = await self.qzone.internal_dolike_app(
+                likedata.appid, likedata.unikey, likedata.curkey, not unlike
+            )
+        except:
+            self.log.error("点赞失败", exc_info=True)
+            return False
+
         if not succ:
-            await query.answer(text="点赞失败", show_alert=True)
-            return
+            return False
 
-        if unlike:
-            btn = InlineKeyboardButton("Like", callback_data="like:" + data)
-        else:
-            btn = InlineKeyboardButton("Unlike", callback_data="like:-" + data)
+        if query.message is None:
+            return True
+
+        make_btn = lambda like: InlineKeyboardButton(
+            text=str.capitalize(like),
+            callback_data=SerialCbData(command=like, sub_command=data).pack(),
+        )
+        btn = make_btn("like" if unlike else "unlike")
+
         if isinstance(query.message.reply_markup, InlineKeyboardMarkup):
             kbd = query.message.reply_markup.inline_keyboard
             kbd = list(kbd[0])
-            kbd[-1] = btn
+            kbd[-1] = btn  # like button is the last
         else:
             kbd = [btn]
 
-        try:
-            await query.edit_message_reply_markup(InlineKeyboardMarkup([kbd]))
-        except:
-            pass
+        await query.message.edit_reply_markup(
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[kbd])
+        )
+        return True
 
-    likedata = await query_likedata(data)
-    if likedata is None:
-        return
-    await like_trans(likedata)
-    await query.answer()
+    succ = False
+    with suppress():
+        if likedata := await query_likedata(data):
+            succ = await like_trans(likedata)
+
+    if succ:
+        await query.answer()
+    else:
+        await query.answer(text="点赞失败", show_alert=True)
 
 
-async def btn_qr(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    assert query
-    if query.data is None:
-        await query.answer("null query data", show_alert=True)
-        self.log.debug(query)
-        return
-
-    self.log.info(f"QR! query={query.data}")
-
-    match query.data:
-        case "qr:refresh":
-            self[QREvent].refresh_flag.set()
-        case "qr:cancel":
-            self[QREvent].cancel_flag.set()
+async def btn_qr(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
+    match callback_data.sub_command:
+        case "refresh":
+            self._qrlogin.refresh_qr.set()
+        case "cancel":
+            self._qrlogin.cancel_qr.set()
         case _:
             self.log.warning(f"Unexpected qr button callback: {query.data}")
-            await query.delete_message()
+            if query.message:
+                await query.message.delete()
             await query.answer("Unexpected qr button callback", show_alert=True)
             return
     await query.answer()
+
+
+def build_router(self: InteractApp) -> Router:
+    router = Router(name="inline_button")
+    router.callback_query.register(self.btn_qr, SerialCbData.filter(F.command == "qr"))
+    router.callback_query.register(
+        self.btn_like, SerialCbData.filter(F.command.in_(["like", "unlike"]))
+    )
+    return router

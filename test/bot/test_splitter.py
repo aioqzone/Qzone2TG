@@ -1,19 +1,19 @@
 from typing import Callable
 
 import pytest
+from aiogram.types import BufferedInputFile
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
-from telegram import InputFile
-from telegram.constants import MediaGroupLimit
 
 from qzone3tg.bot.atom import (
     LIM_MD_TXT,
     LIM_TXT,
-    DocPartial,
-    MediaGroupPartial,
-    MediaPartial,
-    PicPartial,
-    TextPartial,
+    MAX_GROUP_MEDIA,
+    DocAtom,
+    MediaAtom,
+    MediaGroupAtom,
+    PicAtom,
+    TextAtom,
 )
 from qzone3tg.bot.splitter import FetchSplitter, LocalSplitter
 
@@ -37,36 +37,36 @@ class TestLocal:
         f = fake_feed(0)
         ps = await local.unify_send(f)
         assert len(ps) == 1
-        assert isinstance(ps[0], TextPartial)
+        assert isinstance(ps[0], TextAtom)
 
     async def test_msg_long(self, local: LocalSplitter):
         f = fake_feed("a" * LIM_TXT)
         ps = await local.unify_send(f)
         assert len(ps) == 2
-        assert isinstance(ps[0], TextPartial)
-        assert isinstance(ps[1], TextPartial)
+        assert isinstance(ps[0], TextAtom)
+        assert isinstance(ps[1], TextAtom)
 
     async def test_media_norm(self, local: LocalSplitter):
         f = fake_feed(0)
         f.media = [fake_media(build_html(100))]
         ps = await local.unify_send(f)
         assert len(ps) == 1
-        assert isinstance(ps[0], PicPartial)
+        assert isinstance(ps[0], PicAtom)
 
     async def test_media_long(self, local: LocalSplitter):
         f = fake_feed("a" * LIM_MD_TXT)
         f.media = [fake_media(build_html(100))]
         ps = await local.unify_send(f)
         assert len(ps) == 2
-        assert isinstance(ps[0], PicPartial)
-        assert isinstance(ps[1], TextPartial)
+        assert isinstance(ps[0], PicAtom)
+        assert isinstance(ps[1], TextAtom)
 
     async def test_media_group(self, local: LocalSplitter):
         f = fake_feed(0)
         f.media = [fake_media(build_html(100))] * 2
         ps = await local.unify_send(f)
         assert len(ps) == 1
-        assert isinstance(ps[0], MediaGroupPartial)
+        assert isinstance(ps[0], MediaGroupAtom)
         assert ps[0].reply_markup is None
 
     async def test_media_group_exd(self, local: LocalSplitter):
@@ -74,8 +74,8 @@ class TestLocal:
         f.media = [fake_media(build_html(100))] * 11
         ps = await local.unify_send(f)
         assert len(ps) == 2
-        assert isinstance(ps[0], MediaGroupPartial)
-        assert isinstance(ps[1], PicPartial)
+        assert isinstance(ps[0], MediaGroupAtom)
+        assert isinstance(ps[1], PicAtom)
         assert ps[1].text
 
     async def test_media_group_forward_exd(self, local: LocalSplitter):
@@ -85,9 +85,9 @@ class TestLocal:
         f.forward = ff
         ps = await local.unify_send(f)
         assert len(ps) == 3
-        assert isinstance(ps[0], MediaGroupPartial)
-        assert isinstance(ps[1], PicPartial)
-        assert isinstance(ps[2], TextPartial)
+        assert isinstance(ps[0], MediaGroupAtom)
+        assert isinstance(ps[1], PicAtom)
+        assert isinstance(ps[2], TextAtom)
         assert ps[1].text
 
     async def test_media_group_doc(self, local: LocalSplitter):
@@ -95,19 +95,19 @@ class TestLocal:
         f.media = [invalid_media(build_html(100))] * 3
         ps = await local.unify_send(f)
         assert len(ps) == 1
-        assert isinstance(ps[0], MediaGroupPartial)
+        assert isinstance(ps[0], MediaGroupAtom)
         assert ps[0].is_doc
 
     @pytest.mark.parametrize(
         ["md_factory", "part_cls"],
         [
-            ([invalid_media, fake_media, invalid_media], [DocPartial, PicPartial, DocPartial]),
-            ([fake_media, fake_media, invalid_media], [MediaGroupPartial]),
-            ([invalid_media, invalid_media, fake_media], [MediaGroupPartial, PicPartial]),
+            ([invalid_media, fake_media, invalid_media], [DocAtom, PicAtom, DocAtom]),
+            ([fake_media, fake_media, invalid_media], [MediaGroupAtom]),
+            ([invalid_media, invalid_media, fake_media], [MediaGroupAtom, PicAtom]),
         ],
     )
     async def test_media_group_doc_exd(
-        self, local: LocalSplitter, md_factory: list[Callable], part_cls: list[type[MediaPartial]]
+        self, local: LocalSplitter, md_factory: list[Callable], part_cls: list[type[MediaAtom]]
     ):
         f = fake_feed("a")
         f.media = [f(build_html(i)) for i, f in enumerate(md_factory, 100)]
@@ -115,8 +115,8 @@ class TestLocal:
         assert len(ps) == len(part_cls)
         for p, p_cls in zip(ps, part_cls):
             assert isinstance(p, p_cls)
-            if isinstance(p, MediaGroupPartial):
-                assert len(p.medias) >= MediaGroupLimit.MIN_MEDIA_LENGTH
+            if isinstance(p, MediaGroupAtom):
+                assert 1 <= len(p.builder._media) <= MAX_GROUP_MEDIA
 
 
 class TestFetch:
@@ -125,23 +125,21 @@ class TestFetch:
         f.media = [fake_media(build_html(100))] * 2
         ps = await fetch.unify_send(f)
         p = ps[0]
-        assert isinstance(p, MediaGroupPartial)
-        ipm = await fetch.force_bytes_inputmedia(p.medias[0])
-        assert isinstance(ipm.media, InputFile)
-        assert ipm.media.input_file_content
+        assert isinstance(p, MediaGroupAtom)
+        ipm = await fetch.force_bytes_inputmedia(p.builder._media[0])
+        assert isinstance(ipm.media, BufferedInputFile)
 
     async def test_force_bytes(self, fetch: FetchSplitter):
         f = fake_feed(0)
         f.media = [fake_media(build_html(100))] * 11
         ps = await fetch.unify_send(f)
         assert len(ps) == 2
-        assert isinstance(ps[0], MediaGroupPartial)
-        assert isinstance(ps[1], PicPartial)
+        assert isinstance(ps[0], MediaGroupAtom)
+        assert isinstance(ps[1], PicAtom)
 
         p = await fetch.force_bytes(ps[0])
-        for i in p.medias:
-            assert isinstance(i.media, InputFile)
-            assert i.media.input_file_content
+        for i in p.builder._media:
+            assert isinstance(i.media, BufferedInputFile)
 
         p = await fetch.force_bytes(ps[1])
-        assert isinstance(p.content, bytes)
+        assert isinstance(p.content, BufferedInputFile)

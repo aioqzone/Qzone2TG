@@ -3,11 +3,7 @@ import asyncio
 from pathlib import Path
 
 import yaml
-from httpx import AsyncClient
 from pydantic import ValidationError
-from qqqr.ssl import ssl_context
-from qqqr.utils.net import ClientAdapter
-from qzemoji.base import AsyncEngineFactory
 
 from qzone3tg.app.interact import InteractApp
 from qzone3tg.settings import Settings
@@ -17,14 +13,8 @@ DEFAULT_SECRETS = Path("/run/secrets")
 
 
 async def main(conf: Settings) -> int:
-    async with (
-        AsyncClient(verify=ssl_context()) as client,
-        AsyncEngineFactory.sqlite3(conf.bot.storage.database) as engine,
-    ):
-        # this client is used for QzoneApi/BotFetcher. So set the ssl context, unset the proxy.
-        # UA will be set by qqqr once this client is used for login.
-        # telegram proxy will be set by App._request_args, through PTB app.
-        app = InteractApp(ClientAdapter(client), store=engine, conf=conf)
+    async with InteractApp(conf) as app:
+        app.log.debug(conf)
         try:
             await app.run()
             return 0

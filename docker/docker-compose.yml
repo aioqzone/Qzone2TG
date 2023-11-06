@@ -12,7 +12,7 @@ services:
       qzone.qq: ${UIN}
       bot.admin: ${ADMIN}
       bot.storage.database: data/${UIN}.db
-      # bot.network.proxy: socks5h://host.docker.internal:7890
+      # bot.network.proxy: socks5://host.docker.internal:7890
     # network_mode: host
     volumes:
       # - ./log:/app/log

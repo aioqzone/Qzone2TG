@@ -1,39 +1,28 @@
 """Splitters split a feed object into several atoms. They provide :meth:`~Splitter.unify_send` interface to split
 a feed object into a chain of atom objects.
 """
-from __future__ import annotations
-
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Sequence, overload
+from typing import Sequence, overload
 
 import qzemoji.utils as qeu
-from aioqzone.type.entity import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
+from aiogram.enums.input_media_type import InputMediaType
+from aiogram.types import BufferedInputFile, InputFile
+from aiogram.utils.formatting import Pre, Text, TextLink, as_list
+from aiogram.utils.media_group import MediaType as GroupMedia
+from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
 from aioqzone_feed.type import BaseFeed, FeedContent, VisualMedia
-from httpx import URL
-from pydantic import HttpUrl
 from qqqr.utils.net import ClientAdapter
-from telegram import InputFile
-from telegram import InputMediaAnimation as Anim
-from telegram import InputMediaDocument as Doc
-from telegram import InputMediaPhoto as Pic
-from telegram import InputMediaVideo as Video
+from yarl import URL
 
-from qzone3tg.type import FeedPair
-
-from .atom import MediaGroupPartial, MediaPartial, MsgPartial, TextPartial, href
-
-if TYPE_CHECKING:
-    from . import GroupMedia, SupportMedia
-
+from .atom import MediaAtom, MediaGroupAtom, MsgAtom, TextAtom, url_basename
 
 log = logging.getLogger(__name__)
-html_trans = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
 
 
-async def stringify_entities(entities: list[ConEntity] | None) -> str:
+async def stringify_entities(entities: list[ConEntity] | None) -> Text:
     """Stringify all entities and concatenate them.
 
     .. deprecated:: 0.4.0a1.dev5
@@ -45,24 +34,25 @@ async def stringify_entities(entities: list[ConEntity] | None) -> str:
         support `~aioqzone.type.entity.LinkEntity`.
     """
     if not entities:
-        return ""
-    s = ""
+        return Text()
+
+    s: list[Text | str] = []
     for e in entities:
         match e:
             case TextEntity():
-                s += e.con.translate(html_trans)
+                s.append(e.con)
             case AtEntity():
-                s += f"@{href(e.nick.translate(html_trans), f'user.qzone.qq.com/{e.uin}')}"
+                s.append(TextLink(e.nick, url=f"user.qzone.qq.com/{e.uin}"))
             case LinkEntity():
-                if isinstance(e.url, HttpUrl):
-                    s += href(e.text, e.url)
+                if isinstance(e.url, str):
+                    s.append(f"{e.text}({e.url})")
                 else:
-                    s += f"{e.text}({e.url})"
+                    s.append(TextLink(e.text, url=str(e.url)))
             case EmEntity():
-                s += await qeu.query_wrap(e.eid)
+                s.append(await qeu.query_wrap(e.eid))
             case _:
-                s += str(e.dict(exclude={"type"})).translate(html_trans)
-    return s
+                s.append(Pre(e.model_dump_json(exclude={"type"})))
+    return Text(*s)
 
 
 def supported_video(url: str | URL):
@@ -87,15 +77,13 @@ class Splitter(ABC):
     """
 
     @abstractmethod
-    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[Sequence[MsgPartial]]:
+    async def split(self, feed: FeedContent) -> Sequence[MsgAtom]:
         """
         :param feed: feed to split into partials
-        :param need_forward: whether the forward atoms will be used.
-            If False, simply set `forward` field of `FeedPair` to a empty list.
         :return: a :class:`FeedPair` object containing atoms sequence."""
         raise NotImplementedError
 
-    async def unify_send(self, feed: FeedContent):
+    async def unify_send(self, feed: FeedContent) -> Sequence[MsgAtom]:
         """
         The unify_send function is a unified function to generate atomic unit to be sent.
         It will split the feed into multiple callable partials no matter
@@ -105,8 +93,10 @@ class Splitter(ABC):
         :return: Message Partials. Forwardee partials is prior to forwarder partials.
         """
 
-        pair = await self.split(feed, True)
-        return (*pair.forward, *pair.feed)
+        if isinstance(feed.forward, FeedContent):
+            a, b = await asyncio.gather(self.split(feed.forward), self.split(feed))
+            return *a, *b
+        return await self.split(feed)
 
 
 class LocalSplitter(Splitter):
@@ -114,10 +104,10 @@ class LocalSplitter(Splitter):
     It will guess the media type using its metadata.
     """
 
-    async def split(self, feed: FeedContent, need_forward: bool) -> FeedPair[list[MsgPartial]]:
-        pair = FeedPair([], [])  # type: FeedPair[list[MsgPartial]]
+    async def split(self, feed: FeedContent) -> list[MsgAtom]:
+        atoms: list[MsgAtom] = []
 
-        txt = self.header(feed) + await stringify_entities(feed.entities)
+        txt = as_list(self.header(feed), await stringify_entities(feed.entities), sep="：\n\n")
         metas = feed.media or []
         probe_media = list(await asyncio.gather(*(self.probe(i) for i in metas)))
         md_types = [self.guess_md_type(i or m) for i, m in zip(probe_media, metas)]
@@ -127,61 +117,62 @@ class LocalSplitter(Splitter):
         while pipe_objs[0] or pipe_objs[1]:
             if pipe_objs[1]:
                 if len(md_types) > 1 and (
-                    issubclass(md_types[0], Doc) == issubclass(md_types[1], Doc)
+                    (md_types[0] == InputMediaType.DOCUMENT)
+                    == (md_types[1] == InputMediaType.DOCUMENT)
                 ):
-                    p, pipe_objs = MediaGroupPartial.pipeline(*pipe_objs)
+                    p, pipe_objs = MediaGroupAtom.pipeline(*pipe_objs)
                 else:
-                    p, pipe_objs = MediaPartial.pipeline(*pipe_objs)
+                    p, pipe_objs = MediaAtom.pipeline(*pipe_objs)
             else:
-                p, pipe_objs = TextPartial.pipeline(*pipe_objs)
-            pair.feed.append(p)
+                p, pipe_objs = TextAtom.pipeline(*pipe_objs)
+            atoms.append(p)
 
-        if isinstance(feed.forward, HttpUrl):
+        if isinstance(feed.forward, str):
             # override disable_web_page_preview if forwarding an app.
-            match pair.feed[0]:
-                case MediaGroupPartial():
+            match atoms[0]:
+                case MediaGroupAtom():
                     log.warning(f"Forward url and media coexist: {feed}")
-                case TextPartial():
-                    pair.feed[0].kwds["disable_web_page_preview"] = False
+                case TextAtom():
+                    atoms[0].kwds["disable_web_page_preview"] = False
 
-        # send forward before stem message
-        if need_forward and isinstance(feed.forward, FeedContent):
-            pair.forward = (await self.split(feed.forward, False)).feed
+        return atoms
 
-        return pair
-
-    def header(self, feed: FeedContent) -> str:
+    def header(self, feed: FeedContent) -> Text:
         """Generate a header for a feed according to feed type.
 
         :param feed: feed to generate a header
         """
         semt = sementic_time(feed.abstime)
-        uname = feed.nickname.translate(html_trans) or str(feed.uin)
-        nickname = href(uname, f"user.qzone.qq.com/{feed.uin}")
+        uname = feed.nickname or str(feed.uin)
+        richname = TextLink(uname, url=f"user.qzone.qq.com/{feed.uin}")
 
         if feed.forward is None:
-            return f"{nickname}{semt}发布了{href('说说', str(feed.unikey))}：\n\n"
+            return Text(richname, semt, "发布了", TextLink("说说", url=str(feed.unikey)))
 
         if isinstance(feed.forward, BaseFeed):
-            return (
-                f"{nickname}{semt}转发了"
-                f"{href(feed.forward.nickname, f'user.qzone.qq.com/{feed.forward.uin}')}"
-                f"的{href('说说', str(feed.unikey))}：\n\n"
+            return Text(
+                richname,
+                semt,
+                "转发了",
+                TextLink(feed.forward.nickname, url=f"user.qzone.qq.com/{feed.forward.uin}"),
+                f"的",
+                TextLink("说说", url=str(feed.unikey)),
             )
-        elif isinstance(feed.forward, HttpUrl):
-            share = str(feed.forward)
+
+        fwd_url = URL(feed.forward)
+        if fwd_url.scheme in ["https", "http"]:
             # here we ensure share url is the first url entity, so telegram's preview link feature
             # will fetch the app for user.
-            return f"{uname}{semt}分享了{href('应用', share)}：\n\n"
+            return Text(uname, semt, "分享了", TextLink("应用", url=feed.forward))
 
         # should not send in <a> since it is not a valid url
-        return f"{nickname}{semt}分享了应用: ({feed.forward})：\n\n"
+        return Text(richname, semt, f"分享了应用 ({feed.forward})")
 
     async def probe(self, media: VisualMedia, **kw) -> bytes | None:
         """:class:`LocalSpliter` does not probe any media."""
         return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> InputMediaType:
         """Guess media type according to its metadata.
 
         :param media: metadata to guess
@@ -189,14 +180,14 @@ class LocalSplitter(Splitter):
         assert isinstance(media, VisualMedia)
         raw_url = URL(media.raw)
         if raw_url.path and raw_url.path.endswith(".gif"):
-            return Anim
+            return InputMediaType.ANIMATION
         if media.is_video:
             if supported_video(raw_url):
-                return Video
-            return Doc
+                return InputMediaType.VIDEO
+            return InputMediaType.DOCUMENT
         if media.height + media.width > 1e4:
-            return Doc
-        return Pic
+            return InputMediaType.DOCUMENT
+        return InputMediaType.PHOTO
 
 
 class FetchSplitter(LocalSplitter):
@@ -222,13 +213,13 @@ class FetchSplitter(LocalSplitter):
         try:
             # fetch the media to probe correctly
             async with self.client.get(str(media.raw)) as r:
-                return b"".join([i async for i in r.aiter_bytes()])
+                return await r.content.read()
         except:
             # give-up if error
             log.warning("Error when probing", exc_info=True)
             return
 
-    def guess_md_type(self, media: VisualMedia | bytes) -> type[SupportMedia]:
+    def guess_md_type(self, media: VisualMedia | bytes) -> InputMediaType:
         """Guess media type using media raw, otherwise by metadata.
 
         :param media: metadata to guess
@@ -238,14 +229,14 @@ class FetchSplitter(LocalSplitter):
             return super().guess_md_type(media)
 
         if len(media) > 5e7:
-            return Doc
+            return InputMediaType.DOCUMENT
 
         if is_gif(media):
-            return Anim
+            return InputMediaType.ANIMATION
 
         if len(media) > 1e7:
-            return Doc
-        return Pic
+            return InputMediaType.DOCUMENT
+        return InputMediaType.PHOTO
 
     async def media_args(self, feed: FeedContent):
         """Get media atoms of a feed.
@@ -255,21 +246,21 @@ class FetchSplitter(LocalSplitter):
         """
         if isinstance(feed.forward, FeedContent):
             feed = feed.forward
-        for group in (await self.split(feed, False)).feed:
-            if isinstance(group, (MediaPartial, MediaGroupPartial)):
+        for group in await self.split(feed):
+            if isinstance(group, (MediaAtom, MediaGroupAtom)):
                 yield group
                 continue
             return
 
     # fmt: off
     @overload
-    async def force_bytes(self, call: MediaPartial) -> MediaPartial: ...
+    async def force_bytes(self, call: MediaAtom) -> MediaAtom: ...
     @overload
-    async def force_bytes(self, call: MediaGroupPartial) -> MediaGroupPartial: ...
+    async def force_bytes(self, call: MediaGroupAtom) -> MediaGroupAtom: ...
     # fmt: on
 
-    async def force_bytes(self, call: MsgPartial) -> MsgPartial:
-        """This method will be called when a partial got :exc:`telegram.error.BadRequest` from telegram.
+    async def force_bytes(self, call: MsgAtom) -> MsgAtom:
+        """This method will be called when a partial got :exc:`telegram.error.BadRequest` from aiogram.
         We will force fetch the url by ourself and send the raw data instead of the url to telegram.
 
         :param call: the partial that its media should be fetched.
@@ -277,37 +268,28 @@ class FetchSplitter(LocalSplitter):
         """
         match call.meth:
             case "animation" | "document" | "photo" | "video":
-                assert isinstance(call, MediaPartial)
+                assert isinstance(call, MediaAtom)
                 media = call.content
-                if isinstance(media, bytes):
+                if isinstance(media, InputFile):
                     log.error("force fetch the raws")
                     return call
 
                 log.info(f"force fetch a {call.meth}: {media}")
                 try:
                     async with self.client.get(media) as r:
-                        call._raw = b"".join([i async for i in r.aiter_bytes()])
+                        call._raw = BufferedInputFile(await r.content.read(), url_basename(media))
                 except:
                     log.warning(f"force fetch error, skipped: {media}", exc_info=True)
                 return call
 
             case "media_group":
-                assert isinstance(call, MediaGroupPartial)
-                for i, im in enumerate(call.medias):
-                    call.medias[i] = await self.force_bytes_inputmedia(im)
+                assert isinstance(call, MediaGroupAtom)
+                for i, im in enumerate(call.builder._media):
+                    call.builder._media[i] = await self.force_bytes_inputmedia(im)
         return call
 
-    # fmt: off
-    @overload
-    async def force_bytes_inputmedia(self, media: GroupMedia) -> GroupMedia: ...
-    @overload
-    async def force_bytes_inputmedia(self, media: SupportMedia) -> SupportMedia: ...
-    # fmt: true
-
-    async def force_bytes_inputmedia(self, media: SupportMedia) -> SupportMedia:
-        if isinstance(media.media, InputFile) and isinstance(
-            media.media.input_file_content, bytes
-        ):
+    async def force_bytes_inputmedia(self, media: GroupMedia) -> GroupMedia:
+        if isinstance(media.media, InputFile):
             return media
 
         if not isinstance(media.media, str):
@@ -319,7 +301,9 @@ class FetchSplitter(LocalSplitter):
         log.info(f"force fetch {media.type}: {media.media}")
         try:
             async with self.client.get(media.media) as r:
-                media = media.__class__(media=r.content)
+                media = media.__class__(
+                    media=BufferedInputFile(await r.content.read(), url_basename(media.media))
+                )
         except:
             log.warning(f"force fetch error, skipped: {media.media}", exc_info=True)
         return media

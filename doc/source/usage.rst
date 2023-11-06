@@ -23,21 +23,20 @@
 
 .. option:: /status debug
 
-    查询 Bot 状态，附加调试信息。额外包含的信息有：
-
-    * updater.running: :external:obj:`telegram.ext.Application.running`
-    * /status timer: :command:`/status debug` 定时任务状态。
+    查询 Bot 状态，附加调试信息。
 
     .. hint::
 
         :command:`/status debug` 命令可以用来重启 :command:`/status debug` 定时任务
         （:obj:`log.debug_status_interval <.LogConf.debug_status_interval>`）。
 
-.. option:: /relogin
+.. option:: /up_login
 
-    强制重新登录。
+    主动密码登录。登录成功后可重启心跳。
 
-    .. hint:: :command:`/relogin` 命令可以用来重启心跳。
+.. option:: /qr_login
+
+    主动二维码登录。登录成功后可重启心跳。
 
 .. option:: /em <eid>
 

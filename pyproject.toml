@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.7.6.dev0"
+version = "0.9.2.dev23"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -10,16 +10,20 @@ repository = "https://github.com/aioqzone/Qzone2TG"
 documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
-python = "~3.11.0"
-aioqzone-feed = { version = "^0.13.5.dev0", source = "aioqzone-index", extras=["captcha"] }
-qzemoji = { version = "^5.1.1", source = "aioqzone-index" }
-socksio = { version = "^1.0.0", source = "aioqzone-index" }
-python-telegram-bot = { extras = [
-    "rate-limiter",
-    "webhooks",
-    "job-queue",
-], version = "^20.0" }
+python = "~3.11"
+aioqzone-feed = "^1.0.3.dev1"
+aioqzone = [
+    { version = "*", allow-prereleases = true },
+    { version = "*", allow-prereleases = true, extras = [
+        "captcha",
+    ], optional = true },
+]
+qzemoji = { version = "^6.0.2", source = "aioqzone-index" }
+aiogram = { version = "^3.1.1", extras = ["proxy"] }
+apscheduler = "^3.10.4"
 
+[tool.poetry.extras]
+captcha = ["aioqzone"]
 
 # dependency groups
 [tool.poetry.group.test]

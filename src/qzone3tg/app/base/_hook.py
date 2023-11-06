@@ -1,261 +1,114 @@
 from __future__ import annotations
 
-import asyncio
-import re
-from time import time
 from typing import TYPE_CHECKING
 
-from aioqzone.event import QREvent, UPEvent
-from aioqzone.type.resp.h5 import FeedData
-from aioqzone_feed.event import FeedEvent, HeartbeatEvent
-from qqqr.event import sub_of
-
-from qzone3tg.bot.queue import QueueEvent
-from qzone3tg.bot.splitter import html_trans
-
-from ..storage import StorageEvent
+from aioqzone.model import FeedData
+from aioqzone_feed.type import FeedContent
 
 if TYPE_CHECKING:
-    from aioqzone.type.resp import FeedRep
-    from aioqzone_feed.type import FeedContent
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from telegram import InlineKeyboardMarkup
-
     from . import BaseApp
 
 
-@sub_of(QREvent)
-def qrevent_hook(_self: BaseApp, base: type[QREvent]):
-    from telegram import InputMediaPhoto, Message
+def add_up_impls(self: BaseApp):
+    from aiogram.utils.formatting import Pre, Text
+    from sqlalchemy.ext.asyncio import AsyncSession
 
-    class baseapp_qrevent(base):
-        async def LoginFailed(self, meth, msg: str | None = None):
-            await super().LoginFailed(meth, msg)
-            _self.loginman.suppress_qr_till = time() + _self.loginman.qr_suppress_sec
-            await self._cleanup()
-            pmsg = f": {msg.translate(html_trans)}" if msg else ""
-            await _self.bot.send_message(_self.admin, "二维码登录失败" + pmsg)
+    from qzone3tg.app.storage.loginman import save_cookie
 
-        async def LoginSuccess(self, meth):
-            await super().LoginSuccess(meth)
-            _self.loginman.suppress_qr_till = time() + _self.loginman.qr_suppress_sec
-            await _self.restart_heartbeat()
-            await self._cleanup()
-            await _self.bot.send_message(_self.admin, "登录成功")
+    @self._uplogin.login_failed.add_impl
+    async def LoginFailed(uin: int, exc: BaseException | str):
+        await self.bot.send_message(self.admin, **Text("密码登录失败 ", Pre(str(exc))).as_kwargs())
 
-        def qr_markup(self) -> InlineKeyboardMarkup | None:
-            return
+    @self._uplogin.login_success.add_impl
+    async def LoginSuccess(uin: int):
+        self.restart_heartbeat()
+        await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
-        async def QrFetched(self, png: bytes, times: int):
-            context: dict = _self.app.bot_data
-
-            if (msg := context.get("qr_msg")) is None:
-                context["qr_msg"] = await _self.bot.send_photo(
-                    _self.admin,
-                    png,
-                    "扫码登陆:",
-                    disable_notification=False,
-                    reply_markup=self.qr_markup(),
-                )
-            else:
-                text = f"二维码已过期, 请重新扫描[{times}]"
-                if context.get("qr_renew"):
-                    text = "二维码已刷新："
-                    context["qr_renew"] = False
-
-                assert isinstance(msg, Message)
-                msg = await _self.bot.edit_message_media(
-                    InputMediaPhoto(png, text),
-                    _self.admin,
-                    msg.message_id,
-                    reply_markup=self.qr_markup(),
-                )
-                if isinstance(msg, Message):
-                    context["qr_msg"] = msg
-
-        async def _cleanup(self):
-            context: dict = _self.app.bot_data
-            context["qr_renew"] = False
-
-            if isinstance(qr_msg := context.get("qr_msg"), Message):
-                context["qr_msg"] = None
-                try:
-                    await qr_msg.delete()
-                except BaseException as e:
-                    _self.log.warning(e)
-
-    return baseapp_qrevent
+        self.qzone.login.cookie.update(self._uplogin.cookie)
+        self.log.debug(f"update cookie from uplogin: {self.qzone.login.cookie}")
+        async with AsyncSession(self.engine) as sess:
+            await save_cookie(self._uplogin.cookie, self.conf.qzone.uin, sess)
 
 
-@sub_of(UPEvent)
-def upevent_hook(_self: BaseApp, base: type[UPEvent]):
-    class baseapp_upevent(base):
-        async def LoginFailed(self, meth, msg: str | None = None):
-            await super().LoginFailed(meth, msg)
-            _self.loginman.suppress_up_till = time() + _self.loginman.up_suppress_sec
-            pmsg = f": {msg.translate(html_trans)}" if msg else ""
-            await _self.bot.send_message(_self.admin, "密码登录失败" + pmsg)
-
-        async def LoginSuccess(self, meth):
-            await super().LoginSuccess(meth)
-            await _self.restart_heartbeat()
-            await _self.bot.send_message(_self.admin, "登录成功", disable_notification=True)
-
-    return baseapp_upevent
-
-
-@sub_of(FeedEvent)
-def feedevent_hook(_self: BaseApp, base: type[FeedEvent]):
-    from ..storage.orm import FeedOrm
-
-    class baseapp_feedevent(base):
-        def __init__(self) -> None:
-            super().__init__()
-
-            self.block = set(_self.conf.qzone.block or ())
-            if _self.conf.qzone.block_self:
-                self.block.add(_self.conf.qzone.uin)
-
-        async def FeedProcEnd(self, bid: int, feed: FeedContent):
-            _self.log.debug(f"bid={bid}: {feed}")
-            if feed.uin in self.block:
-                _self.log.info(f"Blocklist hit: {feed.uin}({feed.nickname})")
-                return await self.FeedDropped(bid, feed)
-            _self.queue.add(bid, feed)
-
-        async def FeedDropped(self, bid: int, *_, **kw):
-            _self.log.debug(f"batch {bid}: one feed is dropped")
-            _self.queue.skip_num += 1
-
-        async def FeedMediaUpdate(self, bid: int, feed: FeedContent):
-            _self.log.warning(f"FeedMediaUpdate is deprecated in h5 version. media={feed.media}")
-
-        async def StopFeedFetch(self, feed: FeedRep | FeedData) -> bool:
-            return await _self.store.exists(*FeedOrm.primkey(feed))
-
-    return baseapp_feedevent
-
-
-@sub_of(HeartbeatEvent)
-def heartbeatevent_hook(_self: BaseApp, base: type[HeartbeatEvent]):
-    from aioqzone.exception import QzoneError
-
-    class baseapp_heartbeatevent(base):
-        async def HeartbeatFailed(self, exc: BaseException):
-            _self.log.debug(f"heartbeat failed: {exc}")
-            if isinstance(exc, QzoneError) and "登录" in exc.msg:
-                assert _self.app.job_queue
-                _self.app.job_queue.run_once(_self.restart_heartbeat, 300)
-
-        async def HeartbeatRefresh(self, num: int):
-            _self.log.info(f"Heartbeat triggers a refresh: count={num}")
-            if _self._tasks["fetch"]:
-                _self.log.warning(
-                    "fetch taskset should contain only one task, heartbeat fetch skipped."
-                )
-                _self.log.debug(_self._tasks["fetch"])
-                return
-            _self.add_hook_ref("fetch", _self._fetch(_self.conf.bot.admin, is_period=True))
-
-    return baseapp_heartbeatevent
-
-
-@sub_of(QueueEvent)
-def queueevent_hook(_self: BaseApp, base: type[QueueEvent]):
-    from aioqzone_feed.type import BaseFeed
-    from sqlalchemy import select
-
-    from ..storage.orm import FeedOrm, MessageOrm
-
-    class baseapp_queueevent(base):
-        @property
-        def sess(self):
-            return _self.store.sess
-
-        async def _update_message_ids(
-            self,
-            feed: BaseFeed,
-            mids: list[int] | None,
-            sess: AsyncSession | None = None,
-            flush: bool = True,
-        ):
-            if sess is None:
-                async with self.sess() as newsess:
-                    await self._update_message_ids(feed, mids, sess=newsess, flush=flush)
-                return
-
-            if flush:
-                await self._update_message_ids(feed, mids, sess=sess, flush=False)
-                await sess.commit()
-                return
-
-            # query existing mids
-            stmt = select(MessageOrm)
-            stmt = stmt.where(*MessageOrm.fkey(feed))
-            result = await sess.scalars(stmt)
-
-            # delete existing mids
-            tasks = [asyncio.create_task(sess.delete(i)) for i in result]
-            if tasks:
-                await asyncio.wait(tasks)
-
-            if mids is None:
-                return
-            for mid in mids:
-                sess.add(MessageOrm(uin=feed.uin, abstime=feed.abstime, mid=mid))
-
-        async def SaveFeed(self, feed: BaseFeed, mids: list[int] | None = None):
-            """Add/Update an record by the given feed and messages id.
-
-            :param feed: feed
-            :param mids: message id list, defaults to None
-            """
-
-            async def _update_feed(feed, sess: AsyncSession):
-                prev = await _self.store.get_feed_orm(*FeedOrm.primkey(feed), sess=sess)
-                if prev:
-                    # if exist: update
-                    FeedOrm.set_by(prev, feed)
-                else:
-                    # not exist: add
-                    sess.add(FeedOrm.from_base(feed))
-
-            async with self.sess() as sess:
-                async with sess.begin():
-                    # BUG: asyncio.wait/gather raises error at the end of a transaction
-                    await self._update_message_ids(feed, mids, sess=sess, flush=False)
-                    await _update_feed(feed, sess=sess)
-
-        async def GetMid(self, feed: BaseFeed) -> list[int]:
-            r = await _self.store.get_msg_orms(*MessageOrm.fkey(feed))
-            return [i.mid for i in r]
-
-    return baseapp_queueevent
-
-
-@sub_of(StorageEvent)
-def storageevent_hook(_self: BaseApp, base: type[StorageEvent]):
+def add_feed_impls(self: BaseApp):
     from aioqzone_feed.type import BaseFeed
 
     from ..storage.orm import FeedOrm, MessageOrm
 
-    class baseapp_storageevent(base):
-        @property
-        def sess(self):
-            return _self.store.sess
+    block = set(self.conf.qzone.block or ())
+    if self.conf.qzone.block_self:
+        block.add(self.conf.qzone.uin)
+    self.blockset = block
 
-        async def Mid2Feed(self, mid: int) -> BaseFeed | None:
-            mo = await _self.store.get_msg_orms(MessageOrm.mid == mid)
-            if not mo:
-                return
-            orm = await _self.store.get_feed_orm(
-                FeedOrm.uin == mo[0].uin, FeedOrm.abstime == mo[0].abstime
+    async def get_mids(feed: BaseFeed) -> list[int]:
+        """Get a list of message id from storage.
+
+        :param feed: feed
+        :return: the list of message id associated with this feed, or None if not found.
+        """
+        r = await self.store.get_msg_orms(*MessageOrm.fkey(feed))
+        return [i.mid for i in r]
+
+    @self.qzone.feed_processed.add_impl
+    async def FeedProcEnd(bid: int, feed: FeedContent):
+        self.log.debug(f"bid={bid}: {feed}")
+        if feed.uin in self.blockset:
+            self.log.info(f"Blocklist hit: {feed.uin}({feed.nickname})")
+            return await FeedDropped(bid, feed)
+
+        await self.ch_db_write.wait()
+        if feed_mids := await get_mids(feed):
+            self.log.info(f"Feed {feed.fid} is sent before. Skipped.", extra=dict(feed=feed))
+            self.log.debug(f"mids={feed_mids}")
+        else:
+            self.queue.add(
+                bid,
+                feed,
+                await get_mids(feed.forward) if isinstance(feed.forward, FeedContent) else None,
             )
-            if orm is None:
+
+    @self.qzone.feed_dropped.add_impl
+    async def FeedDropped(bid: int, feed):
+        self.log.debug(f"batch {bid}: one feed is dropped")
+        self.queue.drop(bid, feed)
+
+    async def StopFeedFetch(feed: FeedData) -> bool:
+        return await self.store.exists(*FeedOrm.primkey(feed))
+
+    self.qzone.stop_fetch = StopFeedFetch
+
+
+def add_hb_impls(self: BaseApp):
+    from aioqzone.exception import QzoneError
+    from tenacity import RetryError
+
+    STOP_HB_EXC = [QzoneError]
+    last_fail_cause: BaseException | None = None
+
+    @self.qzone.hb_failed.add_impl
+    async def HeartbeatFailed(exc: BaseException):
+        # unpack wrapped exceptions
+        if isinstance(exc, RetryError):
+            exc = exc.last_attempt.result()
+        self.log.debug(f"heartbeat failed: {exc}")
+
+        if not any(isinstance(exc, i) for i in STOP_HB_EXC):
+            nonlocal last_fail_cause
+            if last_fail_cause is None or last_fail_cause != exc:
+                last_fail_cause = exc
                 return
-            return BaseFeed(**orm.dict())  # type: ignore
+            else:
+                self.log.debug(f"连续两次因{exc.__class__.__name__}心跳异常", exc_info=exc)
 
-        async def Clean(self, seconds: float):
-            return await _self.store.clean(seconds)
+        self.timers["hb"].pause()
+        self.log.warning(f"因{exc.__class__.__name__}暂停心跳")
 
-    return baseapp_storageevent
+    @self.qzone.hb_refresh.add_impl
+    async def HeartbeatRefresh(num: int):
+        self.log.info(f"Heartbeat triggers a refresh: count={num}")
+        if self.fetch_lock.locked():
+            self.log.warning(
+                "fetch taskset should contain only one task, heartbeat fetch skipped."
+            )
+            return
+        self.ch_fetch.add_awaitable(self._fetch(self.conf.bot.admin, is_period=True))

@@ -66,7 +66,8 @@ default_role = "any"
 
 # external inventory
 intersphinx_mapping = {
-    "telegram": ("https://python-telegram-bot.readthedocs.io/en/latest/", None),
+    "aiogram": ("https://docs.aiogram.dev/en/dev-3.x/", None),
+    "aiohttp": ("https://docs.aiohttp.org/en/stable/", None),
     "python": ("https://docs.python.org/3.10/", None),
 }
 

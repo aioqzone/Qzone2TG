@@ -2,44 +2,54 @@ from __future__ import annotations
 
 import asyncio
 import re
-from enum import IntEnum, auto
 from pathlib import Path
-from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import qzemoji as qe
-from qzemoji.utils import build_html, wrap_plain_text
-from telegram import (
+from aiogram import F, Router
+from aiogram import filters as filter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import (
+    BotCommand,
+    BufferedInputFile,
+    CallbackQuery,
     ForceReply,
-    InlineKeyboardMarkup,
     Message,
-    ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
-    Update,
 )
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram.utils.formatting import BotCommand as CommandText
+from aiogram.utils.formatting import Pre, Text, as_key_value, as_marked_section
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from qzemoji.utils import build_html
 
 if TYPE_CHECKING:
-    from qzone3tg.app.interact import InteractApp
+    from qzone3tg.app.interact import InteractApp, SerialCbData
 
 TAG_RE = re.compile(r"\[em\]e(\d+)\[/em\]")
+EM_HELP = as_marked_section(
+    "用法：",
+    as_key_value(CommandText("/em <eid>"), "交互式自定义 eid 名称"),
+    as_key_value(CommandText("/em <eid> <name>"), "直接指定 eid 的名称"),
+    as_key_value(CommandText("/em export"), "导出所有 eid"),
+)
 
 
-class EmCvState(IntEnum):
-    CHOOSE_EID = auto()
-    ASK_CUSTOM = auto()
+class EmForm(StatesGroup):
+    GET_EID = State()
+    GET_TEXT = State()
 
 
-async def _get_eid_bytes(self: InteractApp, eid: int) -> bytes | None:
+async def _get_eid_bytes(self: InteractApp, eid: int) -> BufferedInputFile | None:
     for ext in ("gif", "jpg", "png"):
         try:
             async with self.client.get(build_html(eid, ext=ext)) as r:
-                return r.content
+                return BufferedInputFile(await r.content.read(), f"e{eid}.{ext}")
         except:
             pass
 
 
-async def command_em(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
     """This method is the callback when user sends ``/em eid [name]`` command.
 
     - If ``/em`` received, this method replys a help message and ends the conversation.
@@ -49,48 +59,47 @@ async def command_em(self: InteractApp, update: Update, context: ContextTypes.DE
     success. It will transmit the state graph to `ConversationHandler.END`.
 
     """
-    self.log.debug(context.args)
-    assert update.message is not None
+    self.log.debug(message.text)
+    assert message.text is not None
 
-    match context.args:
-        case ["export"]:
+    match message.text.split()[1:]:
+        case "export":
             await qe.export(Path("data/emoji.yml"))
-            await update.message.reply_markdown_v2(r"已导出到`data/emoji\.yml`")
+            await message.reply(**Text("已导出到", Pre("data/emoji.yml")).as_kwargs())
         case [eid] if str.isdigit(eid):
-            content = await _get_eid_bytes(self, int(eid))
-            if content is None:
-                await update.message.reply_markdown_v2(f"未查询到`eid={eid}`")
-                return ConversationHandler.END
+            file = await _get_eid_bytes(self, int(eid))
+            if file is None:
+                await message.reply(**Text("未查询到", Pre("eid=", eid)).as_kwargs())
+                return await state.clear()
 
-            msg = await update.message.reply_photo(
-                content,
-                f"Input your customize text for e{eid}",
+            await message.reply_photo(
+                file,
+                **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
-            assert context.user_data is not None
-            context.user_data["eid"] = eid
-            context.user_data["to_delete"] = [msg.id, update.message.id]
-            return EmCvState.ASK_CUSTOM
+            await state.update_data(eid=int(eid))
+            return await state.set_state(EmForm.GET_TEXT)
         case [eid, name] if str.isdigit(eid):
-            await asyncio.gather(
-                qe.set(int(eid), name),
-                update.message.delete(),
-                update.message.reply_markdown_v2(f"已将`{eid}`定义为{name}"),
+            await asyncio.wait(
+                [
+                    asyncio.ensure_future(i)
+                    for i in (
+                        qe.set(int(eid), name),
+                        message.delete(),
+                        message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                    )
+                ],
             )
         case _:
-            await update.message.reply_markdown_v2(
-                dedent(
-                    r"""用法:
-                    1\. `/em <eid>`: 交互式自定义 eid 名称
-                    2\. `/em <eid> <name>`: 直接指定 eid 的名称
-                    3\. `/em export`: 导出所有 eid
-                    """
-                )
-            )
-    return ConversationHandler.END
+            await message.reply(**EM_HELP.as_kwargs())
+
+    await state.clear()
 
 
-async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+command_em = BotCommand(command="em", description="管理自定义表情")
+
+
+async def btn_emoji(query: CallbackQuery, callback_data: SerialCbData, state: FSMContext):
     """This is the callback when user clicks the "Customize Emoji" button.
 
     This method will save the :class:`~telegram.Message` object into `context.user_data`.
@@ -100,19 +109,11 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
 
     This method will transmit the state graph to `CHOOSE_EID`.
     """
-    query = update.callback_query
-    assert context.user_data is not None
-    assert query is not None
-    assert query.data is not None
-
     if query.message is None:
         await query.answer("null query message", show_alert=True)
         return
 
-    context.user_data["message"] = query.message
-    text = query.message.text or query.message.caption or ""
-
-    eids = query.data.removeprefix("emoji:").split(",")
+    eids = callback_data.sub_command.split(",")
 
     if len(eids) <= 9:
         max_eids = 9
@@ -122,11 +123,14 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
         column = 4
 
     eids = list(set(eids))[:max_eids]
-    rows = [eids[i : i + column] for i in range(0, len(eids), column)]
-    await query.message.reply_text(
-        "Choose a emoji id",
-        reply_markup=ReplyKeyboardMarkup(
-            rows,
+    builder = ReplyKeyboardBuilder()
+    for eid in eids[:max_eids]:
+        builder.button(text=eid)
+    builder.adjust(column)
+
+    await query.message.reply(
+        "选择或者输入一个 eid",
+        reply_markup=builder.as_markup(
             resize_keyboard=True,
             one_time_keyboard=True,
             input_field_placeholder="/cancel",
@@ -134,10 +138,10 @@ async def btn_emoji(self: InteractApp, update: Update, context: ContextTypes.DEF
             is_persistent=True,
         ),
     )
-    return EmCvState.CHOOSE_EID
+    await state.set_state(EmForm.GET_EID)
 
 
-async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def input_eid(self: InteractApp, message: Message, state: FSMContext):
     """This method is the callback when user sends a emoji id to the bot. It should be triggered under the
     `CHOOSE_EID` state.
 
@@ -148,32 +152,28 @@ async def input_eid(self: InteractApp, update: Update, context: ContextTypes.DEF
 
     This method will transmit the state graph to `ASK_CUSTOM`.
     """
-    assert context.user_data is not None
-    assert update.message is not None
+    assert isinstance(message.text, str)
 
-    assert isinstance(update.message.text, str)
     try:
-        eid = int(update.message.text)
+        eid = int(message.text.strip())
     except ValueError:
-        await update.message.reply_text(f"请输入数字（当前输入{update.message.text}）")
-        return EmCvState.CHOOSE_EID
+        await message.reply(f"请输入数字（当前输入{message.text}）")
+        return
 
-    content = await _get_eid_bytes(self, eid)
-    if content is None:
-        await update.message.reply_text(f"未查询到eid={eid}")
-        return ConversationHandler.END
+    file = await _get_eid_bytes(self, eid)
+    if file is None:
+        await message.reply(**Text("未查询到", Pre("eid=", eid)).as_kwargs())
+        return await state.clear()
 
-    msg = await update.message.reply_photo(
-        build_html(eid),
-        f"Input your customize text for e{eid}",
+    await message.reply_photo(
+        file,
+        **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
         reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
     )
-    context.user_data["eid"] = eid
-    context.user_data["to_delete"] = [msg.id]
-    return EmCvState.ASK_CUSTOM
+    await state.set_state(EmForm.GET_TEXT)
 
 
-async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def input_text(message: Message, state: FSMContext):
     """This method is the callback when the user replys a customized emoji name. It should be triggerd
     under the `ASK_CUSTOM` state.
 
@@ -187,57 +187,50 @@ async def update_eid(self: InteractApp, update: Update, context: ContextTypes.DE
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
-    assert context.user_data is not None
-    assert update.message is not None
+    assert isinstance(message.text, str)
 
-    assert isinstance(update.message.text, str)
+    data = await state.get_data()
+    eid = int(data["eid"])
+    name = message.text.strip()
 
-    eid: int = context.user_data["eid"]
-    chat_id = update.message.chat_id
-    name = update.message.text.strip()
-
-    to_del: list[int] = context.user_data.get("to_delete", [])
-    bot = update.get_bot()
-
-    if "message" in context.user_data:
-        message: Message = context.user_data["message"]
-        text = message.text or message.caption or ""
-        new_text = text.replace(f"[em]e{eid}[/em]", wrap_plain_text(name))
-
-        reply_markup = message.reply_markup
-        if reply_markup and TAG_RE.search(new_text) is None:
-            # remove emoji inline button
-            row = reply_markup.inline_keyboard[0]
-            row = row[1:]
-            reply_markup = InlineKeyboardMarkup([row]) if row else None
-
-        if message.text:
-            await message.edit_text(new_text, reply_markup=reply_markup)
-        elif message.caption:
-            await bot.edit_message_caption(new_text, reply_markup=reply_markup)
-
-    await asyncio.gather(
-        qe.set(eid, name),
-        update.message.reply_markdown_v2(f"You have set `{eid}` to {name}"),
-        *(bot.delete_message(chat_id, i) for i in to_del),
-        bot.delete_message(chat_id, update.message.id),
+    await asyncio.wait(
+        [
+            asyncio.ensure_future(i)
+            for i in (
+                qe.set(eid, name),
+                message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                message.delete(),
+            )
+        ]
     )
-    context.user_data.clear()
-    return ConversationHandler.END
+    await state.clear()
 
 
-async def cancel_custom(self: InteractApp, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cancel_custom(message: Message, state: FSMContext):
     """This method is the callback when user sends ``/cancel`` to cancel the customization process.
 
     It will clear `context.user_data` and notify the user that the process is canceled.
 
     This method will transmit the state graph to `ConversationHandler.END`.
     """
-    assert update.message is not None
-
-    if context.user_data is not None:
-        context.user_data.clear()
-    await update.message.reply_text(
+    if await state.get_state() is None:
+        return
+    await message.reply(
         "Customize emoji canceled.", reply_markup=ReplyKeyboardRemove(selective=True)
     )
-    return ConversationHandler.END
+    await state.clear()
+
+
+def build_router(self: InteractApp) -> Router:
+    from .. import SerialCbData
+
+    router = Router(name="emoji")
+    CA = F.from_user.id.in_({self.conf.bot.admin})
+
+    # router.message.register(self.em, CA, filter.Command(command_em))
+    router.callback_query.register(btn_emoji, SerialCbData.filter(F.command == "emoji"))
+    router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"), EmForm.GET_EID)
+    router.message.register(input_text, CA, F.text, EmForm.GET_TEXT)
+    router.message.register(cancel_custom, CA, filter.Command("cancel"))
+
+    return router

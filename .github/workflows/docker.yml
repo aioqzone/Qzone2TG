@@ -33,7 +33,7 @@ jobs:
     env:
       push: ${{ github.event_name != 'pull_request' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: match
         name: Match package version

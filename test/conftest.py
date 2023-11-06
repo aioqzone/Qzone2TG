@@ -2,7 +2,6 @@ import asyncio
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
 from qqqr.utils.net import ClientAdapter
 
 
@@ -10,10 +9,11 @@ from qqqr.utils.net import ClientAdapter
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
+    loop.run_until_complete(loop.shutdown_asyncgens())
     loop.close()
 
 
 @pytest_asyncio.fixture(scope="module")
 async def client():
-    async with AsyncClient() as client:
-        yield ClientAdapter(client)
+    async with ClientAdapter() as client:
+        yield client

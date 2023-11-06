@@ -1,125 +1,133 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import TYPE_CHECKING
-
-from aioqzone.event import UPEvent
-from aioqzone_feed.event import FeedEvent, HeartbeatEvent
-from qqqr.event import sub_of
 
 if TYPE_CHECKING:
     from . import InteractApp
 
 
-@sub_of(UPEvent)
-def upevent_hook(_self: InteractApp, base: type[UPEvent]):
-    from telegram import ForceReply, Message, Update
-    from telegram.ext import MessageHandler, filters
+def add_up_impls(self: InteractApp):
+    from aiogram import F
+    from aiogram.types import BufferedInputFile, ForceReply
+    from aiogram.utils.media_group import MediaGroupBuilder
 
-    class ReplyHandler(MessageHandler):
-        def __init__(self, filters, callback, reply: Message):
-            super().__init__(filters, callback)
-            self.reply = reply
+    CA = F.from_user.id.in_({self.conf.bot.admin})
 
-        def check_update(self, update: Update):
-            if super().check_update(update) is False:
-                return False
-            msg = update.effective_message
-            assert msg
+    @self._uplogin.sms_code_input.add_impl
+    async def GetSmsCode(uin: int, phone: str, nickname: str) -> str | None:
+        m = await self.bot.send_message(
+            self.admin,
+            f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
+            disable_notification=False,
+            reply_markup=ForceReply(input_field_placeholder="012345"),
+        )
+        CR = F.reply_to_message.message_id == m.message_id
+        return await self.input(
+            prompt_message=m,
+            pattern=r"\s*(\d{6})\s*",
+            retry_prompt="应输入六位数字验证码，当前输入：{text}",
+            timeout=self.conf.qzone.up_config.vcode_timeout,
+            filters=(CA, CR),
+        )
 
-            if msg.reply_to_message and msg.reply_to_message.message_id == self.reply.message_id:
-                return
-            return False
+    @self._uplogin.solve_select_captcha.add_impl
+    async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> list[int]:
+        n = len(imgs)
+        assert n < 10
+        builder = MediaGroupBuilder(caption=prompt)
+        for i, b in enumerate(imgs):
+            builder.add_photo(BufferedInputFile(b, f"select_captcha_{i}.png"))
 
-    class interactapp_upevent(base):
-        async def GetSmsCode(self, phone: str, nickname: str) -> str | None:
-            m = await _self.bot.send_message(
-                _self.admin,
-                f"将要登录的是{nickname}，请输入密保手机({phone})上收到的验证码:",
-                disable_notification=False,
-                reply_markup=ForceReply(input_field_placeholder="012345"),
-            )
-            code = await self.force_reply_answer(m)
-            if code is None:
-                await _self.bot.send_message(_self.admin, "超时未回复")
-                await m.edit_reply_markup(reply_markup=None)
-                return
+        _m = await self.bot.send_media_group(self.admin, builder.build())
+        m = await self.bot.send_message(
+            self.admin,
+            f"请输入1~{n}之间的数字，如有多个可连续输入，或用逗号或空格分隔",
+            disable_notification=False,
+            reply_to_message_id=_m[0].message_id,
+            reply_markup=ForceReply(input_field_placeholder="1,23,456,"),
+        )
+        CR = F.reply_to_message.message_id == m.message_id
 
-            if len(code) != 6:
-                await _self.bot.send_message(_self.admin, "应回复六位数字验证码")
-                await m.edit_reply_markup(reply_markup=None)
-                return
-            return code
+        ans = await self.input(
+            m,
+            pattern=rf"^([\s,1-{n}]+?)$",
+            retry_prompt="请输入1~%d之间的数字，如分隔请使用英文逗号或空格。当前输入：{text}" % n,
+            timeout=self.conf.qzone.up_config.vcode_timeout,
+            filters=(CA, CR),
+        )
+        await asyncio.wait([asyncio.ensure_future(i.delete()) for i in _m])
 
-        async def force_reply_answer(self, msg) -> str | None:
-            """A hook cannot get answer from the user. This should be done by handler in app.
-            So this method should be implemented in app level.
+        if ans is None:
+            return []
+        ans = re.sub(r"[\s,]", "", ans)
+        return [int(c) for c in ans]
 
-            :param msg: The force reply message to wait for the reply from user.
-            :param timeout: wait timeout
-            :return: None if timeout, else the reply string.
-            """
-            code = ""
-            evt = asyncio.Event()
 
-            def cb(update: Update, _):
-                nonlocal code
-                assert update.effective_message
-                code = update.effective_message.text or ""
-                code = code.strip()
-                evt.set()
+def add_qr_impls(self: InteractApp):
+    from aiogram.types import BufferedInputFile, InputMediaPhoto, Message
+    from aiogram.utils.formatting import Pre, Text
+    from sqlalchemy.ext.asyncio import AsyncSession
 
-            handler = ReplyHandler(filters.Regex(r"^\s*\d{6}\s*$"), cb, msg)
-            _self.app.add_handler(handler)
+    from qzone3tg.app.storage.loginman import save_cookie
 
+    qr_msg: Message | None = None
+
+    async def _cleanup():
+        nonlocal qr_msg
+        if isinstance(qr_msg, Message):
             try:
-                await asyncio.wait_for(evt.wait(), timeout=_self.conf.qzone.vcode_timeout)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                return
-            else:
-                return code
+                await qr_msg.delete()
+            except BaseException as e:
+                self.log.warning(e)
             finally:
-                _self.app.remove_handler(handler)
+                qr_msg = None
 
-    return interactapp_upevent
+    @self._qrlogin.login_failed.add_impl
+    async def LoginFailed(uin: int, exc: BaseException | str):
+        await _cleanup()
+        await self.bot.send_message(self.admin, **Text("二维码登录失败 ", Pre(str(exc))).as_kwargs())
 
+    @self._qrlogin.login_success.add_impl
+    async def LoginSuccess(uin: int):
+        self.restart_heartbeat()
+        await asyncio.gather(
+            _cleanup(),
+            self.bot.send_message(self.admin, "二维码登录成功"),
+        )
+        self.qzone.login.cookie.update(self._qrlogin.cookie)
+        self.log.debug(f"update cookie from qrlogin: {self.qzone.login.cookie}")
+        async with AsyncSession(self.engine) as sess:
+            await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)
 
-@sub_of(HeartbeatEvent)
-def heartbeatevent_hook(_self: InteractApp, base: type[HeartbeatEvent]):
-    class interactapp_heartbeatevent(base):
-        async def HeartbeatRefresh(self, num: int):
-            if _self.fetch_lock.locked:
-                _self.log.warning("Heartbeat refresh skipped since fetch is running.")
-                return
-            await super().HeartbeatRefresh(num)
+    def _as_inputfile(b: bytes):
+        return BufferedInputFile(b, "login_qrcode.png")
 
-            tasks = [t for t in _self._tasks["fetch"] if t._state == "PENDING"]
-            match len(tasks):
-                case n if n > 1:
-                    task = next(filter(lambda t: t._state == "PENDING", tasks))
-                    _self.log.warn(
-                        "fetch taskset should contain only one task, the first pending task is used."
-                    )
-                case n if n == 1:
-                    task = next(iter(tasks))
-                case _:
-                    _self.log.warn("fetch task not found, fetch lock skipped.")
-                    return
+    @self._qrlogin.qr_fetched.add_impl
+    async def QrFetched(png: bytes, times: int, qr_renew=False):
+        nonlocal qr_msg
 
-            _self.fetch_lock.acquire(task)
+        if qr_msg is None:
+            qr_msg = await self.bot.send_photo(
+                self.admin,
+                _as_inputfile(png),
+                caption="扫码登陆:",
+                disable_notification=False,
+                reply_markup=self._make_qr_markup(),
+            )
+        else:
+            text = f"二维码已过期, 请重新扫描[{times}]"
+            if qr_renew:
+                # TODO: qr_renew
+                text = "二维码已刷新："
+                qr_renew = False
 
-    return interactapp_heartbeatevent
-
-
-@sub_of(FeedEvent)
-def feedevent_hook(_self: InteractApp, base: type[FeedEvent]):
-    from aioqzone_feed.type import FeedContent
-
-    class interactapp_feedevent(base):
-        async def FeedProcEnd(self, bid: int, feed: FeedContent):
-            if await _self.blockset.contains(feed.uin):
-                await self.FeedDropped(bid, feed)
-                return
-            await super().FeedProcEnd(bid, feed)
-
-    return interactapp_feedevent
+            msg = await self.bot.edit_message_media(
+                InputMediaPhoto(media=_as_inputfile(png), caption=text),
+                self.admin,
+                qr_msg.message_id,
+                reply_markup=self._make_qr_markup(),
+            )
+            if isinstance(msg, Message):
+                qr_msg = msg
