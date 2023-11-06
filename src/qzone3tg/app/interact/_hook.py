@@ -57,7 +57,7 @@ def add_up_impls(self: InteractApp):
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )
-        await _m[0].delete()
+        await asyncio.wait([asyncio.ensure_future(i.delete()) for i in _m])
 
         if ans is None:
             return []
