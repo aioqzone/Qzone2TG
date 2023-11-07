@@ -92,11 +92,8 @@ class BaseApp(StorageMixin):
     # --------------------------------
     def init_qzone(self):
         conf = self.conf.qzone
-        self._uplogin = UpLoginManager(self.client, conf.up_config)
-        self._qrlogin = QrLoginManager(self.client, conf.qr_config)
-        self.qzone = FeedApi(
-            self.client, ConstLoginMan(self.conf.qzone.uin, {}), retry_if_login_expire=False
-        )
+        self.login = LoginManager(self.client, self.engine, conf.qr_config, conf.up_config)
+        self.qzone = FeedApi(self.client, self.login, retry_if_login_expire=False)
         self.log.debug("init_qzone done")
 
     def init_gram(self):
@@ -310,7 +307,7 @@ class BaseApp(StorageMixin):
 
         :return: None
         """
-        first_run = not await table_exists(self.engine)
+        first_run = not await self.login.table_exists()
         self.log.info("注册信号处理...")
         self.register_signal()
         self.log.info("等待异步初始化任务...")
@@ -323,7 +320,7 @@ class BaseApp(StorageMixin):
         if first_run:
             tasks.append(self.license(self.conf.bot.admin))
         else:
-            tasks.append(self._load_cookies())
+            tasks.append(self.login.load_cached_cookie())
 
         await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
 
@@ -410,12 +407,6 @@ class BaseApp(StorageMixin):
 
         await self.bot.send_message(to, **summary.as_kwargs())
 
-    async def _load_cookies(self):
-        cookie = await load_cached_cookie(self.conf.qzone.uin, self.engine)
-        if cookie:
-            self.qzone.login.cookie.update(cookie)
-            self.log.debug(f"update cookie from storage: {self.qzone.login.cookie}")
-
     async def _send_save(self):
         """wrap `.queue.send_all` with some post-sent database operation."""
 
@@ -454,8 +445,8 @@ class BaseApp(StorageMixin):
 
         stat_dic = {
             "启动时间": ts2a(self.start_time),
-            "上次密码登录": ts2a(self._uplogin.last_login),
-            "上次二维码登录": ts2a(self._qrlogin.last_login),
+            "上次密码登录": ts2a(self.login.up.last_login),
+            "上次二维码登录": ts2a(self.login.qr.last_login),
             "心跳状态": friendly(self.timers["hb"].next_run_time is not None),
             "上次心跳": ts2a(get_last_call(self.timers.get("hb"))),
             "上次清理数据库": ts2a(get_last_call(self.timers.get("cl"))),

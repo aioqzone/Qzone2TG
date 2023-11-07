@@ -9,7 +9,9 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.command import CommandObject
 from aiogram.types import BotCommand, FSInputFile, Message
+from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
+from aiogram.utils.formatting import Text
 from aiogram.utils.formatting import Url as UrlText
 from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
 from aioqzone.model import LikeData
@@ -199,17 +201,18 @@ class InteractApp(BaseApp):
                 await super().status(chat.id)
 
     async def up_login(self, message: Message, command: CommandObject):
-        await self._uplogin.new_cookie()
-        # `LoginSuccess` hooks will restart heartbeat
+        async with ChatActionSender.typing(self.admin, self.bot):
+            await self.login.up.new_cookie()
 
     async def qr_login(self, message: Message, command: CommandObject):
-        await self._qrlogin.new_cookie()
+        async with ChatActionSender.upload_photo(self.admin, self.bot):
+            await self.login.qr.new_cookie()
 
     async def like(self, message: Message, command: CommandObject):
         assert message
         reply = message.reply_to_message
         if not reply:
-            await message.reply("使用 /like 时，您需要回复一条消息。")
+            await message.reply(**Text("使用", CommandText("/like"), "时，您需要回复一条消息。").as_kwargs())
             return
 
         async def query_likedata(mid: int):
