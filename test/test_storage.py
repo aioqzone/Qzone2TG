@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
-from aioqzone.api import ConstLoginMan, Loginable
+from aioqzone.api import ConstLoginMan, Loginable, QrLoginConfig, UpLoginConfig
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -51,6 +51,11 @@ def app(store: StorageMan):
     return fake_app(store)
 
 
+@pytest.fixture(scope="class")
+def login(client: ClientAdapter, engine: AsyncEngine):
+    return LoginManager(client, engine, QrLoginConfig(uin=123), UpLoginConfig(uin=123))
+
+
 @pytest_asyncio.fixture(scope="class")
 async def blockset(engine: AsyncEngine):
     s = BlockSet(engine)
@@ -88,47 +93,43 @@ class TestFeedStore:
         assert not await store.get_msg_orms(MessageOrm.mid == 1)
 
 
-@pytest.fixture(scope="class")
-def man() -> Loginable:
-    return ConstLoginMan(123, {})
-
-
 class TestCookieStore:
-    async def test_loginman_miss(self, man: Loginable, engine: AsyncEngine):
+    async def test_loginman_miss(self, login: LoginManager):
         cookie = dict(errno="12")
-        async with engine.begin() as conn:
-            await conn.run_sync(CookieOrm.metadata.create_all)
+        await login.table_exists()
 
-        async with AsyncSession(engine) as sess:
-            await save_cookie(cookie, 123, sess)
-        with mock.patch.object(man, "_new_cookie", return_value=cookie):
-            await man.new_cookie()
+        async with login.sess() as sess:
+            await login.save_cookie(cookie)
+        with mock.patch.object(login.up, "_new_cookie", return_value=cookie):
+            await login.up.new_cookie()
 
-        async with AsyncSession(engine) as sess:
+        await login.up.ch_login_notify.wait()
+        async with login.sess() as sess:
             stmt = sa.select(CookieOrm).where(CookieOrm.uin == 123)
             r = await sess.scalar(stmt)
         assert r is None
 
-    async def test_loginman_hit(self, engine: AsyncEngine, man: Loginable):
+    async def test_loginman_hit(self, login: LoginManager):
         cookie = dict(p_skey="thisispskey", pt4_token="token")
-        async with engine.begin() as conn:
-            await conn.run_sync(CookieOrm.metadata.create_all)
+        await login.table_exists()
 
-        async with AsyncSession(engine) as sess:
+        async with login.sess() as sess:
             sess.add(CookieOrm(uin=123, p_skey="expiredpskey", pt4_token="expiredtoken"))
             await sess.commit()
 
-        cookie = await load_cached_cookie(123, engine)
-        assert cookie
-        assert cookie["p_skey"] == "expiredpskey"
-        assert cookie["pt4_token"] == "expiredtoken"
+        await login.load_cached_cookie()
+        assert login.cookie
+        assert login.cookie["p_skey"] == "expiredpskey"
+        assert login.cookie["pt4_token"] == "expiredtoken"
 
-        with mock.patch.object(man, "_new_cookie", return_value=cookie):
-            await man.new_cookie()
+        with mock.patch.object(login.qr, "_new_cookie", return_value=cookie):
+            await login.qr.new_cookie()
 
-        async with AsyncSession(engine) as sess:
+        await login.qr.ch_login_notify.wait()
+        async with login.sess() as sess:
             stmt = sa.select(CookieOrm).where(CookieOrm.uin == 123)
             r = await sess.scalar(stmt)
+
         assert r
         assert r.p_skey == cookie["p_skey"]
         assert r.pt4_token == cookie["pt4_token"]

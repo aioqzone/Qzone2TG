@@ -82,8 +82,8 @@ async def test_init(minc: Settings):
 @pytest.mark.asyncio
 async def test_base_hook(minc: Settings):
     async with BaseApp(minc) as app:
-        assert app._uplogin.login_failed.has_impl
-        assert app._uplogin.login_success.has_impl
+        assert app.login.up.login_failed.has_impl
+        assert app.login.up.login_success.has_impl
         assert app.qzone.feed_processed.has_impl
         assert app.qzone.feed_dropped.has_impl
         assert "local" in app.qzone.stop_fetch.__qualname__
@@ -94,10 +94,10 @@ async def test_base_hook(minc: Settings):
 @pytest.mark.asyncio
 async def test_interact_hook(minc: Settings):
     async with InteractApp(minc) as app:
-        assert app._qrlogin.login_failed.has_impl
-        assert app._qrlogin.login_success.has_impl
-        assert app._qrlogin.qr_fetched.has_impl
-        assert app._uplogin.sms_code_input.has_impl
-        assert app._uplogin.solve_select_captcha.has_impl
+        assert app.login.qr.login_failed.has_impl
+        assert app.login.qr.login_success.has_impl
+        assert app.login.qr.qr_fetched.has_impl
+        assert app.login.up.sms_code_input.has_impl
+        assert app.login.up.solve_select_captcha.has_impl
         assert "local" in app.queue.reply_markup.__qualname__
         assert "local" in app._make_qr_markup.__qualname__

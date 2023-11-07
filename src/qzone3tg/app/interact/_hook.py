@@ -15,7 +15,7 @@ def add_up_impls(self: InteractApp):
 
     CA = F.from_user.id.in_({self.conf.bot.admin})
 
-    @self._uplogin.sms_code_input.add_impl
+    @self.login.up.sms_code_input.add_impl
     async def GetSmsCode(uin: int, phone: str, nickname: str) -> str | None:
         m = await self.bot.send_message(
             self.admin,
@@ -32,7 +32,7 @@ def add_up_impls(self: InteractApp):
             filters=(CA, CR),
         )
 
-    @self._uplogin.solve_select_captcha.add_impl
+    @self.login.up.solve_select_captcha.add_impl
     async def GetSelectCaptcha(prompt: str, imgs: tuple[bytes, ...]) -> list[int]:
         n = len(imgs)
         assert n < 10
@@ -70,8 +70,6 @@ def add_qr_impls(self: InteractApp):
     from aiogram.utils.formatting import Pre, Text
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from qzone3tg.app.storage.loginman import save_cookie
-
     qr_msg: Message | None = None
 
     async def _cleanup():
@@ -84,27 +82,23 @@ def add_qr_impls(self: InteractApp):
             finally:
                 qr_msg = None
 
-    @self._qrlogin.login_failed.add_impl
+    @self.login.qr.login_failed.add_impl
     async def LoginFailed(uin: int, exc: BaseException | str):
         await _cleanup()
         await self.bot.send_message(self.admin, **Text("二维码登录失败 ", Pre(str(exc))).as_kwargs())
 
-    @self._qrlogin.login_success.add_impl
+    @self.login.qr.login_success.add_impl
     async def LoginSuccess(uin: int):
         self.restart_heartbeat()
         await asyncio.gather(
             _cleanup(),
             self.bot.send_message(self.admin, "二维码登录成功"),
         )
-        self.qzone.login.cookie.update(self._qrlogin.cookie)
-        self.log.debug(f"update cookie from qrlogin: {self.qzone.login.cookie}")
-        async with AsyncSession(self.engine) as sess:
-            await save_cookie(self._qrlogin.cookie, self.conf.qzone.uin, sess)
 
     def _as_inputfile(b: bytes):
         return BufferedInputFile(b, "login_qrcode.png")
 
-    @self._qrlogin.qr_fetched.add_impl
+    @self.login.qr.qr_fetched.add_impl
     async def QrFetched(png: bytes, times: int, qr_renew=False):
         nonlocal qr_msg
 

@@ -12,23 +12,15 @@ if TYPE_CHECKING:
 
 def add_up_impls(self: BaseApp):
     from aiogram.utils.formatting import Pre, Text
-    from sqlalchemy.ext.asyncio import AsyncSession
 
-    from qzone3tg.app.storage.loginman import save_cookie
-
-    @self._uplogin.login_failed.add_impl
+    @self.login.up.login_failed.add_impl
     async def LoginFailed(uin: int, exc: BaseException | str):
         await self.bot.send_message(self.admin, **Text("密码登录失败 ", Pre(str(exc))).as_kwargs())
 
-    @self._uplogin.login_success.add_impl
+    @self.login.up.login_success.add_impl
     async def LoginSuccess(uin: int):
         self.restart_heartbeat()
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
-
-        self.qzone.login.cookie.update(self._uplogin.cookie)
-        self.log.debug(f"update cookie from uplogin: {self.qzone.login.cookie}")
-        async with AsyncSession(self.engine) as sess:
-            await save_cookie(self._uplogin.cookie, self.conf.qzone.uin, sess)
 
 
 def add_feed_impls(self: BaseApp):
