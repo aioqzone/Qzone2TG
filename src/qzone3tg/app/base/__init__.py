@@ -15,10 +15,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
+from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
-from aiogram.utils.formatting import Pre, Text, TextLink, as_key_value, as_marked_list
+from aiogram.utils.formatting import Pre, Text, TextLink, as_key_value, as_list, as_marked_list
 from aiohttp import ClientSession, ClientTimeout
 from aioqzone.api import ConstLoginMan, QrLoginManager, UpLoginManager
+from aioqzone.utils.time import sementic_time
 from aioqzone_feed.api import FeedApi
 from aioqzone_feed.type import FeedContent
 from apscheduler.job import Job
@@ -353,7 +355,7 @@ class BaseApp(StorageMixin):
         :param is_period: triggered by heartbeat, defaults to False
         """
         if not self.fetch_lock.locked:
-            async with self.fetch_lock:
+            async with self.fetch_lock, ChatActionSender.typing(chat_id=to, bot=self.bot):
                 return await self._fetch(to, is_period=is_period)
 
         self.log.info(f"Start fetch with period={is_period}")
@@ -375,7 +377,7 @@ class BaseApp(StorageMixin):
             self.timers["hb"].reschedule("interval", minutes=5)
 
         if got == 0 and not is_period:
-            err_msg = Text("您已跟上时代🎉")
+            err_msg = Text("🎉")
 
         if (t := err_msg.render()) and t[0]:
             await self.bot.send_message(to, text=t[0], entities=t[1])
@@ -388,7 +390,7 @@ class BaseApp(StorageMixin):
         got -= self.queue.drop_num
         if got <= 0:
             if not is_period:
-                await self.bot.send_message(to, "您已跟上时代🎉")
+                await self.bot.send_message(to, "🎉")
             return
 
         await self._send_save()
@@ -398,13 +400,15 @@ class BaseApp(StorageMixin):
 
         # Since ForwardHook doesn't inform errors respectively, a summary of errs is sent here.
         errs = self.queue.exc_num
-        summary = f"发送结束，共{got}条，{errs}条错误。"
+        summary = Text("发送结束，共", got, "条，", errs, "条错误。")
         if errs:
-            summary += f"\n查看服务端日志，在我们的讨论群 {DISCUSS_HTML} 寻求帮助。"
+            summary = as_list(summary, Text("查看服务端日志，在我们的讨论群", DISCUSS_HTML, "寻求帮助。"))
             if self.log.level > 10:
-                summary += f"\n当前日志等级为{self.log.level}, 将日志等级调整为 DEBUG 以获得完整调试信息。"
+                summary = as_list(
+                    summary, Text("当前日志等级为", self.log.level, "将日志等级调整为 DEBUG 以获得完整调试信息。")
+                )
 
-        await self.bot.send_message(to, summary)
+        await self.bot.send_message(to, **summary.as_kwargs())
 
     async def _load_cookies(self):
         cookie = await load_cached_cookie(self.conf.qzone.uin, self.engine)
@@ -445,8 +449,6 @@ class BaseApp(StorageMixin):
         :param hf: generate humuan-friendly value.
         :return: a status dict.
         """
-        from aioqzone.utils.time import sementic_time
-
         ts2a = lambda ts: sementic_time(ts) if ts else "还是在上次"
         friendly = lambda b: ["🔴", "🟢"][int(b)] if hf else str(b)
 
@@ -463,7 +465,7 @@ class BaseApp(StorageMixin):
                 self.dp._stopped_signal and not self.dp._stopped_signal.is_set()
             )
         if debug:
-            pass
+            pass  # TODO: what can we add?
         return stat_dic
 
     async def status(self, to: ChatId, *, debug: bool = False):
@@ -491,9 +493,8 @@ def get_last_call(timer: Job | None) -> float:
 
     if not hasattr(timer, "next_run_time"):
         return 0.0
-    if timer.next_run_time is None:
+    if not isinstance(timer.next_run_time, datetime):
         return 0.0
-    assert isinstance(timer.next_run_time, datetime)
 
     if not isinstance(timer.trigger, IntervalTrigger):
         return 0.0

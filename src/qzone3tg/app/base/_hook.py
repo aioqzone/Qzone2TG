@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aiogram.utils.formatting import Pre, Text
 from aioqzone.model import FeedData
 from aioqzone_feed.type import FeedContent
 
@@ -99,16 +100,19 @@ def add_hb_impls(self: BaseApp):
                 return
             else:
                 self.log.debug(f"连续两次因{exc.__class__.__name__}心跳异常", exc_info=exc)
+                last_fail_cause = None
 
         self.timers["hb"].pause()
         self.log.warning(f"因{exc.__class__.__name__}暂停心跳")
+        await self.bot.send_message(self.admin, **Text("心跳已暂停", Pre(str(exc))).as_kwargs())
 
     @self.qzone.hb_refresh.add_impl
     async def HeartbeatRefresh(num: int):
+        if num <= 0:
+            return
+
         self.log.info(f"Heartbeat triggers a refresh: count={num}")
         if self.fetch_lock.locked():
-            self.log.warning(
-                "fetch taskset should contain only one task, heartbeat fetch skipped."
-            )
+            self.log.info("当前正在爬取，心跳刷新已忽略。")
             return
         self.ch_fetch.add_awaitable(self._fetch(self.conf.bot.admin, is_period=True))
