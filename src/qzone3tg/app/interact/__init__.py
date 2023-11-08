@@ -205,8 +205,7 @@ class InteractApp(BaseApp):
             await self.login.up.new_cookie()
 
     async def qr_login(self, message: Message, command: CommandObject):
-        async with ChatActionSender.upload_photo(self.admin, self.bot):
-            await self.login.qr.new_cookie()
+        await self.login.qr.new_cookie()
 
     async def like(self, message: Message, command: CommandObject):
         assert message

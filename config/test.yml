@@ -18,11 +18,9 @@ qzone:
   block: [2333, 1234]
   block_self: false
   qr_config:
-    min_login_interval: 86400
     max_refresh_times: 6
     poll_freq: 3.0
   up_config:
-    min_login_interval: 1800
     vcode_timeout: 60
 
 bot:
