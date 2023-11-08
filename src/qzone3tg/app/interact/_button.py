@@ -142,9 +142,9 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
 async def btn_qr(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
     match callback_data.sub_command:
         case "refresh":
-            self._qrlogin.refresh_qr.set()
+            self.login.qr.refresh_qr.set()
         case "cancel":
-            self._qrlogin.cancel_qr.set()
+            self.login.qr.cancel_qr.set()
         case _:
             self.log.warning(f"Unexpected qr button callback: {query.data}")
             if query.message:
