@@ -225,7 +225,7 @@ class SendQueue(QueueHook):
                     raise TryAgain
                 log.error("'reply_to_message_id' keyword not found, skip.")
                 log.debug(atom)
-            elif "HTTP URL content" in reason:
+            elif "http url content" in reason:
                 if isinstance(self.splitter, FetchSplitter):
                     if isinstance(atom, (MediaAtom, MediaGroupAtom)):
                         await self.splitter.force_bytes(atom)
