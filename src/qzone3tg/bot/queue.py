@@ -225,15 +225,15 @@ class SendQueue(QueueHook):
                     raise TryAgain
                 log.error("'reply_to_message_id' keyword not found, skip.")
                 log.debug(atom)
-            elif "wrong file" in reason:
+            elif "http url content" in reason:
                 if isinstance(self.splitter, FetchSplitter):
                     if isinstance(atom, (MediaAtom, MediaGroupAtom)):
                         await self.splitter.force_bytes(atom)
                         raise TryAgain
                     log.error("no file is to be sent, skip.")
                     log.debug(atom)
-                    raise
-                log.warning("fetch is not enabled, skip.")
+                else:
+                    log.warning("fetch is not enabled, skip.")
             raise
         except BaseException as e:
             self.exc_groups[feed].append(e)

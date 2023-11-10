@@ -15,7 +15,7 @@ from qzone3tg.bot.splitter import FetchSplitter
 from . import FakeBot, fake_feed, fake_media
 
 pytestmark = pytest.mark.asyncio
-_bad_request = TelegramBadRequest("POST", "Wrong file identifier/http url specified")  # type: ignore
+_bad_request = TelegramBadRequest("POST", "bad request: failed to get http url content")  # type: ignore
 
 
 @pytest.fixture
