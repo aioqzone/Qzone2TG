@@ -74,6 +74,24 @@
 
     列出所有被屏蔽的uin。
 
+.. option:: /comment list
+
+    .. versionadded:: 0.9.4
+
+    列出所引用说说的评论。
+
+.. option:: /comment add <content>
+
+    .. versionadded:: 0.9.4
+
+    评论所引用的说说。
+
+.. option:: /comment add private <content>
+
+    .. versionadded:: 0.9.4
+
+    私密评论所引用的说说。
+
 .. option:: help
 
     发送帮助信息。
