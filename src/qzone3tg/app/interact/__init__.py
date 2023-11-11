@@ -57,6 +57,7 @@ class InteractApp(BaseApp):
         add_qr_impls(self)
         add_up_impls(self)
         add_button_impls(self)
+        self.is_uin_blocked.add_impl(lambda uin: self.dyn_blockset.contains(uin))
         super().init_hooks()
 
     async def __aenter__(self):
@@ -146,8 +147,6 @@ class InteractApp(BaseApp):
             self.set_commands(),
             self.dyn_blockset.create(),
         )
-        # 加载动态黑名单
-        self.blockset.update(await self.dyn_blockset.all())
         return await super().run()
 
     async def idle(self):

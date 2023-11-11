@@ -31,7 +31,6 @@ async def block(self: InteractApp, message: Message):
             if feed is None:
                 await message.reply("uin not found. Try `/block add <uin>` instead.")
                 return
-            self.blockset.add(feed.uin)
             await self.dyn_blockset.add(feed.uin)
             await message.reply(f"{feed.uin} 已加入黑名单")
         case ["rm", uin]:
@@ -40,7 +39,6 @@ async def block(self: InteractApp, message: Message):
             except:
                 await message.reply(**BLOCK_CMD_HELP.as_kwargs())
                 return
-            self.blockset.discard(uin)
             if await self.dyn_blockset.delete(uin):
                 await message.reply(f"{uin} 已从黑名单移除✅")
             else:
@@ -52,7 +50,6 @@ async def block(self: InteractApp, message: Message):
                 await message.reply(**BLOCK_CMD_HELP.as_kwargs())
                 return
 
-            self.blockset.add(int(uin))
             await self.dyn_blockset.add(int(uin))
             await message.reply(f"{uin} 已加入黑名单")
         case ["list"]:
