@@ -26,7 +26,7 @@ jobs:
       github.event.action != 'closed' ||
       contains(github.event.pull_request.labels.*.name, 'release')
     env:
-      push: ${{ github.event_name != 'pull_request' }}
+      push: ${{ github.event.action != 'ready_for_review' }}
     steps:
       - uses: actions/checkout@v4
 
