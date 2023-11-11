@@ -155,8 +155,11 @@ class BaseApp(StorageMixin):
         self.log.debug("init_timers done")
 
     def init_hooks(self):
+        from qzone3tg._messages import is_uin_blocked
+
         from ._hook import add_feed_impls, add_hb_impls, add_up_impls
 
+        self.is_uin_blocked = is_uin_blocked()
         add_feed_impls(self)
         add_hb_impls(self)
         add_up_impls(self)

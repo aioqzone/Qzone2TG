@@ -22,6 +22,7 @@ from qzone3tg.settings import Settings, WebhookConf
 
 from ..base import BaseApp
 from ._block import command_block
+from ._comment import command_comment
 from ._conversation.emoji import command_em
 from .types import SerialCbData
 
@@ -37,6 +38,7 @@ class InteractApp(BaseApp):
         BotCommand(command="block", description="黑名单管理"),
         command_em,
         command_block,
+        command_comment,
     ]
 
     def __init__(self, conf: Settings) -> None:
@@ -51,13 +53,14 @@ class InteractApp(BaseApp):
         self.dyn_blockset = BlockSet(self.engine)
 
     def init_hooks(self):
+        super().init_hooks()
         from ._button import add_button_impls
         from ._hook import add_qr_impls, add_up_impls
 
         add_qr_impls(self)
         add_up_impls(self)
         add_button_impls(self)
-        super().init_hooks()
+        self.is_uin_blocked.add_impl(lambda uin: self.dyn_blockset.contains(uin))
 
     async def __aenter__(self):
         await super().__aenter__()
@@ -89,7 +92,10 @@ class InteractApp(BaseApp):
             SerialCbData.filter(F.sub_command.regexp(r"-?\d+")),
         )
 
-        self.dp.include_routers(_emoji_router(self), _button_router(self))
+        self.dp.include_routers(
+            _emoji_router(self),
+            _button_router(self),
+        )
 
     async def set_commands(self):
         try:
@@ -146,8 +152,6 @@ class InteractApp(BaseApp):
             self.set_commands(),
             self.dyn_blockset.create(),
         )
-        # 加载动态黑名单
-        self.blockset.update(await self.dyn_blockset.all())
         return await super().run()
 
     async def idle(self):
@@ -208,10 +212,11 @@ class InteractApp(BaseApp):
         await self.login.qr.new_cookie()
 
     async def like(self, message: Message, command: CommandObject):
-        assert message
         reply = message.reply_to_message
         if not reply:
-            await message.reply(**Text("使用", CommandText("/like"), "时，您需要回复一条消息。").as_kwargs())
+            await message.reply(
+                **Text("使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。").as_kwargs()
+            )
             return
 
         async def query_likedata(mid: int):
@@ -299,4 +304,5 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._block import block
     from ._button import btn_like, btn_qr
+    from ._comment import comment
     from ._conversation.emoji import em, input_eid

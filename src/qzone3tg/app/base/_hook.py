@@ -45,7 +45,7 @@ def add_feed_impls(self: BaseApp):
     @self.qzone.feed_processed.add_impl
     async def FeedProcEnd(bid: int, feed: FeedContent):
         self.log.debug(f"bid={bid}: {feed}")
-        if feed.uin in self.blockset:
+        if any(await self.is_uin_blocked.results(feed.uin)):
             self.log.info(f"Blocklist hit: {feed.uin}({feed.nickname})")
             return await FeedDropped(bid, feed)
 
@@ -67,6 +67,10 @@ def add_feed_impls(self: BaseApp):
 
     async def StopFeedFetch(feed: FeedData) -> bool:
         return await self.store.exists(*FeedOrm.primkey(feed))
+
+    @self.is_uin_blocked.add_impl
+    def in_blockset(uin: int):
+        return uin in self.blockset
 
     self.qzone.stop_fetch = StopFeedFetch
 
