@@ -53,6 +53,7 @@ class InteractApp(BaseApp):
         self.dyn_blockset = BlockSet(self.engine)
 
     def init_hooks(self):
+        super().init_hooks()
         from ._button import add_button_impls
         from ._hook import add_qr_impls, add_up_impls
 
@@ -60,7 +61,6 @@ class InteractApp(BaseApp):
         add_up_impls(self)
         add_button_impls(self)
         self.is_uin_blocked.add_impl(lambda uin: self.dyn_blockset.contains(uin))
-        super().init_hooks()
 
     async def __aenter__(self):
         await super().__aenter__()
