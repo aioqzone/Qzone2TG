@@ -37,17 +37,27 @@ async def comment(self: InteractApp, message: Message, command: CommandObject):
         await message.reply(**COMMENT_CMD_HELP.as_kwargs())
         return
 
-    match command.args.split():
+    match command.args.split(maxsplit=1):
         case ["add", content]:
             if orm := await query_fid(reply.message_id):
-                await self.qzone.add_comment(orm.uin, orm.fid, orm.appid, content)
-        case ["add", "private", content]:
-            if orm := await query_fid(reply.message_id):
-                await self.qzone.add_comment(orm.uin, orm.fid, orm.appid, content, private=True)
+                private = False
+                if content.startswith("private "):
+                    private = True
+                    content = content.removeprefix("private").lstrip()
+                await self.qzone.add_comment(orm.uin, orm.fid, orm.appid, content, private=private)
+                await message.reply("评论成功")
         case ["list"]:
             if orm := await query_fid(reply.message_id):
                 detail = await self.qzone.shuoshuo(orm.fid, orm.uin, orm.appid)
                 comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
+                if not comments:
+                    await message.reply(
+                        **Text(
+                            "尚无评论！使用", CommandText("/command add <content>"), "发表评论！"
+                        ).as_kwargs()
+                    )
+                    return
+
                 text = as_numbered_section(
                     "评论：",
                     *(
@@ -55,7 +65,7 @@ async def comment(self: InteractApp, message: Message, command: CommandObject):
                         for comment in comments
                     ),
                 )
-                await message.reply(**text.as_kwargs())
+                await reply.reply(**text.as_kwargs())
         case _:
             await message.reply(**COMMENT_CMD_HELP.as_kwargs())
 
