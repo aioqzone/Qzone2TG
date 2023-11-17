@@ -45,9 +45,11 @@ async def btn_comment(query: CallbackQuery, callback_data: SerialCbData, state: 
     await asyncio.gather(
         state.update_data(fid=callback_data.sub_command, query_message=query.message),
         state.set_state(CommentForm.GET_COMMAND),
-        query.message.reply(
-            **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
-            reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
+        asyncio.ensure_future(
+            query.message.reply(
+                **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
+                reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
+            )
         ),
     )
 
