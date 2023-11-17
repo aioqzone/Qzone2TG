@@ -13,13 +13,14 @@ if TYPE_CHECKING:
 
 
 def add_button_impls(self: InteractApp):
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
     from aioqzone_feed.type import FeedContent
 
+    @self.queue.inline_buttons.add_impl
     def _comment_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         cbd = SerialCbData(command="comment", sub_command=feed.fid)
         return InlineKeyboardButton(text="Comment", callback_data=cbd.pack())
 
+    @self.queue.inline_buttons.add_impl
     def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         if feed.unikey is None:
             return
@@ -27,6 +28,7 @@ def add_button_impls(self: InteractApp):
         cbd = SerialCbData(command=("unlike" if feed.islike else "like"), sub_command=curkey)
         return InlineKeyboardButton(text=cbd.command.capitalize(), callback_data=cbd.pack())
 
+    @self.queue.inline_buttons.add_impl
     def _emoji_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         if not feed.entities:
             return
@@ -36,7 +38,7 @@ def add_button_impls(self: InteractApp):
 
         # NOTE: maybe a more compact encoding
         eids = [str(i) for i in set(eids)]
-        cb = "emoji:"
+        cb = ""
         for i in eids:
             if len(cb) + len(i) <= MAX_CALLBACK_DATA:
                 cb += i + ","
@@ -45,14 +47,10 @@ def add_button_impls(self: InteractApp):
         cb = cb.removesuffix(",")
 
         assert len(cb) <= MAX_CALLBACK_DATA
-        return InlineKeyboardButton(text="Customize Emoji", callback_data=cb)
-
-    async def reply_markup(feed: FeedContent) -> InlineKeyboardMarkup | None:
-        builder = InlineKeyboardBuilder()
-        row = [_comment_markup(feed), _like_markup(feed), _emoji_markup(feed)]
-        builder.row(*filter(None, row), width=2)
-        if builder._markup:
-            return builder.as_markup()
+        return InlineKeyboardButton(
+            text="Customize Emoji",
+            callback_data=SerialCbData(command="emoji", sub_command=cb).pack(),
+        )
 
     def qr_markup() -> InlineKeyboardMarkup | None:
         cbd = lambda sub_command: SerialCbData(command="qr", sub_command=sub_command).pack()
@@ -60,7 +58,6 @@ def add_button_impls(self: InteractApp):
         btncancel = InlineKeyboardButton(text="取消", callback_data=cbd("cancel"))
         return InlineKeyboardMarkup(inline_keyboard=[[btnrefresh, btncancel]])
 
-    self.queue.reply_markup = reply_markup
     self._make_qr_markup = qr_markup
 
 

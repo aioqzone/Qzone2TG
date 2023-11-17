@@ -86,7 +86,7 @@ async def test_base_hook(minc: Settings):
         assert app.login.up.login_success.has_impl
         assert app.qzone.feed_processed.has_impl
         assert app.qzone.feed_dropped.has_impl
-        assert "local" in app.qzone.stop_fetch.__qualname__
+        assert app.qzone.stop_fetch.has_impl
         assert app.qzone.hb_failed.has_impl
         assert app.qzone.hb_refresh.has_impl
 
@@ -99,5 +99,6 @@ async def test_interact_hook(minc: Settings):
         assert app.login.qr.qr_fetched.has_impl
         assert app.login.up.sms_code_input.has_impl
         assert app.login.up.solve_select_captcha.has_impl
-        assert "local" in app.queue.reply_markup.__qualname__
+        assert app.is_uin_blocked.has_impl
+        assert app.queue.inline_buttons.has_impl
         assert "local" in app._make_qr_markup.__qualname__

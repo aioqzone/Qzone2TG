@@ -65,14 +65,13 @@ def add_feed_impls(self: BaseApp):
         self.log.debug(f"batch {bid}: one feed is dropped")
         self.queue.drop(bid, feed)
 
+    @self.qzone.stop_fetch.add_impl
     async def StopFeedFetch(feed: FeedData) -> bool:
         return await self.store.exists(*FeedOrm.primkey(feed))
 
     @self.is_uin_blocked.add_impl
     def in_blockset(uin: int):
         return uin in self.blockset
-
-    self.qzone.stop_fetch = StopFeedFetch
 
 
 def add_hb_impls(self: BaseApp):
