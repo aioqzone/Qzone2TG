@@ -49,7 +49,7 @@ async def like_core(self: InteractApp, key: str | int, like=True) -> str | None:
         return e.msg
 
 
-def revert_callback_data(message: Message):
+def invert_callback_data(message: Message):
     if not isinstance(message.reply_markup, InlineKeyboardMarkup):
         return
 
@@ -66,9 +66,13 @@ def revert_callback_data(message: Message):
 
     assert like_btn.callback_data
     cbd = SerialCbData.unpack(like_btn.callback_data)
-    cbd.command = "like" if cbd.command == "unlike" else "unlike"
+    if cbd.command == "like":
+        like_btn.text = "Unlike"
+        cbd.command = "unlike"
+    else:
+        like_btn.text = "like"
+        cbd.command = "like"
     like_btn.callback_data = cbd.pack()
-
     return kbd
 
 
@@ -84,7 +88,7 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
     if query.message is None:
         return
 
-    if (kbd := revert_callback_data(query.message)) is None:
+    if (kbd := invert_callback_data(query.message)) is None:
         return
     await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
 
@@ -106,7 +110,7 @@ async def like(self: InteractApp, message: Message, command: CommandObject):
             text += Pre(err_msg)
         await message.reply(**text.as_kwargs())
 
-    if (kbd := revert_callback_data(reply)) is None:
+    if (kbd := invert_callback_data(reply)) is None:
         return
     await reply.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
 
