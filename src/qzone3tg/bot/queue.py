@@ -9,6 +9,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest as BadRequest
 from aiogram.types.message import Message
 from aiogram.utils.formatting import Text
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aioqzone_feed.type import FeedContent
 from tenacity import (
     RetryError,
@@ -20,6 +21,7 @@ from tenacity import (
 )
 from tylisten.futstore import FutureStore
 
+from qzone3tg._hookspec import inline_buttons
 from qzone3tg.utils.iter import countif
 
 from . import *
@@ -49,11 +51,23 @@ def all_is_atom(l: MidOrAtoms) -> TypeGuard[list[Atom]]:
 
 
 class QueueHook:
+    keyboard_width = 2
+
+    def __init__(self) -> None:
+        self.inline_buttons = inline_buttons()
+
     async def reply_markup(self, feed: FeedContent) -> ReplyMarkup | None:
         """Allow app to generate `reply_markup` according to its own policy.
 
         :param feed: the feed to generate reply_markup
         :return: `ReplyMarkup` or None."""
+        buttons = filter(None, await self.inline_buttons.results(feed))
+        if not (buttons := list(buttons)):
+            return
+
+        builder = InlineKeyboardBuilder()
+        builder.row(*buttons, width=self.keyboard_width)
+        return builder.as_markup()
 
 
 class SendQueue(QueueHook):
