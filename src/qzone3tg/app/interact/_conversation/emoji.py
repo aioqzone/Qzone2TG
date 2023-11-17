@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import re
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import qzemoji as qe
 from aiogram import F, Router
 from aiogram import filters as filter
+from aiogram.filters import or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -23,8 +25,10 @@ from aiogram.utils.formatting import Pre, Text, as_key_value, as_marked_section
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from qzemoji.utils import build_html
 
+from ..types import SerialCbData
+
 if TYPE_CHECKING:
-    from qzone3tg.app.interact import InteractApp, SerialCbData
+    from qzone3tg.app.interact import InteractApp
 
 TAG_RE = re.compile(r"\[em\]e(\d+)\[/em\]")
 EM_HELP = as_marked_section(
@@ -99,7 +103,9 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
 command_em = BotCommand(command="em", description="管理自定义表情")
 
 
-async def btn_emoji(query: CallbackQuery, callback_data: SerialCbData, state: FSMContext):
+async def btn_emoji(
+    self: InteractApp, query: CallbackQuery, callback_data: SerialCbData, state: FSMContext
+):
     """This is the callback when user clicks the "Customize Emoji" button.
 
     This method will save the :class:`~telegram.Message` object into `context.user_data`.
@@ -110,8 +116,9 @@ async def btn_emoji(query: CallbackQuery, callback_data: SerialCbData, state: FS
     This method will transmit the state graph to `CHOOSE_EID`.
     """
     if query.message is None:
-        await query.answer("null query message", show_alert=True)
-        return
+        reply = partial(self.bot.send_message, chat_id=query.from_user.id)
+    else:
+        reply = query.message.reply
 
     eids = callback_data.sub_command.split(",")
 
@@ -128,8 +135,8 @@ async def btn_emoji(query: CallbackQuery, callback_data: SerialCbData, state: FS
         builder.button(text=eid)
     builder.adjust(column)
 
-    await query.message.reply(
-        "选择或者输入一个 eid",
+    await reply(
+        text="选择或者输入一个 eid",
         reply_markup=builder.as_markup(
             resize_keyboard=True,
             one_time_keyboard=True,
@@ -222,15 +229,16 @@ async def cancel_custom(message: Message, state: FSMContext):
 
 
 def build_router(self: InteractApp) -> Router:
-    from .. import SerialCbData
-
     router = Router(name="emoji")
     CA = F.from_user.id.in_({self.conf.bot.admin})
+    cancel = filter.Command("cancel")
 
     # router.message.register(self.em, CA, filter.Command(command_em))
-    router.callback_query.register(btn_emoji, SerialCbData.filter(F.command == "emoji"))
-    router.message.register(self.input_eid, CA, F.text.regexp(r"^\s*\d+\s*$"), EmForm.GET_EID)
-    router.message.register(input_text, CA, F.text, EmForm.GET_TEXT)
-    router.message.register(cancel_custom, CA, filter.Command("cancel"))
+    router.callback_query.register(self.btn_emoji, SerialCbData.filter(F.command == "emoji"))
+    router.message.register(
+        self.input_eid, CA, EmForm.GET_EID, ~cancel, F.text.regexp(r"^\s*\d+\s*$")
+    )
+    router.message.register(input_text, CA, EmForm.GET_TEXT, F.text, ~cancel)
+    router.message.register(cancel_custom, CA, cancel, or_f(EmForm.GET_TEXT, EmForm.GET_EID))
 
     return router

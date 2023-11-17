@@ -67,8 +67,8 @@ def add_up_impls(self: InteractApp):
 
 def add_qr_impls(self: InteractApp):
     from aiogram.types import BufferedInputFile, InputMediaPhoto, Message
+    from aiogram.utils.formatting import BotCommand as CommandText
     from aiogram.utils.formatting import Pre, Text
-    from sqlalchemy.ext.asyncio import AsyncSession
 
     qr_msg: Message | None = None
 
@@ -92,7 +92,9 @@ def add_qr_impls(self: InteractApp):
         self.restart_heartbeat()
         await asyncio.gather(
             _cleanup(),
-            self.bot.send_message(self.admin, "二维码登录成功"),
+            self.bot.send_message(
+                self.admin, **Text("二维码登录成功，发送", CommandText("/start"), "刷新").as_kwargs()
+            ),
         )
 
     def _as_inputfile(b: bytes):
@@ -114,7 +116,7 @@ def add_qr_impls(self: InteractApp):
             text = f"二维码已过期, 请重新扫描[{times}]"
             if qr_renew:
                 # TODO: qr_renew
-                text = "二维码已刷新："
+                text = f"二维码已刷新[{times}]"
                 qr_renew = False
 
             msg = await self.bot.edit_message_media(
