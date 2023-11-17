@@ -1,23 +1,24 @@
 from __future__ import annotations
 
-from contextlib import suppress
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from aioqzone.model import EmEntity, LikeData, PersudoCurkey
+from aioqzone.model import EmEntity, LikeData
 
-from ..storage.orm import FeedOrm
-from .types import SerialCbData
-
-MAX_CALLBACK_DATA: Final[int] = 64
+from .types import MAX_CALLBACK_DATA, SerialCbData
 
 if TYPE_CHECKING:
     from . import InteractApp
 
 
 def add_button_impls(self: InteractApp):
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
     from aioqzone_feed.type import FeedContent
+
+    def _comment_markup(feed: FeedContent) -> InlineKeyboardButton | None:
+        cbd = SerialCbData(command="comment", sub_command=feed.fid)
+        return InlineKeyboardButton(text="Comment", callback_data=cbd.pack())
 
     def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         if feed.unikey is None:
@@ -47,10 +48,11 @@ def add_button_impls(self: InteractApp):
         return InlineKeyboardButton(text="Customize Emoji", callback_data=cb)
 
     async def reply_markup(feed: FeedContent) -> InlineKeyboardMarkup | None:
-        row = [_emoji_markup(feed), _like_markup(feed)]
-        row = list(filter(None, row))
-        if row:
-            return InlineKeyboardMarkup(inline_keyboard=[row])
+        builder = InlineKeyboardBuilder()
+        row = [_comment_markup(feed), _like_markup(feed), _emoji_markup(feed)]
+        builder.row(*filter(None, row), width=2)
+        if builder._markup:
+            return builder.as_markup()
 
     def qr_markup() -> InlineKeyboardMarkup | None:
         cbd = lambda sub_command: SerialCbData(command="qr", sub_command=sub_command).pack()
@@ -60,83 +62,6 @@ def add_button_impls(self: InteractApp):
 
     self.queue.reply_markup = reply_markup
     self._make_qr_markup = qr_markup
-
-
-async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
-    data = callback_data.sub_command
-    unlike = callback_data.command == "unlike"
-    self.log.info(f"Like! query={data}")
-
-    async def query_likedata(persudo_curkey: str) -> LikeData | None:
-        p = PersudoCurkey.from_str(persudo_curkey)
-        feed = await self.store.get_feed_orm(*FeedOrm.primkey(p))
-
-        if feed is None or feed.unikey is None:
-            await query.answer(
-                text=f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。"
-                if feed is None
-                else "该说说不支持点赞。",
-                show_alert=True,
-            )
-            if query.message:
-                await query.message.edit_reply_markup(reply_markup=None)
-
-            return
-
-        return LikeData(
-            unikey=str(feed.unikey),
-            curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
-            appid=feed.appid,
-            typeid=feed.typeid,
-            fid=feed.fid,
-            abstime=feed.abstime,
-        )
-
-    async def like_trans(likedata: LikeData | None) -> bool:
-        if likedata is None:
-            return False
-
-        try:
-            succ = await self.qzone.internal_dolike_app(
-                likedata.appid, likedata.unikey, likedata.curkey, not unlike
-            )
-        except:
-            self.log.error("点赞失败", exc_info=True)
-            return False
-
-        if not succ:
-            return False
-
-        if query.message is None:
-            return True
-
-        make_btn = lambda like: InlineKeyboardButton(
-            text=str.capitalize(like),
-            callback_data=SerialCbData(command=like, sub_command=data).pack(),
-        )
-        btn = make_btn("like" if unlike else "unlike")
-
-        if isinstance(query.message.reply_markup, InlineKeyboardMarkup):
-            kbd = query.message.reply_markup.inline_keyboard
-            kbd = list(kbd[0])
-            kbd[-1] = btn  # like button is the last
-        else:
-            kbd = [btn]
-
-        await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[kbd])
-        )
-        return True
-
-    succ = False
-    with suppress():
-        if likedata := await query_likedata(data):
-            succ = await like_trans(likedata)
-
-    if succ:
-        await query.answer()
-    else:
-        await query.answer(text="点赞失败", show_alert=True)
 
 
 async def btn_qr(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
@@ -156,8 +81,9 @@ async def btn_qr(self: InteractApp, query: CallbackQuery, callback_data: SerialC
 
 def build_router(self: InteractApp) -> Router:
     router = Router(name="inline_button")
-    router.callback_query.register(self.btn_qr, SerialCbData.filter(F.command == "qr"))
     router.callback_query.register(
-        self.btn_like, SerialCbData.filter(F.command.in_(["like", "unlike"]))
+        self.btn_qr,
+        SerialCbData.filter(F.command == "qr"),
+        SerialCbData.filter(F.sub_command.in_({"refresh", "cancel"})),
     )
     return router

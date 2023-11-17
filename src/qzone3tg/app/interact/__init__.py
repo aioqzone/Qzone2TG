@@ -11,10 +11,8 @@ from aiogram.filters.command import CommandObject
 from aiogram.types import BotCommand, FSInputFile, Message
 from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
-from aiogram.utils.formatting import Text
 from aiogram.utils.formatting import Url as UrlText
 from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
-from aioqzone.model import LikeData
 
 from qzone3tg import CHANNEL, DISCUSS, DOCUMENT
 from qzone3tg.app.storage.blockset import BlockSet
@@ -22,8 +20,9 @@ from qzone3tg.settings import Settings, WebhookConf
 
 from ..base import BaseApp
 from ._block import command_block
-from ._comment import command_comment
+from ._conversation.comment import command_comment
 from ._conversation.emoji import command_em
+from ._like import command_like
 from .types import SerialCbData
 
 
@@ -33,7 +32,7 @@ class InteractApp(BaseApp):
         BotCommand(command="status", description="获取运行状态"),
         BotCommand(command="up_login", description="密码登录"),
         BotCommand(command="qr_login", description="二维码登录"),
-        BotCommand(command="like", description="点赞指定的说说"),
+        command_like,
         BotCommand(command="help", description="帮助"),
         BotCommand(command="block", description="黑名单管理"),
         command_em,
@@ -69,7 +68,9 @@ class InteractApp(BaseApp):
 
     def register_handlers(self):
         from ._button import build_router as _button_router
+        from ._conversation.comment import build_router as _comment_router
         from ._conversation.emoji import build_router as _emoji_router
+        from ._like import build_router as _like_router
 
         # build chat filters
         CA = F.from_user.id.in_({self.conf.bot.admin})
@@ -81,20 +82,11 @@ class InteractApp(BaseApp):
                 filter.Command(command),
             )
 
-        self.dp.callback_query.register(
-            self.btn_qr,
-            SerialCbData.filter(F.command == "qr"),
-            SerialCbData.filter(F.sub_command.in_({"refresh", "cancel"})),
-        )
-        self.dp.callback_query.register(
-            self.btn_like,
-            SerialCbData.filter(F.command == "like"),
-            SerialCbData.filter(F.sub_command.regexp(r"-?\d+")),
-        )
-
         self.dp.include_routers(
-            _emoji_router(self),
             _button_router(self),
+            _comment_router(self),
+            _emoji_router(self),
+            _like_router(self),
         )
 
     async def set_commands(self):
@@ -211,51 +203,6 @@ class InteractApp(BaseApp):
     async def qr_login(self, message: Message, command: CommandObject):
         await self.login.qr.new_cookie()
 
-    async def like(self, message: Message, command: CommandObject):
-        reply = message.reply_to_message
-        if not reply:
-            await message.reply(
-                **Text("使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。").as_kwargs()
-            )
-            return
-
-        async def query_likedata(mid: int):
-            feed = await self.Mid2Feed(reply.message_id)
-            if not feed:
-                await message.reply(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
-                return
-
-            if feed.unikey is None:
-                await message.reply("该说说不支持点赞。")
-                return
-
-            return LikeData(
-                unikey=str(feed.unikey),
-                curkey=str(feed.curkey) or LikeData.persudo_curkey(feed.uin, feed.abstime),
-                appid=feed.appid,
-                typeid=feed.typeid,
-                fid=feed.fid,
-                abstime=feed.abstime,
-            )
-
-        async def like_trans(likedata: LikeData):
-            try:
-                succ = await self.qzone.internal_dolike_app(
-                    likedata.appid, likedata.unikey, likedata.curkey, True
-                )
-            except:
-                self.log.error("点赞失败", exc_info=True)
-                succ = False
-            if succ:
-                await message.reply("点赞成功")
-            else:
-                await message.reply("点赞失败")
-
-        likedata = await query_likedata(reply.message_id)
-        if likedata is None:
-            return
-        await like_trans(likedata)
-
     async def input(
         self,
         prompt_message: Message,
@@ -303,6 +250,7 @@ class InteractApp(BaseApp):
     #              query
     # --------------------------------
     from ._block import block
-    from ._button import btn_like, btn_qr
-    from ._comment import comment
-    from ._conversation.emoji import em, input_eid
+    from ._button import btn_qr
+    from ._conversation.comment import comment, input_content
+    from ._conversation.emoji import btn_emoji, em, input_eid
+    from ._like import btn_like, like
