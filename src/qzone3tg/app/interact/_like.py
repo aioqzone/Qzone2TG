@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from itertools import chain
 from typing import TYPE_CHECKING
 
@@ -50,6 +49,29 @@ async def like_core(self: InteractApp, key: str | int, like=True) -> str | None:
         return e.msg
 
 
+def revert_callback_data(message: Message):
+    if not isinstance(message.reply_markup, InlineKeyboardMarkup):
+        return
+
+    if not (kbd := message.reply_markup.inline_keyboard):
+        return
+
+    like_btn = firstn(
+        chain(*kbd),
+        lambda b: b.callback_data
+        and SerialCbData.unpack(b.callback_data).command in ["like", "unlike"],
+    )
+    if like_btn is None:
+        return
+
+    assert like_btn.callback_data
+    cbd = SerialCbData.unpack(like_btn.callback_data)
+    cbd.command = "like" if cbd.command == "unlike" else "unlike"
+    like_btn.callback_data = cbd.pack()
+
+    return kbd
+
+
 async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
     err_msg = await like_core(
         self, str(callback_data.sub_command), callback_data.command == "like"
@@ -62,27 +84,8 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
     if query.message is None:
         return
 
-    make_btn = lambda like: InlineKeyboardButton(
-        text=str.capitalize(like),
-        callback_data=SerialCbData(command=like, sub_command=callback_data.sub_command).pack(),
-    )
-    btn = make_btn("like" if callback_data.command == "unlike" else "unlike")
-
-    if (
-        isinstance(query.message.reply_markup, InlineKeyboardMarkup)
-        and (kbd := deepcopy(query.message.reply_markup.inline_keyboard))
-        and (
-            like_btn := firstn(
-                chain(*kbd),
-                lambda b: b.callback_data
-                and SerialCbData.unpack(b.callback_data).command in ["like", "unlike"],
-            )
-        )
-    ):
-        like_btn.callback_data = btn.callback_data
-    else:
-        kbd = [[btn]]
-
+    if (kbd := revert_callback_data(query.message)) is None:
+        return
     await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
 
 
@@ -102,6 +105,10 @@ async def like(self: InteractApp, message: Message, command: CommandObject):
         if err_msg:
             text += Pre(err_msg)
         await message.reply(**text.as_kwargs())
+
+    if (kbd := revert_callback_data(reply)) is None:
+        return
+    await reply.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
 
 
 command_like = BotCommand(command="like", description="点赞指定的说说")
