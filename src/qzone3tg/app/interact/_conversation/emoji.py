@@ -20,8 +20,9 @@ from aiogram.types import (
     Message,
     ReplyKeyboardRemove,
 )
+from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
-from aiogram.utils.formatting import Pre, Text, as_key_value, as_marked_section
+from aiogram.utils.formatting import Code, Pre, Text, as_key_value, as_marked_section
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from qzemoji.utils import build_html
 
@@ -73,12 +74,12 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
         case [eid] if str.isdigit(eid):
             file = await _get_eid_bytes(self, int(eid))
             if file is None:
-                await message.reply(**Text("未查询到", Pre("eid=", eid)).as_kwargs())
+                await message.reply(**Text("未查询到", Code("eid=", eid)).as_kwargs())
                 return await state.clear()
 
             await message.reply_photo(
                 file,
-                **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
+                **Text("输入", Code("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
             await state.update_data(eid=int(eid))
@@ -90,7 +91,7 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
                     for i in (
                         qe.set(int(eid), name),
                         message.delete(),
-                        message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                        message.reply(**Text("已将", Code(eid), "定义为", name).as_kwargs()),
                     )
                 ],
             )
@@ -167,16 +168,19 @@ async def input_eid(self: InteractApp, message: Message, state: FSMContext):
         await message.reply(f"请输入数字（当前输入{message.text}）")
         return
 
-    file = await _get_eid_bytes(self, eid)
-    if file is None:
-        await message.reply(**Text("未查询到", Pre("eid=", eid)).as_kwargs())
-        return await state.clear()
+    user = self.admin if message.from_user is None else message.from_user.id
+    async with ChatActionSender.upload_photo(user, message.bot or self.bot):
+        file = await _get_eid_bytes(self, eid)
+        if file is None:
+            await message.reply(**Text("未查询到", Code("eid=", eid)).as_kwargs())
+            return await state.clear()
 
-    await message.reply_photo(
-        file,
-        **Text("输入", Pre("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
-        reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
-    )
+        await message.reply_photo(
+            file,
+            **Text("输入", Code("e", eid), "的自定义文本").as_kwargs(text_key="caption"),
+            reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
+        )
+
     await state.set_state(EmForm.GET_TEXT)
 
 
@@ -205,7 +209,7 @@ async def input_text(message: Message, state: FSMContext):
             asyncio.ensure_future(i)
             for i in (
                 qe.set(eid, name),
-                message.reply(**Text("已将", Pre(eid), "定义为", name).as_kwargs()),
+                message.reply(**Text("已将", Code(eid), "定义为", name).as_kwargs()),
                 message.delete(),
             )
         ]

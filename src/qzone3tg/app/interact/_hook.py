@@ -93,7 +93,7 @@ def add_qr_impls(self: InteractApp):
         await asyncio.gather(
             _cleanup(),
             self.bot.send_message(
-                self.admin, **Text("二维码登录成功，发送", CommandText("/start"), "刷新").as_kwargs()
+                self.admin, **Text("二维码登录成功，发送 ", CommandText("/start"), " 刷新").as_kwargs()
             ),
         )
 

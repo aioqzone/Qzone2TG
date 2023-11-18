@@ -372,7 +372,7 @@ class BaseApp(StorageMixin):
             self.log.debug("未捕获的异常", exc_info=e)
             err_msg = Text("未捕获的异常 ", Pre(str(e)))
 
-        if not is_period:
+        if not is_period and not len(err_msg):
             # reschedule heartbeat timer
             self.timers["hb"].reschedule("interval", minutes=5)
 
