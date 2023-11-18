@@ -9,7 +9,7 @@ from typing import Sequence, overload
 import qzemoji.utils as qeu
 from aiogram.enums.input_media_type import InputMediaType
 from aiogram.types import BufferedInputFile, InputFile
-from aiogram.utils.formatting import Pre, Text, TextLink, as_list
+from aiogram.utils.formatting import Code, Text, TextLink, as_list
 from aiogram.utils.media_group import MediaType as GroupMedia
 from aioqzone.model import AtEntity, ConEntity, EmEntity, LinkEntity, TextEntity
 from aioqzone.utils.time import sementic_time
@@ -51,7 +51,7 @@ async def stringify_entities(entities: list[ConEntity] | None) -> Text:
             case EmEntity():
                 s.append(await qeu.query_wrap(e.eid))
             case _:
-                s.append(Pre(e.model_dump_json(exclude={"type"})))
+                s.append(Code(e.model_dump_json(exclude={"type"})))
     return Text(*s)
 
 
