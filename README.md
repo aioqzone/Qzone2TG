@@ -6,8 +6,11 @@
 [![ghcr.io](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/docker.yml?label=ghcr.io&logo=docker)][ghcr]
 [![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
 
-> 1. ⚠️ Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
-> 2. 🆘 **欢迎有意协助开发/维护的中文开发者**。不仅限于`Qzone3TG`，[aioqzone][org] 所属的任何仓库都需要您的帮助。
+> [!WARNING]
+> Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
+
+> [!IMPORTANT]
+> **欢迎有意协助开发/维护的中文开发者**。不仅限于`Qzone3TG`，[aioqzone][org] 所属的任何仓库都需要您的帮助。
 
 [English](README.md)
 

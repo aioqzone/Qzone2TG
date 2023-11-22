@@ -42,7 +42,7 @@ async def stringify_entities(entities: list[ConEntity] | None) -> Text:
             case TextEntity():
                 s.append(e.con)
             case AtEntity():
-                s.append(TextLink(e.nick, url=f"user.qzone.qq.com/{e.uin}"))
+                s.append(Text("@", TextLink(e.nick, url=f"user.qzone.qq.com/{e.uin}")))
             case LinkEntity():
                 if isinstance(e.url, str):
                     s.append(f"{e.text}({e.url})")
