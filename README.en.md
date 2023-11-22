@@ -9,7 +9,7 @@ Forward Qzone feeds to telegram.
 > [!WARNING]
 > Qzone3TG is still under active development. Features and configurations may be changed in future releases.
 
-[简体中文](README.zh-cn.md)
+[简体中文](README.md) | English
 
 ## Deployment
 

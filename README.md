@@ -12,7 +12,7 @@
 > [!IMPORTANT]
 > **欢迎有意协助开发/维护的中文开发者**。不仅限于`Qzone3TG`，[aioqzone][org] 所属的任何仓库都需要您的帮助。
 
-[English](README.md)
+简体中文 | [English](README.en.md)
 
 ## 部署
 
