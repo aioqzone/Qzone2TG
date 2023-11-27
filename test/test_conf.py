@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 import yaml
-from pydantic import SecretStr
 from qzemoji.base import AsyncEngineFactory
 
 from qzone3tg.app.base import BaseApp
@@ -84,6 +83,7 @@ async def test_base_hook(minc: Settings):
     async with BaseApp(minc) as app:
         assert app.login.up.login_failed.has_impl
         assert app.login.up.login_success.has_impl
+        assert app.login.up.solve_slide_captcha.has_impl
         assert app.qzone.feed_processed.has_impl
         assert app.qzone.feed_dropped.has_impl
         assert app.qzone.stop_fetch.has_impl

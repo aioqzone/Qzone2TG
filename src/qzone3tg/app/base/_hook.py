@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 def add_up_impls(self: BaseApp):
     from aiogram.utils.formatting import Pre, Text
+    from slide_tc import solve_slide_captcha
 
     @self.login.up.login_failed.add_impl
     async def LoginFailed(uin: int, exc: BaseException | str):
@@ -21,6 +22,8 @@ def add_up_impls(self: BaseApp):
     async def LoginSuccess(uin: int):
         self.restart_heartbeat()
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
+
+    self.login.up.solve_slide_captcha.add_impl(solve_slide_captcha)
 
 
 def add_feed_impls(self: BaseApp):
