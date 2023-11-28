@@ -68,7 +68,7 @@ async def em(self: InteractApp, message: Message, state: FSMContext) -> None:
     assert message.text is not None
 
     match message.text.split()[1:]:
-        case "export":
+        case ["export"]:
             await qe.export(Path("data/emoji.yml"))
             await message.reply(**Text("已导出到", Pre("data/emoji.yml")).as_kwargs())
         case [eid] if str.isdigit(eid):
