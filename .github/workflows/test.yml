@@ -32,7 +32,7 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
         run: |
           echo "::group::Install Dependencies"
-          poetry install -n -vv
+          poetry install --all-extras -n -vv
           echo "::endgroup::"
 
           echo "::group::pytest outputs"

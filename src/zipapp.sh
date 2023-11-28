@@ -15,7 +15,7 @@ PIP_TARG="${workdir}/.venv"
 if [ -f requirements.txt ]; then
     mv requirements.txt ${PIP_LOCK}
 else
-    poetry export -o ${PIP_LOCK} --without-hashes
+    poetry export --all-extras -o ${PIP_LOCK} --without-hashes
 fi
 
 
