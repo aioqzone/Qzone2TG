@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import typing as t
+from contextlib import suppress
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import or_f
 from aiogram.filters.command import Command as CommandFilter
 from aiogram.filters.command import CommandObject
@@ -58,12 +60,16 @@ async def input_content(self: InteractApp, message: Message, state: FSMContext):
     data = await state.get_data()
     feed_message = data["query_message"]
     await comment_core(self, feed_message, message, message.text, state)
+    with suppress(TelegramBadRequest):
+        await message.delete_reply_markup()
 
 
 async def cancel_custom(message: Message, state: FSMContext):
     if await state.get_state() is None:
         return
     await message.reply("Cancelled.", reply_markup=None)
+    with suppress(TelegramBadRequest):
+        await message.delete_reply_markup()
     await state.clear()
 
 
