@@ -22,6 +22,13 @@ def add_up_impls(self: BaseApp):
         self.restart_heartbeat()
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
+    try:
+        from slide_tc import solve_slide_captcha
+    except ImportError:
+        self.log.warning("slide_tc is not installed, slide captcha solving not availible")
+    else:
+        self.login.up.solve_slide_captcha.add_impl(solve_slide_captcha)
+
 
 def add_feed_impls(self: BaseApp):
     from aioqzone_feed.type import BaseFeed
