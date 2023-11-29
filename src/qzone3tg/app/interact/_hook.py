@@ -101,29 +101,41 @@ def add_qr_impls(self: InteractApp):
         return BufferedInputFile(b, "login_qrcode.png")
 
     @self.login.qr.qr_fetched.add_impl
-    async def QrFetched(png: bytes, times: int, qr_renew=False):
+    async def QrFetched(png: bytes | None, times: int, qr_renew=False):
         nonlocal qr_msg
+        inlinekb = self._make_qr_markup()
 
         if qr_msg is None:
-            qr_msg = await self.bot.send_photo(
-                self.admin,
-                _as_inputfile(png),
-                caption="扫码登陆:",
-                disable_notification=False,
-                reply_markup=self._make_qr_markup(),
-            )
+            if png is None:
+                qr_msg = await self.bot.send_message(
+                    self.admin,
+                    text="二维码已推送到您的QQ手机端，请确认登录。",
+                    disable_notification=False,
+                    reply_markup=inlinekb,
+                )
+            else:
+                qr_msg = await self.bot.send_photo(
+                    self.admin,
+                    _as_inputfile(png),
+                    caption="请扫码登陆",
+                    disable_notification=False,
+                    reply_markup=inlinekb,
+                )
+            return
+
+        if qr_renew:
+            # TODO: qr_renew
+            text = f"二维码已刷新[{times}]"
         else:
             text = f"二维码已过期, 请重新扫描[{times}]"
-            if qr_renew:
-                # TODO: qr_renew
-                text = f"二维码已刷新[{times}]"
-                qr_renew = False
 
-            msg = await self.bot.edit_message_media(
+        if png is None:
+            msg = await qr_msg.edit_text(text, reply_markup=inlinekb)
+        else:
+            msg = qr_msg.edit_media(
                 InputMediaPhoto(media=_as_inputfile(png), caption=text),
-                self.admin,
-                qr_msg.message_id,
-                reply_markup=self._make_qr_markup(),
+                reply_markup=inlinekb,
             )
-            if isinstance(msg, Message):
-                qr_msg = msg
+
+        if isinstance(msg, Message):
+            qr_msg = msg
