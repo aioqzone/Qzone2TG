@@ -153,13 +153,13 @@ python-socks = {version = ">=2.4.3,<3.0.0", extras = ["asyncio"]}
 
 [[package]]
 name = "aioqzone"
-version = "1.7.1.dev6"
+version = "1.7.2.dev1"
 description = "A Python wrapper for Qzone login and H5 APIs."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-1.7.1.dev6-py3-none-any.whl", hash = "sha256:d385c3cf3fe954aebb816626497fbd8c467980bc0a4c088b64fbb00a05e4a905"},
-    {file = "aioqzone-1.7.1.dev6.tar.gz", hash = "sha256:48c9b0742860b3ece1c407ad5dae49ccd4ac479b0fe34f95b5ebe882636b0418"},
+    {file = "aioqzone-1.7.2.dev1-py3-none-any.whl", hash = "sha256:489b164356606d6b2b27d04c42cb2b2503751a66f09889b8f6ebbeabdea7be03"},
+    {file = "aioqzone-1.7.2.dev1.tar.gz", hash = "sha256:ecee08ffe8e587807a0caf5c04f2e1c838b2285aee5d3a66d2482c65e4ce7b0f"},
 ]
 
 [package.dependencies]
@@ -1649,13 +1649,13 @@ files = [
 
 [[package]]
 name = "qzemoji"
-version = "6.0.3"
+version = "6.0.4"
 description = "Translate Qzone emoji link to text."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "qzemoji-6.0.3-py3-none-any.whl", hash = "sha256:973f321a1ec248c9929100b807e9e8d918f15ab9d4945ba6ae399f0a7c05f983"},
-    {file = "qzemoji-6.0.3.tar.gz", hash = "sha256:116789a7b474e4020bbd8e2d6f519902dc642ca57848a6581e39b64a3875edee"},
+    {file = "qzemoji-6.0.4-py3-none-any.whl", hash = "sha256:4ecd7196a0fd87d81e9aa3fb8c643bda4222ef69b02e925a23d0062458d12a94"},
+    {file = "qzemoji-6.0.4.tar.gz", hash = "sha256:02977263a3f1fc4632b7e387f171add7c9d52dc3279dc80e57bdab508797fd16"},
 ]
 
 [package.dependencies]
