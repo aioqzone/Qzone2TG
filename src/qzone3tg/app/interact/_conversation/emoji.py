@@ -181,6 +181,7 @@ async def input_eid(self: InteractApp, message: Message, state: FSMContext):
             reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
         )
 
+    await state.update_data(eid=eid)
     await state.set_state(EmForm.GET_TEXT)
 
 
