@@ -4,10 +4,10 @@ from unittest import mock
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
-from aioqzone.api import ConstLoginMan, Loginable, QrLoginConfig, UpLoginConfig
+from aioqzone.api import QrLoginConfig, UpLoginConfig
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from qzone3tg.app.base import StorageMixin
 from qzone3tg.app.storage import FeedOrm, StorageMan
@@ -110,17 +110,27 @@ class TestCookieStore:
         assert r is None
 
     async def test_loginman_hit(self, login: LoginManager):
-        cookie = dict(p_skey="thisispskey", pt4_token="token")
+        cookie = dict(p_skey="thisispskey", pt4_token="token", pt_guid_sig="guid-sig", ptcz="ptcz")
         await login.table_exists()
 
         async with login.sess() as sess:
-            sess.add(CookieOrm(uin=123, p_skey="expiredpskey", pt4_token="expiredtoken"))
+            sess.add(
+                CookieOrm(
+                    uin=123,
+                    p_skey="expiredpskey",
+                    pt4_token="expiredtoken",
+                    pt_guid_sig="expiredguid",
+                    ptcz="expiredcz",
+                )
+            )
             await sess.commit()
 
         await login.load_cached_cookie()
         assert login.cookie
         assert login.cookie["p_skey"] == "expiredpskey"
         assert login.cookie["pt4_token"] == "expiredtoken"
+        assert login.cookie["pt_guid_sig"] == "expiredguid"
+        assert login.cookie["ptcz"] == "expiredcz"
 
         with mock.patch.object(login.qr, "_new_cookie", return_value=cookie):
             await login.qr.new_cookie()
@@ -133,6 +143,8 @@ class TestCookieStore:
         assert r
         assert r.p_skey == cookie["p_skey"]
         assert r.pt4_token == cookie["pt4_token"]
+        assert r.pt_guid_sig == cookie["pt_guid_sig"]
+        assert r.ptcz == cookie["ptcz"]
 
 
 class TestBlockSet:
