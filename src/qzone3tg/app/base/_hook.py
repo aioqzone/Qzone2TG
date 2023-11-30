@@ -82,11 +82,22 @@ def add_feed_impls(self: BaseApp):
 
 
 def add_hb_impls(self: BaseApp):
+    from aiohttp import ClientResponseError
     from aioqzone.exception import QzoneError
     from tenacity import RetryError
 
     STOP_HB_EXC = [QzoneError]
     last_fail_cause: BaseException | None = None
+
+    def is_exc_similar(exc1: BaseException, exc2: BaseException) -> bool:
+        match (exc1):
+            case ClientResponseError() if isinstance(exc2, ClientResponseError):
+                return (
+                    exc1.code == exc2.code
+                    and exc1.request_info.url.host == exc2.request_info.url.host
+                )
+            case _:
+                return exc1 == exc2
 
     @self.qzone.hb_failed.add_impl
     async def HeartbeatFailed(exc: BaseException):
@@ -97,7 +108,7 @@ def add_hb_impls(self: BaseApp):
 
         if not any(isinstance(exc, i) for i in STOP_HB_EXC):
             nonlocal last_fail_cause
-            if last_fail_cause is None or last_fail_cause != exc:
+            if last_fail_cause is None or not is_exc_similar(last_fail_cause, exc):
                 last_fail_cause = exc
                 return
             else:

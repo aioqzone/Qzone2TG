@@ -181,17 +181,17 @@ captcha = ["slide-tc (>=0.1.1,<0.2.0)"]
 
 [[package]]
 name = "aioqzone-feed"
-version = "1.1.0.dev1"
+version = "1.1.0.dev2"
 description = "aioqzone plugin that provides higher level apis for processing feeds."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-1.1.0.dev1-py3-none-any.whl", hash = "sha256:828d28a4e0d0534655d6074acf79f261d7376675f1e280e964d34c42e0030395"},
-    {file = "aioqzone_feed-1.1.0.dev1.tar.gz", hash = "sha256:154c01fef8f2ae30056a11237bfa4523f42d75258b9998ad07436569985159b6"},
+    {file = "aioqzone_feed-1.1.0.dev2-py3-none-any.whl", hash = "sha256:074826467843df10ac9984c3a655983e17009064fc00cd20df1c3122490f8aba"},
+    {file = "aioqzone_feed-1.1.0.dev2.tar.gz", hash = "sha256:7a93a528ec88304690f1fc7aebb3e3a48978862bd8786283c857d9d1958a71af"},
 ]
 
 [package.extras]
-captcha = ["aioqzone (>=1.5.4.dev1,<2.0.0)", "aioqzone[captcha] (>=1.5.4.dev1,<2.0.0)"]
+captcha = ["aioqzone (>=1.7.2.dev4,<2.0.0)", "aioqzone[captcha] (>=1.7.2.dev4,<2.0.0)"]
 
 [package.source]
 type = "legacy"
@@ -2267,4 +2267,4 @@ captcha = ["aioqzone", "aioqzone"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "b6c456659e9cf5ca011c1d8ab23bbaca9d0932e83d111a9a6aba57e0fae951a1"
+content-hash = "9f2142f0016593212d19128a8ce7e0455470e3db5e2240ef1b0d846a6dacfc35"
