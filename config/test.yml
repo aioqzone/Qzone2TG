@@ -13,7 +13,6 @@ log:
 
 qzone:
   qq: 123
-  qr_strategy: forbid
   dayspac: 1
   block: [2333, 1234]
   block_self: false

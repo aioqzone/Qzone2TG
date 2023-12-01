@@ -15,7 +15,7 @@ services:
       # bot.network.proxy: socks5://host.docker.internal:7890
     # network_mode: host
     volumes:
-      # - ./log:/app/log
+      - ./log:/app/log
       - ./config:/app/config:ro
       - qzone-data:/app/data
       # - ./data:/app/data   # choose a syntax as you like
