@@ -90,7 +90,7 @@ def add_hb_impls(self: BaseApp):
     last_fail_cause: BaseException | None = None
 
     def is_exc_similar(exc1: BaseException, exc2: BaseException) -> bool:
-        match (exc1):
+        match exc1:
             case ClientResponseError() if isinstance(exc2, ClientResponseError):
                 return (
                     exc1.code == exc2.code
@@ -98,6 +98,13 @@ def add_hb_impls(self: BaseApp):
                 )
             case _:
                 return exc1 == exc2
+
+    def friendly_exc_str(exc: BaseException) -> str:
+        match exc:
+            case ClientResponseError():
+                return f"{exc.__class__.__name__}({exc.status}: {exc.message})"
+            case _:
+                return str(exc)
 
     @self.qzone.hb_failed.add_impl
     async def HeartbeatFailed(exc: BaseException):
@@ -117,7 +124,9 @@ def add_hb_impls(self: BaseApp):
 
         self.timers["hb"].pause()
         self.log.warning(f"因{exc.__class__.__name__}暂停心跳")
-        await self.bot.send_message(self.admin, **Text("心跳已暂停", Pre(str(exc))).as_kwargs())
+        await self.bot.send_message(
+            self.admin, **Text("心跳已暂停", Pre(friendly_exc_str(exc))).as_kwargs()
+        )
 
     @self.qzone.hb_refresh.add_impl
     async def HeartbeatRefresh(num: int):

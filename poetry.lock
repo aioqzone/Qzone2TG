@@ -153,13 +153,13 @@ python-socks = {version = ">=2.4.3,<3.0.0", extras = ["asyncio"]}
 
 [[package]]
 name = "aioqzone"
-version = "1.7.2.dev4"
+version = "1.7.2.dev6"
 description = "A Python wrapper for Qzone login and H5 APIs."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-1.7.2.dev4-py3-none-any.whl", hash = "sha256:362863b404c2150e00edef41f547a63383bd34da0498caeb7827127aaa60762f"},
-    {file = "aioqzone-1.7.2.dev4.tar.gz", hash = "sha256:d3e010396360c6ab9f2eaff4da44bf75fd61b0d1518987ce6ee9eecb783d481e"},
+    {file = "aioqzone-1.7.2.dev6-py3-none-any.whl", hash = "sha256:beeee00cd762c03f4c5dada1e4ae6b989343cd1aa9f2ad2fa380a07d0467053e"},
+    {file = "aioqzone-1.7.2.dev6.tar.gz", hash = "sha256:f51336ee127106c87dca7af8377a23c7b2c822ee9f7dc2bc2a603e793a2bda98"},
 ]
 
 [package.dependencies]
@@ -168,7 +168,7 @@ cssselect = ">=1.1.0,<2.0.0"
 exceptiongroup = ">=1.1.1,<2.0.0"
 lxml = ">=4.9.1,<5.0.0"
 pillow = ">=10.0.1,<11.0.0"
-pychaosvm = ">=0.3.0,<0.4.0"
+pychaosvm = ">=0.3.1,<0.4.0"
 pydantic = ">=2.0.3,<3.0.0"
 pydantic-settings = ">=2.0.2,<3.0.0"
 rsa = ">=4.8,<5.0"
@@ -1319,13 +1319,13 @@ files = [
 
 [[package]]
 name = "pychaosvm"
-version = "0.3.0"
+version = "0.3.1"
 description = "A Python envirionment for Tencent ChaosVM."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "pychaosvm-0.3.0-py3-none-any.whl", hash = "sha256:d811a80d1c23d6efe9ada2ee2ea3579126d3c44127705ec65142a36125c0e4f8"},
-    {file = "pychaosvm-0.3.0.tar.gz", hash = "sha256:143b77b40545a30bbc70d9b76baf733bebef1cefb55ef1678b2a50181293d9db"},
+    {file = "pychaosvm-0.3.1-py3-none-any.whl", hash = "sha256:223ea09816d3cd0b1e8bdcd4163367b1a6b992567c95403769fa11c90cbbe0a6"},
+    {file = "pychaosvm-0.3.1.tar.gz", hash = "sha256:f664657198f0f0430f1eb31989e5916910907ce3617f9a28a02f261661a8cad7"},
 ]
 
 [package.dependencies]
