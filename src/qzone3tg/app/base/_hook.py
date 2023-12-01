@@ -138,3 +138,8 @@ def add_hb_impls(self: BaseApp):
             self.log.info("当前正在爬取，心跳刷新已忽略。")
             return
         self.ch_fetch.add_awaitable(self._fetch(self.conf.bot.admin, is_period=True))
+
+    @self.qzone.hb_refresh.add_impl
+    def clear_last_fail_cause(num: int):
+        nonlocal last_fail_cause
+        last_fail_cause = None
