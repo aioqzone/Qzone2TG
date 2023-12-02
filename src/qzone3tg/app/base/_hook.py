@@ -86,7 +86,6 @@ def add_hb_impls(self: BaseApp):
     from aioqzone.exception import QzoneError
     from tenacity import RetryError
 
-    STOP_HB_EXC = [QzoneError]
     last_fail_cause: BaseException | None = None
 
     def is_exc_similar(exc1: BaseException, exc2: BaseException) -> bool:
@@ -106,14 +105,28 @@ def add_hb_impls(self: BaseApp):
             case _:
                 return str(exc)
 
+    def should_stop(exc: BaseException) -> bool:
+        match exc:
+            case QzoneError(code=code) if code in [-3000, -3001, -3002, -10006, -20000]:
+                return True
+            case ClientResponseError(status=code) if code in [302, 403]:
+                return True
+        return False
+
+    def should_ignore_stop(exc: BaseException) -> bool:
+        match exc:
+            case ClientResponseError(status=code) if code == 500:
+                return True
+        return False
+
     @self.qzone.hb_failed.add_impl
     async def HeartbeatFailed(exc: BaseException):
         # unpack wrapped exceptions
-        if isinstance(exc, RetryError):
-            exc = exc.last_attempt.result()
+        if isinstance(exc, RetryError) and exc.last_attempt.failed:
+            exc = exc.last_attempt.exception()
         self.log.debug(f"heartbeat failed: {exc}")
 
-        if not any(isinstance(exc, i) for i in STOP_HB_EXC):
+        if not should_stop(exc):
             nonlocal last_fail_cause
             if last_fail_cause is None or not is_exc_similar(last_fail_cause, exc):
                 last_fail_cause = exc
@@ -121,6 +134,9 @@ def add_hb_impls(self: BaseApp):
             else:
                 self.log.debug(f"连续两次因{exc.__class__.__name__}心跳异常", exc_info=exc)
                 last_fail_cause = None
+
+        if should_ignore_stop(exc):
+            return
 
         self.timers["hb"].pause()
         self.log.warning(f"因{exc.__class__.__name__}暂停心跳")

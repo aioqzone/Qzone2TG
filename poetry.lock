@@ -153,13 +153,13 @@ python-socks = {version = ">=2.4.3,<3.0.0", extras = ["asyncio"]}
 
 [[package]]
 name = "aioqzone"
-version = "1.7.2.dev6"
+version = "1.7.2.dev8"
 description = "A Python wrapper for Qzone login and H5 APIs."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone-1.7.2.dev6-py3-none-any.whl", hash = "sha256:beeee00cd762c03f4c5dada1e4ae6b989343cd1aa9f2ad2fa380a07d0467053e"},
-    {file = "aioqzone-1.7.2.dev6.tar.gz", hash = "sha256:f51336ee127106c87dca7af8377a23c7b2c822ee9f7dc2bc2a603e793a2bda98"},
+    {file = "aioqzone-1.7.2.dev8-py3-none-any.whl", hash = "sha256:bce05a65bb26d066f3adcb09922493639daa505d9917ce7b578293494180a3cc"},
+    {file = "aioqzone-1.7.2.dev8.tar.gz", hash = "sha256:163c6926e4733fb8d2acfe7db962fdbd068854733aed503f8d7a25bb848cbd12"},
 ]
 
 [package.dependencies]
@@ -2140,13 +2140,13 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "virtualenv"
-version = "20.24.7"
+version = "20.25.0"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "virtualenv-20.24.7-py3-none-any.whl", hash = "sha256:a18b3fd0314ca59a2e9f4b556819ed07183b3e9a3702ecfe213f593d44f7b3fd"},
-    {file = "virtualenv-20.24.7.tar.gz", hash = "sha256:69050ffb42419c91f6c1284a7b24e0475d793447e35929b488bf6a0aade39353"},
+    {file = "virtualenv-20.25.0-py3-none-any.whl", hash = "sha256:4238949c5ffe6876362d9c0180fc6c3a824a7b12b80604eeb8085f2ed7460de3"},
+    {file = "virtualenv-20.25.0.tar.gz", hash = "sha256:bf51c0d9c7dd63ea8e44086fa1e4fb1093a31e963b86959257378aef020e1f1b"},
 ]
 
 [package.dependencies]

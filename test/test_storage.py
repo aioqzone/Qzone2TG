@@ -8,6 +8,7 @@ from aioqzone.api import QrLoginConfig, UpLoginConfig
 from qqqr.utils.net import ClientAdapter
 from qzemoji.base import AsyncEngineFactory
 from sqlalchemy.ext.asyncio import AsyncEngine
+from yarl import URL
 
 from qzone3tg.app.base import StorageMixin
 from qzone3tg.app.storage import FeedOrm, StorageMan
@@ -131,6 +132,11 @@ class TestCookieStore:
         assert login.cookie["pt4_token"] == "expiredtoken"
         assert login.cookie["pt_guid_sig"] == "expiredguid"
         assert login.cookie["ptcz"] == "expiredcz"
+        ms = login.qr.client.cookie_jar.filter_cookies(URL("https://ptlogin2.qq.com")).get(
+            "pt_guid_sig"
+        )
+        assert ms
+        assert ms.value == login.cookie["pt_guid_sig"]
 
         with mock.patch.object(login.qr, "_new_cookie", return_value=cookie):
             await login.qr.new_cookie()
