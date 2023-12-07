@@ -183,7 +183,7 @@ class BotConf(BaseModel):
 
 
 class QzoneConf(BaseModel):
-    """对应配置文件中的 ``qzone`` 项。包含要登陆的QQ账户信息和爬虫相关的设置。"""
+    """对应配置文件中的 ``qzone`` 项。包含要登录的QQ账户信息和爬虫相关的设置。"""
 
     uin: int = Field(validation_alias=AliasChoices("uin", "qq"))
     """QQ账号"""

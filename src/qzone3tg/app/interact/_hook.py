@@ -117,7 +117,7 @@ def add_qr_impls(self: InteractApp):
                 qr_msg = await self.bot.send_photo(
                     self.admin,
                     _as_inputfile(png),
-                    caption="请扫码登陆",
+                    caption="请扫码登录",
                     disable_notification=False,
                     reply_markup=inlinekb,
                 )
