@@ -1,10 +1,9 @@
-version: "3"
 services:
   qzone:
     container_name: qzone
-    image: ghcr.io/aioqzone/qzone3tg:latest
+    image: ghcr.io/aioqzone/qzone3tg:latest-beta
     environment:
-      # ${xxx}表示变量。您可以直接将变量替换为字面值
+      # ${xxx}表示环境变量。您可以直接将变量替换为字面值
       # 也可以在 .env 文件中定义这些变量，如
       # xxx=123
       password: ${PASSWD}
@@ -14,10 +13,11 @@ services:
       bot.storage.database: data/${UIN}.db
       # bot.network.proxy: socks5://host.docker.internal:7890
     # network_mode: host
+    expose: [80]
     volumes:
-      - ./log:/app/log
+      - /var/log/Qzone2TG:/app/log
       - ./config:/app/config:ro
       - qzone-data:/app/data
-      # - ./data:/app/data   # choose a syntax as you like
+
 volumes:
   qzone-data:

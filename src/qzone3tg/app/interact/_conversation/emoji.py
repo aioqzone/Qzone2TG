@@ -49,6 +49,8 @@ async def _get_eid_bytes(self: InteractApp, eid: int) -> BufferedInputFile | Non
     for ext in ("gif", "jpg", "png"):
         try:
             async with self.client.get(build_html(eid, ext=ext)) as r:
+                if r.content_length and r.content_length <= 43:
+                    continue
                 return BufferedInputFile(await r.content.read(), f"e{eid}.{ext}")
         except:
             pass
