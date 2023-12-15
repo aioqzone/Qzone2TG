@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.9.6.dev10"
+version = "0.9.6.dev11"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -39,7 +39,7 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 pre-commit = "*"
 black = "^23.1.0"
-isort = ">=5.13.0"
+isort = ">=5.13.1"
 
 [tool.poetry.group.docs]
 optional = true

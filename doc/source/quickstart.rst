@@ -57,4 +57,4 @@ Qzone3TG 支持从环境变量中读取配置。:program:`docker-compose` 的配
 
 .. literalinclude:: ../../docker/docker-compose.yml
     :language: yaml
-    :emphasize-lines: 10-15
+    :emphasize-lines: 6-14

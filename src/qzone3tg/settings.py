@@ -86,7 +86,9 @@ class WebhookConf(BaseModel):
     """webhook 端口. 在此端口上设置一个小型的服务器用于监听请求. 用户需要保证 `!telegram api` 可以直接请求此端口，
     或经反向代理等中间环节间接访问此端口.
 
-    受 Telegram :obj:`限制 <SUPPORTED_WEBHOOK_PORTS>`, 端口只能在 443, 80, 88, 8443 中选择。
+    .. versionchanged:: 0.9.7.dev1
+
+        端口不再局限于规定端口（443, 80, 88, 8443）。此时用户必须将规定端口上的流量转发至 :obj:`.port` 所指定的端口。
     """
 
     cert: FilePath | None = None
@@ -106,10 +108,11 @@ class WebhookConf(BaseModel):
     .. versionadded:: 0.5.0a3
     """
 
-    @field_validator("port")
+    @field_validator("destination")
     @classmethod
-    def port_choice(cls, v: int):
-        assert v in SUPPORTED_WEBHOOK_PORTS
+    def port_choice(cls, v: Url):
+        if v.port is not None:
+            assert v.port in SUPPORTED_WEBHOOK_PORTS
         return v
 
 
