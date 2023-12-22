@@ -14,6 +14,7 @@ from aiogram.types import (
 )
 from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Pre, Text
+from aiohttp import ClientResponseError
 from aioqzone.exception import QzoneError
 from aioqzone.model import LikeData, PersudoCurkey
 from qqqr.utils.iter import firstn
@@ -45,6 +46,8 @@ async def like_core(self: InteractApp, key: str | int, like=True) -> str | None:
             curkey=feed.curkey or LikeData.persudo_curkey(feed.uin, feed.abstime),
             like=like,
         )
+    except ClientResponseError as e:
+        return f"{e.status}: {e.message}"
     except QzoneError as e:
         return e.msg
 
