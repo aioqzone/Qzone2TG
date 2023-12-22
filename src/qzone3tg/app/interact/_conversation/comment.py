@@ -20,6 +20,8 @@ from aiogram.utils.formatting import (
     as_marked_section,
     as_numbered_section,
 )
+from aiohttp import ClientResponseError
+from aioqzone.exception import QzoneError
 
 from ..types import SerialCbData
 
@@ -103,13 +105,31 @@ async def comment_core(
                 if content.startswith("private "):
                     private = True
                     content = content.removeprefix("private").lstrip()
-                await self.qzone.add_comment(orm.uin, orm.fid, orm.appid, content, private=private)
-                await trigger_message.reply("评论成功")
+                try:
+                    await self.qzone.add_comment(
+                        orm.uin, orm.fid, orm.appid, content, private=private
+                    )
+                except QzoneError as e:
+                    msg = e.msg
+                except ClientResponseError as e:
+                    msg = f"{e.status}: {e.message}"
+                else:
+                    msg = "评论成功"
+                await trigger_message.reply(msg)
+
         case ["list"]:
             if state:
                 await state.clear()
             if orm := await query_fid(feed_message.message_id):
-                detail = await self.qzone.shuoshuo(orm.fid, orm.uin, orm.appid)
+                try:
+                    detail = await self.qzone.shuoshuo(orm.fid, orm.uin, orm.appid)
+                except QzoneError as e:
+                    await trigger_message.reply(e.msg)
+                    return
+                except ClientResponseError as e:
+                    await trigger_message.reply(f"{e.status}: {e.message}")
+                    return
+
                 comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
                 if not comments:
                     await trigger_message.reply(
