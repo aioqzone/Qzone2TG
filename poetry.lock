@@ -172,7 +172,6 @@ pychaosvm = ">=0.3.2,<0.4.0"
 pydantic = ">=2.0.3,<3.0.0"
 pydantic-settings = ">=2.0.2,<3.0.0"
 rsa = ">=4.8,<5.0"
-slide-tc = {version = ">=0.1.1,<0.2.0", optional = true, markers = "extra == \"captcha\""}
 tenacity = ">=8.2.3,<9.0.0"
 tylisten = ">=2.1.3,<3.0.0"
 
@@ -181,17 +180,20 @@ captcha = ["slide-tc (>=0.1.1,<0.2.0)"]
 
 [[package]]
 name = "aioqzone-feed"
-version = "1.2.1.dev1"
+version = "1.2.1.dev2"
 description = "aioqzone plugin that provides higher level apis for processing feeds."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "aioqzone_feed-1.2.1.dev1-py3-none-any.whl", hash = "sha256:a220d2d9def7fbc9612af3d88d95ddf2cd048b0cc47a11b6eff3ac45be212ef7"},
-    {file = "aioqzone_feed-1.2.1.dev1.tar.gz", hash = "sha256:eec64d133d0ca3ea86ebcbfb108d91a4f82e36ece2f6e6b7216d6bce46ef7c41"},
+    {file = "aioqzone_feed-1.2.1.dev2-py3-none-any.whl", hash = "sha256:37c01a4ceaeff31d44594220661ad5e695956870db12236fac1901282988d7cf"},
+    {file = "aioqzone_feed-1.2.1.dev2.tar.gz", hash = "sha256:be96d01d12b3e66a7b1975b3c53bc8e5eef9bbcabd47c33977c7964db7ed30b5"},
 ]
 
+[package.dependencies]
+aioqzone = ">=1.8.0.dev1,<2.0.0"
+
 [package.extras]
-captcha = ["aioqzone (>=1.8.0.dev1,<2.0.0)", "aioqzone[captcha] (>=1.8.0.dev1,<2.0.0)"]
+captcha = ["slide-tc (>=0.1.1,<0.2.0)"]
 
 [package.source]
 type = "legacy"
@@ -2293,9 +2295,9 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [extras]
-captcha = ["aioqzone", "aioqzone"]
+captcha = ["slide-tc"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "38316175daef913054d932c0c06c908454fda45f968d6eecb98977254f1d5679"
+content-hash = "14246d788fd929e0b2f565fad5adcdd7c12c848f22fefe6c76d621cc7d5ebf01"
