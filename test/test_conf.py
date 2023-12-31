@@ -83,12 +83,15 @@ async def test_base_hook(minc: Settings):
     async with BaseApp(minc) as app:
         assert app.login.up.login_failed.has_impl
         assert app.login.up.login_success.has_impl
-        assert app.login.up.solve_slide_captcha.has_impl
         assert app.qzone.feed_processed.has_impl
         assert app.qzone.feed_dropped.has_impl
         assert app.qzone.stop_fetch.has_impl
         assert app.qzone.hb_failed.has_impl
         assert app.qzone.hb_refresh.has_impl
+
+        if not app.login.up.solve_slide_captcha.has_impl:
+            with pytest.raises(ImportError):
+                import slide_tc  # type: ignore
 
 
 @pytest.mark.asyncio

@@ -88,7 +88,7 @@ async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: Seria
         return
 
     await query.answer()
-    if query.message is None:
+    if not isinstance(query.message, Message):
         return
 
     if (kbd := invert_callback_data(query.message)) is None:

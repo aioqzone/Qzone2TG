@@ -2,7 +2,7 @@
 
 
 import sqlalchemy as sa
-from aioqzone.model import FeedData, PersudoCurkey
+from aioqzone.model import FeedData, PersudoCurkey, ProfileFeedData
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 
@@ -53,7 +53,7 @@ class FeedOrm(Base):
         return record
 
     @classmethod
-    def primkey(cls, feed: BaseFeed | PersudoCurkey | FeedData):
+    def primkey(cls, feed: BaseFeed | PersudoCurkey | FeedData | ProfileFeedData):
         match feed:
             case FeedData():
                 return cls.uin == feed.userinfo.uin, cls.abstime == feed.abstime

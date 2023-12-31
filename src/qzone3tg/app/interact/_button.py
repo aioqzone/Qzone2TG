@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aioqzone.model import EmEntity, LikeData
 
 from .types import MAX_CALLBACK_DATA, SerialCbData
@@ -69,7 +69,7 @@ async def btn_qr(self: InteractApp, query: CallbackQuery, callback_data: SerialC
             self.login.qr.cancel_qr.set()
         case _:
             self.log.warning(f"Unexpected qr button callback: {query.data}")
-            if query.message:
+            if isinstance(query.message, Message):
                 await query.message.delete()
             await query.answer("Unexpected qr button callback", show_alert=True)
             return
