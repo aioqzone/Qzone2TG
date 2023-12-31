@@ -13,6 +13,7 @@ from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Url as UrlText
 from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
+from tylisten import FutureStore
 
 from qzone3tg import CHANNEL, DISCUSS, DOCUMENT
 from qzone3tg.app.storage.blockset import BlockSet
@@ -23,7 +24,6 @@ from ._block import command_block
 from ._conversation.comment import command_comment
 from ._conversation.emoji import command_em
 from ._like import command_like
-from .types import SerialCbData
 
 
 class InteractApp(BaseApp):
@@ -42,6 +42,8 @@ class InteractApp(BaseApp):
 
     def __init__(self, conf: Settings) -> None:
         super().__init__(conf)
+        self.ch_slow = FutureStore()
+        """A future store to save slow operations. It does not need to be waited in most time."""
 
     # --------------------------------
     #            hook init

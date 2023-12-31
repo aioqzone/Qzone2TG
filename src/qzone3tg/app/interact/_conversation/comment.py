@@ -42,21 +42,18 @@ class CommentForm(StatesGroup):
 
 
 async def btn_comment(query: CallbackQuery, callback_data: SerialCbData, state: FSMContext):
-    if not query.message:
-        await query.answer("query has no message", show_alert=True)
+    if not isinstance(query.message, Message):
+        await query.answer("按钮已失效", show_alert=True)
         return
 
     tasks = [
         state.update_data(fid=callback_data.sub_command, query_message=query.message),
         state.set_state(CommentForm.GET_COMMAND),
+        query.message.reply(
+            **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
+            reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
+        ),
     ]
-    if isinstance(query.message, Message):
-        tasks.append(
-            query.message.reply(
-                **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
-                reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
-            )
-        )
     await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
 
 
