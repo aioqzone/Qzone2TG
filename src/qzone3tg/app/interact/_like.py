@@ -1,17 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from itertools import chain
 from typing import TYPE_CHECKING
 
 from aiogram import F, Router
 from aiogram.filters.command import CommandObject
-from aiogram.types import (
-    BotCommand,
-    CallbackQuery,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    Message,
-)
+from aiogram.types import BotCommand, CallbackQuery, InlineKeyboardMarkup, Message
 from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Pre, Text
 from aiohttp import ClientResponseError
@@ -80,20 +75,62 @@ def invert_callback_data(message: Message):
 
 
 async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
-    err_msg = await like_core(
-        self, str(callback_data.sub_command), callback_data.command == "like"
+    task = asyncio.create_task(
+        like_core(self, str(callback_data.sub_command), callback_data.command == "like")
     )
-    if err_msg is not None:
-        await query.answer(text="点赞失败：" + err_msg, show_alert=True)
-        return
 
-    await query.answer()
-    if not isinstance(query.message, Message):
-        return
+    answered = False
 
-    if (kbd := invert_callback_data(query.message)) is None:
-        return
-    await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
+    @task.add_done_callback
+    def on_success(t: asyncio.Task[str | None]):
+        if t.result() is not None:
+            return
+
+        if answered:
+            if isinstance(query.message, Message):
+                self.ch_slow.add_awaitable(query.message.reply("点赞成功"))
+        else:
+            self.ch_slow.add_awaitable(query.answer("点赞成功"))
+
+        if not isinstance(query.message, Message):
+            return
+
+        if (kbd := invert_callback_data(query.message)) is None:
+            return
+
+        self.ch_slow.add_awaitable(
+            query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=kbd))
+        )
+
+    @task.add_done_callback
+    def on_failure(t: asyncio.Task[str | None]):
+        if (err_msg := t.result()) is None:
+            return
+
+        if answered:
+            text = Text("点赞失败")
+            if err_msg:
+                text = Text(text, Pre(err_msg))
+
+            if isinstance(query.message, Message):
+                self.ch_slow.add_awaitable(query.message.reply(**text.as_kwargs()))
+            else:
+                self.ch_slow.add_awaitable(self.bot.send_message(self.admin, **text.as_kwargs()))
+        else:
+            self.ch_slow.add_awaitable(
+                query.answer(text=f"点赞失败：{err_msg}", show_alert=True, cache_time=1)
+            )
+
+    timeout_task = self.ch_slow.add_awaitable(asyncio.wait_for(asyncio.shield(task), timeout=4))
+
+    @timeout_task.add_done_callback
+    def on_timeout(t: asyncio.Future):
+        if not isinstance(t.exception(), TimeoutError):
+            return
+
+        nonlocal answered
+        answered = True
+        self.ch_slow.add_awaitable(query.answer("Qzone响应时间过长，请耐心等待，勿重复操作。"))
 
 
 async def like(self: InteractApp, message: Message, command: CommandObject):
