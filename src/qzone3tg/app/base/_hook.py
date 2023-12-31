@@ -23,9 +23,9 @@ def add_up_impls(self: BaseApp):
         await self.bot.send_message(self.admin, "密码登录成功", disable_notification=True)
 
     try:
-        from slide_tc import solve_slide_captcha
+        from slide_tc import solve_slide_captcha  # type: ignore
     except ImportError:
-        self.log.warning("slide_tc is not installed, slide captcha solving not availible")
+        self.log.warning("slide_tc 未安装，滑动验证码识别功能禁用")
     else:
         self.login.up.solve_slide_captcha.add_impl(solve_slide_captcha)
 
