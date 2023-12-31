@@ -57,7 +57,7 @@ def add_up_impls(self: InteractApp):
             timeout=self.conf.qzone.up_config.vcode_timeout,
             filters=(CA, CR),
         )
-        await asyncio.wait([asyncio.ensure_future(i.delete()) for i in _m])
+        await self.bot.delete_messages(self.admin, [i.message_id for i in _m])
 
         if ans is None:
             return []

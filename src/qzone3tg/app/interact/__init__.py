@@ -242,7 +242,9 @@ class InteractApp(BaseApp):
             with suppress(TelegramBadRequest):
                 await prompt_message.delete_reply_markup()
             if delete_conversations:
-                await asyncio.wait([asyncio.ensure_future(m.delete()) for m in conversations])
+                await self.bot.delete_messages(
+                    prompt_message.chat.id, [i.message_id for i in conversations]
+                )
 
         return None
 

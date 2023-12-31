@@ -386,7 +386,7 @@ class BaseApp(StorageMixin):
             return
 
         # wait for all hook to finish
-        await asyncio.gather(self.qzone.ch_feed_dispatch.wait(), self.qzone.ch_feed_notify.wait())
+        await self.qzone.wait()
         got -= self.queue.drop_num
         if got <= 0:
             if not is_period:

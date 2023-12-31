@@ -118,10 +118,10 @@ async def btn_emoji(
 
     This method will transmit the state graph to `CHOOSE_EID`.
     """
-    if query.message is None:
-        reply = partial(self.bot.send_message, chat_id=query.from_user.id)
-    else:
+    if isinstance(query.message, Message):
         reply = query.message.reply
+    else:
+        reply = partial(self.bot.send_message, chat_id=query.from_user.id)
 
     eids = callback_data.sub_command.split(",")
 

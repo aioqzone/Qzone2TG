@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aiogram.utils.formatting import Pre, Text
-from aioqzone.model import FeedData
+from aioqzone.model import FeedData, ProfileFeedData
 from aioqzone_feed.type import FeedContent
 
 if TYPE_CHECKING:
@@ -73,7 +73,7 @@ def add_feed_impls(self: BaseApp):
         self.queue.drop(bid, feed)
 
     @self.qzone.stop_fetch.add_impl
-    async def StopFeedFetch(feed: FeedData) -> bool:
+    async def StopFeedFetch(feed: FeedData | ProfileFeedData) -> bool:
         return await self.store.exists(*FeedOrm.primkey(feed))
 
     @self.is_uin_blocked.add_impl

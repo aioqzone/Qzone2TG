@@ -46,16 +46,18 @@ async def btn_comment(query: CallbackQuery, callback_data: SerialCbData, state: 
         await query.answer("query has no message", show_alert=True)
         return
 
-    await asyncio.gather(
+    tasks = [
         state.update_data(fid=callback_data.sub_command, query_message=query.message),
         state.set_state(CommentForm.GET_COMMAND),
-        asyncio.ensure_future(
+    ]
+    if isinstance(query.message, Message):
+        tasks.append(
             query.message.reply(
                 **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
                 reply_markup=ForceReply(selective=True, input_field_placeholder="/cancel"),
             )
-        ),
-    )
+        )
+    await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
 
 
 async def input_content(self: InteractApp, message: Message, state: FSMContext):
