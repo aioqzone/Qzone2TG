@@ -13,6 +13,7 @@ from aiogram.utils.chat_action import ChatActionSender
 from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Url as UrlText
 from aiogram.utils.formatting import as_key_value, as_list, as_marked_section
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from tylisten import FutureStore
 
 from qzone3tg import CHANNEL, DISCUSS, DOCUMENT
@@ -177,15 +178,13 @@ class InteractApp(BaseApp):
         help_section = as_marked_section(
             "命令：", *(as_key_value(CommandText(c.command), c.description) for c in self.commands)
         )
-        brand_section = as_marked_section(
-            "其他帮助：",
-            as_key_value("官方频道", UrlText(CHANNEL)),
-            as_key_value("讨论群", UrlText(DISCUSS)),
-            as_key_value("文档", UrlText(f"{DOCUMENT}/usage.html")),
-        )
+        buttons = InlineKeyboardBuilder()
+        buttons.button(text="官方频道", url=CHANNEL)
+        buttons.button(text="讨论群", url=DISCUSS)
+        buttons.button(text="文档", url=f"{DOCUMENT}/usage.html")
 
         await self.bot.send_message(
-            chat.id, **as_list(help_section, brand_section, sep="\n\n").as_kwargs()
+            chat.id, **help_section.as_kwargs(), reply_markup=buttons.as_markup()
         )
 
     async def status(self, message: Message, command: CommandObject):
