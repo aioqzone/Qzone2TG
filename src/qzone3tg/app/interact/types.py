@@ -7,4 +7,4 @@ MAX_CALLBACK_DATA: t.Final[int] = 64
 
 class SerialCbData(CallbackData, prefix=""):
     command: str
-    sub_command: str
+    sub_command: str = ""
