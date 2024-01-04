@@ -20,8 +20,12 @@ from aiogram.utils.formatting import (
     as_marked_section,
     as_numbered_section,
 )
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiohttp import ClientResponseError
 from aioqzone.exception import QzoneError
+from aioqzone.model import PersudoCurkey
+
+from qzone3tg.app.storage.orm import FeedOrm
 
 from ..types import SerialCbData
 
@@ -47,7 +51,7 @@ async def btn_comment(query: CallbackQuery, callback_data: SerialCbData, state: 
         return
 
     tasks = [
-        state.update_data(fid=callback_data.sub_command, query_message=query.message),
+        state.update_data(query_message=query.message),
         state.set_state(CommentForm.GET_COMMAND),
         query.message.reply(
             **Text("输入命令：", Pre("list"), Pre("add"), Pre("add private")).as_kwargs(),
@@ -55,6 +59,43 @@ async def btn_comment(query: CallbackQuery, callback_data: SerialCbData, state: 
         ),
     ]
     await asyncio.wait([asyncio.ensure_future(i) for i in tasks])
+
+
+async def btn_comment_refresh(
+    self: InteractApp, query: CallbackQuery, callback_data: SerialCbData, state: FSMContext
+):
+    if not isinstance(query.message, Message):
+        await self.bot.send_message(self.admin, "消息已过期")
+        return
+
+    orm = await self.store.get_feed_orm(
+        *FeedOrm.primkey(PersudoCurkey.from_str(callback_data.sub_command))
+    )
+    if orm is None:
+        await query.answer(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。", show_alert=True)
+        return
+
+    try:
+        detail = await self.qzone.shuoshuo(orm.fid, orm.uin, orm.appid)
+    except QzoneError as e:
+        await query.answer(e.msg, show_alert=True)
+        return
+    except ClientResponseError as e:
+        await query.answer(f"{e.status}: {e.message}", show_alert=True)
+        return
+
+    comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
+    if not comments:
+        await query.message.edit_text(
+            **Text("尚无评论！使用", CommandText("/command add <content>"), "发表评论！").as_kwargs(),
+        )
+        return
+
+    text = as_numbered_section(
+        "评论：",
+        *(as_key_value(comment.user.nickname, comment.content) for comment in comments),
+    )
+    await query.message.edit_text(**text.as_kwargs())
 
 
 async def input_content(self: InteractApp, message: Message, state: FSMContext):
@@ -129,12 +170,21 @@ async def comment_core(
                     await trigger_message.reply(f"{e.status}: {e.message}")
                     return
 
+                buttons = InlineKeyboardBuilder()
+                buttons.button(
+                    text="刷新",
+                    callback_data=SerialCbData(
+                        command="comment_refresh",
+                        sub_command=str(PersudoCurkey(uin=orm.uin, abstime=orm.abstime)),
+                    ).pack(),
+                )
                 comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
                 if not comments:
                     await trigger_message.reply(
                         **Text(
                             "尚无评论！使用", CommandText("/command add <content>"), "发表评论！"
-                        ).as_kwargs()
+                        ).as_kwargs(),
+                        reply_markup=buttons.as_markup(),
                     )
                     return
 
@@ -145,7 +195,7 @@ async def comment_core(
                         for comment in comments
                     ),
                 )
-                await feed_message.reply(**text.as_kwargs())
+                await feed_message.reply(**text.as_kwargs(), reply_markup=buttons.as_markup())
         case _:
             await trigger_message.reply(**COMMENT_CMD_HELP.as_kwargs())
 
@@ -174,6 +224,9 @@ def build_router(self: InteractApp):
     any_state = or_f(CommentForm.GET_COMMAND, CommentForm.GET_CONTENT)
 
     router.callback_query.register(btn_comment, SerialCbData.filter(F.command == "comment"))
+    router.callback_query.register(
+        self.btn_comment_refresh, SerialCbData.filter(F.command == "comment_refresh")
+    )
     router.message.register(self.input_content, CA, CommentForm.GET_COMMAND, F.text, ~cancel)
     router.message.register(cancel_custom, CA, cancel, any_state)
     return router

@@ -255,6 +255,6 @@ class InteractApp(BaseApp):
     # --------------------------------
     from ._block import block
     from ._button import btn_qr
-    from ._conversation.comment import comment, input_content
+    from ._conversation.comment import btn_comment_refresh, comment, input_content
     from ._conversation.emoji import btn_emoji, em, input_eid
     from ._like import btn_like, like

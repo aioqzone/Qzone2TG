@@ -17,8 +17,8 @@ def add_button_impls(self: InteractApp):
 
     @self.queue.inline_buttons.add_impl
     def _comment_markup(feed: FeedContent) -> InlineKeyboardButton | None:
-        cbd = SerialCbData(command="comment", sub_command=feed.fid)
-        return InlineKeyboardButton(text="Comment", callback_data=cbd.pack())
+        cbd = SerialCbData(command="comment")
+        return InlineKeyboardButton(text="评论", callback_data=cbd.pack())
 
     @self.queue.inline_buttons.add_impl
     def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
