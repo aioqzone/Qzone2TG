@@ -85,17 +85,19 @@ async def btn_comment_refresh(
         return
 
     comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
-    if not comments:
+    if comments:
+        text = as_numbered_section(
+            "评论：",
+            *(as_key_value(comment.user.nickname, comment.content) for comment in comments),
+        )
+        await query.message.edit_text(**text.as_kwargs(), reply_markup=query.message.reply_markup)
+    else:
         await query.message.edit_text(
             **Text("尚无评论！使用", CommandText("/command add <content>"), "发表评论！").as_kwargs(),
+            reply_markup=query.message.reply_markup,
         )
-        return
 
-    text = as_numbered_section(
-        "评论：",
-        *(as_key_value(comment.user.nickname, comment.content) for comment in comments),
-    )
-    await query.message.edit_text(**text.as_kwargs())
+    await query.answer("评论刷新成功")
 
 
 async def input_content(self: InteractApp, message: Message, state: FSMContext):
