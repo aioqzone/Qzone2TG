@@ -123,6 +123,7 @@ async def btn_emoji(
     else:
         reply = partial(self.bot.send_message, chat_id=query.from_user.id)
 
+    assert callback_data.sub_command
     eids = callback_data.sub_command.split(",")
 
     if len(eids) <= 9:

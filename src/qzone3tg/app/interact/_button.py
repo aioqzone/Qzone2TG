@@ -25,8 +25,11 @@ def add_button_impls(self: InteractApp):
         if feed.unikey is None:
             return
         curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
-        cbd = SerialCbData(command=("unlike" if feed.islike else "like"), sub_command=curkey)
-        return InlineKeyboardButton(text=cbd.command.capitalize(), callback_data=cbd.pack())
+        command, text = ("unlike", "取消赞") if feed.islike else ("like", "赞")
+
+        return InlineKeyboardButton(
+            text=text, callback_data=SerialCbData(command=command, sub_command=curkey).pack()
+        )
 
     @self.queue.inline_buttons.add_impl
     def _emoji_markup(feed: FeedContent) -> InlineKeyboardButton | None:

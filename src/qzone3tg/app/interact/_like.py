@@ -75,6 +75,7 @@ def invert_callback_data(message: Message):
 
 
 async def btn_like(self: InteractApp, query: CallbackQuery, callback_data: SerialCbData):
+    assert callback_data.sub_command
     task = asyncio.create_task(
         like_core(self, str(callback_data.sub_command), callback_data.command == "like")
     )
