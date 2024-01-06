@@ -68,6 +68,8 @@ async def btn_comment_refresh(
         await self.bot.send_message(self.admin, "消息已过期")
         return
 
+    assert callback_data.sub_command
+
     orm = await self.store.get_feed_orm(
         *FeedOrm.primkey(PersudoCurkey.from_str(callback_data.sub_command))
     )
