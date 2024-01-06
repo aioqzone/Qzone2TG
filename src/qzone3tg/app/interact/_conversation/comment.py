@@ -92,12 +92,11 @@ async def btn_comment_refresh(
             "评论：",
             *(as_key_value(comment.user.nickname, comment.content) for comment in comments),
         )
-        t, e = text.render()
-        if (query.message.text == t) and (query.message.entities == e):
-            await query.answer("无新评论！")
-            return
 
-        await query.message.edit_text(**text.as_kwargs(), reply_markup=query.message.reply_markup)
+        with suppress(TelegramBadRequest):
+            await query.message.edit_text(
+                **text.as_kwargs(), reply_markup=query.message.reply_markup
+            )
     else:
         if query.message.text and query.message.text.startswith("尚无评论"):
             await query.answer("尚无评论！")
