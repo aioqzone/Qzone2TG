@@ -134,3 +134,21 @@ class TestQueue:
 
         assert not fake_bot.log
         assert len(queue.exc_groups[f]) == grp_len
+
+    async def test_forward_order(self, queue: SendQueue, fake_bot: FakeBot):
+        f1, f2, f3 = [fake_feed(i) for i in range(3)]
+        f1.abstime = f1.uin = 1
+        f2.abstime = f2.uin = 2
+        f3.abstime = f3.uin = 3
+
+        f3.forward = f1
+
+        queue.new_batch(0)
+        queue.add(0, f2)
+        queue.add(0, f3)
+
+        await asyncio.wait(queue.send_all().values())
+
+        assert fake_bot.log
+        uin_order = [int(s[2][0]) for s in fake_bot.log]
+        assert uin_order == [2, 1, 3]
