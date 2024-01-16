@@ -65,10 +65,10 @@ def invert_callback_data(message: Message):
     assert like_btn.callback_data
     cbd = SerialCbData.unpack(like_btn.callback_data)
     if cbd.command == "like":
-        like_btn.text = "Unlike"
+        like_btn.text = "取消赞"
         cbd.command = "unlike"
     else:
-        like_btn.text = "like"
+        like_btn.text = "赞"
         cbd.command = "like"
     like_btn.callback_data = cbd.pack()
     return kbd
