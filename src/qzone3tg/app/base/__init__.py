@@ -268,7 +268,9 @@ class BaseApp(StorageMixin):
                     self.log.warning("提示：您是否忘记了设置代理？")
                     await self.shutdown()
                 if not isinstance(self.conf.bot.init_args, WebhookConf):
-                    self.log.info("提示：使用 webhook 能够减少向 Telegram 发起连接的次数，从而间接降低代理出错的频率。")
+                    self.log.info(
+                        "提示：使用 webhook 能够减少向 Telegram 发起连接的次数，从而间接降低代理出错的频率。"
+                    )
                 return
 
             self.log.fatal("router错误处理收到未被捕捉的异常：", exc_info=event.exception)
@@ -335,7 +337,8 @@ class BaseApp(StorageMixin):
             self.ch_fetch.add_awaitable(self._fetch(self.admin))
         else:
             await self.bot.send_message(
-                self.admin, **Text("初始化完成，发送", CommandText("/start"), "启动 🚀").as_kwargs()
+                self.admin,
+                **Text("初始化完成，发送", CommandText("/start"), "启动 🚀").as_kwargs(),
             )
 
         self.start_time = time()
@@ -402,10 +405,17 @@ class BaseApp(StorageMixin):
         errs = self.queue.exc_num
         summary = Text("发送结束，共", got, "条，", errs, "条错误。")
         if errs:
-            summary = as_list(summary, Text("查看服务端日志，在我们的讨论群", DISCUSS_HTML, "寻求帮助。"))
+            summary = as_list(
+                summary, Text("查看服务端日志，在我们的讨论群", DISCUSS_HTML, "寻求帮助。")
+            )
             if self.log.level > 10:
                 summary = as_list(
-                    summary, Text("当前日志等级为", self.log.level, "将日志等级调整为 DEBUG 以获得完整调试信息。")
+                    summary,
+                    Text(
+                        "当前日志等级为",
+                        self.log.level,
+                        "将日志等级调整为 DEBUG 以获得完整调试信息。",
+                    ),
                 )
 
         await self.bot.send_message(to, **summary.as_kwargs())

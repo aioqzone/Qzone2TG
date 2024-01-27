@@ -1,4 +1,5 @@
 """This module defines an app that interact with user using /command and inline markup buttons."""
+
 import asyncio
 import re
 from contextlib import suppress

@@ -74,7 +74,9 @@ async def btn_comment_refresh(
         *FeedOrm.primkey(PersudoCurkey.from_str(callback_data.sub_command))
     )
     if orm is None:
-        await query.answer(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。", show_alert=True)
+        await query.answer(
+            f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。", show_alert=True
+        )
         return
 
     try:
@@ -103,7 +105,9 @@ async def btn_comment_refresh(
             return
 
         await query.message.edit_text(
-            **Text("尚无评论！使用", CommandText("/command add <content>"), "发表评论！").as_kwargs(),
+            **Text(
+                "尚无评论！使用", CommandText("/command add <content>"), "发表评论！"
+            ).as_kwargs(),
             reply_markup=query.message.reply_markup,
         )
 
@@ -144,7 +148,9 @@ async def comment_core(
     async def query_fid(mid: int):
         feed = await self.Mid2Feed(mid)
         if not feed:
-            await trigger_message.reply(f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。")
+            await trigger_message.reply(
+                f"未找到该消息，可能已超出 {self.conf.bot.storage.keepdays} 天。"
+            )
             return
         return feed
 
@@ -217,7 +223,9 @@ async def comment(self: InteractApp, message: Message, command: CommandObject):
     if feed_message is None:
         if command.args:
             await message.reply(
-                **Text("使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。").as_kwargs()
+                **Text(
+                    "使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。"
+                ).as_kwargs()
             )
         else:
             await message.reply(**COMMENT_CMD_HELP.as_kwargs())

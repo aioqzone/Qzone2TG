@@ -119,9 +119,9 @@ class WebhookConf(BaseModel):
 class NetworkConf(BaseModel):
     """网络配置，对应配置文件中的 :obj:`bot.network <.BotConf.network>`. 包括代理和自定义等待时间等。"""
 
-    proxy: Annotated[
-        Url, UrlConstraints(allowed_schemes=["http", "socks4", "socks5"])
-    ] | None = Field(default=None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
+    proxy: Annotated[Url, UrlConstraints(allowed_schemes=["http", "socks4", "socks5"])] | None = (
+        Field(default=None, validation_alias=AliasChoices("proxy", "HTTPS_PROXY"))
+    )
     """代理设置，支持 :term:`http <http_proxy>` 和 :term:`socks <socks_proxy>` 代理.
     代理将用于向 `!telegram api` 和 `!github` 发送请求. 也支持读取系统全局代理 :envvar:`HTTPS_PROXY`,
     但优先级 **低于** 配置文件提供的值。

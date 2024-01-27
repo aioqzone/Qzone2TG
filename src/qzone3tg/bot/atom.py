@@ -1,4 +1,5 @@
 """This module split a feed into multiple atomic message."""
+
 from __future__ import annotations
 
 import logging
@@ -283,9 +284,15 @@ class MediaGroupAtom(MsgAtom):
             match ty:
                 case InputMediaType.DOCUMENT if self.is_doc is not False:
                     if meta.is_video:
-                        note = Text(f"P{n_pipe}: 不支持的视频格式，点击查看", TextLink("原视频", url=meta.raw))
+                        note = Text(
+                            f"P{n_pipe}: 不支持的视频格式，点击查看",
+                            TextLink("原视频", url=meta.raw),
+                        )
                     else:
-                        note = Text(f"P{n_pipe}: 图片过大无法发送/显示，点击查看", TextLink("原图", url=meta.raw))
+                        note = Text(
+                            f"P{n_pipe}: 图片过大无法发送/显示，点击查看",
+                            TextLink("原图", url=meta.raw),
+                        )
 
                     if len(hint) + len(note) <= LIM_MD_TXT - 1:
                         hint += note
