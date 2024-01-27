@@ -138,7 +138,9 @@ async def like(self: InteractApp, message: Message, command: CommandObject):
     reply = message.reply_to_message
     if not reply:
         await message.reply(
-            **Text("使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。").as_kwargs()
+            **Text(
+                "使用", CommandText(f"/{command.command}"), "时，您需要回复一条消息。"
+            ).as_kwargs()
         )
         return
 

@@ -85,7 +85,9 @@ def add_qr_impls(self: InteractApp):
     @self.login.qr.login_failed.add_impl
     async def LoginFailed(uin: int, exc: BaseException | str):
         await _cleanup()
-        await self.bot.send_message(self.admin, **Text("二维码登录失败 ", Pre(str(exc))).as_kwargs())
+        await self.bot.send_message(
+            self.admin, **Text("二维码登录失败 ", Pre(str(exc))).as_kwargs()
+        )
 
     @self.login.qr.login_success.add_impl
     async def LoginSuccess(uin: int):
@@ -93,7 +95,8 @@ def add_qr_impls(self: InteractApp):
         await asyncio.gather(
             _cleanup(),
             self.bot.send_message(
-                self.admin, **Text("二维码登录成功，发送 ", CommandText("/start"), " 刷新").as_kwargs()
+                self.admin,
+                **Text("二维码登录成功，发送 ", CommandText("/start"), " 刷新").as_kwargs(),
             ),
         )
 

@@ -1,6 +1,5 @@
 """This module defines orms in this app."""
 
-
 import sqlalchemy as sa
 from aioqzone.model import FeedData, PersudoCurkey, ProfileFeedData
 from aioqzone_feed.type import BaseFeed

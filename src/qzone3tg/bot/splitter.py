@@ -1,6 +1,7 @@
 """Splitters split a feed object into several atoms. They provide :meth:`~Splitter.unify_send` interface to split
 a feed object into a chain of atom objects.
 """
+
 import asyncio
 import logging
 from abc import ABC, abstractmethod
