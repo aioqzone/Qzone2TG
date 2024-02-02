@@ -1,4 +1,4 @@
-FROM python:3.11-slim as build
+FROM python:3.12-slim as build
 
 WORKDIR /home/build
 
@@ -10,7 +10,7 @@ RUN bash src/zipapp.sh ./run
 #                 Runtime Stage
 # ==============================================
 
-FROM python:3.11-slim as release
+FROM python:3.12-slim as release
 # use slim since opencv-python doesn't offically support alpine.
 
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
