@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.9.8.dev11"
+version = "0.9.9.dev1"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -10,7 +10,7 @@ repository = "https://github.com/aioqzone/Qzone2TG"
 documentation = "https://aioqzone.github.io/Qzone2TG"
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "~3.12"
 aioqzone-feed = "^1.2.1.dev4"
 slide-tc = { version = "~0.1.1", allow-prereleases = true, optional = true }
 qzemoji = { version = "^6.0.4", source = "aioqzone-index" }
