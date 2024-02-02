@@ -74,5 +74,5 @@ line-length = 99
 target-version = ['py311']
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 pythonPlatform = "All"
