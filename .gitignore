@@ -5,6 +5,7 @@ poetry.toml
 pyrightconfig.json
 
 # build, metadata and distribution
+__pycache__
 *.pyc
 *.egg-info
 /dist
