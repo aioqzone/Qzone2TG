@@ -19,6 +19,7 @@ qzone:
   qr_config:
     max_refresh_times: 6
     poll_freq: 3.0
+    no_push: true
   up_config:
     vcode_timeout: 60
 
