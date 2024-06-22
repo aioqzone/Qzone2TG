@@ -1,4 +1,4 @@
-FROM python:3.12-slim as build
+FROM python:3.12-slim AS build
 
 WORKDIR /home/build
 
@@ -10,11 +10,11 @@ RUN bash src/zipapp.sh ./run
 #                 Runtime Stage
 # ==============================================
 
-FROM python:3.12-slim as release
+FROM python:3.12-slim AS release
 # use slim since opencv-python doesn't offically support alpine.
 
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
-LABEL org.opencontainers.image.description "Forward Qzone feeds to telegram."
+LABEL org.opencontainers.image.description="Forward Qzone feeds to telegram."
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 
 WORKDIR /app
