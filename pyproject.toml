@@ -40,7 +40,7 @@ isort = "!=5.13.0"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-Sphinx = "^7.0.1"
+Sphinx = "^8.0.2"
 autodoc-pydantic = "*"
 sphinx-autodoc-typehints = "^1.18.2"
 furo = "*"
