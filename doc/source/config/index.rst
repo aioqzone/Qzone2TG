@@ -17,16 +17,16 @@
 
 配置由两部分构成，一部分是普通配置，支持文件配置或环境变量：
 
-.. tabs::
+.. tab-set::
 
-   .. tab:: 配置文件
+   .. tab-item:: 配置文件
 
       .. literalinclude:: ../../../config/test.yml
          :caption: yaml 配置文件
          :language: yaml
          :lines: 1-3
 
-   .. tab:: 环境变量
+   .. tab-item:: 环境变量
 
       .. code-block:: shell
          :caption: 环境变量
@@ -36,9 +36,9 @@
 
 另一部分是密码/密钥，支持 :term:`docker secrets` 或环境变量：
 
-.. tabs::
+.. tab-set::
 
-   .. tab:: 环境变量
+   .. tab-item:: 环境变量
 
       .. code-block:: shell
          :caption: 环境变量
@@ -46,7 +46,7 @@
          $password = "my-password"
          $token = "123456:thisistoken"
 
-   .. tab:: docker secrets files
+   .. tab-item:: docker secrets files
 
       .. code-block::
          :caption: file: ``${secrets_dir}/password``

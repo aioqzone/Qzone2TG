@@ -17,7 +17,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Qzone3TG"
-copyright = "2022-2023, aioqzone"
+copyright = "2022-2024, aioqzone"
 author = "aioqzone"
 
 # The full version, including alpha/beta/rc tags
@@ -32,7 +32,7 @@ extensions = [
     "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
-    "sphinx_tabs.tabs",
+    "sphinx_design",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
