@@ -27,7 +27,7 @@ def fixed():
     return l
 
 
-@pytest_asyncio.fixture(scope="class")
+@pytest_asyncio.fixture(loop_scope="class")
 async def engine():
     db = Path("tmp/tmp.db")
     db.unlink(missing_ok=True)
@@ -36,15 +36,15 @@ async def engine():
     db.unlink(missing_ok=True)
 
 
-@pytest_asyncio.fixture(scope="class")
+@pytest_asyncio.fixture(loop_scope="class")
 async def store(engine: AsyncEngine):
     s = StorageMan(engine)
     await s.create()
     yield s
 
 
-@pytest.fixture(scope="class")
-def app(store: StorageMan):
+@pytest_asyncio.fixture(loop_scope="class")
+async def app(store: StorageMan):
     class fake_app(StorageMixin):
         def __init__(self, store) -> None:
             self.store = store
@@ -52,12 +52,12 @@ def app(store: StorageMan):
     return fake_app(store)
 
 
-@pytest.fixture(scope="class")
-def login(client: ClientAdapter, engine: AsyncEngine):
+@pytest_asyncio.fixture(loop_scope="class")
+async def login(client: ClientAdapter, engine: AsyncEngine):
     return LoginManager(client, engine, QrLoginConfig(uin=123), UpLoginConfig(uin=123))
 
 
-@pytest_asyncio.fixture(scope="class")
+@pytest_asyncio.fixture(loop_scope="class")
 async def blockset(engine: AsyncEngine):
     s = BlockSet(engine)
     await s.create()
