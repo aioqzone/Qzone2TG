@@ -2,9 +2,10 @@
 
 转发说说到 Telegram.
 
-[![Sphinx](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/sphinx.yml?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/docker.yml?label=ghcr.io&logo=docker)][ghcr]
-[![channel](https://img.shields.io/endpoint?label=Channel&style=social&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fqzone2tg))](https://t.me/qzone2tg)
+[![latest](https://ghcr-badge.egpl.dev/aioqzone/qzone3tg/latest_tag?trim=major&label=Latest%20Image)][ghcr]
+[![Sphinx](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/sphinx.yml?label=Sphinx&logo=github)][doc]
+[![channel](https://img.shields.io/endpoint?label=Channel&style=social&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fqzone2tg)](https://t.me/qzone2tg)
 
 > [!WARNING]
 > Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
