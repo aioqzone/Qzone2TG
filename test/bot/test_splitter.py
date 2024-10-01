@@ -28,9 +28,10 @@ def local():
     return LocalSplitter()
 
 
-@pytest_asyncio.fixture(loop_scope="class")
-async def fetch(client: ClientAdapter):
-    return FetchSplitter(client)
+@pytest_asyncio.fixture(loop_scope="function")
+async def fetch():
+    async with ClientAdapter() as client:
+        yield FetchSplitter(client)
 
 
 class TestLocal:

@@ -27,7 +27,7 @@ def fixed():
     return l
 
 
-@pytest_asyncio.fixture(loop_scope="class")
+@pytest_asyncio.fixture(scope="class", loop_scope="class")
 async def engine():
     db = Path("tmp/tmp.db")
     db.unlink(missing_ok=True)
@@ -52,9 +52,10 @@ async def app(store: StorageMan):
     return fake_app(store)
 
 
-@pytest_asyncio.fixture(loop_scope="class")
-async def login(client: ClientAdapter, engine: AsyncEngine):
-    return LoginManager(client, engine, QrLoginConfig(uin=123), UpLoginConfig(uin=123))
+@pytest_asyncio.fixture(scope="class", loop_scope="class")
+async def login(engine: AsyncEngine):
+    async with ClientAdapter() as client:
+        yield LoginManager(client, engine, QrLoginConfig(uin=123), UpLoginConfig(uin=123))
 
 
 @pytest_asyncio.fixture(loop_scope="class")
@@ -94,6 +95,7 @@ class TestFeedStore:
         assert not await store.get_msg_orms(MessageOrm.mid == 1)
 
 
+@pytest.mark.asyncio(loop_scope="class")
 class TestCookieStore:
     async def test_loginman_miss(self, login: LoginManager):
         cookie = dict(errno="12")

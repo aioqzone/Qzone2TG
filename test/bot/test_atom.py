@@ -17,9 +17,10 @@ def local():
     return LocalSplitter()
 
 
-@pytest_asyncio.fixture(loop_scope="class")
-async def fetch(client: ClientAdapter):
-    return FetchSplitter(client)
+@pytest_asyncio.fixture(scope="class", loop_scope="class")
+async def fetch():
+    async with ClientAdapter() as client:
+        yield FetchSplitter(client)
 
 
 class TestLocal:
@@ -82,6 +83,7 @@ class TestLocal:
         assert all(isinstance(i, InputMedia) for i in medias)
 
 
+@pytest.mark.asyncio(loop_scope="class")
 class TestFetch:
     async def test_media_norm(self, fetch: FetchSplitter):
         f = fake_feed(1)

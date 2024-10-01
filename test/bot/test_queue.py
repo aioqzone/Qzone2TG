@@ -3,6 +3,7 @@ from collections import defaultdict
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardMarkup
@@ -23,15 +24,21 @@ def fake_bot():
     return FakeBot()
 
 
-@pytest.fixture
-def queue(client: ClientAdapter, fake_bot: Bot) -> SendQueue:
-    q = SendQueue(fake_bot, FetchSplitter(client), defaultdict(int))
+@pytest_asyncio.fixture(loop_scope="function")
+async def fetch():
+    async with ClientAdapter() as client:
+        yield FetchSplitter(client)
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def queue(fetch: FetchSplitter, fake_bot: Bot):
+    q = SendQueue(fake_bot, fetch, defaultdict(int))
 
     async def _unified_markup(feed):
         return InlineKeyboardMarkup(inline_keyboard=[])
 
     q.reply_markup = _unified_markup
-    return q
+    yield q
 
 
 class TestQueue:
