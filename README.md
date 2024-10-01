@@ -2,9 +2,10 @@
 
 转发说说到 Telegram.
 
-[![Sphinx](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/sphinx.yml?label=Sphinx&logo=github)][doc]
 [![ghcr.io](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/docker.yml?label=ghcr.io&logo=docker)][ghcr]
-[![channel](https://img.shields.io/badge/dynamic/xml?label=Channel&query=%2F%2Fdiv%5B%40class%3D%22tgme_page_extra%22%5D&url=https%3A%2F%2Ft.me%2Fqzone2tg&style=social&logo=telegram)](https://t.me/qzone2tg)
+[![latest](https://ghcr-badge.egpl.dev/aioqzone/qzone3tg/latest_tag?trim=major&label=Latest%20Image)][ghcr]
+[![Sphinx](https://img.shields.io/github/actions/workflow/status/aioqzone/Qzone2TG/sphinx.yml?label=Sphinx&logo=github)][doc]
+[![channel](https://img.shields.io/endpoint?label=Channel&style=social&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fqzone2tg)](https://t.me/qzone2tg)
 
 > [!WARNING]
 > Qzone3TG 仍在开发阶段，任何功能和配置项都有可能在未来的版本中发生变化。
@@ -43,7 +44,7 @@ Qzone3TG 使用 [pydantic](https://pydantic-docs.helpmanual.io/usage/settings) �
 ## License
 
 ```
-Copyright (C) 2021-2023 aioqzone
+Copyright (C) 2021-2024 aioqzone
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published

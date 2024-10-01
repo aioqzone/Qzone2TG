@@ -1,6 +1,7 @@
 from typing import Callable
 
 import pytest
+import pytest_asyncio
 from aiogram.types import BufferedInputFile
 from qqqr.utils.net import ClientAdapter
 from qzemoji.utils import build_html
@@ -27,9 +28,10 @@ def local():
     return LocalSplitter()
 
 
-@pytest.fixture(scope="class")
-def fetch(client: ClientAdapter):
-    return FetchSplitter(client)
+@pytest_asyncio.fixture(loop_scope="function")
+async def fetch():
+    async with ClientAdapter() as client:
+        yield FetchSplitter(client)
 
 
 class TestLocal:

@@ -22,7 +22,7 @@ def minc():
     return Settings(**mind).load_secrets()
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def engine():
     async with AsyncEngineFactory.sqlite3(None) as engine:
         yield engine

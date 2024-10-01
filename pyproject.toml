@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Qzone3TG"
-version = "0.9.9.dev11"
+version = "0.9.9.dev13"
 description = "Forward Qzone feeds to telegram."
 authors = ["aioqzone <zzzzss990315@gmail.com>"]
 readme = "README.md"
@@ -26,7 +26,7 @@ optional = false
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.2.0"
-pytest-asyncio = "~0.21.2"
+pytest-asyncio = "~0.24.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -61,9 +61,10 @@ build-backend = "poetry.core.masonry.api"
 
 # customize begin
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+log_cli_level = 'WARNING'
 pythonpath = 'src'
 log_cli = 1
-log_cli_level = 'WARNING'
 
 [tool.isort]
 profile = "black"
