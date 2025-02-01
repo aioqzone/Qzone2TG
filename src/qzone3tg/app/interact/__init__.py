@@ -3,7 +3,7 @@
 import asyncio
 import re
 from contextlib import suppress
-from typing import Callable
+from typing import Callable, NoReturn
 
 import aiogram.filters as filter
 from aiogram import Bot, F, Router
@@ -99,7 +99,7 @@ class InteractApp(BaseApp):
         except:
             self.log.error("Error in setting commands", exc_info=True)
 
-    async def _start_webhook(self, conf: WebhookConf):
+    async def _start_webhook(self, conf: WebhookConf) -> NoReturn:
         from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
         from aiohttp import web
 
@@ -150,7 +150,7 @@ class InteractApp(BaseApp):
         )
         return await super().run()
 
-    async def idle(self):
+    async def idle(self) -> NoReturn:
         conf = self.conf.bot.init_args
         if isinstance(conf, WebhookConf):
             return await self._start_webhook(conf)
@@ -188,7 +188,7 @@ class InteractApp(BaseApp):
             chat.id, **help_section.as_kwargs(), reply_markup=buttons.as_markup()
         )
 
-    async def status(self, message: Message, command: CommandObject):
+    async def status(self, message: Message, command: CommandObject):  # FIXME
         chat = message.chat
         assert message.text
 
