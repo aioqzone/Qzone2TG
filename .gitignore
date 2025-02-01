@@ -22,6 +22,7 @@ node_modules
 tmp
 /log
 /data
+*.dat
 
 # personal info
 /config/*

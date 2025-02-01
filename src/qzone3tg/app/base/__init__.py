@@ -9,9 +9,9 @@ from functools import partial
 from pathlib import Path
 from time import time
 
-import qzemoji as qe
+import qzemoji as qe  # 24.7->60M
 import yaml
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher  # 60->171.7M
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import ErrorEvent, InlineKeyboardMarkup
