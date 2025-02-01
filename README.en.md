@@ -42,7 +42,7 @@ Since environment variable style configuration is fully supported, one can merge
 ## License
 
 ```
-Copyright (C) 2021-2024 aioqzone
+Copyright (C) 2021-2025 aioqzone
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
