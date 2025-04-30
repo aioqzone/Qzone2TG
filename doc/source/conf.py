@@ -68,7 +68,7 @@ default_role = "any"
 intersphinx_mapping = {
     "aiogram": ("https://docs.aiogram.dev/en/dev-3.x/", None),
     "aiohttp": ("https://docs.aiohttp.org/en/stable/", None),
-    "python": ("https://docs.python.org/3.10/", None),
+    "python": ("https://docs.python.org/3.13/", None),
 }
 
 # autodoc_pydantic settings

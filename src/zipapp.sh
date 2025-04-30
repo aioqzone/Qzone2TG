@@ -2,7 +2,7 @@
 
 # This script aims to build the minimal Qzone2TG pyz.
 # before running the script, caller should export a `requirements.txt`,
-# otherwise the script will call `poetry export` itself.
+# otherwise the script will call `uv export` itself.
 # `python3` and `pip3` is assumed to be available.
 
 workdir=$1
@@ -15,7 +15,7 @@ PIP_TARG="${workdir}/.venv"
 if [ -f requirements.txt ]; then
     mv requirements.txt ${PIP_LOCK}
 else
-    poetry export --all-extras -o ${PIP_LOCK} --without-hashes
+    uv export --format requirements-txt -q --no-annotate --no-hashes --no-emit-project -o ${PIP_LOCK}
 fi
 
 

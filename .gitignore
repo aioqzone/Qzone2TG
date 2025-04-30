@@ -1,7 +1,6 @@
 # IDE, local settings
 .vscode
 *.env
-poetry.toml
 pyrightconfig.json
 
 # build, metadata and distribution

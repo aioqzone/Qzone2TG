@@ -18,13 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx install poetry
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-          cache: poetry
+          enable-cache: true
 
       - name: Install and Test
         env:
@@ -32,11 +29,11 @@ jobs:
           TEST_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
         run: |
           echo "::group::Install Dependencies"
-          poetry install --sync -n -vv
+          uv sync --group test
           echo "::endgroup::"
 
           echo "::group::pytest outputs"
-          poetry run pytest test
+          uv run pytest test
           echo "::endgroup::"
 
       - name: Request Changes
