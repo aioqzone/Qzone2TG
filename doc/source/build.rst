@@ -1,9 +1,16 @@
 构建
 ========================
 
-.. note:: 注意，此页面提供给开发人员，普通用户一般不必查看此页面。
+.. hint:: 注意，此页面提供给开发人员，普通用户一般不必查看此页面。
 
-.. note:: 注意，本页面提供的命令均建立在您已经安装 `poetry <https://python-poetry.org>`_ 的前提下。
+
+
+.. note::
+    注意，本页面提供的命令均建立在您已经安装 `uv <https://docs.astral.sh/uv/>`_ 的前提下。
+
+    .. versionchanged:: 0.9.11
+
+        构建工具由 ``poetry`` 迁移到 ``uv``
 
 ========================
 构建 python 包
@@ -11,7 +18,7 @@
 
 .. code-block:: shell
 
-    poetry build
+    uv build
 
 sdist & bdist 在 :file:`dist/` 下
 
@@ -39,8 +46,8 @@ sdist & bdist 在 :file:`dist/` 下
 
 .. code-block:: shell
 
-    poetry install -E doc
-    poetry run sphinx-build doc/source doc/build/html -D release=$(poetry version -s)
+    uv sync --group doc
+    uv run sphinx-build doc/source doc/build/html -D release=$(uv version --short)
 
 html 在 :file:`doc/build/html` 下
 
@@ -50,4 +57,4 @@ html 在 :file:`doc/build/html` 下
 
 .. code-block:: shell
 
-    docker build -f docker/Dockerfile -t qzone3tg:$(poetry version -s) .
+    docker build -f docker/Dockerfile -t qzone3tg:$(uv version --short) .

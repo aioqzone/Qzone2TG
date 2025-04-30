@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aiogram.types import BotCommand, Message
-from aiogram.utils.formatting import Bold
+from aiogram.utils.formatting import Bold, Text, as_key_value, as_marked_section
 from aiogram.utils.formatting import BotCommand as CommandText
-from aiogram.utils.formatting import Text, as_key_value, as_marked_section
 
 if TYPE_CHECKING:
     from qzone3tg.app.interact import InteractApp
