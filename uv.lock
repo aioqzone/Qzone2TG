@@ -1,6 +1,6 @@
 version = 1
 revision = 2
-requires-python = ">=3.13, <4"
+requires-python = ">=3.13.0, <3.14"
 
 [[package]]
 name = "aiofiles"
@@ -90,11 +90,10 @@ wheels = [
 
 [[package]]
 name = "aioqzone"
-version = "1.9.3.dev3"
+version = "1.9.4.dev5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
-    { name = "exceptiongroup" },
     { name = "pillow" },
     { name = "pychaosvm" },
     { name = "pydantic" },
@@ -103,21 +102,22 @@ dependencies = [
     { name = "tenacity" },
     { name = "tylisten" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/9e/99c38da7246ab2a482347481dc3f9f1ed7d855f8c6e533c5c2d939d23848/aioqzone-1.9.3.dev3.tar.gz", hash = "sha256:7b519be400cb857959b73bb89ea5b792571e0126c120f0062e00ff0f2e0b456d", size = 51473, upload-time = "2025-04-13T10:37:27.347Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/74/c6133051895fb0bc9d59e7383e3fedbe59ded8084ac57977a61a0873d070/aioqzone-1.9.4.dev5.tar.gz", hash = "sha256:04617aaa69ef8049aaf9eafe25982e0ced4108dcd07c3fbad8cf0fbb193a7a24", size = 224421, upload-time = "2025-05-04T03:07:10.909Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/8e/8d513841adf18fa474f602992357a471526979f70bb8f04bb883896eedff/aioqzone-1.9.3.dev3-py3-none-any.whl", hash = "sha256:62a74f7d588c8f5cf9555796f6ee4f3170c4610e94ad7385eb3885054836ad3a", size = 66456, upload-time = "2025-04-13T10:37:25.72Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/a0/ecdf3311df8fe62c217f0d322528e95e1f1cae0eed4f0762081cb606aaab/aioqzone-1.9.4.dev5-py3-none-any.whl", hash = "sha256:539edbd10d8d2b5eaeadc461204c7a242d4ec4b009f840bbdf8d4b4fb0929d0d", size = 66401, upload-time = "2025-05-04T03:07:09.134Z" },
 ]
 
 [[package]]
 name = "aioqzone-feed"
-version = "1.3.0.dev1"
+version = "1.3.1.dev1"
 source = { registry = "https://aioqzone.github.io/aioqzone-index/simple/" }
 dependencies = [
     { name = "aioqzone" },
+    { name = "pychaosvm" },
 ]
-sdist = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.3.0.dev1/aioqzone_feed-1.3.0.dev1.tar.gz", hash = "sha256:fd0be716676b8b724eff128c938808880d7cb2c042e77782dffb97eaf9222c40" }
+sdist = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.3.1.dev1/aioqzone_feed-1.3.1.dev1.tar.gz", hash = "sha256:0359123e735de98e46afc6163b7eb082817150877ba33fda4598cf8c60b76500" }
 wheels = [
-    { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.3.0.dev1/aioqzone_feed-1.3.0.dev1-py3-none-any.whl", hash = "sha256:1d057d01960f676b466c3521d9dc124e5cceeb33fe5d2d2ab81121f20e4015d0" },
+    { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.3.1.dev1/aioqzone_feed-1.3.1.dev1-py3-none-any.whl", hash = "sha256:ce466015f42eb4bf6f2cb67c2545cedb6fa8736513300fdcb2e0b0a6da58611e" },
 ]
 
 [package.optional-dependencies]
@@ -291,15 +291,6 @@ wheels = [
 ]
 
 [[package]]
-name = "exceptiongroup"
-version = "1.2.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/09/35/2495c4ac46b980e4ca1f6ad6db102322ef3ad2410b79fdde159a4b0f3b92/exceptiongroup-1.2.2.tar.gz", hash = "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc", size = 28883, upload-time = "2024-07-12T22:26:00.161Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/cc/b7e31358aac6ed1ef2bb790a9746ac2c69bcb3c8588b41616914eb106eaf/exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b", size = 16453, upload-time = "2024-07-12T22:25:58.476Z" },
-]
-
-[[package]]
 name = "filelock"
 version = "3.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -388,7 +379,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/79/e0/1bb90d30b5450eac2dffeaac6b692857c4bd642c21883b79faa8fa056cf2/greenlet-3.2.1-cp313-cp313t-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:51a2f49da08cff79ee42eb22f1658a2aed60c72792f0a0a95f5f0ca6d101b1fb", size = 593687, upload-time = "2025-04-22T14:25:59.676Z" },
     { url = "https://files.pythonhosted.org/packages/c5/b5/adbe03c8b4c178add20cc716021183ae6b0326d56ba8793d7828c94286f6/greenlet-3.2.1-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:0c68bbc639359493420282d2f34fa114e992a8724481d700da0b10d10a7611b8", size = 1105754, upload-time = "2025-04-22T14:59:02.585Z" },
     { url = "https://files.pythonhosted.org/packages/39/93/84582d7ef38dec009543ccadec6ab41079a6cbc2b8c0566bcd07bf1aaf6c/greenlet-3.2.1-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:e775176b5c203a1fa4be19f91da00fd3bff536868b77b237da3f4daa5971ae5d", size = 1125160, upload-time = "2025-04-22T14:28:13.975Z" },
-    { url = "https://files.pythonhosted.org/packages/01/e6/f9d759788518a6248684e3afeb3691f3ab0276d769b6217a1533362298c8/greenlet-3.2.1-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:d6668caf15f181c1b82fb6406f3911696975cc4c37d782e19cb7ba499e556189", size = 269897, upload-time = "2025-04-22T14:27:14.044Z" },
 ]
 
 [[package]]
@@ -774,14 +764,14 @@ wheels = [
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.25.3"
+version = "0.26.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/a8/ecbc8ede70921dd2f544ab1cadd3ff3bf842af27f87bbdea774c7baa1d38/pytest_asyncio-0.25.3.tar.gz", hash = "sha256:fc1da2cf9f125ada7e710b4ddad05518d4cee187ae9412e9ac9271003497f07a", size = 54239, upload-time = "2025-01-28T18:37:58.729Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/c4/453c52c659521066969523e87d85d54139bbd17b78f09532fb8eb8cdb58e/pytest_asyncio-0.26.0.tar.gz", hash = "sha256:c4df2a697648241ff39e7f0e4a73050b03f123f760673956cf0d72a4990e312f", size = 54156, upload-time = "2025-03-25T06:22:28.883Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/17/3493c5624e48fd97156ebaec380dcaafee9506d7e2c46218ceebbb57d7de/pytest_asyncio-0.25.3-py3-none-any.whl", hash = "sha256:9e89518e0f9bd08928f97a3482fdc4e244df17529460bc038291ccaf8f85c7c3", size = 19467, upload-time = "2025-01-28T18:37:56.798Z" },
+    { url = "https://files.pythonhosted.org/packages/20/7f/338843f449ace853647ace35870874f69a764d251872ed1b4de9f234822c/pytest_asyncio-0.26.0-py3-none-any.whl", hash = "sha256:7b51ed894f4fbea1340262bdae5135797ebbe21d8638978e35d31c6d19f72fb0", size = 19694, upload-time = "2025-03-25T06:22:27.807Z" },
 ]
 
 [[package]]
@@ -836,14 +826,13 @@ wheels = [
 
 [[package]]
 name = "qzone3tg"
-version = "0.9.11.dev1"
+version = "0.9.11.dev2"
 source = { editable = "." }
 dependencies = [
     { name = "aiogram", extra = ["proxy"] },
     { name = "aioqzone-feed" },
     { name = "apscheduler" },
     { name = "qzemoji" },
-    { name = "tylisten" },
 ]
 
 [package.optional-dependencies]
@@ -871,11 +860,10 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "aiogram", extras = ["proxy"], specifier = ">=3.3.0,<4.0.0" },
-    { name = "aioqzone-feed", specifier = ">=1.3.0.dev1,<2.0.0", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
+    { name = "aioqzone-feed", specifier = ">=1.3.1.dev1,<2.0.0", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "aioqzone-feed", extras = ["slide-captcha"], marker = "extra == 'slide-captcha'", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "apscheduler", specifier = ">=3.10.4,<4.0.0" },
     { name = "qzemoji", specifier = ">=6.1.0" },
-    { name = "tylisten", index = "https://pypi.org/simple" },
 ]
 provides-extras = ["slide-captcha"]
 
@@ -893,7 +881,7 @@ doc = [
 ]
 test = [
     { name = "pytest", specifier = ">=8.2.1,<9.0.0" },
-    { name = "pytest-asyncio", specifier = "~=0.25.2" },
+    { name = "pytest-asyncio", specifier = "~=0.26.0" },
 ]
 
 [[package]]
@@ -959,15 +947,15 @@ wheels = [
 
 [[package]]
 name = "slide-tc"
-version = "0.1.1"
+version = "0.1.3"
 source = { registry = "https://aioqzone.github.io/aioqzone-index/simple/" }
 dependencies = [
     { name = "numpy" },
     { name = "pillow" },
 ]
-sdist = { url = "https://github.com/aioqzone/slide-tc/releases/download/0.1.1/slide_tc-0.1.1.tar.gz", hash = "sha256:ae39b3aa9d06293e675329290c05c183bf6a5f364556a6c2def9a3b8b8dc5756" }
+sdist = { url = "https://github.com/aioqzone/slide-tc/releases/download/0.1.3/slide_tc-0.1.3.tar.gz", hash = "sha256:fc0142487e294894f76c82216babcd1cd0031f66f39c62f210d37e4f9cf168f7" }
 wheels = [
-    { url = "https://github.com/aioqzone/slide-tc/releases/download/0.1.1/slide_tc-0.1.1-py3-none-any.whl", hash = "sha256:18d3ac4e37dfa4303fa6a29a9ce3abd271861ff7a84872130322fe41dd4d11f7" },
+    { url = "https://github.com/aioqzone/slide-tc/releases/download/0.1.3/slide_tc-0.1.3-py3-none-any.whl", hash = "sha256:6bf1de86c54ef41b7e82b4772d81f8af51dc6b0b97587701616cac3f866762f6" },
 ]
 
 [[package]]
@@ -1111,7 +1099,7 @@ name = "sqlalchemy"
 version = "2.0.40"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "greenlet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'WIN32') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'ppc64le') or (python_full_version < '3.14' and platform_machine == 'win32') or (python_full_version < '3.14' and platform_machine == 'x86_64')" },
+    { name = "greenlet", marker = "platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/68/c3/3f2bfa5e4dcd9938405fe2fab5b6ab94a9248a4f9536ea2fd497da20525f/sqlalchemy-2.0.40.tar.gz", hash = "sha256:d827099289c64589418ebbcaead0145cd19f4e3e8a93919a0100247af245fa00", size = 9664299, upload-time = "2025-03-27T17:52:31.876Z" }
@@ -1148,14 +1136,14 @@ wheels = [
 
 [[package]]
 name = "tylisten"
-version = "2.1.4"
+version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/ec/fabd55137757ddc93d9bac3eba5262d5b2cc472e005bed6d7d2172e3206b/tylisten-2.1.4.tar.gz", hash = "sha256:18f3277c69ea8e9cc1e6b70c9dffbd4329d07eb827428e80f8f2eff29db48990", size = 5722, upload-time = "2024-02-03T02:30:12.41Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/44/ae2fe673eb65bbdba313ffe7366c52ff31bf40c2b0247ab6609c72477d0a/tylisten-2.2.1.tar.gz", hash = "sha256:de2402e80c4642d753d634378dac3df753124743a3f6495a76358203d459b436", size = 45990, upload-time = "2025-05-01T14:56:02.649Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/3a/7377e9914a084c9580a4e3cf44d16d1999904f06d40ace3f8f8ce9244779/tylisten-2.1.4-py3-none-any.whl", hash = "sha256:66d8cc7dad81eb8974042277b5b510ad3a955f62f843d99c9cd88c1e095cd119", size = 8221, upload-time = "2024-02-03T02:30:10.791Z" },
+    { url = "https://files.pythonhosted.org/packages/db/da/a060c4b76c7208126d782973ca3ddf1813f71e48a21aec5747c32644401a/tylisten-2.2.1-py3-none-any.whl", hash = "sha256:9e9f0a1083b1b98f1719db546ba85a01a0a49f5eadfe59680fc142e3063ebfeb", size = 8234, upload-time = "2025-05-01T14:56:01.437Z" },
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [project]
 name = "Qzone3TG"
-version = "0.9.11.dev1"
+version = "0.9.11.dev2"
 description = "Forward Qzone feeds to telegram."
 authors = [{ name = "aioqzone" }]
 maintainers = [
@@ -8,17 +8,15 @@ maintainers = [
 ]
 readme = "README.md"
 license = { text = "AGPL-3.0" }
-requires-python = "~=3.13"
+requires-python = "~=3.13.0"
 dependencies = [
-    "aioqzone-feed>=1.3.0.dev1,<2.0.0",
-    "tylisten",
+    "aioqzone-feed>=1.3.1.dev1,<2.0.0",
     "qzemoji>=6.1.0",
     "aiogram[proxy]>=3.3.0,<4.0.0",
     "apscheduler>=3.10.4,<4.0.0",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/aioqzone/Qzone2TG"
 "Repository" = "https://github.com/aioqzone/Qzone2TG"
 "Documentation" = "https://aioqzone.github.io/Qzone2TG"
 
@@ -27,7 +25,7 @@ slide-captcha = ["aioqzone-feed[slide-captcha]"]
 
 [dependency-groups]
 dev = ["pre-commit", "ruff"]
-test = ["pytest>=8.2.1,<9.0.0", "pytest-asyncio~=0.25.2"]
+test = ["pytest>=8.2.1,<9.0.0", "pytest-asyncio~=0.26.0"]
 doc = [
     "Sphinx>=8.0.2,<9.0.0",
     "autodoc-pydantic",
@@ -36,20 +34,12 @@ doc = [
     "sphinx-design>=0.6.1,<1.0.0",
 ]
 
-[tool.uv]
-prerelease = "if-necessary-or-explicit"
-
 [tool.uv.sources]
-tylisten = { index = "PyPI" }
 aioqzone-feed = { index = "aioqzone-index" }
 
 [[tool.uv.index]]
 name = "aioqzone-index"
 url = "https://aioqzone.github.io/aioqzone-index/simple/"
-
-[[tool.uv.index]]
-name = "PyPI"
-url = "https://pypi.org/simple"
 
 [build-system]
 requires = ["hatchling"]
@@ -60,10 +50,6 @@ asyncio_default_fixture_loop_scope = "function"
 log_cli_level = 'WARNING'
 pythonpath = 'src'
 log_cli = true
-
-[tool.isort]
-profile = "black"
-line_length = 99
 
 [tool.ruff]
 line-length = 99
