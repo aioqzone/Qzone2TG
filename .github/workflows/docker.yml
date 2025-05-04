@@ -29,6 +29,7 @@ jobs:
       push: ${{ github.event.action != 'ready_for_review' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
 
       - id: match
         name: Match package version
@@ -49,8 +50,7 @@ jobs:
 
       - name: export requirements
         run: |
-          pipx install uv
-          uv export --format requirements-txt -q --no-annotate --no-hashes --no-emit-project -o requirements.txt
+          uv pip compile -q -o requirements.txt --no-annotate --emit-index-url pyproject.toml
           cp docker/.dockerignore .dockerignore
 
       - name: Build and push Docker images

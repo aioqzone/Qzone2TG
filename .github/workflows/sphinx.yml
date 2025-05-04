@@ -30,7 +30,7 @@ jobs:
       - name: Install Library and Build HTML
         run: |
           echo "::group::Install Library"
-          uv sync --group doc
+          uv sync --no-default-groups --group doc
           echo "::endgroup::"
 
           echo "::group::Build HTML"
