@@ -28,7 +28,7 @@ jobs:
     env:
       push: ${{ github.event.action != 'ready_for_review' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
 
       - id: match
