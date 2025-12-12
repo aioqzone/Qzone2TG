@@ -7,7 +7,7 @@ maintainers = [
     { name = "JamzumSum", email = "22952836+JamzumSum@users.noreply.github.com" },
 ]
 readme = "README.md"
-license = { text = "AGPL-3.0" }
+license = { text = "AGPL-3.0-or-later" }
 requires-python = "~=3.14.0"
 dependencies = [
     "aioqzone>=1.9.6.dev2",
