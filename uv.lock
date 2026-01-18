@@ -918,7 +918,7 @@ wheels = [
 
 [[package]]
 name = "qzemoji"
-version = "6.2.0"
+version = "7.0.0"
 source = { registry = "https://aioqzone.github.io/aioqzone-index/simple/" }
 dependencies = [
     { name = "aiofiles" },
@@ -927,9 +927,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "sqlalchemy", extra = ["aiosqlite", "asyncio"] },
 ]
-sdist = { url = "https://github.com/aioqzone/QzEmoji/releases/download/6.2.0/qzemoji-6.2.0.tar.gz", hash = "sha256:b5f9beee33640baecfca97f2c9edcd9292aa255bd20a47223c4f8ed21b7d5687" }
+sdist = { url = "https://github.com/aioqzone/QzEmoji/releases/download/7.0.0/qzemoji-7.0.0.tar.gz", hash = "sha256:84bc9769a783c5f7f2843e83d55b6ffc328e11b7beee8517b9167bfd6b6c929f" }
 wheels = [
-    { url = "https://github.com/aioqzone/QzEmoji/releases/download/6.2.0/qzemoji-6.2.0-py3-none-any.whl", hash = "sha256:1f53c876d052473d747ac5c70d69411b4e3f46ae040d052bb3e8d798e562c089" },
+    { url = "https://github.com/aioqzone/QzEmoji/releases/download/7.0.0/qzemoji-7.0.0-py3-none-any.whl", hash = "sha256:5850eeac54e3bef92d67c8fdc9bb61ffb436944b171318f9e9d42f92d53a740b" },
 ]
 
 [[package]]
@@ -973,7 +973,7 @@ requires-dist = [
     { name = "aioqzone-feed", specifier = ">=1.3.2.dev1,<2.0.0", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "aioqzone-feed", extras = ["slide-captcha"], marker = "extra == 'slide-captcha'", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "apscheduler", specifier = ">=3.10.4,<4.0.0" },
-    { name = "qzemoji", specifier = ">=6.2.0" },
+    { name = "qzemoji", specifier = ">=7.0.0" },
 ]
 provides-extras = ["slide-captcha"]
 
