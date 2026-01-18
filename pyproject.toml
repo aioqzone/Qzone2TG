@@ -1,6 +1,6 @@
 [project]
 name = "Qzone3TG"
-version = "0.9.12.dev1"
+version = "0.9.12.dev2"
 description = "Forward Qzone feeds to telegram."
 authors = [{ name = "aioqzone" }]
 maintainers = [
@@ -12,7 +12,7 @@ requires-python = "~=3.14.0"
 dependencies = [
     "aioqzone>=1.9.6.dev2",
     "aioqzone-feed>=1.3.2.dev1,<2.0.0",
-    "qzemoji>=6.2.0",
+    "qzemoji>=7.0.0",
     "aiogram[proxy]>=3.23.0,<4.0.0",
     "apscheduler>=3.10.4,<4.0.0",
 ]
@@ -54,7 +54,3 @@ log_cli = true
 
 [tool.ruff]
 line-length = 99
-
-[tool.pyright]
-pythonVersion = "3.14"
-pythonPlatform = "All"
