@@ -1,6 +1,6 @@
 [project]
 name = "Qzone3TG"
-version = "0.9.12.dev1"
+version = "0.9.12.dev2"
 description = "Forward Qzone feeds to telegram."
 authors = [{ name = "aioqzone" }]
 maintainers = [
@@ -54,7 +54,3 @@ log_cli = true
 
 [tool.ruff]
 line-length = 99
-
-[tool.pyright]
-pythonVersion = "3.14"
-pythonPlatform = "All"
