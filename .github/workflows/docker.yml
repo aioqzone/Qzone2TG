@@ -55,7 +55,7 @@ jobs:
 
       - name: Build and push Docker images
         id: docker-build-push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: "."
           push: ${{ env.push }}
