@@ -6,12 +6,6 @@ updates:
     schedule:
       interval: daily
 
-  - package-ecosystem: pip
-    directory: "/"
-    schedule:
-      interval: daily
-    versioning-strategy: increase-if-necessary
-
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
