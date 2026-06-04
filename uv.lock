@@ -120,7 +120,7 @@ wheels = [
 
 [[package]]
 name = "aioqzone"
-version = "1.9.6.dev5"
+version = "1.9.6.dev6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -132,9 +132,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "tylisten" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/62/8436909bc1eb8638fc254a2c868456a66dc824afcb1d5c0cc04a32d528b4/aioqzone-1.9.6.dev5.tar.gz", hash = "sha256:cd39feefeb16e6e7fb099a6b7791996a5a5bc36f7d67c7fc6ee7777cb15e908d", size = 41137, upload-time = "2026-05-03T12:44:59.102Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/34/c2cbdc227263fbbd6443c26f20ec80a5d146bacd6b58e604e8c2314876f2/aioqzone-1.9.6.dev6.tar.gz", hash = "sha256:40c840820c8a9663fc2b02c65b12d0bfb51f1e51fd3330227a51f1b9009c246d", size = 41158, upload-time = "2026-06-03T13:29:13.641Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/1c/11ba2068f72ac26f7832e4aad3c55c5a5757a3dae068e0f23a33d83aff39/aioqzone-1.9.6.dev5-py3-none-any.whl", hash = "sha256:c2e0792c6fa71d686d00798a89cbe6e19f86ca993141037686eae106221f864a", size = 58364, upload-time = "2026-05-03T12:44:57.731Z" },
+    { url = "https://files.pythonhosted.org/packages/75/6b/6b422ef22ba08ef19657cb909a9dcbf03b9229991d1ec9fd25a521168cdc/aioqzone-1.9.6.dev6-py3-none-any.whl", hash = "sha256:70952ed3c100f18bed0a86ab00ac8d31e2618f0ea7bcd9b2b284ec5e137c7afa", size = 58374, upload-time = "2026-06-03T13:29:14.44Z" },
 ]
 
 [[package]]
@@ -338,11 +338,11 @@ wheels = [
 
 [[package]]
 name = "filelock"
-version = "3.29.0"
+version = "3.29.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b5/fe/997687a931ab51049acce6fa1f23e8f01216374ea81374ddee763c493db5/filelock-3.29.0.tar.gz", hash = "sha256:69974355e960702e789734cb4871f884ea6fe50bd8404051a3530bc07809cf90", size = 57571, upload-time = "2026-04-19T15:39:10.068Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/f9/f38573ed5844586db374d085911740a501ccfa373b455fc9413f09f85237/filelock-3.29.1.tar.gz", hash = "sha256:d97e6b1b9757569626c58caa07dc4beb1613f4a2938b1e8cc81afca398906c9e", size = 59335, upload-time = "2026-06-03T15:19:04.053Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/47/dd9a212ef6e343a6857485ffe25bba537304f1913bdbed446a23f7f592e1/filelock-3.29.0-py3-none-any.whl", hash = "sha256:96f5f6344709aa1572bbf631c640e4ebeeb519e08da902c39a001882f30ac258", size = 39812, upload-time = "2026-04-19T15:39:08.752Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/a0/614c5fe402fd88951df45f4dda2fa3b4e17a99ecd92340771929169b3b95/filelock-3.29.1-py3-none-any.whl", hash = "sha256:85199dfd706869641b72b2e8955d5416a4b2b7dc4b0e8e6d97b4cc1299a6983b", size = 40750, upload-time = "2026-06-03T15:19:02.959Z" },
 ]
 
 [[package]]
