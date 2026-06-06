@@ -120,7 +120,7 @@ wheels = [
 
 [[package]]
 name = "aioqzone"
-version = "1.9.6.dev6"
+version = "1.9.7.dev1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -132,9 +132,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "tylisten" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/34/c2cbdc227263fbbd6443c26f20ec80a5d146bacd6b58e604e8c2314876f2/aioqzone-1.9.6.dev6.tar.gz", hash = "sha256:40c840820c8a9663fc2b02c65b12d0bfb51f1e51fd3330227a51f1b9009c246d", size = 41158, upload-time = "2026-06-03T13:29:13.641Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/bc/f959dae3f254af98cf3aa29db695f9ea0cdecd805bb244456b673b73b7bd/aioqzone-1.9.7.dev1.tar.gz", hash = "sha256:2f1fd8f8a79431ae44ad7b53715c8054ff2eaba95d80b5df9d9b753c90faeef6", size = 41355, upload-time = "2026-06-05T15:46:49.948Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/6b/6b422ef22ba08ef19657cb909a9dcbf03b9229991d1ec9fd25a521168cdc/aioqzone-1.9.6.dev6-py3-none-any.whl", hash = "sha256:70952ed3c100f18bed0a86ab00ac8d31e2618f0ea7bcd9b2b284ec5e137c7afa", size = 58374, upload-time = "2026-06-03T13:29:14.44Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/ba/eac8beee13be219e8e69383ce6ba099f5e0d94382f1dc752ccaed94d0167/aioqzone-1.9.7.dev1-py3-none-any.whl", hash = "sha256:740722138383be28a16e16f9f7dfeea3e9fda7bba5f0700abc1a52f2401fcf10", size = 58567, upload-time = "2026-06-05T15:46:50.968Z" },
 ]
 
 [[package]]
