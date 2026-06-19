@@ -19,7 +19,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.action != 'opened' || startsWith(github.head_ref, 'deps/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
