@@ -127,7 +127,7 @@ wheels = [
 
 [[package]]
 name = "aioqzone"
-version = "1.9.7.dev1"
+version = "1.9.8.dev1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -139,9 +139,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "tylisten" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/bc/f959dae3f254af98cf3aa29db695f9ea0cdecd805bb244456b673b73b7bd/aioqzone-1.9.7.dev1.tar.gz", hash = "sha256:2f1fd8f8a79431ae44ad7b53715c8054ff2eaba95d80b5df9d9b753c90faeef6", size = 41355, upload-time = "2026-06-05T15:46:49.948Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/6a/41d84535dcd291c7ae6a85cf6b701200d4d9ecbe41f9787e0e130e4b0edf/aioqzone-1.9.8.dev1.tar.gz", hash = "sha256:3604d78236f882db9052449890816f04064613f8d1d69174bb2cdc57f2f59f2d", size = 47372, upload-time = "2026-07-11T01:48:04.689Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/ba/eac8beee13be219e8e69383ce6ba099f5e0d94382f1dc752ccaed94d0167/aioqzone-1.9.7.dev1-py3-none-any.whl", hash = "sha256:740722138383be28a16e16f9f7dfeea3e9fda7bba5f0700abc1a52f2401fcf10", size = 58567, upload-time = "2026-06-05T15:46:50.968Z" },
+    { url = "https://files.pythonhosted.org/packages/14/a6/59e4a6ab55a1de3af3971e018c48ce8e6bfca789d3943e80e671007a772c/aioqzone-1.9.8.dev1-py3-none-any.whl", hash = "sha256:ca7ad71127d6d6d0c63026a128419a33061e05b7617cc1279be17059e45c5db2", size = 66006, upload-time = "2026-07-11T01:48:03.726Z" },
 ]
 
 [[package]]
@@ -970,7 +970,7 @@ wheels = [
 
 [[package]]
 name = "qzone3tg"
-version = "0.9.12.dev2"
+version = "0.9.12.dev3"
 source = { editable = "." }
 dependencies = [
     { name = "aiogram", extra = ["proxy"] },
@@ -1005,7 +1005,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "aiogram", extras = ["proxy"], specifier = ">=3.23.0,<4.0.0" },
-    { name = "aioqzone", specifier = ">=1.9.6.dev2" },
+    { name = "aioqzone", specifier = ">=1.9.8.dev1" },
     { name = "aioqzone-feed", specifier = ">=1.3.2.dev1,<2.0.0", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "aioqzone-feed", extras = ["slide-captcha"], marker = "extra == 'slide-captcha'", index = "https://aioqzone.github.io/aioqzone-index/simple/" },
     { name = "apscheduler", specifier = ">=3.10.4,<4.0.0" },
@@ -1363,7 +1363,7 @@ wheels = [
 
 [[package]]
 name = "virtualenv"
-version = "21.6.0"
+version = "21.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
@@ -1371,9 +1371,9 @@ dependencies = [
     { name = "platformdirs" },
     { name = "python-discovery" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/65/ec1d92091671e6407d3e7c1f5801413bb7b2b57630a50cae7750456ba0ed/virtualenv-21.6.0.tar.gz", hash = "sha256:e18a4d750f2b64dea73e72ffde3922f3c52365fabdc8157ebd3da20d031c4734", size = 5526111, upload-time = "2026-07-06T22:49:56.972Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/d9/b477fddb68840b570af8b22afe9b035cbc277b5fb7b33dea390617a8b10f/virtualenv-21.6.1.tar.gz", hash = "sha256:15f978b7cd329f24855ff4a0c4b4899cc7678589f49adbdcbbb4d3232e641128", size = 5526620, upload-time = "2026-07-10T19:33:53.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/e7/2fbd0cc1653c53eed8f10670538bb547de2b3e37aacad283faa82a71094b/virtualenv-21.6.0-py3-none-any.whl", hash = "sha256:bce9d097950fef9d81129b333babfb7767072850c2f1acce0ec536708401bfd1", size = 5506216, upload-time = "2026-07-06T22:49:54.941Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/7c/4e7225d46d634a0d8d534dd8a6ce0c319d09b4d0cf0337eb314ca4789d8c/virtualenv-21.6.1-py3-none-any.whl", hash = "sha256:afe991df855715a2b2f60edfcc0107ef95a79fdfd8cb4cdaa71603d1c12e463b", size = 5506392, upload-time = "2026-07-10T19:33:51.629Z" },
 ]
 
 [[package]]

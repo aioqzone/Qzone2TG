@@ -11,7 +11,7 @@ from aiogram.utils.formatting import BotCommand as CommandText
 from aiogram.utils.formatting import Pre, Text
 from aiohttp import ClientResponseError
 from aioqzone.exception import QzoneError
-from aioqzone.model import LikeData, PersudoCurkey
+from aioqzone.model import LikeData, PseudoCurkey
 from qqqr.utils.iter import firstn
 
 from ..storage.orm import FeedOrm
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 async def like_core(self: InteractApp, key: str | int, like=True) -> str | None:
     match key:
         case str():
-            feed = await self.store.get_feed_orm(*FeedOrm.primkey(PersudoCurkey.from_str(key)))
+            feed = await self.store.get_feed_orm(*FeedOrm.primkey(PseudoCurkey.from_str(key)))
         case int():
             feed = await self.Mid2Feed(key)
 
@@ -38,7 +38,7 @@ async def like_core(self: InteractApp, key: str | int, like=True) -> str | None:
         await self.qzone.internal_dolike_app(
             feed.appid,
             unikey=feed.unikey,
-            curkey=feed.curkey or LikeData.persudo_curkey(feed.uin, feed.abstime),
+            curkey=feed.curkey or LikeData.pseudo_curkey(feed.uin, feed.abstime),
             like=like,
         )
     except ClientResponseError as e:
@@ -56,8 +56,9 @@ def invert_callback_data(message: Message):
 
     like_btn = firstn(
         chain(*kbd),
-        lambda b: b.callback_data
-        and SerialCbData.unpack(b.callback_data).command in ["like", "unlike"],
+        lambda b: (
+            b.callback_data and SerialCbData.unpack(b.callback_data).command in ["like", "unlike"]
+        ),
     )
     if like_btn is None:
         return

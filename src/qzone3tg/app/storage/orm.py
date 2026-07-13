@@ -1,7 +1,7 @@
 """This module defines orms in this app."""
 
 import sqlalchemy as sa
-from aioqzone.model import FeedData, PersudoCurkey, ProfileFeedData
+from aioqzone.model import FeedData, ProfileFeedData, PseudoCurkey
 from aioqzone_feed.type import BaseFeed
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column, relationship
 
@@ -52,11 +52,11 @@ class FeedOrm(Base):
         return record
 
     @classmethod
-    def primkey(cls, feed: BaseFeed | PersudoCurkey | FeedData | ProfileFeedData):
+    def primkey(cls, feed: BaseFeed | PseudoCurkey | FeedData | ProfileFeedData):
         match feed:
             case FeedData():
                 return cls.uin == feed.userinfo.uin, cls.abstime == feed.abstime
-            case BaseFeed() | FeedOrm() | PersudoCurkey():
+            case BaseFeed() | FeedOrm() | PseudoCurkey():
                 return cls.uin == feed.uin, cls.abstime == feed.abstime
             case _:
                 raise TypeError(type(feed))

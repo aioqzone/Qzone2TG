@@ -24,7 +24,7 @@ def add_button_impls(self: InteractApp):
     def _like_markup(feed: FeedContent) -> InlineKeyboardButton | None:
         if feed.unikey is None:
             return
-        curkey = LikeData.persudo_curkey(feed.uin, feed.abstime)
+        curkey = LikeData.pseudo_curkey(feed.uin, feed.abstime)
         command, text = ("unlike", "取消赞") if feed.islike else ("like", "赞")
 
         return InlineKeyboardButton(
