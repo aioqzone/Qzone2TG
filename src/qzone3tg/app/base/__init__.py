@@ -296,7 +296,7 @@ class BaseApp(StorageMixin):
             if self.dp._stop_signal:
                 self.dp._stop_signal.set()
             qe.close()
-        except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
+        except KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError:
             self.log.error("Force stopping...", exc_info=True)
             return
         except:

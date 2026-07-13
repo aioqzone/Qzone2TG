@@ -134,7 +134,7 @@ class InteractApp(BaseApp):
         # And finally start webserver
         try:
             await web._run_app(app, host="0.0.0.0", port=conf.port)
-        except (web.GracefulExit, KeyboardInterrupt):
+        except web.GracefulExit, KeyboardInterrupt:
             pass
 
     async def run(self):

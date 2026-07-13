@@ -23,7 +23,7 @@ from aiogram.utils.formatting import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiohttp import ClientResponseError
 from aioqzone.exception import QzoneError
-from aioqzone.model import PersudoCurkey
+from aioqzone.model import PseudoCurkey
 
 from qzone3tg.app.storage.orm import FeedOrm
 
@@ -71,7 +71,7 @@ async def btn_comment_refresh(
     assert callback_data.sub_command
 
     orm = await self.store.get_feed_orm(
-        *FeedOrm.primkey(PersudoCurkey.from_str(callback_data.sub_command))
+        *FeedOrm.primkey(PseudoCurkey.from_str(callback_data.sub_command))
     )
     if orm is None:
         await query.answer(
@@ -193,7 +193,7 @@ async def comment_core(
                     text="刷新",
                     callback_data=SerialCbData(
                         command="comment_refresh",
-                        sub_command=str(PersudoCurkey(uin=orm.uin, abstime=orm.abstime)),
+                        sub_command=str(PseudoCurkey(uin=orm.uin, abstime=orm.abstime)),
                     ).pack(),
                 )
                 comments = sorted(detail.comment.comments, key=lambda comment: comment.commentid)
