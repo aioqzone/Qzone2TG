@@ -30,6 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.15"
 
       - id: match
         name: Match package version
@@ -50,7 +52,9 @@ jobs:
 
       - name: export requirements
         run: |
-          uv pip compile -q -o requirements.txt --no-annotate --emit-index-url pyproject.toml
+          uv export --format requirements-txt -q --no-annotate --no-hashes \
+            --no-emit-project --no-dev --emit-index-url --locked \
+            -o requirements.txt
           cp docker/.dockerignore .dockerignore
 
       - name: Build and push Docker images

@@ -1,4 +1,10 @@
-FROM python:3.14-slim AS build
+FROM python:3.15-slim AS build
+
+# uv is only needed while building; it is not copied to the runtime stage.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+ENV UV_PYTHON_DOWNLOADS=never
+# Allow zipapp.sh to install a build toolchain only if some dependency needs compiling.
+ENV INSTALL_BUILD_TOOLS=1
 
 WORKDIR /home/build
 
@@ -10,8 +16,9 @@ RUN bash src/zipapp.sh ./run
 #                 Runtime Stage
 # ==============================================
 
-FROM python:3.14-slim AS release
+FROM python:3.15-slim AS release
 # use slim since opencv-python doesn't offically support alpine.
+# No build toolchain is copied into this stage: only the packed app is.
 
 LABEL org.opencontainers.image.source=https://github.com/aioqzone/Qzone2TG
 LABEL org.opencontainers.image.description="Forward Qzone feeds to telegram."
