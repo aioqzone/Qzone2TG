@@ -1,3 +1,5 @@
 /*
 !/src
 !/requirements.txt
+!/pyproject.toml
+!/uv.lock
