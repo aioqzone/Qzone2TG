@@ -1259,14 +1259,14 @@ wheels = [
 
 [[package]]
 name = "tylisten"
-version = "2.5.1"
+version = "2.5.1.post1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/18/b0/f98e16a4b90b244732fee142934bbdff305d04d687b3f286e21512253afa/tylisten-2.5.1.tar.gz", hash = "sha256:6f118bc6e529c3e988508afa4310b0f31157d5a5e1e9cf8c24e5ace0d79315f2", size = 8617, upload-time = "2026-11-07T10:11:38.16Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/d5/3e3ae19e908e2a875257c4d16016668f6eda63d84c320156dc4f63d701fb/tylisten-2.5.1.post1.tar.gz", hash = "sha256:3a11ac0792863b0cb694f42273576936e7bcdd840964946b46a0723a77bccec9", size = 8606, upload-time = "2026-11-14T07:47:40.694Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e7/40/8be9f13b95f84be8eb6ef272850b8206d6ff2fff691362b4d74e80c83b7a/tylisten-2.5.1-py3-none-any.whl", hash = "sha256:70e924e28ce6c4317ca090fc6cb261c4a5a32391dc2a5e9db78951af168a8b47", size = 10426, upload-time = "2026-11-07T10:11:37.093Z" },
+    { url = "https://files.pythonhosted.org/packages/76/57/89ff7ab7ce1c274137a49834e1067dec150ce740c957c522c2eea63395e8/tylisten-2.5.1.post1-py3-none-any.whl", hash = "sha256:58a99a5d4b1772952f2a67db2c84908f329169d3ca704585f5655a7b69362a27", size = 10484, upload-time = "2026-11-14T07:47:39.819Z" },
 ]
 
 [[package]]
