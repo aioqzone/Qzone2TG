@@ -13,6 +13,7 @@ Welcome to Qzone3TG's documentation!
    quickstart
    config/index
    usage
+   security
    build
    reference
 

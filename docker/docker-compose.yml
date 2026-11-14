@@ -15,9 +15,13 @@ services:
     # network_mode: host
     expose: [80]
     volumes:
-      - /var/log/Qzone2TG:/app/log
+      - qzone-log:/app/log
       - ./config:/app/config:ro
       - qzone-data:/app/data
 
 volumes:
+  # 查看日志：docker logs qzone
+  # 配置了文件日志（如 config/log.yml）时，也可以：
+  # docker cp qzone:/app/log/error.log .
+  qzone-log:
   qzone-data:
