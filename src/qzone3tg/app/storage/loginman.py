@@ -99,7 +99,9 @@ class LoginManager(AsyncSessionProvider, ConstLoginMan):
             ptcz=prev.ptcz,
         )
         self.cookie.update(cookies)
-        log.debug(f"update cookie from storage: {self.cookie}")
+        log.debug(
+            f"update cookie from storage: {len(prev.p_skey)=}, {len(prev.pt4_token)=}, {len(prev.pt_guid_sig)=}, {len(prev.ptcz)=}"
+        )
 
         cookies = SimpleCookie(cookies)
         domains = dict(

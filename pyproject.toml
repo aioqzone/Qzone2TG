@@ -54,3 +54,4 @@ log_cli = true
 
 [tool.ruff]
 line-length = 99
+ignore = ["C408"]
