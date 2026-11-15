@@ -128,7 +128,7 @@ wheels = [
 
 [[package]]
 name = "aioqzone"
-version = "1.10.2.dev1"
+version = "1.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -140,22 +140,22 @@ dependencies = [
     { name = "tenacity" },
     { name = "tylisten" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/47/800c1a2370b85f3697f10a026f0dc040600638928fd97994faa0e3e26422/aioqzone-1.10.2.dev1.tar.gz", hash = "sha256:f078d58823f3c915478a9cd87ca391a6d901eb082168132ddecca6901e466553", size = 51848, upload-time = "2026-11-07T03:35:32.886Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/83/03bfa1d9250c9900704d868e3a21085006f94a0a8fad4f8cf396b32778b6/aioqzone-1.11.0.tar.gz", hash = "sha256:7aff36ce8208594659a8e5265cbd21005c3b5987a2063e3a9bdbb03f7e69ad52", size = 51873, upload-time = "2026-11-15T01:02:31.219Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/80/44572b3f11d075cd789be7cadf17f60abedc4f3c052a8318afd414a663c3/aioqzone-1.10.2.dev1-py3-none-any.whl", hash = "sha256:d9bf2f3eb6449851d7662358f4bfc097778c365bac5db34eba62f5b76fba4d83", size = 67198, upload-time = "2026-11-07T03:35:31.832Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/1c/7c20cc9f0c5e2d99ce3d82ceceab1a50a2bc1478a1120900a21521b58e65/aioqzone-1.11.0-py3-none-any.whl", hash = "sha256:f11871f5dffff88dde1640e66b21d1d6a9a80954a636e4d58b438eaa6d2062a8", size = 67150, upload-time = "2026-11-15T01:02:30.184Z" },
 ]
 
 [[package]]
 name = "aioqzone-feed"
-version = "1.4.0.dev1"
+version = "1.5.0"
 source = { registry = "https://aioqzone.github.io/aioqzone-index/simple/" }
 dependencies = [
     { name = "aioqzone" },
     { name = "pychaosvm" },
 ]
-sdist = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.4.0.dev1/aioqzone_feed-1.4.0.dev1.tar.gz", hash = "sha256:f4a7d39bc45a23c33b78b01631edd93fc7d67e20ea2547f684bc4c4bb2550192" }
+sdist = { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.5.0/aioqzone_feed-1.5.0.tar.gz", hash = "sha256:f17833a01fc1ce52898a4a85aff10d7980df119731c757b83f41dd1eb092e572" }
 wheels = [
-    { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.4.0.dev1/aioqzone_feed-1.4.0.dev1-py3-none-any.whl", hash = "sha256:79fec55f6a3dcb9296be53b393b5dcd7e5699031039785edb2898dd1a3800cfb" },
+    { url = "https://github.com/aioqzone/aioqzone-feed/releases/download/1.5.0/aioqzone_feed-1.5.0-py3-none-any.whl", hash = "sha256:63ddb9d9fc017e59a838b6567bb9a8196556a2c58a8ce8e4e3bcc68747d6fc8e" },
 ]
 
 [package.optional-dependencies]
@@ -1082,11 +1082,11 @@ wheels = [
 
 [[package]]
 name = "soupsieve"
-version = "4.1"
+version = "4.1.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/95/48/21a393ff731b8f928fa4f8176f9a7ceba2252ee60a5149f25b45c292aa5c/soupsieve-4.1.tar.gz", hash = "sha256:ca9abf7126667010d8f6e9b39bfc1bc3b23c8aed9bcb0f54a754dde969bb8aab", size = 161955, upload-time = "2026-11-10T01:59:50.399Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/52/ee5646b65d98a252e807ccc37725363942372a4113072e0bce7ed22f8b84/soupsieve-4.1.1.tar.gz", hash = "sha256:b296bd2d2f65b1a78149f3d7bf6736a147d2c9e2dfbde0e4404639d748a02e03", size = 169784, upload-time = "2026-11-14T17:23:32.467Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/73/6a2087c72975cfc07394623bca8d17654342ea4055ae368deafe5a81a542/soupsieve-4.1-py3-none-any.whl", hash = "sha256:e4d667b3974ce6e038e7390486b8093369854a1d345ffdd4c121dfc4a782e809", size = 52302, upload-time = "2026-11-10T01:59:48.571Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/65/7fae69a095696195334a934eab23aeb12e2715e6c3f08025d2f91942750e/soupsieve-4.1.1-py3-none-any.whl", hash = "sha256:8ff3422dab0b720fb667ee79864d80531a0e57994a13eb701697719ffcb751f6", size = 55089, upload-time = "2026-11-14T17:23:31.001Z" },
 ]
 
 [[package]]
